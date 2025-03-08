@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Layout, Input, Dropdown, Menu } from "antd";
 import { Link } from "react-router-dom";
 import { UserOutlined, EditOutlined, GiftOutlined, LogoutOutlined } from "@ant-design/icons";
@@ -10,72 +10,66 @@ const { Header } = Layout;
 const { Search } = Input;
 
 const Navbar = () => {
-  // Get authentication status from AuthContext
   const { isAuthenticated } = useAuth();
-  
-  // User's name (Can be fetched dynamically from API or context)
   const username = "คุณชื่อผู้ใช้"; 
 
-  // Function to handle logout
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Handle logout
   const handleLogout = () => {
-    removeAuthCookie(); // Remove authentication cookie
-    window.location.href = "/login"; // Redirect to login page
+    removeAuthCookie();
+    window.location.href = "/login";
   };
 
-  // Dropdown menu items for authenticated users
+  // Track scroll position to show/hide Navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > lastScrollY) {
+        setIsVisible(false); // ซ่อน Navbar เมื่อ scroll ลง
+      } else {
+        setIsVisible(true); // แสดง Navbar เมื่อ scroll ขึ้น
+      }
+      setLastScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
+  // Dropdown menu items
   const profileMenuItems = [
-    {
-      key: "edit-profile",
-      icon: <EditOutlined />,
-      label: <Link to="/profile/edit">แก้ไขข้อมูลส่วนตัว</Link>, // Edit profile link
-    },
-    {
-      key: "my-projects",
-      icon: <GiftOutlined />,
-      label: <Link to="/projects/my">ผลงานของฉัน</Link>, // Link to user's projects
-    },
-    {
-      key: "logout",
-      icon: <LogoutOutlined />,
-      label: <span onClick={handleLogout}>ออกจากระบบ</span>, // Logout action
-    },
+    { key: "edit-profile", icon: <EditOutlined />, label: <Link to="/profile/edit">แก้ไขข้อมูลส่วนตัว</Link> },
+    { key: "my-projects", icon: <GiftOutlined />, label: <Link to="/projects/my">ผลงานของฉัน</Link> },
+    { key: "logout", icon: <LogoutOutlined />, label: <span onClick={handleLogout}>ออกจากระบบ</span> },
   ];
 
   return (
-    // Navbar container with background color and padding
-    <Header className="bg-[#90278E] px-8 flex justify-between items-center h-16">
-      
-      {/* Left Section - Logo */}
+    <Header
+      className={`bg-[#90278E] px-8 flex justify-between items-center h-16 fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${
+        isVisible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
+      {/* Logo */}
       <div className="flex items-center">
         <Link to="/">
-          <img src={LogoCSI} alt="CSI Logo" className="h-12" /> {/* Logo image */}
+          <img src={LogoCSI} alt="CSI Logo" className="h-12" />
         </Link>
       </div>
 
       {/* Right Section - Menu & Search */}
       <div className="flex items-center ml-auto space-x-8 text-white">
-        
-        {/* Search Bar */}
-        <Search
-          placeholder="Search or jump to..."
-          allowClear
-          className="rounded-full text-gray-500 w-[300px]"
-        />
-
-        {/* Link to all projects */}
+        <Search placeholder="Search or jump to..." allowClear className="rounded-full text-gray-500 w-[300px]" />
         <Link to="/projects/all">ผลงานทั้งหมด</Link>
 
-        {/* User Authentication Check */}
         {isAuthenticated ? (
-          // If user is authenticated, show dropdown profile menu
           <Dropdown menu={{ items: profileMenuItems }} trigger={["click"]} placement="bottomRight">
             <div className="flex items-center cursor-pointer space-x-2">
-              <UserOutlined className="text-lg" /> {/* User icon */}
-              <span>สวัสดี {username}...</span> {/* Greeting with username */}
+              <UserOutlined className="text-lg" />
+              <span>สวัสดี {username}...</span>
             </div>
           </Dropdown>
         ) : (
-          // If not authenticated, show login link
           <Link to="/login">เข้าสู่ระบบ</Link>
         )}
       </div>
