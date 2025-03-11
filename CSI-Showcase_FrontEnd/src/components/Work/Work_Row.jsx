@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 
-const Work_Row = ({ title, items, description, side }) => {
+const Work_Row = ({ title, items, description, side, showActions = false, onEdit, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 4;
   const totalPages = Math.ceil(items.length / itemsPerPage);
@@ -39,8 +40,8 @@ const Work_Row = ({ title, items, description, side }) => {
               <div className="w-1/4 h-32 rounded-lg overflow-hidden bg-gray-200">
                 <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
               </div>
-              <div className="w-full bg-white p-4 rounded-lg shadow-md">
-                <p className="text-sm text-gray-400">Jan 1 2025</p>
+              <div className="w-full bg-white p-4 rounded-lg shadow-md relative">
+                <p className="text-sm text-gray-400">Jan 1 {item.year}</p>
                 <h2 className="text-lg font-bold text-[#90278E]">{item.title}</h2>
                 <p className="text-gray-700 text-sm mt-2">{item.description}</p>
                 <div className="mt-3">
@@ -48,6 +49,22 @@ const Work_Row = ({ title, items, description, side }) => {
                     ดูรายละเอียดเพิ่มเติม
                   </Link>
                 </div>
+                {showActions && (
+                  <div className="absolute top-2 right-2 flex space-x-4 bg-white p-2 rounded-lg shadow-md">
+                    <button 
+                      onClick={() => onEdit(item)} 
+                      className="flex items-center px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      <EditOutlined className="mr-2" /> แก้ไข
+                    </button>
+                    <button 
+                      onClick={() => onDelete(item)} 
+                      className="flex items-center px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      <DeleteOutlined className="mr-2" /> ลบ
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

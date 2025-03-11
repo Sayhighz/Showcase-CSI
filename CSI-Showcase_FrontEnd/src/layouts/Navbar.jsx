@@ -39,7 +39,6 @@ const Navbar = () => {
 
   // Dropdown menu items
   const profileMenuItems = [
-    { key: "edit-profile", icon: <EditOutlined />, label: <Link to="/profile/edit">แก้ไขข้อมูลส่วนตัว</Link> },
     { key: "my-projects", icon: <GiftOutlined />, label: <Link to="/projects/my">ผลงานของฉัน</Link> },
     { key: "logout", icon: <LogoutOutlined />, label: <span onClick={handleLogout}>ออกจากระบบ</span> },
   ];
