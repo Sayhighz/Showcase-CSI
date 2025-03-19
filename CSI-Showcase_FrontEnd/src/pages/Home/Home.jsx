@@ -3,27 +3,34 @@ import { motion, useAnimation } from 'framer-motion';
 import Banner from '../../components/Home/Banner';
 import Work_Col from '../../components/Work/Work_Col';
 import Work_Row from '../../components/Work/Work_Row';
+import { axiosGet } from '../../lib/axios';  // นำเข้า axiosGet ที่คุณได้เพิ่มไว้
 
 const Home = () => {
-  const items = [
-    { title: 'ระบบถังดับเพลิง', description: 'รายละเอียดของระบบถังดับเพลิง', image: '/path/to/image1.jpg', projectLink: '/projects/1' },
-    { title: 'ระบบจัดการข้อมูล', description: 'ระบบสำหรับจัดการข้อมูลผู้ใช้', image: '/path/to/image2.jpg', projectLink: '/projects/2' },
-    { title: 'ระบบติดตามการทำงาน', description: 'ระบบสำหรับติดตามความคืบหน้าของงาน', image: '/path/to/image3.jpg', projectLink: '/projects/3' },
-    { title: 'ระบบตรวจสอบความปลอดภัย', description: 'ระบบที่ช่วยในการตรวจสอบความปลอดภัย', image: '/path/to/image4.jpg', projectLink: '/projects/4' },
-    { title: 'ระบบจัดการพนักงาน', description: 'ระบบสำหรับจัดการข้อมูลพนักงาน', image: '/path/to/image5.jpg', projectLink: '/projects/5' },
-    { title: 'ระบบการเงิน', description: 'ระบบสำหรับการจัดการการเงิน', image: '/path/to/image6.jpg', projectLink: '/projects/6' },
-    { title: 'ระบบติดตามผลการศึกษา', description: 'ระบบที่ช่วยติดตามผลการเรียนของนักเรียน', image: '/path/to/image7.jpg', projectLink: '/projects/7' },
-    { title: 'ระบบการขนส่ง', description: 'ระบบที่ช่วยในการจัดการการขนส่งสินค้า', image: '/path/to/image8.jpg', projectLink: '/projects/8' },
-    { title: 'ระบบการจัดการห้องประชุม', description: 'ระบบสำหรับจัดการการจองห้องประชุม', image: '/path/to/image9.jpg', projectLink: '/projects/9' },
-    { title: 'ระบบจัดการอุปกรณ์', description: 'ระบบที่ช่วยในการจัดการอุปกรณ์ต่างๆ', image: '/path/to/image10.jpg', projectLink: '/projects/10' }
-  ];
-
+  const [items, setItems] = useState([]);  // สถานะเก็บข้อมูลที่ดึงจาก API สำหรับผลงานล่าสุด
+  const [top9Items, setTop9Items] = useState([]);  // สถานะเก็บข้อมูลที่ดึงจาก API สำหรับ top 9 most viewed
   const workControls = useAnimation();
   const bannerControls = useAnimation();
   const [scrollY, setScrollY] = useState(0);
   const [bannerOpacity, setBannerOpacity] = useState(1);
 
   useEffect(() => {
+    // ฟังก์ชันดึงข้อมูลโครงการจาก API
+    const fetchProjects = async () => {
+      try {
+        // เรียกใช้ API เพื่อดึงข้อมูลผลงานล่าสุด
+        const projectsData = await axiosGet('/projects/latest');
+        setItems(projectsData);  // เก็บข้อมูลผลงานล่าสุดใน items
+
+        // เรียกใช้ API เพื่อดึงข้อมูล top 9 most viewed projects
+        const top9Data = await axiosGet('/projects/top9');
+        setTop9Items(top9Data);  // เก็บข้อมูล top 9 most viewed projects ใน top9Items
+      } catch (error) {
+        console.error("Failed to fetch projects", error);
+      }
+    };
+
+    fetchProjects();  // เรียกฟังก์ชันเมื่อ component ถูกโหลด
+
     const handleScroll = () => {
       setScrollY(window.scrollY);
       const newOpacity = Math.max(1 - window.scrollY / 300, 0);
@@ -56,11 +63,14 @@ const Home = () => {
       <motion.div
         animate={workControls}
         initial={{ opacity: 0, y: 50 }}
-        className="relative flex flex-col items-center justify-center min-h-screen pt-[5vh] 1bg-white"
+        className="relative flex flex-col items-center justify-center min-h-screen pt-[5vh] bg-white"
       >
         <div className="container max-w-screen-xl mx-auto px-6">
-          <Work_Col title="ผลงานยอดนิยม" items={items} side="center" description="ผลงานที่น่าสนใจ" />
+          {/* แสดงผลงานยอดนิยม (Top 9 Most Viewed) */}
+          <Work_Col title="ผลงานยอดนิยม" items={top9Items} side="center" description="ผลงานที่ได้รับความนิยมสูงสุด" />
+
           <div className="min-h-screen">
+            {/* แสดงผลงานล่าสุด */}
             <Work_Row title="ผลงานล่าสุด" items={items} side="left" description="ผลงานล่าสุด" />
           </div>
         </div>

@@ -1,0 +1,25 @@
+@import url('./assets/fonts/fonts.css');
+
+* {
+  font-family: 'NotoSansThai', sans-serif;
+}
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add this to your global CSS file */
+.ant-menu-item-selected {
+  background-color: #9B4D96 !important; /* Active item background color */
+  color: white !important; /* Active item text color */
+}
+
+.ant-menu-item {
+  color: #f6f6f6 !important; /* Active item text color */
+}
+
+.ant-menu-submenu-title {
+  color: #f6f6f6 !important; /* Active item text color */
+}
+

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Button } from 'antd'; // Import Ant Design components
 
 const Work_Row = ({ title, items, description, side, showActions = false, onEdit, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(0);
@@ -37,35 +38,44 @@ const Work_Row = ({ title, items, description, side, showActions = false, onEdit
         >
           {displayedItems.map((item, index) => (
             <div key={index} className="flex space-x-6 items-center">
-              <div className="w-1/4 h-32 rounded-lg overflow-hidden bg-gray-200">
+              <div className="w-1/4 h-44 rounded-lg overflow-hidden bg-gray-200">
                 <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
               </div>
-              <div className="w-full bg-white p-4 rounded-lg shadow-md relative">
-                <p className="text-sm text-gray-400">Jan 1 {item.year}</p>
-                <h2 className="text-lg font-bold text-[#90278E]">{item.title}</h2>
+              <Card
+                title={item.title}
+                extra={showActions && (
+                  <div className="flex space-x-4">
+                    <Button
+                      onClick={() => onEdit(item)}
+                      icon={<EditOutlined />}
+                      type="primary"
+                      size="small"
+                      className="bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      แก้ไข
+                    </Button>
+                    <Button
+                      onClick={() => onDelete(item)}
+                      icon={<DeleteOutlined />}
+                      type="primary"
+                      danger
+                      size="small"
+                      className="bg-red-500 text-white hover:bg-red-600"
+                    >
+                      ลบ
+                    </Button>
+                  </div>
+                )}
+                className="w-full bg-white shadow-md"
+              >
+                <p className="text-sm text-gray-400">ผลงานในปี {item.year}</p>
                 <p className="text-gray-700 text-sm mt-2">{item.description}</p>
                 <div className="mt-3">
                   <Link to={item.projectLink} className="text-[#90278E] hover:underline">
                     ดูรายละเอียดเพิ่มเติม
                   </Link>
                 </div>
-                {showActions && (
-                  <div className="absolute top-2 right-2 flex space-x-4 bg-white p-2 rounded-lg shadow-md">
-                    <button 
-                      onClick={() => onEdit(item)} 
-                      className="flex items-center px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      <EditOutlined className="mr-2" /> แก้ไข
-                    </button>
-                    <button 
-                      onClick={() => onDelete(item)} 
-                      className="flex items-center px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      <DeleteOutlined className="mr-2" /> ลบ
-                    </button>
-                  </div>
-                )}
-              </div>
+              </Card>
             </div>
           ))}
         </motion.div>

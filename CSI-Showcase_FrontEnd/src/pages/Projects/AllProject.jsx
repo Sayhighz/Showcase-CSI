@@ -1,55 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Select } from 'antd';
+import { axiosGet } from '../../lib/axios';  // Import axiosGet function
 import SearchBar from '../../components/SearchBar/SearchBar';
 import Work_Row from '../../components/Work/Work_Row';
-import { Select } from 'antd';
 
 const { Option } = Select;
 
-const sampleProjects = [
-  {
-    title: 'ระบบดับเพลิง',
-    description: 'ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง',
-    image: 'https://via.placeholder.com/150',
-    projectLink: '/projects/1',
-    category: 'ประเภท1',
-    level: 'ปี1',
-    year: '2025',
-  },
-  {
-    title: 'ระบบรักษาความปลอดภัย',
-    description: 'ระบบควบคุมการเข้าออก ระบบควบคุมการเข้าออก ระบบควบคุมการเข้าออก ระบบควบคุมการเข้าออก',
-    image: 'https://via.placeholder.com/150',
-    projectLink: '/projects/2',
-    category: 'ประเภท2',
-    level: 'ปี2',
-    year: '2026',
-  },
-  {
-    title: 'ระบบแจ้งเตือน',
-    description: 'ระบบแจ้งเตือนอัจฉริยะ ระบบแจ้งเตือนอัจฉริยะ ระบบแจ้งเตือนอัจฉริยะ',
-    image: 'https://via.placeholder.com/150',
-    projectLink: '/projects/3',
-    category: 'ประเภท1',
-    level: 'ปี1',
-    year: '2026',
-  },
-  {
-    title: 'ระบบควบคุมไฟฟ้า',
-    description: 'ระบบควบคุมไฟอัตโนมัติ ระบบควบคุมไฟอัตโนมัติ',
-    image: 'https://via.placeholder.com/150',
-    projectLink: '/projects/4',
-    category: 'ประเภท2',
-    level: 'ปี2',
-    year: '2025',
-  },
-];
-
 const AllProject = () => {
+  const [projects, setProjects] = useState([]);
   const [category, setCategory] = useState('ทั้งหมด');
   const [level, setLevel] = useState('ทั้งหมด');
   const [year, setYear] = useState('ทั้งหมด');
 
-  const filteredProjects = sampleProjects.filter(project => 
+  useEffect(() => {
+    // Fetch projects using axiosGet
+    const fetchProjects = async () => {
+      try {
+        const data = await axiosGet('/projects/all');  // Fetch project data
+        setProjects(data);  // Store the fetched data
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  const filteredProjects = projects.filter(project =>
     (category === 'ทั้งหมด' || project.category === category) &&
     (level === 'ทั้งหมด' || project.level === level) &&
     (year === 'ทั้งหมด' || project.year === year)
@@ -63,13 +40,16 @@ const AllProject = () => {
       <div className="flex justify-end w-full max-w-6xl mt-10 space-x-4">
         <Select defaultValue={category} className="w-40" onChange={setCategory}>
           <Option value="ทั้งหมด">ประเภทงาน</Option>
-          <Option value="ประเภท1">ประเภท 1</Option>
-          <Option value="ประเภท2">ประเภท 2</Option>
+          <Option value="academic">งานวิจัย</Option>
+          <Option value="coursework">งานหลักสูตร</Option>
+          <Option value="competition">การแข่งขัน</Option>
         </Select>
         <Select defaultValue={level} className="w-40" onChange={setLevel}>
           <Option value="ทั้งหมด">ชั้นปีที่ทำผลงาน</Option>
-          <Option value="ปี1">ปี 1</Option>
-          <Option value="ปี2">ปี 2</Option>
+          <Option value="ปี 1">ปี 1</Option>
+          <Option value="ปี 2">ปี 2</Option>
+          <Option value="ปี 3">ปี 3</Option>
+          <Option value="ปี 4">ปี 4</Option>
         </Select>
         <Select defaultValue={year} className="w-40" onChange={setYear}>
           <Option value="ทั้งหมด">ปีที่ทำเสร็จ</Option>

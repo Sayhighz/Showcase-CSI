@@ -1,13 +1,14 @@
 import React, { useState } from "react";
-import { Form, Input, Button, Card, Modal } from "antd";
+import { Form, Input, Button, Card, Modal, message } from "antd";
 import { useNavigate } from "react-router-dom";
+import { axiosLogin } from "../../lib/axios";  // นำเข้าฟังก์ชัน axiosLogin
 import { setAuthCookie } from "../../lib/cookie";
-
+import { useAuth } from "../../context/AuthContext"; // ใช้ context สำหรับจัดการข้อมูลล็อกอิน
 import Logo from '../../assets/Logo_CSI_Color.png';
 
 const Login = () => {
+  const { setAuthData } = useAuth(); // ใช้ฟังก์ชันจาก AuthContext
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const navigate = useNavigate();
 
   const showModal = () => {
     setIsModalVisible(true);
@@ -21,12 +22,27 @@ const Login = () => {
     setIsModalVisible(false);
   };
 
-  const onFinish = (values) => {
-    if (values.email === "admin" && values.password === "1234") {
-      setAuthCookie("authenticated", 1);
-      window.location.href = '/';
-    } else {
-      alert("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+  const onFinish = async (values) => {
+    try {
+      const { email, password } = values;
+
+      // เรียกใช้ฟังก์ชัน login จาก axios.js
+      const response = await axiosLogin(email, password);
+
+      if (response.token) {
+        // ถ้ามี token ให้เก็บใน cookies
+        setAuthCookie(response.token);
+
+        message.success("ล็อกอินสำเร็จ!");
+        window.location.href = "/"; // เปลี่ยนหน้าไปที่หน้าแรกหลังจาก login สำเร็จ
+      }
+    } catch (error) {
+      // แสดงข้อผิดพลาดผ่าน Ant Design message
+      if (error.status) {
+        message.error(`ข้อผิดพลาด: ${error.message}`);
+      } else {
+        message.error('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+      }
     }
   };
 
