@@ -6,19 +6,35 @@ import PDFUploadSection from '../../components/PDFUploadSection/PDFUploadSection
 import ProjectDetailsForm from '../../components/ProjectDetailsForm/ProjectDetailsForm';
 import PreviewSection from '../../components/PreviewSection/PreviewSection';
 import ContributorSection from '../../components/ContributorSection/ContributorSection';
+import { axiosPost } from '../../lib/axios'; // Import the axiosPost function
+import { useAuth } from '../../context/AuthContext';
 
 const UploadWork = () => {
+  const { authData } = useAuth(); // Access the auth data (including userId)
   const [projectData, setProjectData] = useState({
     title: '',
     description: '',
     category: '',
+    study_year: '',
     year: '',
+    semester: '',
+    visibility: 1, // default visibility
+    status: 'pending', // default status
     coverImage: null,
     posterImage: null,
     videoFile: null,
     videoLink: '',
     pdfFile: null,
     contributors: [],
+    // Additional fields based on project type
+    publication_date: '',
+    published_year: '',
+    competition_name: '',
+    competition_year: '',
+    competition_poster: null,
+    coursework_poster: null,
+    coursework_video: null,
+    coursework_image: null,
   });
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -27,10 +43,50 @@ const UploadWork = () => {
     setIsModalVisible(true);
   };
 
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     setIsModalVisible(false);
-    message.success('โปรดรอเจ้าหน้าที่ตรวจสอบ 1-2 วัน');
+  
+    // เตรียมข้อมูลเพื่อส่ง
+    const data = {
+      title: projectData.title,
+      description: projectData.description,
+      type: projectData.category,
+      study_year: projectData.study_year,
+      year: projectData.year,
+      semester: projectData.semester,
+      visibility: projectData.visibility,
+      status: projectData.status,
+      contributors: projectData.contributors.map(contributor => ({
+        user_id: contributor.studentId,  // เปลี่ยนเป็น user_id ตามที่กำหนด
+      })),
+      // ฟิลด์พิเศษสำหรับโปรเจกต์ประเภท academic
+      ...(projectData.category === 'academic' && {
+        publication_date: projectData.publicationDate,
+        published_year: projectData.publishedYear,
+      }),
+      // ฟิลด์พิเศษสำหรับโปรเจกต์ประเภท competition
+      ...(projectData.category === 'competition' && {
+        competition_name: projectData.competitionName,
+        competition_year: projectData.competitionYear,
+        competition_poster: projectData.competitionPoster,
+      }),
+      // ฟิลด์พิเศษสำหรับโปรเจกต์ประเภท coursework
+      ...(projectData.category === 'coursework' && {
+        coursework_poster: projectData.courseworkPoster,
+        coursework_video: projectData.courseworkVideo,
+        coursework_image: projectData.courseworkImage,
+      }),
+    };
+  
+    try {
+      // ส่งข้อมูลไปยัง backend
+      await axiosPost(`/projects/upload/${authData.userId}`, data);
+      message.success('โปรดรอเจ้าหน้าที่ตรวจสอบ 1-2 วัน');
+    } catch (error) {
+      message.error('เกิดข้อผิดพลาดในการอัพโหลด');
+    }
   };
+  
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-6 mt-10">

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Input, AutoComplete, Avatar, Spin } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { axiosGet } from '../../lib/axios';  // Import the axiosGet function
-import { debounce } from 'lodash';
 
 const SearchBar = () => {
   const [searchTerm, setSearchTerm] = useState('');

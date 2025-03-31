@@ -13,6 +13,7 @@ const corsOptions = {
     origin: 'http://localhost:5173',  // กำหนดให้อนุญาตให้แอปที่รันที่ localhost:5173 สามารถเข้าถึง
     methods: 'GET,POST,OPTIONS',      // กำหนด HTTP methods ที่อนุญาต
     allowedHeaders: 'Content-Type,Authorization,secret_key', // เพิ่ม 'secret_key' ให้สามารถถูกส่งได้ใน headers
+    credentials: true,
   };
 
 // ใช้ CORS middleware

@@ -23,7 +23,7 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<MasterLayout><Home /></MasterLayout>} />
           <Route path="/projects/all" element={<MasterLayout><AllProject /></MasterLayout>} />
-          <Route path="/projects/:id" element={<MasterLayout><ProjectInfo /></MasterLayout>} />
+          <Route path="/projects/:projectId" element={<MasterLayout><ProjectInfo /></MasterLayout>} />
 
           {/* Protected Routes (Require Authentication) */}
           <Route path="/projects/my" element={

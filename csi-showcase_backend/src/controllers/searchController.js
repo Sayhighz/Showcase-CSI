@@ -28,3 +28,33 @@ export const searchProjects = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+export const searchStudents = async (req, res) => {
+  const { keyword } = req.query;
+
+  try {
+    // ค้นหานักศึกษาจาก `user_id` หรือ `full_name`
+    const query = `
+      SELECT user_id, full_name, image 
+      FROM users 
+      WHERE user_id LIKE ? OR full_name LIKE ?;
+    `;
+    
+    const [rows] = await pool.execute(query, [
+      `%${keyword}%`,
+      `%${keyword}%`,
+    ]);
+
+    // หากไม่พบข้อมูล
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'No students found' });
+    }
+
+    // ส่งผลลัพธ์ที่ค้นพบ
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

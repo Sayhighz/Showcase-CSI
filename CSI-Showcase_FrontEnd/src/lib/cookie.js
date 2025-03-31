@@ -10,7 +10,6 @@ const AUTH_COOKIE_NAME = "authToken";
 export const setAuthCookie = (token, expires = 1) => {
   Cookies.set(AUTH_COOKIE_NAME, token, { expires, secure: true, sameSite: 'Strict' });
 };
-
 /**
  * ดึงค่า token จากคุกกี้
  * @returns {string|null} - ค่า token หรือ null ถ้าไม่มี
@@ -41,7 +40,12 @@ export const isAuthenticated = () => {
  * @param {number} expires - อายุคุกกี้ (วัน)
  */
 export const setCookie = (name, value, expires = 7) => {
-  Cookies.set(name, value, { expires, secure: true, sameSite: 'Strict' });
+  const isSecure = process.env.NODE_ENV === 'production'; // Secure cookies in production
+  Cookies.set(name, value, { 
+    expires, 
+    secure: isSecure, 
+    sameSite: isSecure ? 'Strict' : 'Lax'
+  });
 };
 
 /**

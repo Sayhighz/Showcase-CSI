@@ -1,34 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Work_Row from '../../components/Work/Work_Row';
 import { Select, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { axiosGet } from '../../lib/axios'; // Import the axiosGet function
+import { useAuth } from '../../context/AuthContext'; // Import the useAuth hook
 
 const { Option } = Select;
 
-const sampleProjects = [
-  {
-    title: 'ระบบดับเพลิง',
-    description: 'ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง',
-    image: 'https://via.placeholder.com/150',
-    projectLink: '/projects/1',
-    category: 'ประเภท1',
-    year: '2025',
-  },
-  {
-    title: 'ระบบดับเพลิง',
-    description: 'ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง ระบบตรวจสอบดับเพลิง',
-    image: 'https://via.placeholder.com/150',
-    projectLink: '/projects/2',
-    category: 'ประเภท2',
-    year: '2026',
-  }
-];
-
 const MyProject = () => {
+  const { authData } = useAuth(); // Access the auth data (including userId)
   const [category, setCategory] = useState('ทั้งหมด');
   const [year, setYear] = useState('ทั้งหมด');
+  const [sampleProjects, setSampleProjects] = useState([]); // State to hold the fetched projects
   const navigate = useNavigate();
+
+  // Fetch projects from the API when the component mounts
+  useEffect(() => {
+    const fetchProjects = async () => {
+      if (authData.userId) { // Ensure userId is available
+        try {
+          const data = await axiosGet(`/projects/myprojects/${authData.userId}`); // Pass userId in the URL
+          console.log(data, authData)
+          setSampleProjects(data); // Set fetched projects to state
+        } catch (error) {
+          console.error("Failed to fetch projects:", error);
+        }
+      }
+    };
+
+    fetchProjects();
+    console.log(authData)
+  }, [authData.userId]); // Dependency array to run effect when userId changes
 
   const filteredProjects = sampleProjects.filter(project => 
     (category === 'ทั้งหมด' || project.category === category) &&

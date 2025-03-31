@@ -6,7 +6,7 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null); // ใช้ `null` แทนสถานะการโหลด
-  const [authData, setAuthData] = useState({ username: "", role: "", token: "" }); // ข้อมูลผู้ใช้
+  const [authData, setAuthData] = useState({ username: "", role: "", token: "", userId: "" }); // ข้อมูลผู้ใช้ รวมถึง userId
 
   // ฟังก์ชันตรวจสอบว่า token หมดอายุหรือยัง
   const checkTokenExpiration = (token) => {
@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
   // ฟังก์ชัน logout
   const logout = () => {
     removeAuthCookie(); // ลบ cookie ของ authentication
-    setAuthData({ username: "", role: "", token: "" }); // รีเซ็ตข้อมูลผู้ใช้
+    setAuthData({ username: "", role: "", token: "", userId: "" }); // รีเซ็ตข้อมูลผู้ใช้
     setIsAuthenticated(false); // เปลี่ยนสถานะเป็นไม่ล็อกอิน
   };
 
@@ -42,6 +42,7 @@ export const AuthProvider = ({ children }) => {
         username: decoded.username,
         role: decoded.role,
         token: authToken,
+        userId: decoded.user_id, // เพิ่ม userId จาก token
       });
     }
 
