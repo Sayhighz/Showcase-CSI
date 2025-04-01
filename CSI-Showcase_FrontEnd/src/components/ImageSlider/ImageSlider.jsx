@@ -20,7 +20,13 @@ const ImageSlider = ({ images = [], video, pdfFile, title }) => {
 
   return (
     <div className="relative w-full max-w-2xl mx-auto">
-      <div className="overflow-hidden relative h-80 flex items-center justify-center bg-gray-200 rounded-lg">
+      {/* Space-themed background with stars */}
+      <div className="overflow-hidden relative h-80 flex items-center justify-center bg-[#0D0221] rounded-lg border-2 border-[#90278E] shadow-lg shadow-[#90278E]/20" 
+           style={{
+             backgroundImage: `radial-gradient(circle, rgba(54, 16, 74, 0.3) 1px, transparent 1px), 
+                               radial-gradient(circle, rgba(255, 255, 255, 0.9) 0.5px, transparent 0.5px)`,
+             backgroundSize: '100px 100px, 50px 50px',
+           }}>
         {currentIndex === images.length && embeddedVideo ? (
           <iframe
             src={embeddedVideo}
@@ -30,49 +36,73 @@ const ImageSlider = ({ images = [], video, pdfFile, title }) => {
             className="w-full h-full rounded-lg"
           ></iframe>
         ) : currentIndex === images.length + (video ? 1 : 0) && pdfFile ? (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-white p-4 rounded-lg">
-            <FilePdfOutlined className="text-red-600 text-6xl" />
-            <p className="mt-2 text-gray-700 font-medium">{pdfFile.name || 'ไฟล์ PDF'}</p>
+          <div className="w-full h-full flex flex-col items-center justify-center bg-[#0D0221] bg-opacity-80 p-4 rounded-lg backdrop-blur-sm">
+            <FilePdfOutlined className="text-[#FF5E8C] text-6xl animate-pulse" />
+            <p className="mt-2 text-white font-medium">{pdfFile.name || 'ไฟล์ PDF'}</p>
+            <div className="mt-3 px-4 py-2 bg-[#90278E] text-white rounded-full font-medium hover:bg-[#693184] transition-colors">
+              ดาวน์โหลดเอกสาร
+            </div>
           </div>
         ) : (
           images.map((image, index) => (
-            <img
-              key={index}
-              src={image}
-              alt={title}
-              className={`absolute max-w-full max-h-full object-contain transition-opacity duration-1000 ease-in-out transform rounded-lg ${
-                index === currentIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-100'
+            <div 
+              key={index} 
+              className={`absolute w-full h-full flex items-center justify-center transition-opacity duration-1000 ease-in-out ${
+                index === currentIndex ? 'opacity-100' : 'opacity-0'
               }`}
-            />
+            >
+              <img
+                src={image}
+                alt={title}
+                className="max-w-full max-h-full object-contain transform rounded-lg z-10"
+                style={{
+                  filter: 'drop-shadow(0 0 8px rgba(144, 39, 142, 0.6))'
+                }}
+              />
+              {/* Decorative elements */}
+              <div className="absolute inset-0 z-0 opacity-40">
+                <div className="absolute top-2 left-2 w-10 h-10 rounded-full bg-[#FF5E8C] blur-lg"></div>
+                <div className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-[#90278E] blur-xl"></div>
+              </div>
+            </div>
           ))
         )}
       </div>
       
       {/* Navigation Dots */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+      <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3">
         {images.map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrentIndex(index)}
             className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentIndex ? 'bg-white' : 'bg-gray-500'
+              index === currentIndex ? 'bg-[#90278E] scale-125' : 'bg-gray-400'
             }`}
+            style={{
+              boxShadow: index === currentIndex ? '0 0 8px rgba(144, 39, 142, 0.8)' : 'none'
+            }}
           ></button>
         ))}
         {video && (
           <button
             onClick={() => setCurrentIndex(images.length)}
             className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              currentIndex === images.length ? 'bg-white' : 'bg-gray-500'
+              currentIndex === images.length ? 'bg-[#90278E] scale-125' : 'bg-gray-400'
             }`}
+            style={{
+              boxShadow: currentIndex === images.length ? '0 0 8px rgba(144, 39, 142, 0.8)' : 'none'
+            }}
           ></button>
         )}
         {pdfFile && (
           <button
             onClick={() => setCurrentIndex(images.length + (video ? 1 : 0))}
             className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              currentIndex === images.length + (video ? 1 : 0) ? 'bg-white' : 'bg-gray-500'
+              currentIndex === images.length + (video ? 1 : 0) ? 'bg-[#90278E] scale-125' : 'bg-gray-400'
             }`}
+            style={{
+              boxShadow: currentIndex === images.length + (video ? 1 : 0) ? '0 0 8px rgba(144, 39, 142, 0.8)' : 'none'
+            }}
           ></button>
         )}
       </div>
@@ -80,13 +110,13 @@ const ImageSlider = ({ images = [], video, pdfFile, title }) => {
       {/* Navigation Buttons */}
       <button
         onClick={handlePrev}
-        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-gray-700 text-white px-2 py-1 rounded-full opacity-75 hover:opacity-100"
+        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-[#90278E] text-white w-8 h-8 rounded-full opacity-75 hover:opacity-100 flex items-center justify-center hover:bg-[#693184] transition-all hover:scale-110"
       >
         &#10094;
       </button>
       <button
         onClick={handleNext}
-        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gray-700 text-white px-2 py-1 rounded-full opacity-75 hover:opacity-100"
+        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#90278E] text-white w-8 h-8 rounded-full opacity-75 hover:opacity-100 flex items-center justify-center hover:bg-[#693184] transition-all hover:scale-110"
       >
         &#10095;
       </button>

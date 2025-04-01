@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         username: decoded.username,
         role: decoded.role,
         token: authToken,
-        userId: decoded.user_id, // เพิ่ม userId จาก token
+        userId: decoded.id, // เพิ่ม userId จาก token
       });
     }
 

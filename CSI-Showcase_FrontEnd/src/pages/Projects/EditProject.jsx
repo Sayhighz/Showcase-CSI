@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Modal, message } from 'antd';
-import ProjectCategorySelector from '../../components/ProjectCategorySelector/ProjectCategorySelector';
-import UploadSection from '../../components/UploadSection/UploadSection';
-import PDFUploadSection from '../../components/PDFUploadSection/PDFUploadSection';
-import ProjectDetailsForm from '../../components/ProjectDetailsForm/ProjectDetailsForm';
-import PreviewSection from '../../components/PreviewSection/PreviewSection';
-import ContributorSection from '../../components/ContributorSection/ContributorSection';
+// import ProjectCategorySelector from '../../components/ProjectCategorySelector/ProjectCategorySelector';
+// import UploadSection from '../../components/UploadSection/UploadSection';
+// import PDFUploadSection from '../../components/PDFUploadSection/PDFUploadSection';
+// import ProjectDetailsForm from '../../components/ProjectDetailsForm/ProjectDetailsForm';
+// import PreviewSection from '../../components/PreviewSection/PreviewSection';
+// import ContributorSection from '../../components/ContributorSection/ContributorSection';
 
 const EditProject = () => {
   const [projectData, setProjectData] = useState({

@@ -1,13 +1,7 @@
 import React from 'react';
 
-const ProjectCategorySelector = ({ projectData, setProjectData }) => {
-  const handleChange = (e) => {
-    setProjectData({ ...projectData, category: e.target.value });
-  };
-
-  // Category options with icons and descriptions
+const ProjectCategorySelector = ({ projectData, handleInputChange }) => {
   const categories = [
-    { value: "", label: "โปรดเลือกประเภทงาน", icon: "🔍", description: "เลือกประเภทผลงานที่ต้องการเพิ่ม" },
     { value: "academic", label: "วิชาการ", icon: "📚", description: "บทความ งานวิจัย หรือเอกสารทางวิชาการ" },
     { value: "competition", label: "การแข่งขัน", icon: "🏆", description: "ผลงานที่ส่งเข้าประกวดหรือแข่งขัน" },
     { value: "coursework", label: "ในชั้นเรียน", icon: "🎓", description: "ผลงานที่ทำในรายวิชาต่างๆ" }
@@ -51,7 +45,7 @@ const ProjectCategorySelector = ({ projectData, setProjectData }) => {
         
         {/* Custom styled radio buttons that look like cards */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {categories.slice(1).map((category) => (
+          {categories.map((category) => (
             <label 
               key={category.value}
               className={`
@@ -73,7 +67,7 @@ const ProjectCategorySelector = ({ projectData, setProjectData }) => {
                 name="category"
                 value={category.value}
                 checked={projectData.category === category.value}
-                onChange={handleChange}
+                onChange={(e) => handleInputChange(e, 'category')}
                 className="sr-only" // Hide actual radio input
               />
               
