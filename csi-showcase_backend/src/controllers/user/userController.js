@@ -2,7 +2,7 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import pool from '../config/database.js';
+import pool from '../../config/database.js';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';

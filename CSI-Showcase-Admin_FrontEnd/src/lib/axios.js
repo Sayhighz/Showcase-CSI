@@ -174,3 +174,56 @@ export const axiosUpload = async (url, formData, onProgress = () => {}) => {
 };
 
 export default axiosInstance;
+
+// Function for login
+export const axiosLogin = async (username, password) => {
+    try {
+      const response = await axios.post(
+        `${BASE_URL}/auth/login`, 
+        { username, password }, 
+        { 
+          headers: {
+            'Content-Type': 'application/json',
+            'secret_key': SECRET_KEY,
+          },
+          withCredentials: true,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      handleAxiosError(error, 'LOGIN');
+      
+      // Format error for consistent handling
+      if (error.response) {
+        throw {
+          status: error.response.status,
+          message: error.response.data.message || 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์',
+          data: error.response.data
+        };
+      } else if (error.request) {
+        throw {
+          status: 0,
+          message: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้'
+        };
+      } else {
+        throw {
+          status: 500,
+          message: error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ'
+        };
+      }
+    }
+  };
+
+  const handleAxiosError = (error, requestType) => {
+    if (error.response) {
+      console.error(`${requestType} request error:`, {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers,
+      });
+    } else if (error.request) {
+      console.error(`${requestType} request error: No response received`, error.request);
+    } else {
+      console.error(`${requestType} request error:`, error.message);
+    }
+  };

@@ -8,8 +8,8 @@ import {
   logout,
   forgotPassword,
   resetPassword
-} from '../controllers/authController.js';
-import { authenticateToken } from '../middleware/authMiddleware.js';
+} from '../../controllers/user/authController.js';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 

@@ -1,5 +1,4 @@
-// ===== server.js =====
-
+// app.js
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
@@ -7,14 +6,27 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Import routes
-import projectRoutes from './routes/projectRoutes.js';
-import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
-import searchRoutes from './routes/searchRoutes.js'; // ถ้ามี searchRoutes
-import { checkSecretKey } from './middleware/secretKeyMiddleware.js'; // นำเข้า secret key middleware
+// Import middleware
+import { checkSecretKey, checkAdminSecretKey } from './middleware/secretKeyMiddleware.js';
+import { handleMulterError } from './middleware/userMiddleware.js';
 
-// Initialize .env configuration
+// Import routes - User Routes
+import userAuthRoutes from './routes/user/authRoutes.js';
+import userProjectRoutes from './routes/user/projectRoutes.js';
+import userSearchRoutes from './routes/user/searchRoutes.js';
+import userRoutes from './routes/user/userRoutes.js';
+
+// Import routes - Admin Routes
+import adminAuthRoutes from './routes/admin/adminAuthRoutes.js';
+import adminProjectRoutes from './routes/admin/adminProjectRoutes.js';
+import adminUserRoutes from './routes/admin/adminUserRoutes.js';
+import statisticsRoutes from './routes/admin/statisticsRoutes.js';
+import logsRoutes from './routes/admin/logsRoutes.js';
+
+// Import routes - Common Routes
+import uploadRoutes from './routes/common/uploadRoutes.js';
+
+// Load environment variables
 dotenv.config();
 
 // Create Express app
@@ -25,49 +37,88 @@ const PORT = process.env.PORT || 4000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// กำหนด CORS
+// Cross-Origin Resource Sharing (CORS) settings
 const corsOptions = {
-  origin: 'http://localhost:5173',  // กำหนดให้อนุญาตให้แอปที่รันที่ localhost:5173 สามารถเข้าถึง
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',  // กำหนด HTTP methods ที่อนุญาต
-  allowedHeaders: 'Content-Type,Authorization,secret_key', // เพิ่ม 'secret_key' ให้สามารถถูกส่งได้ใน headers
-  credentials: true,
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',  // Frontend URL
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',  // Allowed HTTP methods
+  allowedHeaders: 'Content-Type,Authorization,secret_key,admin_secret_key', // Allowed headers
+  credentials: true, // Allow cookies
 };
 
-// Middleware
-app.use(cors(corsOptions));  // ใช้ CORS options ที่กำหนด
-app.use(bodyParser.json());  // ใช้ body-parser สำหรับ JSON
-app.use(express.urlencoded({ extended: true }));  // Parse URL-encoded bodies
+// Apply middleware
+app.use(cors(corsOptions));
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Set trust proxy to get correct IP addresses
+// Set trust proxy for correct IP addresses behind load balancers
 app.set('trust proxy', true);
-
-// ใช้ middleware ตรวจสอบ secret_key ทั่วทั้งแอป
-app.use(checkSecretKey);  // ใช้ middleware นี้กับทุก route
-
-// Routes
-app.use('/api/projects', projectRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/search', searchRoutes); // ถ้ามี searchRoutes
 
 // Welcome route
 app.get('/', (req, res) => {
-  res.send('Welcome to CSI Showcase API');
+  res.json({
+    message: 'Welcome to CSI Showcase API',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// Error handling middleware
+// Apply secret key middleware for all API routes
+app.use('/api', checkSecretKey);
+
+// Apply admin secret key middleware for admin routes
+app.use('/api/admin', checkAdminSecretKey);
+
+// Register User API routes
+app.use('/api/auth', userAuthRoutes);
+app.use('/api/projects', userProjectRoutes);
+app.use('/api/search', userSearchRoutes);
+app.use('/api/users', userRoutes);
+
+// Register Admin API routes
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/projects', adminProjectRoutes);
+app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/statistics', statisticsRoutes);
+app.use('/api/admin/logs', logsRoutes);
+
+// Register Common API routes
+app.use('/api/upload', uploadRoutes);
+
+// Apply Multer error handler
+app.use(handleMulterError);
+
+// Global error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Global error handler:', err.stack);
+  
   res.status(500).json({
+    success: false,
+    statusCode: 500,
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// 404 Not Found handler for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    statusCode: 404,
+    message: `Route '${req.originalUrl}' not found`
+  });
 });
+
+// Start server
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`API URL: http://localhost:${PORT}`);
+  });
+}
+
+export default app;

@@ -21,8 +21,8 @@ import {
   getStudyYears,
   getProjectStats,
   upload
-} from '../controllers/projectController.js';
-import { authenticateToken, isAdmin } from '../middleware/authMiddleware.js';
+} from '../../controllers/user/projectController.js';
+import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -57,12 +57,6 @@ router.get('/study-years', getStudyYears);
 
 // ===== 2. API สำหรับการจัดการโครงการ =====
 
-// อัปโหลดโครงการใหม่
-router.post('/upload/:user_id', authenticateToken, uploadProject);
-
-// อัปเดตข้อมูลโครงการที่มีอยู่แล้ว
-router.put('/update/:projectId', authenticateToken, updateProject);
-
 // ลบโครงการ
 router.delete('/delete/:projectId', authenticateToken, deleteProject);
 
@@ -87,5 +81,19 @@ router.post('/review/:projectId', authenticateToken, isAdmin, reviewProject);
 
 // ดึงข้อมูลสถิติโครงการสำหรับ Dashboard
 router.get('/stats', authenticateToken, isAdmin, getProjectStats);
+
+// เพิ่ม routes สำหรับตรวจสอบและยกเลิกการอัปโหลด
+router.get('/upload-status/:sessionId', authenticateToken, getUploadStatus);
+router.post('/cancel-upload/:sessionId', authenticateToken, cancelUpload);
+
+// ปรับปรุง route อัปโหลดไฟล์ให้ใช้ multer แบบ memoryStorage
+const memoryStorage = multer.memoryStorage();
+const memoryUpload = multer({
+  storage: memoryStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+});
+
+// ใช้ memoryUpload แทน upload ที่มีอยู่เดิม
+router.post('/upload-file/:projectId', authenticateToken, memoryUpload.single('file'), uploadProjectFile);
 
 export default router;

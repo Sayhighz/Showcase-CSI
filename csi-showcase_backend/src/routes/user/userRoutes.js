@@ -13,8 +13,8 @@ import {
   getUserLoginHistory,
   getUserProjects,
   upload
-} from '../controllers/userController.js';
-import { authenticateToken, isAdmin } from '../middleware/authMiddleware.js';
+} from '../../controllers/user/userController.js';
+import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 

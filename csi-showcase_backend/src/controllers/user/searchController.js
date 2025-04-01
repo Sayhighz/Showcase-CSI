@@ -1,5 +1,5 @@
 // searchController.js
-import pool from '../config/database.js';
+import pool from '../../config/database.js';
 
 // ฟังก์ชันค้นหาผลงาน
 export const searchProjects = async (req, res) => {

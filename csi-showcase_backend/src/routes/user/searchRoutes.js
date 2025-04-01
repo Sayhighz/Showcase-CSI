@@ -1,6 +1,6 @@
 import express from 'express';
-import { searchProjects, searchStudents } from '../controllers/searchController.js';
-import { authenticateToken } from '../middleware/authMiddleware.js';
+import { searchProjects, searchStudents } from '../../controllers/user/searchController.js';
+import { authenticateToken } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 
