@@ -3,31 +3,32 @@ import { message } from 'antd';
 import { getAuthCookie, removeAuthCookie } from './cookie';
 
 // Use import.meta.env instead of process.env for Vite
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-const SECRET_KEY = import.meta.env.VITE_SECRET_KEY;
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/admin';
+const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '9a73a892-06f4-4ae1-8767-c1ff07a3823f';
 
 // Create an axios instance with basic configuration
 const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  timeout: 15000, // 15 seconds timeout
-  headers: {
-    'Content-Type': 'application/json',
-  }
+    baseURL: BASE_URL,
+    timeout: 15000, // 15 seconds timeout
+    headers: {
+        'Content-Type': 'application/json',
+    }
 });
 
 // Request interceptor to add headers
 axiosInstance.interceptors.request.use(
-  (config) => {
-    // Add secret key to every API call
-    config.headers['secret_key'] = SECRET_KEY;
-    
-    // Add token if available
-    const token = getAuthCookie();
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    return config;
+    (config) => {
+        // Add secret key to every API call
+        console.log(BASE_URL, SECRET_KEY);
+        config.headers['admin_secret_key'] = SECRET_KEY;
+        
+        // Add token if available
+        const token = getAuthCookie();
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        return config;
   },
   (error) => {
     console.error('Request error:', error);
@@ -175,55 +176,3 @@ export const axiosUpload = async (url, formData, onProgress = () => {}) => {
 
 export default axiosInstance;
 
-// Function for login
-export const axiosLogin = async (username, password) => {
-    try {
-      const response = await axios.post(
-        `${BASE_URL}/auth/login`, 
-        { username, password }, 
-        { 
-          headers: {
-            'Content-Type': 'application/json',
-            'secret_key': SECRET_KEY,
-          },
-          withCredentials: true,
-        }
-      );
-      return response.data;
-    } catch (error) {
-      handleAxiosError(error, 'LOGIN');
-      
-      // Format error for consistent handling
-      if (error.response) {
-        throw {
-          status: error.response.status,
-          message: error.response.data.message || 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์',
-          data: error.response.data
-        };
-      } else if (error.request) {
-        throw {
-          status: 0,
-          message: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้'
-        };
-      } else {
-        throw {
-          status: 500,
-          message: error.message || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ'
-        };
-      }
-    }
-  };
-
-  const handleAxiosError = (error, requestType) => {
-    if (error.response) {
-      console.error(`${requestType} request error:`, {
-        status: error.response.status,
-        data: error.response.data,
-        headers: error.response.headers,
-      });
-    } else if (error.request) {
-      console.error(`${requestType} request error: No response received`, error.request);
-    } else {
-      console.error(`${requestType} request error:`, error.message);
-    }
-  };

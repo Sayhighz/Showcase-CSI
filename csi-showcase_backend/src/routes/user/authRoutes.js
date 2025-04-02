@@ -1,4 +1,4 @@
-// ===== routes/authRoutes.js =====
+// ===== routes/user/authRoutes.js =====
 
 import express from 'express';
 import {

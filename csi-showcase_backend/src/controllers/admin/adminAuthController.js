@@ -13,6 +13,7 @@ import { sendPasswordResetEmail } from '../../services/emailService.js';
 export const adminLogin = async (req, res) => {
   try {
     const { username, password } = req.body;
+    console.log("users", username)
     
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!username || !password) {
@@ -27,7 +28,6 @@ export const adminLogin = async (req, res) => {
     const [users] = await pool.execute(`
       SELECT * FROM users WHERE username = ? AND role = 'admin'
     `, [username]);
-    
     // ตรวจสอบว่ามีผู้ใช้หรือไม่
     if (users.length === 0) {
       return res.status(401).json({

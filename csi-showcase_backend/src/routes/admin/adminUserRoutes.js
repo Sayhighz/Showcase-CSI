@@ -6,7 +6,6 @@ import {
   getUserById,
   createUser,
   updateUser,
-  resetUserPassword,
   deleteUser,
   getUserStats
 } from '../../controllers/admin/adminUserController.js';
@@ -30,7 +29,7 @@ router.post('/create', adminAuth, createUser);
 router.put('/update/:userId', adminAuth, updateUser);
 
 // เส้นทางสำหรับรีเซ็ตรหัสผ่านของผู้ใช้
-router.post('/reset-password/:userId', adminAuth, resetUserPassword);
+// router.post('/reset-password/:userId', adminAuth, resetUserPassword);
 
 // เส้นทางสำหรับลบผู้ใช้
 router.delete('/delete/:userId', adminAuth, deleteUser);

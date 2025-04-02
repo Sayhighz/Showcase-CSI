@@ -2,9 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import thTH from 'antd/lib/locale/th_TH'; // ภาษาไทยสำหรับ Ant Design
+import '@ant-design/v5-patch-for-react-19';
 
 // นำเข้า context
 import { AuthProvider } from './context/AuthContext';
+import { AdminStateProvider } from './context/AdminStateContext';
 
 // นำเข้า routes
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -40,45 +42,47 @@ const App = () => {
   return (
     <ConfigProvider theme={theme} locale={thTH}>
       <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            
-            {/* Protected Routes ที่ใช้ MasterLayout */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <MasterLayout />
-              </ProtectedRoute>
-            }>
-              {/* ใช้ Navigate เพื่อ redirect จาก / ไปที่ /dashboard */}
-              <Route index element={<Navigate to="/dashboard" replace />} />
+        <AdminStateProvider>
+          <Router>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               
-              {/* Dashboard */}
-              <Route path="dashboard" element={<Dashboard />} />
-              
-              {/* Project Management */}
-              <Route path="projects">
-                <Route index element={<Project />} />
-                <Route path="review" element={<ProjectReview />} />
-                <Route path=":projectId" element={<ProjectDetail />} />
+              {/* Protected Routes ที่ใช้ MasterLayout */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <MasterLayout />
+                </ProtectedRoute>
+              }>
+                {/* ใช้ Navigate เพื่อ redirect จาก / ไปที่ /dashboard */}
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                
+                {/* Dashboard */}
+                <Route path="dashboard" element={<Dashboard />} />
+                
+                {/* Project Management */}
+                <Route path="projects">
+                  <Route index element={<Project />} />
+                  <Route path="review" element={<ProjectReview />} />
+                  <Route path=":projectId" element={<ProjectDetail />} />
+                </Route>
+                
+                {/* User Management */}
+                <Route path="users">
+                  <Route path="student" element={<Student />} />
+                  <Route path="admin" element={<Admin />} />
+                </Route>
+                
+                {/* Logs */}
+                <Route path="login-info" element={<Log />} />
               </Route>
               
-              {/* User Management */}
-              <Route path="users">
-                <Route path="student" element={<Student />} />
-                <Route path="admin" element={<Admin />} />
-              </Route>
-              
-              {/* Logs */}
-              <Route path="login-info" element={<Log />} />
-            </Route>
-            
-            {/* 404 Page */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Router>
+              {/* 404 Page */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+        </AdminStateProvider>
       </AuthProvider>
     </ConfigProvider>
   );

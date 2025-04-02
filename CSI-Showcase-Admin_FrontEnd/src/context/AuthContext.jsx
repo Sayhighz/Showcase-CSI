@@ -8,14 +8,15 @@ import { authLogin, authVerify } from '../services/authService';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [admin, setAdmin] = useState({
-    id: null,
-    username: '',
-    role: '',
-    avatar: null
-  });
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [admin, setAdmin] = useState({
+        id: null,
+        username: '',
+        role: '',
+        avatar: null
+    });
+    console.log(admin)
 
   // Verify token and set authentication state
   useEffect(() => {
@@ -65,8 +66,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authLogin(username, password);
       
-      if (response.success && response.token) {
-        const decodedToken = jwtDecode(response.token);
+      if (response.success && response.data && response.data.token) {
+          // Fixed: Get token from response.data.token
+          const token = response.data.token;
+          const decodedToken = jwtDecode(token);
         
         // Check if user is admin
         if (decodedToken.role !== 'admin') {
@@ -76,7 +79,7 @@ export const AuthProvider = ({ children }) => {
         }
         
         // Set token in cookie
-        setAuthCookie(response.token);
+        setAuthCookie(token);
         
         // Set admin data
         setAdmin({

@@ -1,4 +1,4 @@
-// ===== routes/projectRoutes.js =====
+// ===== routes/user/projectRoutes.js =====
 
 import express from 'express';
 import { 
@@ -20,9 +20,11 @@ import {
   getProjectYears,
   getStudyYears,
   getProjectStats,
+  getUploadStatus,
+  cancelUpload,
   upload
 } from '../../controllers/user/projectController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
+import { authenticateToken, isAdmin, isResourceOwner } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -38,7 +40,7 @@ router.get('/top9', getTop9Projects);
 router.get('/latest', getLatestProjects);
 
 // ดึงข้อมูลโครงการของผู้ใช้คนนั้น ๆ (ต้องล็อกอินก่อน)
-router.get('/myprojects/:user_id', authenticateToken, getMyProjects);
+router.get('/myprojects/:user_id', authenticateToken, isResourceOwner, getMyProjects);
 
 // ดึงข้อมูลรายละเอียดโครงการตาม project_id
 router.get('/project/:projectId', getProjectDetails);
@@ -57,11 +59,31 @@ router.get('/study-years', getStudyYears);
 
 // ===== 2. API สำหรับการจัดการโครงการ =====
 
-// ลบโครงการ
-router.delete('/delete/:projectId', authenticateToken, deleteProject);
+// อัปโหลดโครงการใหม่
+router.post('/upload/:user_id', authenticateToken, isResourceOwner, upload.fields([
+  { name: 'coverImage', maxCount: 1 },
+  { name: 'posterImage', maxCount: 1 },
+  { name: 'courseworkPoster', maxCount: 1 },
+  { name: 'courseworkImage', maxCount: 1 },
+  { name: 'courseworkVideo', maxCount: 1 },
+  { name: 'competitionPoster', maxCount: 1 },
+  { name: 'pdfFiles', maxCount: 3 }
+]), uploadProject);
 
 // อัปโหลดไฟล์สำหรับโครงการ
 router.post('/upload-file/:projectId', authenticateToken, upload.single('file'), uploadProjectFile);
+
+// เช็คสถานะการอัปโหลด
+router.get('/upload-status/:sessionId', authenticateToken, getUploadStatus);
+
+// ยกเลิกการอัปโหลด
+router.post('/cancel-upload/:sessionId', authenticateToken, cancelUpload);
+
+// อัปเดตโครงการ
+router.put('/update/:projectId', authenticateToken, isResourceOwner, updateProject);
+
+// ลบโครงการ
+router.delete('/delete/:projectId', authenticateToken, isResourceOwner, deleteProject);
 
 // ===== 3. API สำหรับการบันทึกการเข้าชม =====
 
@@ -76,24 +98,10 @@ router.post('/view/visitor/:projectId', recordVisitorView);
 // ดึงข้อมูลโครงการที่รอการอนุมัติ
 router.get('/pending', authenticateToken, isAdmin, getPendingProjects);
 
-// อนุมัติหรือปฏิเสธโครงการ
-router.post('/review/:projectId', authenticateToken, isAdmin, reviewProject);
-
 // ดึงข้อมูลสถิติโครงการสำหรับ Dashboard
 router.get('/stats', authenticateToken, isAdmin, getProjectStats);
 
-// เพิ่ม routes สำหรับตรวจสอบและยกเลิกการอัปโหลด
-router.get('/upload-status/:sessionId', authenticateToken, getUploadStatus);
-router.post('/cancel-upload/:sessionId', authenticateToken, cancelUpload);
-
-// ปรับปรุง route อัปโหลดไฟล์ให้ใช้ multer แบบ memoryStorage
-const memoryStorage = multer.memoryStorage();
-const memoryUpload = multer({
-  storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-});
-
-// ใช้ memoryUpload แทน upload ที่มีอยู่เดิม
-router.post('/upload-file/:projectId', authenticateToken, memoryUpload.single('file'), uploadProjectFile);
+// อนุมัติหรือปฏิเสธโครงการ
+router.post('/review/:projectId', authenticateToken, isAdmin, reviewProject);
 
 export default router;

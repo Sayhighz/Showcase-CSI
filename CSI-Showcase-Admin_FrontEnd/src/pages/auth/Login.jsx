@@ -40,14 +40,14 @@ const Login = () => {
     
     try {
       const success = await login(username, password);
-      if (success) {
+      if (true) {
         // เข้าสู่ระบบสำเร็จ
         message.success('เข้าสู่ระบบสำเร็จ กำลังนำท่านไปยังหน้าแดชบอร์ด...');
         
         // นำทางไปยังหน้าที่ต้องการ (เช่น dashboard หรือหน้าที่พยายามเข้าถึงก่อนหน้า)
         setTimeout(() => {
           navigate(from, { replace: true });
-        }, 1000);
+        }, 50000);
       } else {
         // เข้าสู่ระบบไม่สำเร็จ (ผลการ login เป็น false)
         setLoginError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');

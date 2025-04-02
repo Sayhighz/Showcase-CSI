@@ -3,9 +3,6 @@
 import express from 'express';
 import { 
   getAllLoginLogs,
-  getUserLoginLogs,
-  getLoginStats,
-  getViewStats
 } from '../../controllers/admin/logsController.js';
 import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
 
@@ -18,12 +15,12 @@ const adminAuth = [authenticateToken, isAdmin];
 router.get('/login-logs', adminAuth, getAllLoginLogs);
 
 // เส้นทางสำหรับดึงข้อมูลการเข้าสู่ระบบของผู้ใช้ที่ระบุ
-router.get('/login-logs/:userId', adminAuth, getUserLoginLogs);
+// router.get('/login-logs/:userId', adminAuth, getUserLoginLogs);
 
 // เส้นทางสำหรับดึงข้อมูลสถิติการเข้าสู่ระบบ
-router.get('/login-stats', adminAuth, getLoginStats);
+// router.get('/login-stats', adminAuth, getLoginStats);
 
 // เส้นทางสำหรับดึงข้อมูลสถิติการเข้าชมผลงาน
-router.get('/view-stats', adminAuth, getViewStats);
+// router.get('/view-stats', adminAuth, getViewStats);
 
 export default router;
