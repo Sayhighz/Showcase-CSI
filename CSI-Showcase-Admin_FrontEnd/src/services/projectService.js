@@ -1,3 +1,4 @@
+// services/projectService.js
 import { axiosGet, axiosPut, axiosPost, axiosDelete } from '../lib/axios';
 
 /**
@@ -39,10 +40,20 @@ export const getAllProjects = async (filters = {}) => {
     }
     
     const response = await axiosGet(endpoint);
-    return response;
+    
+    // ตรวจสอบรูปแบบของข้อมูลที่ได้รับกลับมา
+    if (response && response.data) {
+      return response.data; // ถ้าข้อมูลอยู่ใน response.data
+    } else if (Array.isArray(response)) {
+      return response; // ถ้า response เป็น array
+    }
+    
+    // ถ้าไม่ใช่ทั้งสองกรณี ให้ส่งคืน array ว่าง
+    return [];
   } catch (error) {
     console.error('Error fetching projects:', error);
-    throw error;
+    // ในกรณีที่เกิด error ให้ส่งคืน array ว่าง แทนที่จะโยน error
+    return [];
   }
 };
 
@@ -53,13 +64,24 @@ export const getAllProjects = async (filters = {}) => {
 export const getPendingProjects = async () => {
   try {
     const response = await axiosGet('/projects/pending');
-    return response;
+    
+    // ตรวจสอบรูปแบบของข้อมูลที่ได้รับกลับมา
+    if (response && response.data) {
+      return response.data; // ถ้าข้อมูลอยู่ใน response.data
+    } else if (Array.isArray(response)) {
+      return response; // ถ้า response เป็น array
+    }
+    
+    // ถ้าไม่ใช่ทั้งสองกรณี ให้ส่งคืน array ว่าง
+    return [];
   } catch (error) {
     console.error('Error fetching pending projects:', error);
-    throw error;
+    // ในกรณีที่เกิด error ให้ส่งคืน array ว่าง
+    return [];
   }
 };
 
+// ส่วนอื่น ๆ ของ projectService ยังคงเหมือนเดิม...
 /**
  * ดึงรายละเอียดโปรเจค
  * @param {string} projectId - รหัสโปรเจค

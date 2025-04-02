@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import useAuth from '../hooks/useAuth';
 
 // สร้าง Context
@@ -210,12 +210,12 @@ export const AdminStateProvider = ({ children }) => {
     });
   };
   
-  const updateFilters = (section, filters) => {
+  const updateFilters = useCallback((section, filters) => {
     dispatch({
       type: ActionTypes.UPDATE_FILTERS,
       payload: { section, filters }
     });
-  };
+  }, []);
   
   const resetFilters = (section) => {
     dispatch({

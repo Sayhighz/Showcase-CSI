@@ -19,7 +19,6 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     (config) => {
         // Add secret key to every API call
-        console.log(BASE_URL, SECRET_KEY);
         config.headers['admin_secret_key'] = SECRET_KEY;
         
         // Add token if available
@@ -36,11 +35,20 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors
+// Response interceptor to handle errors and normalize responses
 axiosInstance.interceptors.response.use(
   (response) => {
-    // For successful responses
-    return response.data;
+    // Check if response has data property and return it
+    if (response && response.data) {
+      // Check if response.data has a data property (nested data structure)
+      if (response.data.data) {
+        return response.data;
+      }
+      return response.data;
+    }
+    
+    // If no data property, return response as is
+    return response;
   },
   async (error) => {
     const originalRequest = error.config;
@@ -119,7 +127,16 @@ axiosInstance.interceptors.response.use(
 // HTTP GET function
 export const axiosGet = async (url, params = {}) => {
   try {
-    return await axiosInstance.get(url, { params });
+    const response = await axiosInstance.get(url, { params });
+    // ตรวจสอบและจัดรูปแบบข้อมูล
+    if (Array.isArray(response)) {
+      return response;
+    } else if (response && response.data) {
+      return response.data;
+    } else if (response && typeof response === 'object') {
+      return response;
+    }
+    return [];
   } catch (error) {
     console.error(`GET ${url} error:`, error);
     throw error;
@@ -129,7 +146,8 @@ export const axiosGet = async (url, params = {}) => {
 // HTTP POST function
 export const axiosPost = async (url, data = {}) => {
   try {
-    return await axiosInstance.post(url, data);
+    const response = await axiosInstance.post(url, data);
+    return response;
   } catch (error) {
     console.error(`POST ${url} error:`, error);
     throw error;
@@ -139,7 +157,8 @@ export const axiosPost = async (url, data = {}) => {
 // HTTP PUT function
 export const axiosPut = async (url, data = {}) => {
   try {
-    return await axiosInstance.put(url, data);
+    const response = await axiosInstance.put(url, data);
+    return response;
   } catch (error) {
     console.error(`PUT ${url} error:`, error);
     throw error;
@@ -149,7 +168,8 @@ export const axiosPut = async (url, data = {}) => {
 // HTTP DELETE function
 export const axiosDelete = async (url) => {
   try {
-    return await axiosInstance.delete(url);
+    const response = await axiosInstance.delete(url);
+    return response;
   } catch (error) {
     console.error(`DELETE ${url} error:`, error);
     throw error;
@@ -159,7 +179,7 @@ export const axiosDelete = async (url) => {
 // File upload function
 export const axiosUpload = async (url, formData, onProgress = () => {}) => {
   try {
-    return await axiosInstance.post(url, formData, {
+    const response = await axiosInstance.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -168,6 +188,7 @@ export const axiosUpload = async (url, formData, onProgress = () => {}) => {
         onProgress(percentCompleted);
       }
     });
+    return response;
   } catch (error) {
     console.error(`UPLOAD ${url} error:`, error);
     throw error;
@@ -175,4 +196,3 @@ export const axiosUpload = async (url, formData, onProgress = () => {}) => {
 };
 
 export default axiosInstance;
-
