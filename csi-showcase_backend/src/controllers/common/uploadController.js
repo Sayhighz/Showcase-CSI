@@ -109,7 +109,7 @@ const createUploader = (uploadType) => {
 // --------------------------------------------------------
 
 // สำหรับอัปโหลดรูปโปรไฟล์ (เฉพาะ 1 ไฟล์)
-export const uploadProfileImage = createUploader('profiles').single('image');
+export const uploadProfileImage = createUploader('profiles').single('image/jpeg');
 
 // สำหรับอัปโหลดรูปภาพทั่วไป (สูงสุด 5 ไฟล์)
 export const uploadImages = createUploader('images').array('images', 5);

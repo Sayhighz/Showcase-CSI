@@ -1,7 +1,9 @@
 // services/emailService.js
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import logger from '../config/logger.js';
 
+// โหลดค่าจากไฟล์ .env
 dotenv.config();
 
 // สร้าง transporter สำหรับส่งอีเมล
@@ -47,10 +49,10 @@ export const sendPasswordResetEmail = async (to, resetToken, username) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('Password reset email sent:', info.messageId);
+    logger.info(`Password reset email sent to ${to}`, { messageId: info.messageId });
     return true;
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    logger.error(`Error sending password reset email to ${to}:`, error);
     return false;
   }
 };
@@ -86,10 +88,10 @@ export const sendWelcomeEmail = async (to, username) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('Welcome email sent:', info.messageId);
+    logger.info(`Welcome email sent to ${to}`, { messageId: info.messageId });
     return true;
   } catch (error) {
-    console.error('Error sending welcome email:', error);
+    logger.error(`Error sending welcome email to ${to}:`, error);
     return false;
   }
 };
@@ -128,22 +130,126 @@ export const sendProjectStatusEmail = async (to, username, projectTitle, status,
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('Project status email sent:', info.messageId);
+    logger.info(`Project status email sent to ${to}`, { 
+      messageId: info.messageId,
+      projectTitle,
+      status
+    });
     return true;
   } catch (error) {
-    console.error('Error sending project status email:', error);
+    logger.error(`Error sending project status email to ${to}:`, error);
     return false;
   }
 };
 
-// สำหรับทดสอบการเชื่อมต่อกับเซิร์ฟเวอร์อีเมล
+/**
+ * ส่งอีเมลแจ้งเตือนผู้ดูแลระบบเมื่อมีผลงานใหม่รอการอนุมัติ
+ * @param {string} to - อีเมลผู้ดูแลระบบ
+ * @param {string} projectTitle - ชื่อผลงาน
+ * @param {string} studentName - ชื่อนักศึกษา
+ * @param {string} projectType - ประเภทของผลงาน
+ * @returns {Promise<boolean>} - ผลการส่งอีเมล
+ */
+export const sendNewProjectNotificationEmail = async (to, projectTitle, studentName, projectType) => {
+  const adminLink = `${process.env.FRONTEND_URL}/admin/projects/pending`;
+  
+  const mailOptions = {
+    from: `"CSI Showcase" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `มีผลงานใหม่รอการอนุมัติ - CSI Showcase`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #90278E;">มีผลงานใหม่รอการอนุมัติ</h2>
+        <p>มีผลงานใหม่ที่รอการอนุมัติจากคุณ</p>
+        <p><strong>ชื่อผลงาน:</strong> ${projectTitle}</p>
+        <p><strong>ผู้ส่ง:</strong> ${studentName}</p>
+        <p><strong>ประเภท:</strong> ${projectType}</p>
+        <div style="margin: 20px 0;">
+          <a href="${adminLink}" style="background-color: #90278E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">ดูผลงานทั้งหมดที่รอการอนุมัติ</a>
+        </div>
+        <p>ขอแสดงความนับถือ,<br>ทีมงาน CSI Showcase</p>
+      </div>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    logger.info(`New project notification email sent to admin ${to}`, { 
+      messageId: info.messageId,
+      projectTitle
+    });
+    return true;
+  } catch (error) {
+    logger.error(`Error sending new project notification email to ${to}:`, error);
+    return false;
+  }
+};
+
+/**
+ * ส่งอีเมลแจ้งเตือนเมื่อมีบริษัทเข้าชมผลงาน
+ * @param {string} to - อีเมลเจ้าของผลงาน
+ * @param {string} username - ชื่อผู้ใช้
+ * @param {string} projectTitle - ชื่อผลงาน
+ * @param {string} companyName - ชื่อบริษัท
+ * @param {string} contactEmail - อีเมลติดต่อของบริษัท
+ * @returns {Promise<boolean>} - ผลการส่งอีเมล
+ */
+export const sendCompanyViewNotificationEmail = async (to, username, projectTitle, companyName, contactEmail) => {
+  const projectLink = `${process.env.FRONTEND_URL}/projects/my`;
+  
+  const mailOptions = {
+    from: `"CSI Showcase" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `มีบริษัทสนใจในผลงานของคุณ - CSI Showcase`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #90278E;">มีบริษัทสนใจในผลงานของคุณ</h2>
+        <p>สวัสดี ${username},</p>
+        <p>มีบริษัทได้เข้าชมผลงาน "${projectTitle}" ของคุณ</p>
+        <p><strong>ชื่อบริษัท:</strong> ${companyName}</p>
+        <p><strong>อีเมลติดต่อ:</strong> ${contactEmail}</p>
+        <div style="margin: 20px 0;">
+          <a href="${projectLink}" style="background-color: #90278E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">ดูผลงานของฉัน</a>
+        </div>
+        <p>ขอแสดงความนับถือ,<br>ทีมงาน CSI Showcase</p>
+      </div>
+    `
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    logger.info(`Company view notification email sent to ${to}`, { 
+      messageId: info.messageId,
+      projectTitle,
+      companyName
+    });
+    return true;
+  } catch (error) {
+    logger.error(`Error sending company view notification email to ${to}:`, error);
+    return false;
+  }
+};
+
+/**
+ * สำหรับทดสอบการเชื่อมต่อกับเซิร์ฟเวอร์อีเมล
+ * @returns {Promise<boolean>} - ผลการทดสอบ
+ */
 export const verifyEmailConnection = async () => {
   try {
     await transporter.verify();
-    console.log('Email server connection verified');
+    logger.info('Email server connection verified');
     return true;
   } catch (error) {
-    console.error('Email server connection error:', error);
+    logger.error('Email server connection error:', error);
     return false;
   }
+};
+
+export default {
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  sendProjectStatusEmail,
+  sendNewProjectNotificationEmail,
+  sendCompanyViewNotificationEmail,
+  verifyEmailConnection
 };

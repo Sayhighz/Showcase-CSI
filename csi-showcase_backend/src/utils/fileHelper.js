@@ -71,3 +71,39 @@ export const isFileSizeValid = (fileSize, maxSizeInMB) => {
   const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
   return fileSize <= maxSizeInBytes;
 };
+
+/**
+ * แปลงขนาดไฟล์ให้อยู่ในหน่วยที่อ่านง่าย
+ * @param {number} bytes - ขนาดไฟล์ในหน่วย bytes
+ * @returns {string} - ขนาดไฟล์ในหน่วยที่อ่านง่าย
+ */
+export const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' bytes';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB';
+  return (bytes / 1073741824).toFixed(2) + ' GB';
+};
+
+/**
+ * ดึงนามสกุลไฟล์จากชื่อไฟล์
+ * @param {string} filename - ชื่อไฟล์
+ * @returns {string} - นามสกุลไฟล์
+ */
+export const getFileExtension = (filename) => {
+  return path.extname(filename).toLowerCase();
+};
+
+/**
+ * ดึงประเภทของไฟล์จาก MIME type
+ * @param {string} mimetype - MIME type ของไฟล์
+ * @returns {string} - ประเภทของไฟล์ (image, video, document, other)
+ */
+export const getFileTypeFromMimetype = (mimetype) => {
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype.startsWith('video/')) return 'video';
+  if (mimetype === 'application/pdf' || 
+      mimetype.includes('word') || 
+      mimetype.includes('powerpoint') || 
+      mimetype.includes('excel')) return 'document';
+  return 'other';
+};

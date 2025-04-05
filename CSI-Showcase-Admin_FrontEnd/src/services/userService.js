@@ -5,14 +5,14 @@ import { axiosGet, axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/
  * @returns {Promise} - Promise ที่ส่งคืนข้อมูลผู้ใช้งาน
  */
 export const getAllUsers = async () => {
-  try {
-    const response = await axiosGet('/users/all');
-    return response;
-  } catch (error) {
-    console.error('Error fetching all users:', error);
-    throw error;
-  }
-};
+    try {
+      const response = await axiosGet('/users/all');
+      return response;
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      throw error;
+    }
+  };
 
 /**
  * ดึงข้อมูลผู้ใช้งานตาม ID
@@ -52,7 +52,7 @@ export const registerUser = async (userData) => {
  */
 export const updateUser = async (userId, userData) => {
   try {
-    const response = await axiosPut(`/users/${userId}`, userData);
+    const response = await axiosPut(`/users/update/${userId}`, userData);
     return response;
   } catch (error) {
     console.error(`Error updating user ${userId}:`, error);
@@ -69,7 +69,7 @@ export const updateUser = async (userId, userData) => {
  */
 export const uploadProfileImage = async (userId, formData, onProgress) => {
   try {
-    const response = await axiosUpload(`/users/${userId}/profile-image`, formData, onProgress);
+    const response = await axiosUpload(`/upload/profile-image/${userId}`, formData, onProgress);
     return response;
   } catch (error) {
     console.error(`Error uploading profile image for user ${userId}:`, error);
@@ -120,7 +120,7 @@ export const changeUserRole = async (userId, role) => {
  */
 export const deleteUser = async (userId) => {
   try {
-    const response = await axiosDelete(`/users/${userId}`);
+    const response = await axiosDelete(`/users/delete/${userId}`);
     return response;
   } catch (error) {
     console.error(`Error deleting user ${userId}:`, error);

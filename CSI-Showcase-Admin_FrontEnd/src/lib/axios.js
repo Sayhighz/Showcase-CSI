@@ -158,6 +158,7 @@ export const axiosPost = async (url, data = {}) => {
 export const axiosPut = async (url, data = {}) => {
   try {
     const response = await axiosInstance.put(url, data);
+    console.log(response)
     return response;
   } catch (error) {
     console.error(`PUT ${url} error:`, error);

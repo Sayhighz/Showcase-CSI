@@ -1,124 +1,124 @@
-// app.js
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Import middleware
-import { checkSecretKey, checkAdminSecretKey } from './middleware/secretKeyMiddleware.js';
-import { handleMulterError } from './middleware/userMiddleware.js';
-
-// Import routes - User Routes
-import userAuthRoutes from './routes/user/authRoutes.js';
-import userProjectRoutes from './routes/user/projectRoutes.js';
-import userSearchRoutes from './routes/user/searchRoutes.js';
+// app.js - จุดเริ่มต้นแอปพลิเคชัน
+import { createApp, startServer } from './config/app.js';
+import { initEnv } from './config/env.js';
+import logger from './config/logger.js';
+import pool from './config/database.js';
+import authRoutes from './routes/user/authRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
-
-// Import routes - Admin Routes
+import projectRoutes from './routes/user/projectRoutes.js';
+import searchRoutes from './routes/user/searchRoutes.js';
 import adminAuthRoutes from './routes/admin/adminAuthRoutes.js';
-import adminProjectRoutes from './routes/admin/adminProjectRoutes.js';
 import adminUserRoutes from './routes/admin/adminUserRoutes.js';
+import adminProjectRoutes from './routes/admin/adminProjectRoutes.js';
 import statisticsRoutes from './routes/admin/statisticsRoutes.js';
 import logsRoutes from './routes/admin/logsRoutes.js';
-
-// Import routes - Common Routes
 import uploadRoutes from './routes/common/uploadRoutes.js';
+import { API_ROUTES } from './constants/routes.js';
 
-// Load environment variables
-dotenv.config();
+// เริ่มต้นตรวจสอบและตั้งค่าตัวแปรสภาพแวดล้อม
+if (!initEnv()) {
+  logger.error('Failed to initialize environment variables. Exiting...');
+  process.exit(1);
+}
 
-// Create Express app
-const app = express();
-const PORT = process.env.PORT || 4000;
+// สร้าง Express application
+const app = createApp();
 
-// __dirname setup for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// กำหนดเส้นทาง API
+app.use(API_ROUTES.AUTH.BASE, authRoutes);
+app.use(API_ROUTES.USER.BASE, userRoutes);
+app.use(API_ROUTES.PROJECT.BASE, projectRoutes);
+app.use(API_ROUTES.SEARCH.BASE, searchRoutes);
+app.use(API_ROUTES.ADMIN.AUTH.BASE, adminAuthRoutes);
+app.use(API_ROUTES.ADMIN.USER.BASE, adminUserRoutes);
+app.use(API_ROUTES.ADMIN.PROJECT.BASE, adminProjectRoutes);
+app.use(API_ROUTES.ADMIN.STATISTICS.BASE, statisticsRoutes);
+app.use(API_ROUTES.ADMIN.LOGS.BASE, logsRoutes);
+app.use(API_ROUTES.UPLOAD.BASE, uploadRoutes);
 
-// Cross-Origin Resource Sharing (CORS) settings
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',  // Frontend URL
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',  // Allowed HTTP methods
-  allowedHeaders: 'Content-Type,Authorization,secret_key,admin_secret_key', // Allowed headers
-  credentials: true, // Allow cookies
-};
-
-// Apply middleware
-app.use(cors(corsOptions));
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Serve static files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Set trust proxy for correct IP addresses behind load balancers
-app.set('trust proxy', true);
-
-// Welcome route
+// กำหนดเส้นทางหลัก
 app.get('/', (req, res) => {
-  res.json({
+  res.status(200).json({
+    success: true,
     message: 'Welcome to CSI Showcase API',
     version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
+    documentation: '/api/docs'
   });
 });
 
-// Apply secret key middleware for all API routes
-app.use('/api', checkSecretKey);
-
-// Apply admin secret key middleware for admin routes
-app.use('/api/admin', checkAdminSecretKey);
-
-// Register User API routes
-app.use('/api/auth', userAuthRoutes);
-app.use('/api/projects', userProjectRoutes);
-app.use('/api/search', userSearchRoutes);
-app.use('/api/users', userRoutes);
-
-// Register Admin API routes
-app.use('/api/admin/auth', adminAuthRoutes);
-app.use('/api/admin/projects', adminProjectRoutes);
-app.use('/api/admin/users', adminUserRoutes);
-app.use('/api/admin/statistics', statisticsRoutes);
-app.use('/api/admin/logs', logsRoutes);
-
-// Register Common API routes
-app.use('/api/upload', uploadRoutes);
-
-// Apply Multer error handler
-app.use(handleMulterError);
-
-// Global error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err.stack);
-  
-  res.status(500).json({
-    success: false,
-    statusCode: 500,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+// กำหนดเส้นทางสำหรับเอกสาร API (ถ้ามี)
+app.get('/api/docs', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'API Documentation',
+    endpoints: {
+      auth: `${API_ROUTES.AUTH.BASE} - การยืนยันตัวตนสำหรับผู้ใช้ทั่วไป`,
+      users: `${API_ROUTES.USER.BASE} - การจัดการผู้ใช้`,
+      projects: `${API_ROUTES.PROJECT.BASE} - การจัดการโครงการ`,
+      search: `${API_ROUTES.SEARCH.BASE} - การค้นหา`,
+      upload: `${API_ROUTES.UPLOAD.BASE} - การอัปโหลดไฟล์`,
+      admin: {
+        auth: `${API_ROUTES.ADMIN.AUTH.BASE} - การยืนยันตัวตนสำหรับผู้ดูแลระบบ`,
+        users: `${API_ROUTES.ADMIN.USER.BASE} - การจัดการผู้ใช้โดยผู้ดูแลระบบ`,
+        projects: `${API_ROUTES.ADMIN.PROJECT.BASE} - การจัดการโครงการโดยผู้ดูแลระบบ`,
+        stats: `${API_ROUTES.ADMIN.STATISTICS.BASE} - สถิติ`,
+        logs: `${API_ROUTES.ADMIN.LOGS.BASE} - ประวัติการใช้งานระบบ`
+      }
+    }
   });
 });
 
-// 404 Not Found handler for undefined routes
+// จัดการเส้นทางที่ไม่มีอยู่
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     statusCode: 404,
-    message: `Route '${req.originalUrl}' not found`
+    message: 'Endpoint not found'
   });
 });
 
-// Start server
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`API URL: http://localhost:${PORT}`);
+// ตรวจสอบการเชื่อมต่อฐานข้อมูลก่อนเริ่มเซิร์ฟเวอร์
+pool.query('SELECT 1')
+  .then(() => {
+    // เริ่มต้นเซิร์ฟเวอร์
+    const PORT = process.env.PORT || 5000;
+    const server = startServer(app, PORT);
+
+    // จัดการการปิดแอปพลิเคชันอย่างสง่างาม
+    process.on('SIGTERM', gracefulShutdown(server));
+    process.on('SIGINT', gracefulShutdown(server));
+  })
+  .catch(error => {
+    logger.error('Unable to connect to the database:', error);
+    process.exit(1);
   });
+
+// ฟังก์ชันสำหรับการปิดแอปพลิเคชันอย่างสง่างาม
+function gracefulShutdown(server) {
+  return () => {
+    logger.info('Received kill signal, shutting down gracefully...');
+    
+    server.close(() => {
+      logger.info('HTTP server closed');
+      
+      // ปิดการเชื่อมต่อฐานข้อมูล
+      pool.end()
+        .then(() => {
+          logger.info('Database connection closed');
+          process.exit(0);
+        })
+        .catch(err => {
+          logger.error('Error closing database connection:', err);
+          process.exit(1);
+        });
+    });
+    
+    // ตั้งเวลาการปิดเซิร์ฟเวอร์แบบบังคับหากไม่สามารถปิดได้ภายในเวลาที่กำหนด
+    setTimeout(() => {
+      logger.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 10000);
+  };
 }
 
 export default app;

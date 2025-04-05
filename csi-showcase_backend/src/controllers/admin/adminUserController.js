@@ -129,7 +129,7 @@ export const getAllUsers = async (req, res) => {
 // Existing other functions remain the same...
 // (createUser, getUserById, updateUser, etc.)
 // ฟังก์ชันสำหรับสร้างผู้ใช้ใหม่
-export const createUser = async (req, res) => {
+export const ecreateUser = async (req, res) => {
   try {
     const { 
       username, 
