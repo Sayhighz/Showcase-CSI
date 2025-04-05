@@ -1,4 +1,4 @@
-// ===== routes/user/authRoutes.js =====
+// routes/user/authRoutes.js
 
 import express from 'express';
 import {
@@ -10,31 +10,26 @@ import {
   resetPassword
 } from '../../controllers/user/authController.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
+import { API_ROUTES } from '../../constants/routes.js';
 
 const router = express.Router();
 
-// ===== 1. API สำหรับการเข้าสู่ระบบและออกจากระบบ =====
-
 // เข้าสู่ระบบ
-router.post('/login', login);
+router.post(API_ROUTES.AUTH.LOGIN, login);
 
 // ตรวจสอบ token
-router.get('/verify-token', authenticateToken, verifyToken);
+router.get(API_ROUTES.AUTH.VERIFY_TOKEN, authenticateToken, verifyToken);
 
 // ออกจากระบบ (สำหรับการเรียกโดย frontend)
-router.post('/logout', logout);
-
-// ===== 2. API สำหรับการรีเซ็ตรหัสผ่าน =====
+router.post(API_ROUTES.AUTH.LOGOUT, logout);
 
 // เริ่มต้นกระบวนการรีเซ็ตรหัสผ่าน (ส่งอีเมล)
-router.post('/forgot-password', forgotPassword);
+router.post(API_ROUTES.AUTH.FORGOT_PASSWORD, forgotPassword);
 
 // ตั้งรหัสผ่านใหม่หลังจากรีเซ็ต
-router.post('/reset-password', resetPassword);
-
-// ===== 3. API สำหรับการตรวจสอบข้อมูลผู้ใช้ =====
+router.post(API_ROUTES.AUTH.RESET_PASSWORD, resetPassword);
 
 // ดึงข้อมูลผู้ใช้ปัจจุบัน
-router.get('/me', authenticateToken, getCurrentUser);
+router.get(API_ROUTES.AUTH.ME, authenticateToken, getCurrentUser);
 
 export default router;

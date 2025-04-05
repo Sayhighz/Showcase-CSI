@@ -1,52 +1,92 @@
-// routes/user/userRoutes.js
+// routes/common/uploadRoutes.js
 
 import express from 'express';
-import {
-  register,
-  getAllUsers,
-  getUserById,
-  updateUser,
+import { 
   uploadProfileImage,
-  changePassword,
-  changeUserRole,
-  deleteUser,
-  getUserLoginHistory,
-  getUserProjects,
-  uploadProfile
-} from '../../controllers/user/userController.js';
-import { authenticateToken, isAdmin, isResourceOwner } from '../../middleware/authMiddleware.js';
+  uploadImages,
+  uploadVideo,
+  uploadDocuments,
+  uploadFiles,
+  uploadMultiple,
+  handleFileUpload,
+  deleteFile,
+  getStorageStatus,
+  handleMulterError
+} from '../../controllers/common/uploadController.js';
+import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
 import { API_ROUTES } from '../../constants/routes.js';
-import { ROLES } from '../../constants/roles.js';
 
 const router = express.Router();
 
-// Ensure all route paths are valid strings
-router.post('/register', register);
+// Middleware combination for admin-only routes
+const adminAuth = [authenticateToken, isAdmin];
 
-router.get('/all', authenticateToken, isAdmin, getAllUsers);
-
-router.get('/:userId', authenticateToken, getUserById);
-
-router.put('/:userId', authenticateToken, updateUser);
-
-router.post('/:userId/profile-image', 
+// อัปโหลดรูปโปรไฟล์
+router.post(
+  API_ROUTES.UPLOAD.PROFILE_IMAGE, 
   authenticateToken, 
-  uploadProfile.single('image'), 
-  uploadProfileImage
+  uploadProfileImage, 
+  handleMulterError, 
+  handleFileUpload
 );
 
-router.post('/:userId/change-password', authenticateToken, changePassword);
-
-router.put('/:userId/role', authenticateToken, isAdmin, changeUserRole);
-
-router.delete('/:userId', authenticateToken, isAdmin, deleteUser);
-
-router.get('/:userId/login-history', authenticateToken, getUserLoginHistory);
-
-router.get('/:userId/projects', 
+// อัปโหลดรูปภาพหลายรูป
+router.post(
+  API_ROUTES.UPLOAD.IMAGES, 
   authenticateToken, 
-  isResourceOwner, 
-  getUserProjects
+  uploadImages, 
+  handleMulterError, 
+  handleFileUpload
+);
+
+// อัปโหลดวิดีโอ
+router.post(
+  API_ROUTES.UPLOAD.VIDEO, 
+  authenticateToken, 
+  uploadVideo, 
+  handleMulterError, 
+  handleFileUpload
+);
+
+// อัปโหลดเอกสาร
+router.post(
+  API_ROUTES.UPLOAD.DOCUMENTS, 
+  authenticateToken, 
+  uploadDocuments, 
+  handleMulterError, 
+  handleFileUpload
+);
+
+// อัปโหลดไฟล์ทั่วไป
+router.post(
+  API_ROUTES.UPLOAD.FILES, 
+  authenticateToken, 
+  uploadFiles, 
+  handleMulterError, 
+  handleFileUpload
+);
+
+// อัปโหลดไฟล์หลายประเภท
+router.post(
+  API_ROUTES.UPLOAD.MULTIPLE, 
+  authenticateToken, 
+  uploadMultiple, 
+  handleMulterError, 
+  handleFileUpload
+);
+
+// ลบไฟล์
+router.delete(
+  API_ROUTES.UPLOAD.DELETE, 
+  authenticateToken, 
+  deleteFile
+);
+
+// ตรวจสอบสถานะการจัดเก็บ (เฉพาะแอดมิน)
+router.get(
+  API_ROUTES.UPLOAD.STORAGE_STATUS, 
+  adminAuth, 
+  getStorageStatus
 );
 
 export default router;
