@@ -39,7 +39,7 @@ const RECOMMENDED_PROD_ENV_VARS = [
  */
 export const loadEnv = (envPath = undefined) => {
   // กำหนดเส้นทางไฟล์ .env ตามสภาพแวดล้อม
-  const defaultEnvPath = path.join(__dirname, '..', '..', '.env');
+  const defaultEnvPath = path.join(__dirname, '..','..', '.env');
   const envFilePath = envPath || defaultEnvPath;
   
   // ตรวจสอบว่าไฟล์ .env มีอยู่หรือไม่

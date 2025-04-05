@@ -19,6 +19,7 @@ const dbConfig = {
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
 };
+// console.log(dbConfig)
 
 // สร้าง connection pool สำหรับการเชื่อมต่อฐานข้อมูล
 const pool = mysql.createPool(dbConfig);

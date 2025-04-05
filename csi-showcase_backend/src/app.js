@@ -36,38 +36,6 @@ app.use(API_ROUTES.ADMIN.STATISTICS.BASE, statisticsRoutes);
 app.use(API_ROUTES.ADMIN.LOGS.BASE, logsRoutes);
 app.use(API_ROUTES.UPLOAD.BASE, uploadRoutes);
 
-// กำหนดเส้นทางหลัก
-app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Welcome to CSI Showcase API',
-    version: '1.0.0',
-    documentation: '/api/docs'
-  });
-});
-
-// กำหนดเส้นทางสำหรับเอกสาร API (ถ้ามี)
-app.get('/api/docs', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'API Documentation',
-    endpoints: {
-      auth: `${API_ROUTES.AUTH.BASE} - การยืนยันตัวตนสำหรับผู้ใช้ทั่วไป`,
-      users: `${API_ROUTES.USER.BASE} - การจัดการผู้ใช้`,
-      projects: `${API_ROUTES.PROJECT.BASE} - การจัดการโครงการ`,
-      search: `${API_ROUTES.SEARCH.BASE} - การค้นหา`,
-      upload: `${API_ROUTES.UPLOAD.BASE} - การอัปโหลดไฟล์`,
-      admin: {
-        auth: `${API_ROUTES.ADMIN.AUTH.BASE} - การยืนยันตัวตนสำหรับผู้ดูแลระบบ`,
-        users: `${API_ROUTES.ADMIN.USER.BASE} - การจัดการผู้ใช้โดยผู้ดูแลระบบ`,
-        projects: `${API_ROUTES.ADMIN.PROJECT.BASE} - การจัดการโครงการโดยผู้ดูแลระบบ`,
-        stats: `${API_ROUTES.ADMIN.STATISTICS.BASE} - สถิติ`,
-        logs: `${API_ROUTES.ADMIN.LOGS.BASE} - ประวัติการใช้งานระบบ`
-      }
-    }
-  });
-});
-
 // จัดการเส้นทางที่ไม่มีอยู่
 app.use('*', (req, res) => {
   res.status(404).json({
