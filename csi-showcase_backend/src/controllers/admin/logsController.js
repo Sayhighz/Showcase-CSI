@@ -1,17 +1,23 @@
 // controllers/admin/logsController.js
 import pool from '../../config/database.js';
+import logger from '../../config/logger.js';
 import { handleServerError, successResponse } from '../../utils/responseFormatter.js';
+import { getPaginationParams, getPaginationInfo } from '../../constants/pagination.js';
+import { formatToISODate } from '../../utils/dateHelper.js';
+import { asyncHandler } from '../../middleware/loggerMiddleware.js';
+import { STATUS_CODES } from '../../constants/statusCodes.js';
 
 /**
  * ดึงข้อมูลการเข้าสู่ระบบทั้งหมด
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllLoginLogs = async (req, res) => {
+export const getAllLoginLogs = asyncHandler(async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
+    // ใช้ getPaginationParams จาก pagination helper
+    const pagination = getPaginationParams(req);
+    const { page, limit, offset } = pagination;
+    
     const userId = req.query.userId || '';
     const startDate = req.query.startDate || '';
     const endDate = req.query.endDate || '';
@@ -48,7 +54,9 @@ export const getAllLoginLogs = async (req, res) => {
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
+    
+    // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
+    const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
     // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
     query += ` ORDER BY l.login_time DESC LIMIT ? OFFSET ?`;
@@ -68,31 +76,29 @@ export const getAllLoginLogs = async (req, res) => {
       ipAddress: log.ip_address
     }));
     
-    return res.json(successResponse({
+    // ใช้ successResponse helper function พร้อม status code
+    return res.status(STATUS_CODES.OK).json(successResponse({
       logs: formattedLogs,
-      pagination: {
-        page,
-        limit,
-        totalItems,
-        totalPages
-      }
-    }, 'Login logs retrieved successfully'));
+      pagination: paginationInfo
+    }, 'Login logs retrieved successfully', STATUS_CODES.OK));
     
   } catch (error) {
+    logger.error('Error fetching login logs:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลการเข้าชมโครงการจากบริษัท
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getCompanyViews = async (req, res) => {
+export const getCompanyViews = asyncHandler(async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
+    // ใช้ getPaginationParams จาก pagination helper
+    const pagination = getPaginationParams(req);
+    const { page, limit, offset } = pagination;
+    
     const projectId = req.query.projectId || '';
     const search = req.query.search || '';
     
@@ -123,7 +129,9 @@ export const getCompanyViews = async (req, res) => {
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
+    
+    // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
+    const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
     // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
     query += ` ORDER BY cv.viewed_at DESC LIMIT ? OFFSET ?`;
@@ -142,31 +150,29 @@ export const getCompanyViews = async (req, res) => {
       viewedAt: view.viewed_at
     }));
     
-    return res.json(successResponse({
+    // ใช้ successResponse helper function พร้อม status code
+    return res.status(STATUS_CODES.OK).json(successResponse({
       views: formattedViews,
-      pagination: {
-        page,
-        limit,
-        totalItems,
-        totalPages
-      }
-    }, 'Company views retrieved successfully'));
+      pagination: paginationInfo
+    }, 'Company views retrieved successfully', STATUS_CODES.OK));
     
   } catch (error) {
+    logger.error('Error fetching company views:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลการเข้าชมโครงการจากผู้เยี่ยมชม
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getVisitorViews = async (req, res) => {
+export const getVisitorViews = asyncHandler(async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
+    // ใช้ getPaginationParams จาก pagination helper
+    const pagination = getPaginationParams(req);
+    const { page, limit, offset } = pagination;
+    
     const projectId = req.query.projectId || '';
     const search = req.query.search || '';
     
@@ -197,7 +203,9 @@ export const getVisitorViews = async (req, res) => {
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
+    
+    // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
+    const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
     // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
     query += ` ORDER BY vv.viewed_at DESC LIMIT ? OFFSET ?`;
@@ -216,31 +224,29 @@ export const getVisitorViews = async (req, res) => {
       viewedAt: view.viewed_at
     }));
     
-    return res.json(successResponse({
+    // ใช้ successResponse helper function พร้อม status code
+    return res.status(STATUS_CODES.OK).json(successResponse({
       views: formattedViews,
-      pagination: {
-        page,
-        limit,
-        totalItems,
-        totalPages
-      }
-    }, 'Visitor views retrieved successfully'));
+      pagination: paginationInfo
+    }, 'Visitor views retrieved successfully', STATUS_CODES.OK));
     
   } catch (error) {
+    logger.error('Error fetching visitor views:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลประวัติการตรวจสอบโครงการ
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectReviews = async (req, res) => {
+export const getProjectReviews = asyncHandler(async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
+    // ใช้ getPaginationParams จาก pagination helper
+    const pagination = getPaginationParams(req);
+    const { page, limit, offset } = pagination;
+    
     const projectId = req.query.projectId || '';
     const status = req.query.status || '';
     const adminId = req.query.adminId || '';
@@ -280,7 +286,9 @@ export const getProjectReviews = async (req, res) => {
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
+    
+    // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
+    const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
     // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
     query += ` ORDER BY pr.reviewed_at DESC LIMIT ? OFFSET ?`;
@@ -305,27 +313,24 @@ export const getProjectReviews = async (req, res) => {
       reviewedAt: review.reviewed_at
     }));
     
-    return res.json(successResponse({
+    // ใช้ successResponse helper function พร้อม status code
+    return res.status(STATUS_CODES.OK).json(successResponse({
       reviews: formattedReviews,
-      pagination: {
-        page,
-        limit,
-        totalItems,
-        totalPages
-      }
-    }, 'Project reviews retrieved successfully'));
+      pagination: paginationInfo
+    }, 'Project reviews retrieved successfully', STATUS_CODES.OK));
     
   } catch (error) {
+    logger.error('Error fetching project reviews:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลสถิติการใช้งานระบบทั้งหมด
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getSystemStats = async (req, res) => {
+export const getSystemStats = asyncHandler(async (req, res) => {
   try {
     // จำนวนการเข้าสู่ระบบทั้งหมด
     const [totalLogins] = await pool.execute(`
@@ -342,6 +347,12 @@ export const getSystemStats = async (req, res) => {
       GROUP BY date 
       ORDER BY date
     `);
+    
+    // ใช้ formatToISODate เพื่อจัดรูปแบบวันที่
+    const formattedLoginsByDay = loginsByDay.map(item => ({
+      date: formatToISODate(item.date),
+      count: item.count
+    }));
     
     // จำนวนการเข้าชมผลงานทั้งหมด
     const [totalViews] = await pool.execute(`
@@ -375,12 +386,12 @@ export const getSystemStats = async (req, res) => {
     const viewsByDay = [];
     const allDates = new Set();
     
-    visitorViewsByDay.forEach(item => allDates.add(item.date.toISOString().split('T')[0]));
-    companyViewsByDay.forEach(item => allDates.add(item.date.toISOString().split('T')[0]));
+    visitorViewsByDay.forEach(item => allDates.add(formatToISODate(item.date)));
+    companyViewsByDay.forEach(item => allDates.add(formatToISODate(item.date)));
     
-    allDates.forEach(date => {
-      const visitorCount = visitorViewsByDay.find(item => item.date.toISOString().split('T')[0] === date)?.count || 0;
-      const companyCount = companyViewsByDay.find(item => item.date.toISOString().split('T')[0] === date)?.count || 0;
+    Array.from(allDates).forEach(date => {
+      const visitorCount = visitorViewsByDay.find(item => formatToISODate(item.date) === date)?.count || 0;
+      const companyCount = companyViewsByDay.find(item => formatToISODate(item.date) === date)?.count || 0;
       
       viewsByDay.push({
         date,
@@ -404,6 +415,11 @@ export const getSystemStats = async (req, res) => {
       ORDER BY date
     `);
     
+    const formattedProjectsByDay = projectsByDay.map(item => ({
+      date: formatToISODate(item.date),
+      count: item.count
+    }));
+    
     // จำนวนผู้ใช้ที่สมัครในแต่ละวัน (30 วันล่าสุด)
     const [usersByDay] = await pool.execute(`
       SELECT 
@@ -414,6 +430,11 @@ export const getSystemStats = async (req, res) => {
       GROUP BY date 
       ORDER BY date
     `);
+    
+    const formattedUsersByDay = usersByDay.map(item => ({
+      date: formatToISODate(item.date),
+      count: item.count
+    }));
     
     // จำนวนการตรวจสอบโครงการในแต่ละวัน (30 วันล่าสุด)
     const [reviewsByDay] = await pool.execute(`
@@ -427,6 +448,12 @@ export const getSystemStats = async (req, res) => {
       ORDER BY date
     `);
     
+    const formattedReviewsByDay = reviewsByDay.map(item => ({
+      date: formatToISODate(item.date),
+      count: item.count,
+      status: item.status
+    }));
+    
     // จำนวนการตรวจสอบแยกตามสถานะ
     const [reviewsByStatus] = await pool.execute(`
       SELECT status, COUNT(*) as count
@@ -434,28 +461,30 @@ export const getSystemStats = async (req, res) => {
       GROUP BY status
     `);
     
-    return res.json(successResponse({
+    // ใช้ successResponse helper function พร้อม status code
+    return res.status(STATUS_CODES.OK).json(successResponse({
       totalLogins: totalLogins[0].count,
-      loginsByDay,
+      loginsByDay: formattedLoginsByDay,
       totalViews: totalViews[0].count,
       viewsByDay,
-      projectsByDay,
-      usersByDay,
-      reviewsByDay,
+      projectsByDay: formattedProjectsByDay,
+      usersByDay: formattedUsersByDay,
+      reviewsByDay: formattedReviewsByDay,
       reviewsByStatus
-    }, 'System statistics retrieved successfully'));
+    }, 'System statistics retrieved successfully', STATUS_CODES.OK));
     
   } catch (error) {
+    logger.error('Error fetching system stats:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลของวันนี้และเปรียบเทียบกับค่าเฉลี่ยของ 7 วันที่ผ่านมา
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getDailyStats = async (req, res) => {
+export const getDailyStats = asyncHandler(async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -575,39 +604,46 @@ export const getDailyStats = async (req, res) => {
     `, [today, today]);
     const reviewsAvg = reviewsAvgResult[0].avg_count || 0;
     
-    return res.json(successResponse({
+    // คำนวณเปอร์เซ็นต์การเปลี่ยนแปลง
+    const calculatePercentChange = (current, average) => {
+      return average > 0 ? Math.round((current - average) / average * 100) : 100;
+    };
+    
+    // ใช้ successResponse helper function พร้อม status code
+    return res.status(STATUS_CODES.OK).json(successResponse({
       logins: {
         today: loginsToday,
         average: Math.round(loginsAvg * 10) / 10,
-        percentChange: loginsAvg > 0 ? Math.round((loginsToday - loginsAvg) / loginsAvg * 100) : 100
+        percentChange: calculatePercentChange(loginsToday, loginsAvg)
       },
       views: {
         today: viewsToday,
         visitor: visitorViewsToday,
         company: companyViewsToday,
         average: Math.round(viewsAvg * 10) / 10,
-        percentChange: viewsAvg > 0 ? Math.round((viewsToday - viewsAvg) / viewsAvg * 100) : 100
+        percentChange: calculatePercentChange(viewsToday, viewsAvg)
       },
       projects: {
         today: projectsToday,
         average: Math.round(projectsAvg * 10) / 10,
-        percentChange: projectsAvg > 0 ? Math.round((projectsToday - projectsAvg) / projectsAvg * 100) : 100
+        percentChange: calculatePercentChange(projectsToday, projectsAvg)
       },
       users: {
         today: usersToday,
         average: Math.round(usersAvg * 10) / 10,
-        percentChange: usersAvg > 0 ? Math.round((usersToday - usersAvg) / usersAvg * 100) : 100
+        percentChange: calculatePercentChange(usersToday, usersAvg)
       },
       reviews: {
         today: reviewsToday,
         approved: approvedToday,
         rejected: rejectedToday,
         average: Math.round(reviewsAvg * 10) / 10,
-        percentChange: reviewsAvg > 0 ? Math.round((reviewsToday - reviewsAvg) / reviewsAvg * 100) : 100
+        percentChange: calculatePercentChange(reviewsToday, reviewsAvg)
       }
-    }, 'Daily statistics retrieved successfully'));
+    }, 'Daily statistics retrieved successfully', STATUS_CODES.OK));
     
   } catch (error) {
+    logger.error('Error fetching daily stats:', error);
     return handleServerError(res, error);
   }
-};
+});

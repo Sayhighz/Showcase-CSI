@@ -1,31 +1,38 @@
-import bcrypt from 'bcryptjs';
-import pool from '../../config/database.js';
-import { handleServerError, notFoundResponse, successResponse } from '../../utils/responseFormatter.js';
+// adminUserController.js
+import pool, { beginTransaction, commitTransaction, rollbackTransaction } from '../../config/database.js';
+import { 
+  handleServerError, 
+  notFoundResponse, 
+  successResponse, 
+  forbiddenResponse, 
+  validationErrorResponse 
+} from '../../utils/responseFormatter.js';
 import { deleteFile } from '../../utils/fileHelper.js';
 import { sendWelcomeEmail } from '../../services/emailService.js';
+import { hashPassword } from '../../utils/passwordHelper.js';
+import { getPaginationParams, getPaginationInfo } from '../../constants/pagination.js';
+import { isValidEmail, isValidUsername } from '../../utils/validationHelper.js';
+import { ERROR_MESSAGES, getErrorMessage } from '../../constants/errorMessages.js';
+import { isValidRole, ROLES } from '../../constants/roles.js';
+import logger from '../../config/logger.js';
+import { asyncHandler } from '../../middleware/loggerMiddleware.js';
 
 /**
  * ดึงข้อมูลผู้ใช้ทั้งหมด
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllUsers = async (req, res) => {
-  const connection = await pool.getConnection();
+export const getAllUsers = asyncHandler(async (req, res) => {
+  let connection;
 
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false, 
-        statusCode: 403, 
-        message: 'Forbidden, only admin can access this resource' 
-      });
+    if (req.user.role !== ROLES.ADMIN) {
+      return forbiddenResponse(res, getErrorMessage('AUTH.ADMIN_REQUIRED'));
     }
 
-    // Validate and sanitize input parameters
-    const page = Math.max(1, parseInt(req.query.page || '1', 10));
-    const limit = Math.max(1, Math.min(parseInt(req.query.limit || '10', 10), 100));
-    const offset = (page - 1) * limit;
+    // ใช้ utility function สำหรับการแบ่งหน้า
+    const pagination = getPaginationParams(req);
     
     // Prepare query parameters
     const queryParams = [];
@@ -33,7 +40,7 @@ export const getAllUsers = async (req, res) => {
 
     // Role filter
     const role = req.query.role ? String(req.query.role).trim() : null;
-    if (role) {
+    if (role && isValidRole(role)) {
       conditions.push('role = ?');
       queryParams.push(role);
     }
@@ -51,26 +58,19 @@ export const getAllUsers = async (req, res) => {
       ? `WHERE ${conditions.join(' AND ')}` 
       : '';
 
-    // Begin transaction
-    await connection.beginTransaction();
+    // เริ่ม transaction
+    connection = await beginTransaction();
 
-    // Count total items
+    // นับจำนวนทั้งหมด
     const [countResult] = await connection.execute(`
       SELECT COUNT(*) as total 
       FROM users 
       ${whereClause}
     `, queryParams);
+    
     const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
 
-    // Prepare final query parameters (add limit and offset)
-    const finalQueryParams = [
-      ...queryParams,
-      BigInt(limit),
-      BigInt(offset)
-    ];
-
-    // Main query to fetch users
+    // ดึงข้อมูลผู้ใช้ตามการแบ่งหน้า
     const [users] = await connection.execute(`
       SELECT 
         user_id, 
@@ -89,73 +89,84 @@ export const getAllUsers = async (req, res) => {
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `, finalQueryParams);
+    `, [...queryParams, pagination.limit, pagination.offset]);
 
     // Commit transaction
-    await connection.commit();
+    await commitTransaction(connection);
 
-    // Return response
+    // จัดรูปแบบข้อมูลการแบ่งหน้า
+    const paginationInfo = getPaginationInfo(totalItems, pagination.page, pagination.limit);
+
+    // ส่งข้อมูลกลับ
     return res.json(successResponse({
       users: users.map(user => ({
         ...user,
         project_count: Number(user.project_count)
       })),
-      pagination: {
-        page,
-        limit,
-        totalItems,
-        totalPages
-      }
+      pagination: paginationInfo
     }, 'Users retrieved successfully'));
     
   } catch (error) {
-    // Rollback transaction if it exists
+    // Rollback transaction ถ้ามีการเริ่มต้น
     if (connection) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error('Rollback error:', rollbackError);
-      }
+      await rollbackTransaction(connection);
     }
 
-    console.error('Error in getAllUsers:', error);
+    logger.error('Error in getAllUsers:', error);
     return handleServerError(res, error);
-  } finally {
-    // Always release the connection
-    if (connection) connection.release();
   }
-};
+});
 
-// Existing other functions remain the same...
-// (createUser, getUserById, updateUser, etc.)
-// ฟังก์ชันสำหรับสร้างผู้ใช้ใหม่
-export const ecreateUser = async (req, res) => {
+/**
+ * สร้างผู้ใช้ใหม่
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+export const createUser = asyncHandler(async (req, res) => {
   try {
     const { 
       username, 
       password, 
       full_name, 
       email, 
-      role = 'student' 
+      role = ROLES.STUDENT 
     } = req.body;
     
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!username || !password || !full_name || !email) {
-      return res.status(400).json({ 
-        success: false,
-        statusCode: 400,
-        message: 'Username, password, full name, and email are required' 
-      });
+      return validationErrorResponse(res, 
+        getErrorMessage('USER.REQUIRED_FIELDS_MISSING'),
+        {
+          username: username ? null : 'Username is required',
+          password: password ? null : 'Password is required',
+          full_name: full_name ? null : 'Full name is required',
+          email: email ? null : 'Email is required'
+        }
+      );
+    }
+    
+    // ตรวจสอบรูปแบบอีเมล
+    if (!isValidEmail(email)) {
+      return validationErrorResponse(res, 
+        getErrorMessage('USER.INVALID_EMAIL'),
+        { email: 'Invalid email format' }
+      );
+    }
+    
+    // ตรวจสอบรูปแบบ username
+    if (!isValidUsername(username)) {
+      return validationErrorResponse(res, 
+        getErrorMessage('USER.INVALID_USERNAME'),
+        { username: 'Username must contain only letters, numbers, or underscores and be 4-20 characters long' }
+      );
     }
     
     // ตรวจสอบความถูกต้องของบทบาท
-    const validRoles = ['student', 'admin', 'visitor'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ 
-        success: false,
-        statusCode: 400,
-        message: 'Invalid role. Role must be student, admin, or visitor' 
-      });
+    if (!isValidRole(role)) {
+      return validationErrorResponse(res, 
+        getErrorMessage('USER.INVALID_ROLE'),
+        { role: 'Invalid role. Role must be visitor, student, or admin' }
+      );
     }
     
     // ตรวจสอบว่ามี username หรือ email ซ้ำหรือไม่
@@ -169,29 +180,16 @@ export const ecreateUser = async (req, res) => {
       const isDuplicateEmail = existingUsers.some(user => user.email === email);
       
       if (isDuplicateUsername && isDuplicateEmail) {
-        return res.status(409).json({ 
-          success: false,
-          statusCode: 409,
-          message: 'Username and email are already in use' 
-        });
+        return validationErrorResponse(res, getErrorMessage('AUTH.USERNAME_TAKEN') + ' and ' + getErrorMessage('AUTH.EMAIL_TAKEN'));
       } else if (isDuplicateUsername) {
-        return res.status(409).json({ 
-          success: false,
-          statusCode: 409,
-          message: 'Username is already in use' 
-        });
+        return validationErrorResponse(res, getErrorMessage('AUTH.USERNAME_TAKEN'));
       } else {
-        return res.status(409).json({ 
-          success: false,
-          statusCode: 409,
-          message: 'Email is already in use' 
-        });
+        return validationErrorResponse(res, getErrorMessage('AUTH.EMAIL_TAKEN'));
       }
     }
     
     // เข้ารหัสรหัสผ่าน
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await hashPassword(password);
     
     // เพิ่มผู้ใช้ใหม่
     const [result] = await pool.execute(`
@@ -200,8 +198,13 @@ export const ecreateUser = async (req, res) => {
       VALUES (?, ?, ?, ?, ?)
     `, [username, hashedPassword, full_name, email, role]);
     
-    // ส่งอีเมลต้อนรับ (ถ้าต้องการ)
-    await sendWelcomeEmail(email, username);
+    // ส่งอีเมลต้อนรับ
+    try {
+      await sendWelcomeEmail(email, username);
+    } catch (emailError) {
+      logger.error('Failed to send welcome email:', emailError);
+      // ดำเนินการต่อถึงแม้จะส่งอีเมลไม่สำเร็จ
+    }
     
     return res.status(201).json(successResponse({
       user: {
@@ -214,26 +217,22 @@ export const ecreateUser = async (req, res) => {
     }, 'User created successfully'));
     
   } catch (error) {
-    console.error('Error in createUser:', error);
+    logger.error('Error in createUser:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลผู้ใช้ตาม ID
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getUserById = async (req, res) => {
+export const getUserById = asyncHandler(async (req, res) => {
   try {
     const userId = req.params.userId;
     
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'User ID is required'
-      });
+      return validationErrorResponse(res, 'User ID is required');
     }
     
     // ดึงข้อมูลผู้ใช้
@@ -243,7 +242,7 @@ export const getUserById = async (req, res) => {
     `, [userId]);
     
     if (users.length === 0) {
-      return notFoundResponse(res, 'User not found');
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
     // ดึงข้อมูลโครงการของผู้ใช้
@@ -284,138 +283,171 @@ export const getUserById = async (req, res) => {
     return res.json(successResponse(userData, 'User retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error in getUserById:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * อัปเดตข้อมูลผู้ใช้
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const updateUser = async (req, res) => {
+export const updateUser = asyncHandler(async (req, res) => {
+  let connection;
+  
   try {
     const userId = req.params.userId;
     const { username, full_name, email, role } = req.body;
     
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'User ID is required'
-      });
+      return validationErrorResponse(res, 'User ID is required');
     }
     
+    // เริ่ม transaction
+    connection = await beginTransaction();
+    
     // ตรวจสอบว่าผู้ใช้มีอยู่จริงหรือไม่
-    const [users] = await pool.execute(`
+    const [users] = await connection.execute(`
       SELECT * FROM users WHERE user_id = ?
     `, [userId]);
     
     if (users.length === 0) {
-      return notFoundResponse(res, 'User not found');
+      await rollbackTransaction(connection);
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
     const currentUser = users[0];
     
-    // ตรวจสอบความถูกต้องของบทบาทถ้ามีการเปลี่ยนแปลง
-    if (role) {
-      const validRoles = ['student', 'admin', 'visitor'];
-      if (!validRoles.includes(role)) {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: 'Invalid role. Role must be student, admin, or visitor'
-        });
+    // ตรวจสอบความถูกต้องของข้อมูลที่จะอัปเดต
+    const updateData = {};
+    const validationErrors = {};
+    
+    if (username !== undefined) {
+      if (!isValidUsername(username)) {
+        validationErrors.username = getErrorMessage('USER.INVALID_USERNAME');
+      } else {
+        updateData.username = username;
       }
     }
     
+    if (email !== undefined) {
+      if (!isValidEmail(email)) {
+        validationErrors.email = getErrorMessage('USER.INVALID_EMAIL');
+      } else {
+        updateData.email = email;
+      }
+    }
+    
+    if (role !== undefined) {
+      if (!isValidRole(role)) {
+        validationErrors.role = getErrorMessage('USER.INVALID_ROLE');
+      } else {
+        updateData.role = role;
+      }
+    }
+    
+    if (full_name !== undefined) {
+      updateData.full_name = full_name;
+    }
+    
+    // ถ้ามีข้อผิดพลาดในการตรวจสอบ
+    if (Object.keys(validationErrors).length > 0) {
+      await rollbackTransaction(connection);
+      return validationErrorResponse(res, 'Validation error', validationErrors);
+    }
+    
     // ตรวจสอบว่ามีผู้ใช้คนอื่นที่มี username หรือ email นี้อยู่แล้วหรือไม่
-    if (username || email) {
-      const [existingUsers] = await pool.execute(`
+    if (updateData.username || updateData.email) {
+      const [existingUsers] = await connection.execute(`
         SELECT * FROM users WHERE (username = ? OR email = ?) AND user_id != ?
       `, [
-        username || currentUser.username,
-        email || currentUser.email,
+        updateData.username || currentUser.username,
+        updateData.email || currentUser.email,
         userId
       ]);
       
       if (existingUsers.length > 0) {
-        const isDuplicateUsername = existingUsers.some(user => user.username === (username || currentUser.username));
-        const isDuplicateEmail = existingUsers.some(user => user.email === (email || currentUser.email));
+        const isDuplicateUsername = existingUsers.some(user => user.username === (updateData.username || currentUser.username));
+        const isDuplicateEmail = existingUsers.some(user => user.email === (updateData.email || currentUser.email));
         
         if (isDuplicateUsername && isDuplicateEmail) {
-          return res.status(409).json({
-            success: false,
-            statusCode: 409,
-            message: 'Username and email are already in use by another user'
-          });
+          await rollbackTransaction(connection);
+          return validationErrorResponse(res, 'Username and email are already in use by another user');
         } else if (isDuplicateUsername) {
-          return res.status(409).json({
-            success: false,
-            statusCode: 409,
-            message: 'Username is already in use by another user'
-          });
-        } else {
-          return res.status(409).json({
-            success: false,
-            statusCode: 409,
-            message: 'Email is already in use by another user'
-          });
+          await rollbackTransaction(connection);
+          return validationErrorResponse(res, getErrorMessage('AUTH.USERNAME_TAKEN'));
+        } else if (isDuplicateEmail) {
+          await rollbackTransaction(connection);
+          return validationErrorResponse(res, getErrorMessage('AUTH.EMAIL_TAKEN'));
         }
       }
     }
     
+    // ถ้าไม่มีข้อมูลที่จะอัปเดต
+    if (Object.keys(updateData).length === 0) {
+      await rollbackTransaction(connection);
+      return res.json(successResponse({
+        user: {
+          id: userId,
+          username: currentUser.username,
+          full_name: currentUser.full_name,
+          email: currentUser.email,
+          role: currentUser.role
+        }
+      }, 'No changes made to user'));
+    }
+    
+    // สร้าง SQL query สำหรับอัปเดต
+    const updateFields = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+    const updateValues = Object.values(updateData);
+    
     // อัปเดตข้อมูลผู้ใช้
-    await pool.execute(`
+    await connection.execute(`
       UPDATE users
-      SET username = ?, full_name = ?, email = ?, role = ?
+      SET ${updateFields}
       WHERE user_id = ?
-    `, [
-      username || currentUser.username,
-      full_name || currentUser.full_name,
-      email || currentUser.email,
-      role || currentUser.role,
-      userId
-    ]);
+    `, [...updateValues, userId]);
+    
+    // Commit transaction
+    await commitTransaction(connection);
     
     return res.json(successResponse({
       user: {
         id: userId,
-        username: username || currentUser.username,
-        full_name: full_name || currentUser.full_name,
-        email: email || currentUser.email,
-        role: role || currentUser.role
+        username: updateData.username || currentUser.username,
+        full_name: updateData.full_name || currentUser.full_name,
+        email: updateData.email || currentUser.email,
+        role: updateData.role || currentUser.role
       }
     }, 'User updated successfully'));
     
   } catch (error) {
+    if (connection) {
+      await rollbackTransaction(connection);
+    }
+    logger.error('Error in updateUser:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * เปลี่ยนรหัสผ่านผู้ใช้
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const changeUserPassword = async (req, res) => {
+export const changeUserPassword = asyncHandler(async (req, res) => {
   try {
     const userId = req.params.userId;
     const { new_password } = req.body;
     
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'User ID is required'
-      });
+      return validationErrorResponse(res, 'User ID is required');
     }
     
     if (!new_password) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'New password is required'
+      return validationErrorResponse(res, 'New password is required', {
+        new_password: 'Password is required'
       });
     }
     
@@ -425,12 +457,18 @@ export const changeUserPassword = async (req, res) => {
     `, [userId]);
     
     if (users.length === 0) {
-      return notFoundResponse(res, 'User not found');
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
+    }
+    
+    // ตรวจสอบความซับซ้อนของรหัสผ่าน
+    if (new_password.length < 8) {
+      return validationErrorResponse(res, getErrorMessage('USER.PASSWORD_TOO_SHORT'), {
+        new_password: 'Password must be at least 8 characters long'
+      });
     }
     
     // เข้ารหัสรหัสผ่านใหม่
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(new_password, saltRounds);
+    const hashedPassword = await hashPassword(new_password);
     
     // อัปเดตรหัสผ่าน
     await pool.execute(`
@@ -442,80 +480,88 @@ export const changeUserPassword = async (req, res) => {
     return res.json(successResponse(null, 'Password changed successfully'));
     
   } catch (error) {
+    logger.error('Error in changeUserPassword:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ลบผู้ใช้
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const deleteUser = async (req, res) => {
+export const deleteUser = asyncHandler(async (req, res) => {
+  let connection;
+  
   try {
     const userId = req.params.userId;
     
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'User ID is required'
-      });
+      return validationErrorResponse(res, 'User ID is required');
     }
     
+    // เริ่ม transaction
+    connection = await beginTransaction();
+    
     // ตรวจสอบว่าผู้ใช้มีอยู่จริงหรือไม่
-    const [users] = await pool.execute(`
+    const [users] = await connection.execute(`
       SELECT * FROM users WHERE user_id = ?
     `, [userId]);
     
     if (users.length === 0) {
-      return notFoundResponse(res, 'User not found');
+      await rollbackTransaction(connection);
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
     // ตรวจสอบว่าผู้ใช้ที่จะลบไม่ใช่ตนเอง
     if (req.user.id == userId) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Cannot delete your own account'
-      });
+      await rollbackTransaction(connection);
+      return forbiddenResponse(res, getErrorMessage('USER.DELETE_SELF_FORBIDDEN'));
     }
     
     const currentUser = users[0];
     
     // ลบรูปโปรไฟล์ถ้ามี
     if (currentUser.image && currentUser.image.startsWith('uploads/')) {
-      deleteFile(currentUser.image);
+      try {
+        deleteFile(currentUser.image);
+      } catch (fileError) {
+        logger.warn(`Failed to delete profile image: ${currentUser.image}`, fileError);
+        // ดำเนินการต่อถึงแม้จะลบไฟล์ไม่สำเร็จ
+      }
     }
     
     // ลบผู้ใช้
-    await pool.execute(`
+    await connection.execute(`
       DELETE FROM users WHERE user_id = ?
     `, [userId]);
+    
+    // Commit transaction
+    await commitTransaction(connection);
     
     return res.json(successResponse(null, 'User deleted successfully'));
     
   } catch (error) {
+    if (connection) {
+      await rollbackTransaction(connection);
+    }
+    logger.error('Error in deleteUser:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลประวัติการเข้าสู่ระบบของผู้ใช้
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getUserLoginHistory = async (req, res) => {
+export const getUserLoginHistory = asyncHandler(async (req, res) => {
   try {
     const userId = req.params.userId;
     const limit = parseInt(req.query.limit) || 50;
     
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'User ID is required'
-      });
+      return validationErrorResponse(res, 'User ID is required');
     }
     
     // ตรวจสอบว่าผู้ใช้มีอยู่จริงหรือไม่
@@ -524,7 +570,7 @@ export const getUserLoginHistory = async (req, res) => {
     `, [userId]);
     
     if (users.length === 0) {
-      return notFoundResponse(res, 'User not found');
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
     // ดึงประวัติการเข้าสู่ระบบ
@@ -536,19 +582,24 @@ export const getUserLoginHistory = async (req, res) => {
       LIMIT ?
     `, [userId, limit]);
     
-    return res.json(successResponse(loginLogs, 'Login history retrieved successfully'));
+    return res.json(successResponse({
+      userId,
+      username: users[0].username,
+      logs: loginLogs
+    }, 'Login history retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error in getUserLoginHistory:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลสถิติผู้ใช้สำหรับ Dashboard
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getUserStats = async (req, res) => {
+export const getUserStats = asyncHandler(async (req, res) => {
   try {
     // จำนวนผู้ใช้ทั้งหมด
     const [totalUsers] = await pool.execute(`
@@ -606,11 +657,23 @@ export const getUserStats = async (req, res) => {
         id: user.user_id,
         username: user.username,
         fullName: user.full_name,
-        projectCount: user.project_count
+        projectCount: Number(user.project_count)
       }))
     }, 'User statistics retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error in getUserStats:', error);
     return handleServerError(res, error);
   }
+});
+
+export default {
+  getAllUsers,
+  createUser,
+  getUserById,
+  updateUser,
+  changeUserPassword,
+  deleteUser,
+  getUserLoginHistory,
+  getUserStats
 };

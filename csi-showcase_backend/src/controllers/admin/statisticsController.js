@@ -1,114 +1,125 @@
 // controllers/admin/statisticsController.js
 import pool from '../../config/database.js';
+import logger from '../../config/logger.js';
 import { handleServerError, successResponse } from '../../utils/responseFormatter.js';
+import { STATUS_CODES } from '../../constants/statusCodes.js';
+import { PROJECT_TYPES, PROJECT_STATUSES } from '../../constants/projectStatuses.js';
+import { formatToISODate } from '../../utils/dateHelper.js';
+import { asyncHandler } from '../../middleware/loggerMiddleware.js';
 
 /**
  * ดึงข้อมูลสถิติทั้งหมดสำหรับหน้า Dashboard
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getDashboardStats = async (req, res) => {
+export const getDashboardStats = asyncHandler(async (req, res) => {
   try {
-    // 1. จำนวนโครงการทั้งหมด
-    const [totalProjects] = await pool.execute(`
-      SELECT COUNT(*) as count FROM projects
-    `);
-    
-    // 2. จำนวนผู้ใช้ทั้งหมด
-    const [totalUsers] = await pool.execute(`
-      SELECT COUNT(*) as count FROM users
-    `);
-    
-    // 3. จำนวนผู้ใช้แยกตามบทบาท
-    const [usersByRole] = await pool.execute(`
-      SELECT role, COUNT(*) as count FROM users GROUP BY role
-    `);
-    
-    // 4. จำนวนโครงการแยกตามประเภท
-    const [projectsByType] = await pool.execute(`
-      SELECT type, COUNT(*) as count FROM projects GROUP BY type
-    `);
-    
-    // 5. จำนวนโครงการแยกตามสถานะ
-    const [projectsByStatus] = await pool.execute(`
-      SELECT status, COUNT(*) as count FROM projects GROUP BY status
-    `);
-    
-    // 6. จำนวนการเข้าชมทั้งหมด
-    const [totalViews] = await pool.execute(`
-      SELECT 
-        (SELECT SUM(views_count) FROM projects) as count
-    `);
-    
-    // 7. จำนวนโครงการที่อัปโหลดในแต่ละเดือน (12 เดือนล่าสุด)
-    const [projectsByMonth] = await pool.execute(`
-      SELECT 
-        DATE_FORMAT(created_at, '%Y-%m') as month, 
-        COUNT(*) as count 
-      FROM projects 
-      WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      GROUP BY month 
-      ORDER BY month
-    `);
-    
-    // 8. โครงการที่มียอดเข้าชมมากที่สุด 5 อันดับแรก
-    const [topViewedProjects] = await pool.execute(`
-      SELECT p.project_id, p.title, p.views_count, p.type, 
-             u.username, u.full_name
-      FROM projects p
-      JOIN users u ON p.user_id = u.user_id
-      ORDER BY p.views_count DESC
-      LIMIT 5
-    `);
-    
-    // 9. ผู้ใช้ที่มีโครงการมากที่สุด 5 อันดับแรก
-    const [topContributors] = await pool.execute(`
-      SELECT u.user_id, u.username, u.full_name, COUNT(p.project_id) as project_count
-      FROM users u
-      JOIN projects p ON u.user_id = p.user_id
-      GROUP BY u.user_id
-      ORDER BY project_count DESC
-      LIMIT 5
-    `);
-    
-    // 10. จำนวนผู้ใช้ที่สมัครในแต่ละเดือน (12 เดือนล่าสุด)
-    const [usersByMonth] = await pool.execute(`
-      SELECT 
-        DATE_FORMAT(created_at, '%Y-%m') as month, 
-        COUNT(*) as count 
-      FROM users 
-      WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      GROUP BY month 
-      ORDER BY month
-    `);
-    
-    // 11. จำนวนการเข้าชมในแต่ละเดือน (12 เดือนล่าสุด)
-    const [viewsByMonth] = await pool.execute(`
-      SELECT 
-        DATE_FORMAT(viewed_at, '%Y-%m') as month, 
-        COUNT(*) as count 
-      FROM (
-        SELECT viewed_at FROM visitor_views
-        WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-        UNION ALL
-        SELECT viewed_at FROM company_views
-        WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      ) as all_views
-      GROUP BY month 
-      ORDER BY month
-    `);
-    
-    return res.json(successResponse({
+    logger.debug('Fetching dashboard statistics');
+
+    // จัดการคำสั่ง SQL ทั้งหมดพร้อมกันเพื่อลดเวลาการรอคอย
+    const [
+      totalProjects,
+      totalUsers,
+      usersByRole,
+      projectsByType,
+      projectsByStatus,
+      totalViews,
+      projectsByMonth,
+      topViewedProjects,
+      topContributors,
+      usersByMonth,
+      viewsByMonth
+    ] = await Promise.all([
+      // 1. จำนวนโครงการทั้งหมด
+      pool.execute('SELECT COUNT(*) as count FROM projects'),
+      
+      // 2. จำนวนผู้ใช้ทั้งหมด
+      pool.execute('SELECT COUNT(*) as count FROM users'),
+      
+      // 3. จำนวนผู้ใช้แยกตามบทบาท
+      pool.execute('SELECT role, COUNT(*) as count FROM users GROUP BY role'),
+      
+      // 4. จำนวนโครงการแยกตามประเภท
+      pool.execute('SELECT type, COUNT(*) as count FROM projects GROUP BY type'),
+      
+      // 5. จำนวนโครงการแยกตามสถานะ
+      pool.execute('SELECT status, COUNT(*) as count FROM projects GROUP BY status'),
+      
+      // 6. จำนวนการเข้าชมทั้งหมด
+      pool.execute('SELECT SUM(views_count) as count FROM projects'),
+      
+      // 7. จำนวนโครงการที่อัปโหลดในแต่ละเดือน (12 เดือนล่าสุด)
+      pool.execute(`
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m') as month, 
+          COUNT(*) as count 
+        FROM projects 
+        WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY month 
+        ORDER BY month
+      `),
+      
+      // 8. โครงการที่มียอดเข้าชมมากที่สุด 5 อันดับแรก
+      pool.execute(`
+        SELECT p.project_id, p.title, p.views_count, p.type, 
+               u.username, u.full_name
+        FROM projects p
+        JOIN users u ON p.user_id = u.user_id
+        WHERE p.status = ? AND p.visibility = 1
+        ORDER BY p.views_count DESC
+        LIMIT 5
+      `, [PROJECT_STATUSES.APPROVED]),
+      
+      // 9. ผู้ใช้ที่มีโครงการมากที่สุด 5 อันดับแรก
+      pool.execute(`
+        SELECT u.user_id, u.username, u.full_name, COUNT(p.project_id) as project_count
+        FROM users u
+        JOIN projects p ON u.user_id = p.user_id
+        GROUP BY u.user_id
+        ORDER BY project_count DESC
+        LIMIT 5
+      `),
+      
+      // 10. จำนวนผู้ใช้ที่สมัครในแต่ละเดือน (12 เดือนล่าสุด)
+      pool.execute(`
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m') as month, 
+          COUNT(*) as count 
+        FROM users 
+        WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY month 
+        ORDER BY month
+      `),
+      
+      // 11. จำนวนการเข้าชมในแต่ละเดือน (12 เดือนล่าสุด)
+      pool.execute(`
+        SELECT 
+          DATE_FORMAT(viewed_at, '%Y-%m') as month, 
+          COUNT(*) as count 
+        FROM (
+          SELECT viewed_at FROM visitor_views
+          WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
+          UNION ALL
+          SELECT viewed_at FROM company_views
+          WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        ) as all_views
+        GROUP BY month 
+        ORDER BY month
+      `)
+    ]);
+
+    // จัดรูปแบบข้อมูลสำหรับการส่งกลับ
+    return res.status(STATUS_CODES.OK).json(successResponse({
       totals: {
-        projects: totalProjects[0].count,
-        users: totalUsers[0].count,
-        views: totalViews[0].count || 0
+        projects: totalProjects[0][0].count,
+        users: totalUsers[0][0].count,
+        views: totalViews[0][0].count || 0
       },
       projectStats: {
-        byType: projectsByType,
-        byStatus: projectsByStatus,
-        byMonth: projectsByMonth,
-        topViewed: topViewedProjects.map(project => ({
+        byType: projectsByType[0],
+        byStatus: projectsByStatus[0],
+        byMonth: projectsByMonth[0],
+        topViewed: topViewedProjects[0].map(project => ({
           id: project.project_id,
           title: project.title,
           viewsCount: project.views_count,
@@ -120,9 +131,9 @@ export const getDashboardStats = async (req, res) => {
         }))
       },
       userStats: {
-        byRole: usersByRole,
-        byMonth: usersByMonth,
-        topContributors: topContributors.map(user => ({
+        byRole: usersByRole[0],
+        byMonth: usersByMonth[0],
+        topContributors: topContributors[0].map(user => ({
           id: user.user_id,
           username: user.username,
           fullName: user.full_name,
@@ -130,13 +141,27 @@ export const getDashboardStats = async (req, res) => {
         }))
       },
       viewStats: {
-        byMonth: viewsByMonth
+        byMonth: viewsByMonth[0]
       }
     }, 'Dashboard statistics retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error getting dashboard statistics:', error);
     return handleServerError(res, error);
   }
+});
+
+/**
+ * คำนวณเปอร์เซ็นต์การเปลี่ยนแปลงระหว่างสองค่า
+ * @param {number} current - ค่าปัจจุบัน
+ * @param {number} previous - ค่าก่อนหน้า
+ * @returns {number} - เปอร์เซ็นต์การเปลี่ยนแปลง
+ */
+const calculatePercentChange = (current, previous) => {
+  if (previous === 0) {
+    return current > 0 ? 100 : 0;
+  }
+  return Math.round((current - previous) / previous * 100);
 };
 
 /**
@@ -144,256 +169,255 @@ export const getDashboardStats = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getTodayStats = async (req, res) => {
+export const getTodayStats = asyncHandler(async (req, res) => {
   try {
+    logger.debug('Fetching today statistics');
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     
-    // 1. จำนวนโครงการที่อัปโหลดวันนี้
-    const [projectsTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM projects
-      WHERE created_at >= ?
-    `, [today]);
-    const projectsToday = projectsTodayResult[0].count;
+    // ใช้ date helper function จาก utils
+    const todayFormatted = formatToISODate(today);
+    const yesterdayFormatted = formatToISODate(yesterday);
     
-    // 2. จำนวนโครงการที่อัปโหลดเมื่อวาน
-    const [projectsYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM projects
-      WHERE created_at >= ? AND created_at < ?
-    `, [yesterday, today]);
-    const projectsYesterday = projectsYesterdayResult[0].count;
+    logger.debug(`Today: ${todayFormatted}, Yesterday: ${yesterdayFormatted}`);
     
-    // 3. จำนวนผู้ใช้ที่สมัครวันนี้
-    const [usersTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM users
-      WHERE created_at >= ?
-    `, [today]);
-    const usersToday = usersTodayResult[0].count;
+    // ดำเนินการค้นหาทั้งหมดพร้อมกัน
+    const [
+      projectsToday,
+      projectsYesterday,
+      usersToday,
+      usersYesterday,
+      visitorViewsToday,
+      visitorViewsYesterday,
+      companyViewsToday,
+      companyViewsYesterday,
+      loginsToday,
+      loginsYesterday,
+      approvedToday,
+      approvedYesterday,
+      rejectedToday,
+      rejectedYesterday
+    ] = await Promise.all([
+      // 1. จำนวนโครงการที่อัปโหลดวันนี้
+      pool.execute('SELECT COUNT(*) as count FROM projects WHERE DATE(created_at) = ?', [todayFormatted]),
+      
+      // 2. จำนวนโครงการที่อัปโหลดเมื่อวาน
+      pool.execute('SELECT COUNT(*) as count FROM projects WHERE DATE(created_at) = ?', [yesterdayFormatted]),
+      
+      // 3. จำนวนผู้ใช้ที่สมัครวันนี้
+      pool.execute('SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = ?', [todayFormatted]),
+      
+      // 4. จำนวนผู้ใช้ที่สมัครเมื่อวาน
+      pool.execute('SELECT COUNT(*) as count FROM users WHERE DATE(created_at) = ?', [yesterdayFormatted]),
+      
+      // 5. จำนวนการเข้าชมวันนี้ (visitor)
+      pool.execute('SELECT COUNT(*) as count FROM visitor_views WHERE DATE(viewed_at) = ?', [todayFormatted]),
+      
+      // 6. จำนวนการเข้าชมเมื่อวาน (visitor)
+      pool.execute('SELECT COUNT(*) as count FROM visitor_views WHERE DATE(viewed_at) = ?', [yesterdayFormatted]),
+      
+      // 7. จำนวนการเข้าชมวันนี้ (company)
+      pool.execute('SELECT COUNT(*) as count FROM company_views WHERE DATE(viewed_at) = ?', [todayFormatted]),
+      
+      // 8. จำนวนการเข้าชมเมื่อวาน (company)
+      pool.execute('SELECT COUNT(*) as count FROM company_views WHERE DATE(viewed_at) = ?', [yesterdayFormatted]),
+      
+      // 9. จำนวนการเข้าสู่ระบบวันนี้
+      pool.execute('SELECT COUNT(*) as count FROM login_logs WHERE DATE(login_time) = ?', [todayFormatted]),
+      
+      // 10. จำนวนการเข้าสู่ระบบเมื่อวาน
+      pool.execute('SELECT COUNT(*) as count FROM login_logs WHERE DATE(login_time) = ?', [yesterdayFormatted]),
+      
+      // 11. จำนวนโครงการที่ได้รับการอนุมัติวันนี้
+      pool.execute(`
+        SELECT COUNT(*) as count
+        FROM project_reviews
+        WHERE status = ? AND DATE(reviewed_at) = ?`, 
+        [PROJECT_STATUSES.APPROVED, todayFormatted]
+      ),
+      
+      // 12. จำนวนโครงการที่ได้รับการอนุมัติเมื่อวาน
+      pool.execute(`
+        SELECT COUNT(*) as count
+        FROM project_reviews
+        WHERE status = ? AND DATE(reviewed_at) = ?`, 
+        [PROJECT_STATUSES.APPROVED, yesterdayFormatted]
+      ),
+      
+      // 13. จำนวนโครงการที่ถูกปฏิเสธวันนี้
+      pool.execute(`
+        SELECT COUNT(*) as count
+        FROM project_reviews
+        WHERE status = ? AND DATE(reviewed_at) = ?`, 
+        [PROJECT_STATUSES.REJECTED, todayFormatted]
+      ),
+      
+      // 14. จำนวนโครงการที่ถูกปฏิเสธเมื่อวาน
+      pool.execute(`
+        SELECT COUNT(*) as count
+        FROM project_reviews
+        WHERE status = ? AND DATE(reviewed_at) = ?`, 
+        [PROJECT_STATUSES.REJECTED, yesterdayFormatted]
+      )
+    ]);
     
-    // 4. จำนวนผู้ใช้ที่สมัครเมื่อวาน
-    const [usersYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM users
-      WHERE created_at >= ? AND created_at < ?
-    `, [yesterday, today]);
-    const usersYesterday = usersYesterdayResult[0].count;
+    // แปลงผลลัพธ์ให้เป็นค่าตัวเลข
+    const projectsTodayCount = projectsToday[0][0].count;
+    const projectsYesterdayCount = projectsYesterday[0][0].count;
+    const usersTodayCount = usersToday[0][0].count;
+    const usersYesterdayCount = usersYesterday[0][0].count;
+    const visitorViewsTodayCount = visitorViewsToday[0][0].count;
+    const visitorViewsYesterdayCount = visitorViewsYesterday[0][0].count;
+    const companyViewsTodayCount = companyViewsToday[0][0].count;
+    const companyViewsYesterdayCount = companyViewsYesterday[0][0].count;
+    const loginsTodayCount = loginsToday[0][0].count;
+    const loginsYesterdayCount = loginsYesterday[0][0].count;
+    const approvedTodayCount = approvedToday[0][0].count;
+    const approvedYesterdayCount = approvedYesterday[0][0].count;
+    const rejectedTodayCount = rejectedToday[0][0].count;
+    const rejectedYesterdayCount = rejectedYesterday[0][0].count;
     
-    // 5. จำนวนการเข้าชมวันนี้ (visitor)
-    const [visitorViewsTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM visitor_views
-      WHERE viewed_at >= ?
-    `, [today]);
-    const visitorViewsToday = visitorViewsTodayResult[0].count;
+    // คำนวณค่ารวม
+    const totalViewsToday = visitorViewsTodayCount + companyViewsTodayCount;
+    const totalViewsYesterday = visitorViewsYesterdayCount + companyViewsYesterdayCount;
+    const totalReviewsToday = approvedTodayCount + rejectedTodayCount;
+    const totalReviewsYesterday = approvedYesterdayCount + rejectedYesterdayCount;
     
-    // 6. จำนวนการเข้าชมเมื่อวาน (visitor)
-    const [visitorViewsYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM visitor_views
-      WHERE viewed_at >= ? AND viewed_at < ?
-    `, [yesterday, today]);
-    const visitorViewsYesterday = visitorViewsYesterdayResult[0].count;
-    
-    // 7. จำนวนการเข้าชมวันนี้ (company)
-    const [companyViewsTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM company_views
-      WHERE viewed_at >= ?
-    `, [today]);
-    const companyViewsToday = companyViewsTodayResult[0].count;
-    
-    // 8. จำนวนการเข้าชมเมื่อวาน (company)
-    const [companyViewsYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM company_views
-      WHERE viewed_at >= ? AND viewed_at < ?
-    `, [yesterday, today]);
-    const companyViewsYesterday = companyViewsYesterdayResult[0].count;
-    
-    // 9. จำนวนการเข้าสู่ระบบวันนี้
-    const [loginsTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM login_logs
-      WHERE login_time >= ?
-    `, [today]);
-    const loginsToday = loginsTodayResult[0].count;
-    
-    // 10. จำนวนการเข้าสู่ระบบเมื่อวาน
-    const [loginsYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM login_logs
-      WHERE login_time >= ? AND login_time < ?
-    `, [yesterday, today]);
-    const loginsYesterday = loginsYesterdayResult[0].count;
-    
-    // 11. จำนวนโครงการที่ได้รับการอนุมัติวันนี้
-    const [approvedTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM project_reviews
-      WHERE status = 'approved' AND reviewed_at >= ?
-    `, [today]);
-    const approvedToday = approvedTodayResult[0].count;
-    
-    // 12. จำนวนโครงการที่ได้รับการอนุมัติเมื่อวาน
-    const [approvedYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM project_reviews
-      WHERE status = 'approved' AND reviewed_at >= ? AND reviewed_at < ?
-    `, [yesterday, today]);
-    const approvedYesterday = approvedYesterdayResult[0].count;
-    
-    // 13. จำนวนโครงการที่ถูกปฏิเสธวันนี้
-    const [rejectedTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM project_reviews
-      WHERE status = 'rejected' AND reviewed_at >= ?
-    `, [today]);
-    const rejectedToday = rejectedTodayResult[0].count;
-    
-    // 14. จำนวนโครงการที่ถูกปฏิเสธเมื่อวาน
-    const [rejectedYesterdayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM project_reviews
-      WHERE status = 'rejected' AND reviewed_at >= ? AND reviewed_at < ?
-    `, [yesterday, today]);
-    const rejectedYesterday = rejectedYesterdayResult[0].count;
-    
-    return res.json(successResponse({
+    return res.status(STATUS_CODES.OK).json(successResponse({
       projects: {
-        today: projectsToday,
-        yesterday: projectsYesterday,
-        percentChange: projectsYesterday > 0 ? Math.round((projectsToday - projectsYesterday) / projectsYesterday * 100) : (projectsToday > 0 ? 100 : 0)
+        today: projectsTodayCount,
+        yesterday: projectsYesterdayCount,
+        percentChange: calculatePercentChange(projectsTodayCount, projectsYesterdayCount)
       },
       users: {
-        today: usersToday,
-        yesterday: usersYesterday,
-        percentChange: usersYesterday > 0 ? Math.round((usersToday - usersYesterday) / usersYesterday * 100) : (usersToday > 0 ? 100 : 0)
+        today: usersTodayCount,
+        yesterday: usersYesterdayCount,
+        percentChange: calculatePercentChange(usersTodayCount, usersYesterdayCount)
       },
       views: {
         visitor: {
-          today: visitorViewsToday,
-          yesterday: visitorViewsYesterday,
-          percentChange: visitorViewsYesterday > 0 ? Math.round((visitorViewsToday - visitorViewsYesterday) / visitorViewsYesterday * 100) : (visitorViewsToday > 0 ? 100 : 0)
+          today: visitorViewsTodayCount,
+          yesterday: visitorViewsYesterdayCount,
+          percentChange: calculatePercentChange(visitorViewsTodayCount, visitorViewsYesterdayCount)
         },
         company: {
-          today: companyViewsToday,
-          yesterday: companyViewsYesterday,
-          percentChange: companyViewsYesterday > 0 ? Math.round((companyViewsToday - companyViewsYesterday) / companyViewsYesterday * 100) : (companyViewsToday > 0 ? 100 : 0)
+          today: companyViewsTodayCount,
+          yesterday: companyViewsYesterdayCount,
+          percentChange: calculatePercentChange(companyViewsTodayCount, companyViewsYesterdayCount)
         },
         total: {
-          today: visitorViewsToday + companyViewsToday,
-          yesterday: visitorViewsYesterday + companyViewsYesterday,
-          percentChange: (visitorViewsYesterday + companyViewsYesterday) > 0 ? 
-            Math.round(((visitorViewsToday + companyViewsToday) - (visitorViewsYesterday + companyViewsYesterday)) / (visitorViewsYesterday + companyViewsYesterday) * 100) : 
-            ((visitorViewsToday + companyViewsToday) > 0 ? 100 : 0)
+          today: totalViewsToday,
+          yesterday: totalViewsYesterday,
+          percentChange: calculatePercentChange(totalViewsToday, totalViewsYesterday)
         }
       },
       logins: {
-        today: loginsToday,
-        yesterday: loginsYesterday,
-        percentChange: loginsYesterday > 0 ? Math.round((loginsToday - loginsYesterday) / loginsYesterday * 100) : (loginsToday > 0 ? 100 : 0)
+        today: loginsTodayCount,
+        yesterday: loginsYesterdayCount,
+        percentChange: calculatePercentChange(loginsTodayCount, loginsYesterdayCount)
       },
       reviews: {
         approved: {
-          today: approvedToday,
-          yesterday: approvedYesterday,
-          percentChange: approvedYesterday > 0 ? Math.round((approvedToday - approvedYesterday) / approvedYesterday * 100) : (approvedToday > 0 ? 100 : 0)
+          today: approvedTodayCount,
+          yesterday: approvedYesterdayCount,
+          percentChange: calculatePercentChange(approvedTodayCount, approvedYesterdayCount)
         },
         rejected: {
-          today: rejectedToday,
-          yesterday: rejectedYesterday,
-          percentChange: rejectedYesterday > 0 ? Math.round((rejectedToday - rejectedYesterday) / rejectedYesterday * 100) : (rejectedToday > 0 ? 100 : 0)
+          today: rejectedTodayCount,
+          yesterday: rejectedYesterdayCount,
+          percentChange: calculatePercentChange(rejectedTodayCount, rejectedYesterdayCount)
         },
         total: {
-          today: approvedToday + rejectedToday,
-          yesterday: approvedYesterday + rejectedYesterday,
-          percentChange: (approvedYesterday + rejectedYesterday) > 0 ? 
-            Math.round(((approvedToday + rejectedToday) - (approvedYesterday + rejectedYesterday)) / (approvedYesterday + rejectedYesterday) * 100) : 
-            ((approvedToday + rejectedToday) > 0 ? 100 : 0)
+          today: totalReviewsToday,
+          yesterday: totalReviewsYesterday,
+          percentChange: calculatePercentChange(totalReviewsToday, totalReviewsYesterday)
         }
       }
     }, 'Today statistics retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error getting today statistics:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลสถิติแยกตามประเภทของโครงการ
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectTypeStats = async (req, res) => {
+export const getProjectTypeStats = asyncHandler(async (req, res) => {
   try {
-    // 1. จำนวนโครงการแยกตามประเภท
-    const [projectsByType] = await pool.execute(`
-      SELECT type, COUNT(*) as count 
-      FROM projects 
-      GROUP BY type
-    `);
+    logger.debug('Fetching project type statistics');
     
-    // 2. จำนวนการเข้าชมเฉลี่ยแยกตามประเภท
-    const [avgViewsByType] = await pool.execute(`
-      SELECT type, AVG(views_count) as avg_views 
-      FROM projects 
-      GROUP BY type
-    `);
-    
-    // 3. จำนวนโครงการที่อัปโหลดในแต่ละเดือนแยกตามประเภท (12 เดือนล่าสุด)
-    const [projectsByMonthAndType] = await pool.execute(`
-      SELECT 
-        DATE_FORMAT(created_at, '%Y-%m') as month,
-        type,
-        COUNT(*) as count 
-      FROM projects 
-      WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-      GROUP BY month, type
-      ORDER BY month, type
-    `);
-    
-    // 4. อัตราการอนุมัติแยกตามประเภท
-    const [approvalRateByType] = await pool.execute(`
-      SELECT 
-        p.type,
-        COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) as approved_count,
-        COUNT(CASE WHEN pr.status = 'rejected' THEN 1 END) as rejected_count,
-        COUNT(*) as total_count,
-        (COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)) as approval_rate
-      FROM project_reviews pr
-      JOIN projects p ON pr.project_id = p.project_id
-      GROUP BY p.type
-    `);
-    
-    // 5. โครงการที่มียอดเข้าชมมากที่สุดแยกตามประเภท
-    const [topViewedByType] = await pool.execute(`
-      SELECT * FROM (
+    // ดำเนินการค้นหาทั้งหมดพร้อมกัน
+    const [
+      projectsByType,
+      avgViewsByType,
+      projectsByMonthAndType,
+      approvalRateByType,
+      topViewedByType
+    ] = await Promise.all([
+      // 1. จำนวนโครงการแยกตามประเภท
+      pool.execute('SELECT type, COUNT(*) as count FROM projects GROUP BY type'),
+      
+      // 2. จำนวนการเข้าชมเฉลี่ยแยกตามประเภท
+      pool.execute('SELECT type, AVG(views_count) as avg_views FROM projects GROUP BY type'),
+      
+      // 3. จำนวนโครงการที่อัปโหลดในแต่ละเดือนแยกตามประเภท (12 เดือนล่าสุด)
+      pool.execute(`
         SELECT 
-          p.project_id, 
-          p.title, 
-          p.views_count, 
+          DATE_FORMAT(created_at, '%Y-%m') as month,
+          type,
+          COUNT(*) as count 
+        FROM projects 
+        WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY month, type
+        ORDER BY month, type
+      `),
+      
+      // 4. อัตราการอนุมัติแยกตามประเภท
+      pool.execute(`
+        SELECT 
           p.type,
-          u.username, 
-          u.full_name,
-          ROW_NUMBER() OVER (PARTITION BY p.type ORDER BY p.views_count DESC) as row_num
-        FROM projects p
-        JOIN users u ON p.user_id = u.user_id
-      ) as ranked
-      WHERE row_num <= 3
-    `);
+          COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) as approved_count,
+          COUNT(CASE WHEN pr.status = 'rejected' THEN 1 END) as rejected_count,
+          COUNT(*) as total_count,
+          (COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)) as approval_rate
+        FROM project_reviews pr
+        JOIN projects p ON pr.project_id = p.project_id
+        GROUP BY p.type
+      `),
+      
+      // 5. โครงการที่มียอดเข้าชมมากที่สุดแยกตามประเภท
+      pool.execute(`
+        SELECT * FROM (
+          SELECT 
+            p.project_id, 
+            p.title, 
+            p.views_count, 
+            p.type,
+            u.username, 
+            u.full_name,
+            ROW_NUMBER() OVER (PARTITION BY p.type ORDER BY p.views_count DESC) as row_num
+          FROM projects p
+          JOIN users u ON p.user_id = u.user_id
+          WHERE p.status = ? AND p.visibility = 1
+        ) as ranked
+        WHERE row_num <= 3
+      `, [PROJECT_STATUSES.APPROVED])
+    ]);
     
     // แปลงข้อมูลให้เหมาะสมกับ frontend
-    // 1. จัดรูปแบบข้อมูลโครงการแยกตามประเภท
+    // สร้างรูปแบบข้อมูลสำหรับประเภทโครงการทั้งหมด
     const typeStats = {};
     
-    // สร้างรูปแบบข้อมูลเริ่มต้น
-    ['coursework', 'academic', 'competition'].forEach(type => {
+    // ใช้ค่าคงที่ PROJECT_TYPES จากไฟล์ constants
+    Object.values(PROJECT_TYPES).forEach(type => {
       typeStats[type] = {
         count: 0,
         avgViews: 0,
@@ -407,51 +431,51 @@ export const getProjectTypeStats = async (req, res) => {
     });
     
     // เติมข้อมูลจำนวนโครงการ
-    projectsByType.forEach(item => {
+    projectsByType[0].forEach(item => {
       if (typeStats[item.type]) {
         typeStats[item.type].count = item.count;
       }
     });
     
     // เติมข้อมูลจำนวนการเข้าชมเฉลี่ย
-    avgViewsByType.forEach(item => {
+    avgViewsByType[0].forEach(item => {
       if (typeStats[item.type]) {
         typeStats[item.type].avgViews = Math.round(item.avg_views * 10) / 10;
       }
     });
     
     // เติมข้อมูลอัตราการอนุมัติ
-    approvalRateByType.forEach(item => {
+    approvalRateByType[0].forEach(item => {
       if (typeStats[item.type]) {
-        typeStats[item.type].approvalRate = Math.round(item.approval_rate * 10) / 10;
+        typeStats[item.type].approvalRate = Math.round(item.approval_rate * 10) / 10 || 0;
         typeStats[item.type].approvedCount = item.approved_count;
         typeStats[item.type].rejectedCount = item.rejected_count;
         typeStats[item.type].totalReviewCount = item.total_count;
       }
     });
     
-    // 2. จัดรูปแบบข้อมูลโครงการรายเดือนแยกตามประเภท
+    // จัดรูปแบบข้อมูลโครงการรายเดือนแยกตามประเภท
     const monthlyTrends = {};
     
-    projectsByMonthAndType.forEach(item => {
+    projectsByMonthAndType[0].forEach(item => {
       if (!monthlyTrends[item.month]) {
         monthlyTrends[item.month] = {
           month: item.month,
-          coursework: 0,
-          academic: 0,
-          competition: 0
+          [PROJECT_TYPES.COURSEWORK]: 0,
+          [PROJECT_TYPES.ACADEMIC]: 0, 
+          [PROJECT_TYPES.COMPETITION]: 0
         };
       }
       
-      if (item.type in monthlyTrends[item.month]) {
+      if (Object.values(PROJECT_TYPES).includes(item.type)) {
         monthlyTrends[item.month][item.type] = item.count;
       }
     });
     
     const monthlyTrendsArray = Object.values(monthlyTrends).sort((a, b) => a.month.localeCompare(b.month));
     
-    // 3. จัดรูปแบบข้อมูลโครงการที่มียอดเข้าชมมากที่สุดแยกตามประเภท
-    topViewedByType.forEach(project => {
+    // เติมข้อมูลโครงการที่มียอดเข้าชมมากที่สุดแยกตามประเภท
+    topViewedByType[0].forEach(project => {
       if (typeStats[project.type]) {
         typeStats[project.type].topProjects.push({
           id: project.project_id,
@@ -465,85 +489,97 @@ export const getProjectTypeStats = async (req, res) => {
       }
     });
     
-    return res.json(successResponse({
+    return res.status(STATUS_CODES.OK).json(successResponse({
       stats: typeStats,
       monthlyTrends: monthlyTrendsArray
     }, 'Project type statistics retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error getting project type statistics:', error);
     return handleServerError(res, error);
   }
-};
+});
 
 /**
  * ดึงข้อมูลสถิติแยกตามชั้นปีของนักศึกษา
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getStudyYearStats = async (req, res) => {
+export const getStudyYearStats = asyncHandler(async (req, res) => {
   try {
-    // 1. จำนวนโครงการแยกตามชั้นปี
-    const [projectsByStudyYear] = await pool.execute(`
-      SELECT study_year, COUNT(*) as count 
-      FROM projects 
-      GROUP BY study_year
-      ORDER BY study_year
-    `);
+    logger.debug('Fetching study year statistics');
     
-    // 2. จำนวนการเข้าชมเฉลี่ยแยกตามชั้นปี
-    const [avgViewsByStudyYear] = await pool.execute(`
-      SELECT study_year, AVG(views_count) as avg_views 
-      FROM projects 
-      GROUP BY study_year
-      ORDER BY study_year
-    `);
-    
-    // 3. จำนวนโครงการแยกตามชั้นปีและประเภท
-    const [projectsByStudyYearAndType] = await pool.execute(`
-      SELECT study_year, type, COUNT(*) as count 
-      FROM projects 
-      GROUP BY study_year, type
-      ORDER BY study_year, type
-    `);
-    
-    // 4. อัตราการอนุมัติแยกตามชั้นปี
-    const [approvalRateByStudyYear] = await pool.execute(`
-      SELECT 
-        p.study_year,
-        COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) as approved_count,
-        COUNT(CASE WHEN pr.status = 'rejected' THEN 1 END) as rejected_count,
-        COUNT(*) as total_count,
-        (COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)) as approval_rate
-      FROM project_reviews pr
-      JOIN projects p ON pr.project_id = p.project_id
-      GROUP BY p.study_year
-      ORDER BY p.study_year
-    `);
-    
-    // 5. โครงการที่มียอดเข้าชมมากที่สุดแยกตามชั้นปี
-    const [topViewedByStudyYear] = await pool.execute(`
-      SELECT * FROM (
+    // ดำเนินการค้นหาทั้งหมดพร้อมกัน
+    const [
+      projectsByStudyYear,
+      avgViewsByStudyYear,
+      projectsByStudyYearAndType,
+      approvalRateByStudyYear,
+      topViewedByStudyYear
+    ] = await Promise.all([
+      // 1. จำนวนโครงการแยกตามชั้นปี
+      pool.execute(`
+        SELECT study_year, COUNT(*) as count 
+        FROM projects 
+        GROUP BY study_year
+        ORDER BY study_year
+      `),
+      
+      // 2. จำนวนการเข้าชมเฉลี่ยแยกตามชั้นปี
+      pool.execute(`
+        SELECT study_year, AVG(views_count) as avg_views 
+        FROM projects 
+        GROUP BY study_year
+        ORDER BY study_year
+      `),
+      
+      // 3. จำนวนโครงการแยกตามชั้นปีและประเภท
+      pool.execute(`
+        SELECT study_year, type, COUNT(*) as count 
+        FROM projects 
+        GROUP BY study_year, type
+        ORDER BY study_year, type
+      `),
+      
+      // 4. อัตราการอนุมัติแยกตามชั้นปี
+      pool.execute(`
         SELECT 
-          p.project_id, 
-          p.title, 
-          p.views_count, 
-          p.type,
           p.study_year,
-          u.username, 
-          u.full_name,
-          ROW_NUMBER() OVER (PARTITION BY p.study_year ORDER BY p.views_count DESC) as row_num
-        FROM projects p
-        JOIN users u ON p.user_id = u.user_id
-      ) as ranked
-      WHERE row_num <= 3
-      ORDER BY study_year, row_num
-    `);
+          COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) as approved_count,
+          COUNT(CASE WHEN pr.status = 'rejected' THEN 1 END) as rejected_count,
+          COUNT(*) as total_count,
+          (COUNT(CASE WHEN pr.status = 'approved' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0)) as approval_rate
+        FROM project_reviews pr
+        JOIN projects p ON pr.project_id = p.project_id
+        GROUP BY p.study_year
+        ORDER BY p.study_year
+      `),
+      
+      // 5. โครงการที่มียอดเข้าชมมากที่สุดแยกตามชั้นปี
+      pool.execute(`
+        SELECT * FROM (
+          SELECT 
+            p.project_id, 
+            p.title, 
+            p.views_count, 
+            p.type,
+            p.study_year,
+            u.username, 
+            u.full_name,
+            ROW_NUMBER() OVER (PARTITION BY p.study_year ORDER BY p.views_count DESC) as row_num
+          FROM projects p
+          JOIN users u ON p.user_id = u.user_id
+          WHERE p.status = ? AND p.visibility = 1
+        ) as ranked
+        WHERE row_num <= 3
+        ORDER BY study_year, row_num
+      `, [PROJECT_STATUSES.APPROVED])
+    ]);
     
     // แปลงข้อมูลให้เหมาะสมกับ frontend
-    // 1. จัดรูปแบบข้อมูลโครงการแยกตามชั้นปี
     const yearStats = {};
     
-    // สร้างรูปแบบข้อมูลเริ่มต้น
+    // สร้างรูปแบบข้อมูลเริ่มต้นสำหรับชั้นปี 1-4
     [1, 2, 3, 4].forEach(year => {
       yearStats[year] = {
         count: 0,
@@ -553,39 +589,39 @@ export const getStudyYearStats = async (req, res) => {
         rejectedCount: 0,
         totalReviewCount: 0,
         byType: {
-          coursework: 0,
-          academic: 0,
-          competition: 0
+          [PROJECT_TYPES.COURSEWORK]: 0,
+          [PROJECT_TYPES.ACADEMIC]: 0,
+          [PROJECT_TYPES.COMPETITION]: 0
         },
         topProjects: []
       };
     });
     
     // เติมข้อมูลจำนวนโครงการ
-    projectsByStudyYear.forEach(item => {
+    projectsByStudyYear[0].forEach(item => {
       if (yearStats[item.study_year]) {
         yearStats[item.study_year].count = item.count;
       }
     });
     
     // เติมข้อมูลจำนวนการเข้าชมเฉลี่ย
-    avgViewsByStudyYear.forEach(item => {
+    avgViewsByStudyYear[0].forEach(item => {
       if (yearStats[item.study_year]) {
-        yearStats[item.study_year].avgViews = Math.round(item.avg_views * 10) / 10;
+        yearStats[item.study_year].avgViews = Math.round(item.avg_views * 10) / 10 || 0;
       }
     });
     
     // เติมข้อมูลแยกตามประเภท
-    projectsByStudyYearAndType.forEach(item => {
-      if (yearStats[item.study_year] && yearStats[item.study_year].byType[item.type] !== undefined) {
+    projectsByStudyYearAndType[0].forEach(item => {
+      if (yearStats[item.study_year] && Object.values(PROJECT_TYPES).includes(item.type)) {
         yearStats[item.study_year].byType[item.type] = item.count;
       }
     });
     
     // เติมข้อมูลอัตราการอนุมัติ
-    approvalRateByStudyYear.forEach(item => {
+    approvalRateByStudyYear[0].forEach(item => {
       if (yearStats[item.study_year]) {
-        yearStats[item.study_year].approvalRate = Math.round(item.approval_rate * 10) / 10;
+        yearStats[item.study_year].approvalRate = Math.round(item.approval_rate * 10) / 10 || 0;
         yearStats[item.study_year].approvedCount = item.approved_count;
         yearStats[item.study_year].rejectedCount = item.rejected_count;
         yearStats[item.study_year].totalReviewCount = item.total_count;
@@ -593,26 +629,38 @@ export const getStudyYearStats = async (req, res) => {
     });
     
     // เติมข้อมูลโครงการที่มียอดเข้าชมมากที่สุด
-    topViewedByStudyYear.forEach(project => {
-      if (yearStats[project.study_year]) {
-        yearStats[project.study_year].topProjects.push({
-          id: project.project_id,
-          title: project.title,
-          viewsCount: project.views_count,
-          type: project.type,
-          author: {
-            username: project.username,
-            fullName: project.full_name
-          }
-        });
-      }
-    });
-    
-    return res.json(successResponse({
-      stats: yearStats
-    }, 'Study year statistics retrieved successfully'));
-    
-  } catch (error) {
-    return handleServerError(res, error);
-  }
+   // เติมข้อมูลโครงการที่มียอดเข้าชมมากที่สุด
+   topViewedByStudyYear[0].forEach(project => {
+    if (yearStats[project.study_year]) {
+      yearStats[project.study_year].topProjects.push({
+        id: project.project_id,
+        title: project.title,
+        viewsCount: project.views_count,
+        type: project.type,
+        author: {
+          username: project.username,
+          fullName: project.full_name
+        }
+      });
+    }
+  });
+  
+  return res.status(STATUS_CODES.OK).json(successResponse({
+    stats: yearStats
+  }, 'Study year statistics retrieved successfully'));
+  
+} catch (error) {
+  logger.error('Error getting study year statistics:', error);
+  return handleServerError(res, error);
+}
+});
+
+/**
+* สร้างและส่งออกฟังก์ชันทั้งหมดสำหรับให้เรียกใช้งานจากภายนอก
+*/
+export default {
+getDashboardStats,
+getTodayStats,
+getProjectTypeStats,
+getStudyYearStats
 };
