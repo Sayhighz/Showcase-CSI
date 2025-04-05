@@ -1,324 +1,301 @@
-// ===== controllers/common/uploadController.js =====
-
-import multer from 'multer';
+// controllers/common/uploadController.js
+import { createUploader } from '../../services/storageService.js';
+import { handleMulterError } from '../../middleware/userMiddleware.js';
+import { ALLOWED_FILE_TYPES, formatFileSize } from '../../constants/fileTypes.js';
+import logger from '../../config/logger.js';
+import { successResponse, errorResponse } from '../../utils/responseFormatter.js';
+import { STATUS_CODES } from '../../constants/statusCodes.js';
+import pool from '../../config/database.js';
+import storageService from '../../services/storageService.js';
 import path from 'path';
 import fs from 'fs';
+import multer from 'multer';
 
-// กำหนดโฟลเดอร์สำหรับเก็บไฟล์แต่ละประเภท
-const UPLOAD_PATHS = {
-  profiles: 'uploads/profiles/',
-  images: 'uploads/images/',
-  videos: 'uploads/videos/',
-  documents: 'uploads/documents/',
-  others: 'uploads/others/'
-};
+// ใช้ค่าที่กำหนดจาก services/storageService.js
+const UPLOAD_PATHS = storageService.UPLOAD_PATHS;
 
-// ตรวจสอบและสร้างโฟลเดอร์ถ้าไม่มี
-Object.values(UPLOAD_PATHS).forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
-
-// กำหนดขนาดไฟล์สูงสุดสำหรับแต่ละประเภท (หน่วย: bytes)
-const MAX_FILE_SIZES = {
-  profiles: 5 * 1024 * 1024, // 5MB
-  images: 10 * 1024 * 1024,  // 10MB
-  videos: 50 * 1024 * 1024,  // 50MB
-  documents: 20 * 1024 * 1024, // 20MB
-  others: 10 * 1024 * 1024    // 10MB
-};
-
-// กำหนดประเภทไฟล์ที่อนุญาตสำหรับแต่ละหมวดหมู่
-const ALLOWED_MIMETYPES = {
-  profiles: ['image/jpeg', 'image/png', 'image/gif'],
-  images: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  videos: ['video/mp4', 'video/webm', 'video/quicktime'],
-  documents: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
-  others: ['application/zip', 'application/x-rar-compressed', 'application/octet-stream']
-};
-
-// กำหนด storage options สำหรับ multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // ตัดสินใจว่าจะเก็บไฟล์ไว้ที่โฟลเดอร์ไหน
-    let uploadPath = UPLOAD_PATHS.others; // default path
-    
-    // ตรวจสอบประเภทไฟล์
-    if (file.mimetype.startsWith('image/')) {
-      // ตรวจสอบว่าเป็นการอัปโหลดรูปโปรไฟล์หรือไม่
-      if (req.uploadType === 'profile') {
-        uploadPath = UPLOAD_PATHS.profiles;
-      } else {
-        uploadPath = UPLOAD_PATHS.images;
-      }
-    } else if (file.mimetype.startsWith('video/')) {
-      uploadPath = UPLOAD_PATHS.videos;
-    } else if (file.mimetype === 'application/pdf' || file.mimetype.includes('word') || file.mimetype.includes('powerpoint')) {
-      uploadPath = UPLOAD_PATHS.documents;
-    }
-    
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // สร้างชื่อไฟล์ใหม่เพื่อป้องกันการซ้ำกัน
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    let prefix = 'file';
-    
-    // กำหนด prefix ตามประเภทไฟล์
-    if (file.mimetype.startsWith('image/')) {
-      prefix = req.uploadType === 'profile' ? 'profile' : 'image';
-    } else if (file.mimetype.startsWith('video/')) {
-      prefix = 'video';
-    } else if (file.mimetype === 'application/pdf') {
-      prefix = 'document';
-    }
-    
-    cb(null, `${prefix}-${uniqueSuffix}${ext}`);
-  }
-});
-
-// ตรวจสอบว่าไฟล์ที่อัปโหลดถูกต้องตามเงื่อนไขหรือไม่
-const fileFilter = (req, file, cb) => {
-  // กำหนดประเภทการอัปโหลดจาก request body หรือ query parameters
-  const uploadType = req.body.uploadType || req.query.uploadType || 'others';
-  req.uploadType = uploadType;
-  
-  // ตรวจสอบว่าประเภทไฟล์อยู่ในรายการที่อนุญาตหรือไม่
-  const allowedTypes = ALLOWED_MIMETYPES[uploadType] || ALLOWED_MIMETYPES.others;
-  
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true); // อนุญาตให้อัปโหลด
-  } else {
-    cb(new Error(`ไม่อนุญาตให้อัปโหลดไฟล์ประเภท ${file.mimetype}`), false);
-  }
-};
-
-// สร้าง multer middleware สำหรับแต่ละประเภทการอัปโหลด
-const createUploader = (uploadType) => {
-  return multer({
-    storage: storage,
-    limits: { fileSize: MAX_FILE_SIZES[uploadType] || MAX_FILE_SIZES.others },
-    fileFilter: fileFilter
-  });
-};
-
-// --------------------------------------------------------
-// Middleware สำหรับอัปโหลดแต่ละประเภท
-// --------------------------------------------------------
-
-// สำหรับอัปโหลดรูปโปรไฟล์ (เฉพาะ 1 ไฟล์)
-export const uploadProfileImage = createUploader('profiles').single('image/jpeg');
-
-// สำหรับอัปโหลดรูปภาพทั่วไป (สูงสุด 5 ไฟล์)
+// สร้าง multer uploader สำหรับแต่ละประเภท
+export const uploadProfileImage = createUploader('profiles').single('profileImage');
 export const uploadImages = createUploader('images').array('images', 5);
-
-// สำหรับอัปโหลดวิดีโอ (เฉพาะ 1 ไฟล์)
 export const uploadVideo = createUploader('videos').single('video');
-
-// สำหรับอัปโหลดเอกสาร (สูงสุด 3 ไฟล์)
 export const uploadDocuments = createUploader('documents').array('documents', 3);
-
-// สำหรับอัปโหลดไฟล์ทั่วไป (สูงสุด 5 ไฟล์)
 export const uploadFiles = createUploader('others').array('files', 5);
-
-// สำหรับอัปโหลดหลายประเภทในคราวเดียว
 export const uploadMultiple = createUploader('others').fields([
   { name: 'images', maxCount: 5 },
   { name: 'video', maxCount: 1 },
   { name: 'documents', maxCount: 3 }
 ]);
 
-// --------------------------------------------------------
-// Controller functions
-// --------------------------------------------------------
-
-// ฟังก์ชันอัปโหลดไฟล์ทั่วไป
+/**
+ * อัปโหลดไฟล์ทั่วไป
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 export const handleFileUpload = async (req, res) => {
   try {
     // ตรวจสอบว่ามีไฟล์หรือไม่
     if (!req.file && !req.files) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
+      return errorResponse(
+        res, 
+        'No file uploaded', 
+        STATUS_CODES.BAD_REQUEST
+      );
     }
     
     // เตรียมข้อมูลสำหรับการตอบกลับ
-    let response = { success: true, message: 'File uploaded successfully' };
+    let responseData = {};
     
     // กรณีอัปโหลดไฟล์เดียว
     if (req.file) {
-      response.file = {
-        filename: req.file.filename,
-        originalname: req.file.originalname,
-        path: req.file.path,
-        size: req.file.size,
-        mimetype: req.file.mimetype
-      };
+      responseData.file = formatFileResponse(req.file, req);
     }
     
     // กรณีอัปโหลดหลายไฟล์ (array)
     if (req.files && Array.isArray(req.files)) {
-      response.files = req.files.map(file => ({
-        filename: file.filename,
-        originalname: file.originalname,
-        path: file.path,
-        size: file.size,
-        mimetype: file.mimetype
-      }));
+      responseData.files = req.files.map(file => formatFileResponse(file, req));
     }
     
     // กรณีอัปโหลดหลายประเภท (fields)
     if (req.files && !Array.isArray(req.files)) {
-      response.files = {};
+      responseData.files = {};
       
       Object.keys(req.files).forEach(fieldname => {
-        response.files[fieldname] = req.files[fieldname].map(file => ({
-          filename: file.filename,
-          originalname: file.originalname,
-          path: file.path,
-          size: file.size,
-          mimetype: file.mimetype
-        }));
+        responseData.files[fieldname] = req.files[fieldname].map(file => 
+          formatFileResponse(file, req)
+        );
       });
     }
+
+    // บันทึกข้อมูลการอัปโหลดลงในฐานข้อมูล (ถ้ามี project_id)
+    if (req.body.project_id) {
+      await saveUploadedFileToDatabase(req);
+    }
     
-    return res.status(200).json(response);
+    return successResponse(
+      res,
+      responseData,
+      'File uploaded successfully',
+      STATUS_CODES.OK
+    );
   } catch (error) {
-    console.error('File upload error:', error);
-    return res.status(500).json({ success: false, message: 'File upload failed', error: error.message });
+    logger.error('File upload error:', error);
+    return errorResponse(
+      res,
+      'File upload failed',
+      STATUS_CODES.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 
-// ฟังก์ชันลบไฟล์
+/**
+ * ลบไฟล์
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 export const deleteFile = async (req, res) => {
   try {
     const { filePath } = req.body;
     
     if (!filePath) {
-      return res.status(400).json({ success: false, message: 'File path is required' });
+      return errorResponse(
+        res,
+        'File path is required',
+        STATUS_CODES.BAD_REQUEST
+      );
     }
     
     // ตรวจสอบว่าเป็น path ที่อยู่ในโฟลเดอร์ uploads จริงหรือไม่
     if (!filePath.startsWith('uploads/')) {
-      return res.status(400).json({ success: false, message: 'Invalid file path' });
+      return errorResponse(
+        res,
+        'Invalid file path',
+        STATUS_CODES.BAD_REQUEST
+      );
     }
     
-    // ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, message: 'File not found' });
+    // ลบไฟล์โดยใช้ฟังก์ชันจาก storageService
+    const deleted = await storageService.deleteFile(filePath);
+    
+    if (!deleted) {
+      return errorResponse(
+        res,
+        'File not found or could not be deleted',
+        STATUS_CODES.NOT_FOUND
+      );
+    }
+
+    // ลบข้อมูลไฟล์จากฐานข้อมูล (ถ้ามี)
+    if (req.body.file_id) {
+      await deleteFileFromDatabase(req.body.file_id);
     }
     
-    // ลบไฟล์
-    fs.unlinkSync(filePath);
-    
-    return res.status(200).json({ success: true, message: 'File deleted successfully' });
+    return successResponse(
+      res,
+      { filePath },
+      'File deleted successfully',
+      STATUS_CODES.OK
+    );
   } catch (error) {
-    console.error('File deletion error:', error);
-    return res.status(500).json({ success: false, message: 'File deletion failed', error: error.message });
+    logger.error('File deletion error:', error);
+    return errorResponse(
+      res,
+      'File deletion failed',
+      STATUS_CODES.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 
-// ฟังก์ชันตรวจสอบสถานะพื้นที่จัดเก็บไฟล์
+/**
+ * ตรวจสอบสถานะพื้นที่จัดเก็บไฟล์
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 export const getStorageStatus = async (req, res) => {
   try {
     // ตรวจสอบว่าผู้ใช้เป็น admin หรือไม่
     if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Forbidden, only admin can access storage status' });
+      return errorResponse(
+        res,
+        'Access denied. Admin privileges required',
+        STATUS_CODES.FORBIDDEN
+      );
     }
     
-    const storageStats = {};
+    // ใช้ฟังก์ชันจาก storageService
+    const storageStats = await storageService.getStorageStatus();
     
-    // คำนวณขนาดไฟล์ทั้งหมดในแต่ละโฟลเดอร์
-    for (const [type, dir] of Object.entries(UPLOAD_PATHS)) {
-      storageStats[type] = { totalSize: 0, fileCount: 0, files: [] };
-      
-      // ตรวจสอบว่าโฟลเดอร์มีอยู่จริงหรือไม่
-      if (!fs.existsSync(dir)) {
-        continue;
-      }
-      
-      // อ่านรายการไฟล์ในโฟลเดอร์
-      const files = fs.readdirSync(dir);
-      
-      // คำนวณขนาดไฟล์แต่ละไฟล์
-      for (const file of files) {
-        const filePath = path.join(dir, file);
-        
-        // ตรวจสอบว่าเป็นไฟล์จริงหรือไม่ (ไม่ใช่โฟลเดอร์)
-        if (fs.statSync(filePath).isFile()) {
-          const stats = fs.statSync(filePath);
-          storageStats[type].totalSize += stats.size;
-          storageStats[type].fileCount++;
-          
-          // เก็บข้อมูลของไฟล์
-          storageStats[type].files.push({
-            name: file,
-            path: filePath,
-            size: stats.size,
-            created: stats.birthtime,
-            modified: stats.mtime
-          });
-        }
-      }
-      
-      // แปลงขนาดให้อยู่ในรูปแบบที่อ่านง่าย (MB)
-      storageStats[type].totalSizeMB = (storageStats[type].totalSize / (1024 * 1024)).toFixed(2);
-    }
-    
-    // คำนวณขนาดไฟล์ทั้งหมด
-    const totalSize = Object.values(storageStats).reduce((sum, { totalSize }) => sum + totalSize, 0);
-    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-    const totalFileCount = Object.values(storageStats).reduce((sum, { fileCount }) => sum + fileCount, 0);
-    
-    return res.status(200).json({
-      success: true,
-      stats: {
-        totalSize,
-        totalSizeMB,
-        totalFileCount,
-        categories: storageStats
-      }
-    });
+    return successResponse(
+      res,
+      storageStats,
+      'Storage status retrieved successfully',
+      STATUS_CODES.OK
+    );
   } catch (error) {
-    console.error('Storage status error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to get storage status', error: error.message });
+    logger.error('Storage status error:', error);
+    return errorResponse(
+      res,
+      'Failed to get storage status',
+      STATUS_CODES.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 
-// ฟังก์ชันจัดการข้อผิดพลาดจาก multer
-export const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({
-        success: false,
-        message: 'File too large',
-        error: `The uploaded file exceeds the maximum allowed size.`
+/**
+ * ฟังก์ชันช่วยจัดรูปแบบข้อมูลไฟล์ที่อัปโหลด
+ * @param {Object} file - ข้อมูลไฟล์ที่อัปโหลด
+ * @param {Object} req - Express request object
+ * @returns {Object} - ข้อมูลไฟล์ที่จัดรูปแบบแล้ว
+ */
+function formatFileResponse(file, req) {
+  // สร้าง URL สำหรับเข้าถึงไฟล์
+  const fileUrl = `${req.protocol}://${req.get('host')}/${file.path.replace(/\\/g, '/')}`;
+  
+  return {
+    filename: file.filename,
+    originalname: file.originalname,
+    path: file.path,
+    url: fileUrl,
+    size: file.size,
+    formattedSize: formatFileSize(file.size),
+    mimetype: file.mimetype,
+    fileType: getFileTypeFromMimetype(file.mimetype)
+  };
+}
+
+/**
+ * ดึงประเภทของไฟล์จาก MIME type
+ * @param {string} mimetype - MIME type ของไฟล์
+ * @returns {string} - ประเภทของไฟล์
+ */
+function getFileTypeFromMimetype(mimetype) {
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype.startsWith('video/')) return 'video';
+  if (mimetype === 'application/pdf') return 'pdf';
+  if (mimetype.includes('word') || mimetype.includes('document')) return 'document';
+  if (mimetype.includes('powerpoint') || mimetype.includes('presentation')) return 'presentation';
+  return 'other';
+}
+
+/**
+ * บันทึกข้อมูลไฟล์ที่อัปโหลดลงในฐานข้อมูล
+ * @param {Object} req - Express request object
+ */
+async function saveUploadedFileToDatabase(req) {
+  try {
+    const projectId = req.body.project_id;
+    
+    // ตรวจสอบว่ามี project_id หรือไม่
+    if (!projectId) return;
+    
+    let files = [];
+    
+    // รวบรวมไฟล์ทั้งหมดที่อัปโหลด
+    if (req.file) {
+      files.push(req.file);
+    } else if (req.files && Array.isArray(req.files)) {
+      files = req.files;
+    } else if (req.files && !Array.isArray(req.files)) {
+      Object.values(req.files).forEach(fileArray => {
+        files = files.concat(fileArray);
       });
     }
     
-    if (err.code === 'LIMIT_FILE_COUNT') {
-      return res.status(413).json({
-        success: false,
-        message: 'Too many files',
-        error: `You can upload a maximum of ${err.field} files.`
-      });
+    // บันทึกข้อมูลไฟล์ลงในฐานข้อมูล
+    for (const file of files) {
+      const fileType = getFileTypeFromMimetype(file.mimetype);
+      
+      await pool.execute(`
+        INSERT INTO project_files (
+          project_id, file_type, file_path, file_name, file_size
+        ) VALUES (?, ?, ?, ?, ?)
+      `, [
+        projectId,
+        fileType,
+        file.path,
+        file.originalname,
+        file.size
+      ]);
     }
     
-    return res.status(400).json({
-      success: false,
-      message: 'File upload error',
-      error: err.message
-    });
+    logger.info(`Saved ${files.length} files to database for project ${projectId}`);
+  } catch (error) {
+    logger.error('Error saving file to database:', error);
+    throw error;
   }
-  
-  // กรณีเป็นข้อผิดพลาดอื่นๆ
-  if (err) {
-    return res.status(500).json({
-      success: false,
-      message: 'Unexpected error during file upload',
-      error: err.message
-    });
+}
+
+/**
+ * ลบข้อมูลไฟล์จากฐานข้อมูล
+ * @param {number} fileId - ID ของไฟล์ในฐานข้อมูล
+ */
+async function deleteFileFromDatabase(fileId) {
+  try {
+    await pool.execute(`
+      DELETE FROM project_files WHERE file_id = ?
+    `, [fileId]);
+    
+    logger.info(`Deleted file with ID ${fileId} from database`);
+  } catch (error) {
+    logger.error('Error deleting file from database:', error);
+    throw error;
   }
-  
-  next();
+}
+
+// นำเข้าฟังก์ชันจัดการข้อผิดพลาดจาก userMiddleware.js
+export { handleMulterError };
+
+export default {
+  uploadProfileImage,
+  uploadImages,
+  uploadVideo,
+  uploadDocuments,
+  uploadFiles,
+  uploadMultiple,
+  handleFileUpload,
+  deleteFile,
+  getStorageStatus,
+  handleMulterError
 };
