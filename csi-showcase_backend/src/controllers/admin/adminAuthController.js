@@ -1,9 +1,20 @@
 // controllers/admin/adminAuthController.js
-import bcrypt from 'bcryptjs';
 import pool from '../../config/database.js';
-import { handleServerError, successResponse } from '../../utils/responseFormatter.js';
-import { generateAdminToken, generatePasswordResetToken, verifyPasswordResetToken } from '../../utils/jwtHelper.js';
-import { sendPasswordResetEmail } from '../../services/emailService.js';
+import logger from '../../config/logger.js';
+import tokenService from '../../services/tokenService.js';
+import emailService from '../../services/emailService.js';
+import { hashPassword, comparePassword, checkPasswordStrength } from '../../utils/passwordHelper.js';
+import { getErrorMessage } from '../../constants/errorMessages.js';
+import { STATUS_CODES } from '../../constants/statusCodes.js';
+import { 
+  successResponse, 
+  errorResponse, 
+  notFoundResponse, 
+  forbiddenResponse, 
+  validationErrorResponse, 
+  handleServerError 
+} from '../../utils/responseFormatter.js';
+import { isValidEmail, isEmpty } from '../../utils/validationHelper.js';
 
 /**
  * ล็อกอินสำหรับผู้ดูแลระบบ
@@ -13,45 +24,40 @@ import { sendPasswordResetEmail } from '../../services/emailService.js';
 export const adminLogin = async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("users", username)
+    logger.debug("Admin login attempt", { username });
     
     // ตรวจสอบข้อมูลที่จำเป็น
-    if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Username and password are required'
-      });
+    if (isEmpty(username) || isEmpty(password)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse(getErrorMessage('AUTH.INVALID_CREDENTIALS'), STATUS_CODES.BAD_REQUEST)
+      );
     }
     
     // ค้นหาผู้ใช้จากฐานข้อมูล
     const [users] = await pool.execute(`
       SELECT * FROM users WHERE username = ? AND role = 'admin'
     `, [username]);
+    
     // ตรวจสอบว่ามีผู้ใช้หรือไม่
     if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        statusCode: 401,
-        message: 'Invalid credentials or not an admin account'
-      });
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        errorResponse(getErrorMessage('AUTH.INVALID_CREDENTIALS'), STATUS_CODES.UNAUTHORIZED)
+      );
     }
     
     const user = users[0];
     
     // ตรวจสอบรหัสผ่าน
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = await comparePassword(password, user.password_hash);
     
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        statusCode: 401,
-        message: 'Invalid credentials'
-      });
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        errorResponse(getErrorMessage('AUTH.INVALID_CREDENTIALS'), STATUS_CODES.UNAUTHORIZED)
+      );
     }
     
     // สร้าง JWT token สำหรับ admin
-    const token = generateAdminToken({
+    const token = tokenService.generateAdminToken({
       id: user.user_id,
       username: user.username,
       role: user.role,
@@ -62,6 +68,9 @@ export const adminLogin = async (req, res) => {
       INSERT INTO login_logs (user_id, ip_address)
       VALUES (?, ?)
     `, [user.user_id, req.ip]);
+    
+    // บันทึกล็อกการเข้าสู่ระบบ
+    logger.info(`Admin login successful: ${username}`, { userId: user.user_id, ip: req.ip });
     
     return res.json(successResponse({
       token,
@@ -76,6 +85,7 @@ export const adminLogin = async (req, res) => {
     }, 'Admin login successful'));
     
   } catch (error) {
+    logger.error('Error in admin login:', error);
     return handleServerError(res, error);
   }
 };
@@ -89,11 +99,9 @@ export const getCurrentAdmin = async (req, res) => {
   try {
     // ข้อมูลผู้ใช้ถูกเพิ่มให้ req.user โดย middleware
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        statusCode: 401,
-        message: 'Admin not authenticated'
-      });
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        errorResponse(getErrorMessage('AUTH.LOGIN_REQUIRED'), STATUS_CODES.UNAUTHORIZED)
+      );
     }
     
     // ค้นหาข้อมูลผู้ใช้เพิ่มเติมจากฐานข้อมูล
@@ -104,11 +112,7 @@ export const getCurrentAdmin = async (req, res) => {
     `, [req.user.id]);
     
     if (users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        statusCode: 404,
-        message: 'Admin not found'
-      });
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
     const user = users[0];
@@ -124,6 +128,7 @@ export const getCurrentAdmin = async (req, res) => {
     }, 'Admin info retrieved successfully'));
     
   } catch (error) {
+    logger.error('Error in getting current admin:', error);
     return handleServerError(res, error);
   }
 };
@@ -150,12 +155,10 @@ export const forgotAdminPassword = async (req, res) => {
   try {
     const { email } = req.body;
     
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Email is required'
-      });
+    if (isEmpty(email) || !isValidEmail(email)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        validationErrorResponse(res, getErrorMessage('USER.INVALID_EMAIL'))
+      );
     }
     
     // ค้นหาผู้ใช้จากอีเมล
@@ -163,18 +166,19 @@ export const forgotAdminPassword = async (req, res) => {
       SELECT * FROM users WHERE email = ? AND role = 'admin'
     `, [email]);
     
+    // ข้อความตอบกลับเหมือนกันไม่ว่าจะพบผู้ใช้หรือไม่ เพื่อความปลอดภัย
+    const genericResponse = 'If your email is registered as an admin, you will receive password reset instructions.';
+    
     if (users.length === 0) {
-      // ไม่ควรเปิดเผยว่าอีเมลไม่มีในระบบเพื่อความปลอดภัย
-      return res.json(successResponse(
-        null,
-        'If your email is registered as an admin, you will receive password reset instructions.'
-      ));
+      // บันทึกลงล็อกเฉพาะกรณีที่ไม่พบอีเมล
+      logger.warn(`Password reset attempt for non-existent admin email: ${email}`);
+      return res.json(successResponse(null, genericResponse));
     }
     
     const user = users[0];
     
     // สร้าง reset token ที่มีอายุ 1 ชั่วโมง
-    const resetToken = generatePasswordResetToken({
+    const resetToken = tokenService.generatePasswordResetToken({
       id: user.user_id,
       role: user.role,
     });
@@ -186,14 +190,14 @@ export const forgotAdminPassword = async (req, res) => {
     `, [user.user_id, resetToken]);
     
     // ส่งอีเมลรีเซ็ตรหัสผ่าน
-    sendPasswordResetEmail(email, resetToken, user.username);
+    await emailService.sendPasswordResetEmail(email, resetToken, user.username);
     
-    return res.json(successResponse(
-      null,
-      'If your email is registered as an admin, you will receive password reset instructions.'
-    ));
+    logger.info(`Password reset token generated for admin: ${user.username}`, { userId: user.user_id });
+    
+    return res.json(successResponse(null, genericResponse));
     
   } catch (error) {
+    logger.error('Error in admin forgot password:', error);
     return handleServerError(res, error);
   }
 };
@@ -207,23 +211,27 @@ export const resetAdminPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
     
-    if (!token || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Token and new password are required'
-      });
+    if (isEmpty(token) || isEmpty(newPassword)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse(getErrorMessage('AUTH.REQUIRED_FIELDS_MISSING'), STATUS_CODES.BAD_REQUEST)
+      );
+    }
+    
+    // ตรวจสอบความแข็งแรงของรหัสผ่านใหม่
+    const passwordCheck = checkPasswordStrength(newPassword);
+    if (!passwordCheck.isStrong) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        validationErrorResponse(res, 'Password is not strong enough', passwordCheck.feedback)
+      );
     }
     
     // ตรวจสอบความถูกต้องของ token
-    const decoded = verifyPasswordResetToken(token);
+    const decoded = tokenService.verifyPasswordResetToken(token);
     
     if (!decoded) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Invalid or expired token'
-      });
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse(getErrorMessage('AUTH.PASSWORD_RESET_EXPIRED'), STATUS_CODES.BAD_REQUEST)
+      );
     }
     
     // ตรวจสอบว่า token ยังไม่หมดอายุในฐานข้อมูล
@@ -233,11 +241,9 @@ export const resetAdminPassword = async (req, res) => {
     `, [decoded.id, token]);
     
     if (resetRecords.length === 0) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Token is invalid or has expired'
-      });
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse(getErrorMessage('AUTH.PASSWORD_RESET_EXPIRED'), STATUS_CODES.BAD_REQUEST)
+      );
     }
     
     // ตรวจสอบว่าผู้ใช้เป็น admin จริงหรือไม่
@@ -246,16 +252,11 @@ export const resetAdminPassword = async (req, res) => {
     `, [decoded.id]);
     
     if (users.length === 0) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Only admin accounts can use this endpoint'
-      });
+      return forbiddenResponse(res, getErrorMessage('AUTH.ADMIN_REQUIRED'));
     }
     
     // เข้ารหัสรหัสผ่านใหม่
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    const hashedPassword = await hashPassword(newPassword);
     
     // อัปเดตรหัสผ่านใหม่
     await pool.execute(`
@@ -270,9 +271,12 @@ export const resetAdminPassword = async (req, res) => {
       WHERE user_id = ? AND token = ?
     `, [decoded.id, token]);
     
+    logger.info(`Admin password reset successful`, { userId: decoded.id });
+    
     return res.json(successResponse(null, 'Admin password has been reset successfully'));
     
   } catch (error) {
+    logger.error('Error in admin reset password:', error);
     return handleServerError(res, error);
   }
 };
@@ -282,11 +286,20 @@ export const resetAdminPassword = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const adminLogout = (req, res) => {
-  // ในการใช้ JWT ไม่จำเป็นต้องทำอะไรที่ server เพราะ token จะถูกเก็บที่ client
-  // client สามารถลบ token ออกเองได้
-  // แต่เราสามารถเพิ่มฟังก์ชันนี้เพื่อให้ frontend เรียกใช้ได้
-  return res.json(successResponse(null, 'Admin logout successful'));
+export const adminLogout = async (req, res) => {
+  try {
+    // ถ้ามีการเก็บข้อมูล token ไว้ในฐานข้อมูล (blacklist) ก็ลบออก
+    if (req.user && req.token) {
+      // เพิกถอน token ปัจจุบัน
+      await tokenService.revokeToken(req.token, req.user);
+      logger.info(`Admin logged out`, { userId: req.user.id });
+    }
+    
+    return res.json(successResponse(null, 'Admin logout successful'));
+  } catch (error) {
+    logger.error('Error in admin logout:', error);
+    return handleServerError(res, error);
+  }
 };
 
 /**
@@ -298,12 +311,18 @@ export const changeAdminPassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Current password and new password are required'
-      });
+    if (isEmpty(currentPassword) || isEmpty(newPassword)) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse(getErrorMessage('AUTH.REQUIRED_FIELDS_MISSING'), STATUS_CODES.BAD_REQUEST)
+      );
+    }
+    
+    // ตรวจสอบความแข็งแรงของรหัสผ่านใหม่
+    const passwordCheck = checkPasswordStrength(newPassword);
+    if (!passwordCheck.isStrong) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        validationErrorResponse(res, 'Password is not strong enough', passwordCheck.feedback)
+      );
     }
     
     // ดึงข้อมูลผู้ใช้ปัจจุบัน
@@ -312,29 +331,22 @@ export const changeAdminPassword = async (req, res) => {
     `, [req.user.id]);
     
     if (users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        statusCode: 404,
-        message: 'Admin user not found'
-      });
+      return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
     const user = users[0];
     
     // ตรวจสอบรหัสผ่านปัจจุบัน
-    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    const isMatch = await comparePassword(currentPassword, user.password_hash);
     
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        statusCode: 401,
-        message: 'Current password is incorrect'
-      });
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        errorResponse(getErrorMessage('AUTH.CURRENT_PASSWORD_INCORRECT'), STATUS_CODES.UNAUTHORIZED)
+      );
     }
     
     // เข้ารหัสรหัสผ่านใหม่
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    const hashedPassword = await hashPassword(newPassword);
     
     // อัปเดตรหัสผ่าน
     await pool.execute(`
@@ -343,9 +355,12 @@ export const changeAdminPassword = async (req, res) => {
       WHERE user_id = ?
     `, [hashedPassword, req.user.id]);
     
+    logger.info(`Admin password changed`, { userId: req.user.id });
+    
     return res.json(successResponse(null, 'Admin password changed successfully'));
     
   } catch (error) {
+    logger.error('Error in changing admin password:', error);
     return handleServerError(res, error);
   }
 };
