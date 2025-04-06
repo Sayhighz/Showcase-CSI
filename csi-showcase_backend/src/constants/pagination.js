@@ -57,8 +57,8 @@ export const PAGINATION_DEFAULTS = {
    * @returns {Object} - พารามิเตอร์การแบ่งหน้า
    */
   export const getPaginationParams = (req) => {
-    const page = parseInt(req.query.page) || PAGINATION_DEFAULTS.PAGE;
-    const limit = parseInt(req.query.limit) || PAGINATION_DEFAULTS.LIMIT;
+    const page = 1;
+    const limit = 10;
     
     // ตรวจสอบความถูกต้องของข้อมูล
     const validPage = Math.max(1, page);

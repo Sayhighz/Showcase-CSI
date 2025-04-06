@@ -15,12 +15,12 @@ import { isValidStatus, isValidType } from '../constants/projectStatuses.js';
 export const getAllProjects = async (filters = {}, pagination = {}) => {
   try {
     // กำหนดค่าเริ่มต้นสำหรับการแบ่งหน้า
-    const page = pagination.page || 1;
-    const limit = pagination.limit || 10;
+    const page = parseInt(pagination.page || 1);
+    const limit = parseInt(pagination.limit || 10);
     const offset = (page - 1) * limit;
     
     // สร้าง query พื้นฐาน
-    let query = `
+    let baseQuery = `
       SELECT p.*, u.username, u.full_name,
              (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
       FROM projects p
@@ -33,56 +33,56 @@ export const getAllProjects = async (filters = {}, pagination = {}) => {
     // เพิ่มเงื่อนไขการกรอง
     if (filters.status) {
       if (isValidStatus(filters.status)) {
-        query += ` AND p.status = ?`;
+        baseQuery += ` AND p.status = ?`;
         queryParams.push(filters.status);
       }
     }
     
     if (filters.type) {
       if (isValidType(filters.type)) {
-        query += ` AND p.type = ?`;
+        baseQuery += ` AND p.type = ?`;
         queryParams.push(filters.type);
       }
     }
     
     if (filters.year) {
-      query += ` AND p.year = ?`;
+      baseQuery += ` AND p.year = ?`;
       queryParams.push(filters.year);
     }
     
     if (filters.studyYear) {
-      query += ` AND p.study_year = ?`;
+      baseQuery += ` AND p.study_year = ?`;
       queryParams.push(filters.studyYear);
     }
     
     if (filters.userId) {
-      query += ` AND (p.user_id = ? OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?))`;
+      baseQuery += ` AND (p.user_id = ? OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?))`;
       queryParams.push(filters.userId, filters.userId);
     }
     
     if (filters.search) {
-      query += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)`;
+      baseQuery += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)`;
       const searchPattern = `%${filters.search}%`;
       queryParams.push(searchPattern, searchPattern, searchPattern);
     }
     
     // ตรวจสอบการเข้าถึง สำหรับผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ
     if (filters.onlyVisible && (!filters.role || filters.role !== 'admin')) {
-      query += ` AND (p.visibility = 1 AND p.status = 'approved')`;
+      baseQuery += ` AND (p.visibility = 1 AND p.status = 'approved')`;
     }
     
     // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
-    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
+    // แยก query สำหรับการนับจำนวนเพื่อหลีกเลี่ยงปัญหา parameters
+    const countQuery = `SELECT COUNT(*) as total FROM (${baseQuery}) as countTable`;
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
     
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
+    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query หลัก โดยใช้ string interpolation แทนการใช้ parameters
+    const mainQuery = `${baseQuery} ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     
-    // ดึงข้อมูลโครงการ
-    const [projects] = await pool.execute(query, queryParams);
+    // ดึงข้อมูลโครงการโดยใช้ parameters ชุดเดิม (ไม่ใส่ limit และ offset เป็น parameters)
+    const [projects] = await pool.execute(mainQuery, queryParams);
     
     return {
       projects,

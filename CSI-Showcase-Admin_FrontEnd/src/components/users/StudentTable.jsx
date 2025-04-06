@@ -18,6 +18,7 @@ const StudentTable = ({
   handleShowDeleteModal 
 }) => {
     const safeStudents = Array.isArray(students) ? students : [];
+    console.log(students)
 
   // Dropdown menu for actions
   const getActionMenu = (student) => {
@@ -79,10 +80,6 @@ const StudentTable = ({
       key: 'student_info',
       render: (_, record) => (
         <div>
-          <Text type="secondary" className="block">
-            <BookOutlined className="mr-1" />
-            ชั้นปี: {record.study_year ? `ปี ${record.study_year}` : 'ไม่ระบุ'}
-          </Text>
           <Text type="secondary" className="block">
             โปรเจค: {record.project_count || 0} ผลงาน
           </Text>

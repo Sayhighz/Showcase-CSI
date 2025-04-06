@@ -70,7 +70,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
     
     const totalItems = countResult[0].total;
 
-    // ดึงข้อมูลผู้ใช้ตามการแบ่งหน้า
+    // ดึงข้อมูลผู้ใช้ตามการแบ่งหน้า - ใช้ค่า LIMIT และ OFFSET โดยตรงในคำสั่ง SQL
     const [users] = await connection.execute(`
       SELECT 
         user_id, 
@@ -88,8 +88,8 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       FROM users
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...queryParams, pagination.limit, pagination.offset]);
+      LIMIT ${pagination.limit} OFFSET ${pagination.offset}
+    `, queryParams);
 
     // Commit transaction
     await commitTransaction(connection);
@@ -255,7 +255,7 @@ export const getUserById = asyncHandler(async (req, res) => {
       ORDER BY p.created_at DESC
     `, [userId, userId]);
     
-    // ดึงประวัติการเข้าสู่ระบบ
+    // ดึงประวัติการเข้าสู่ระบบ - ใช้ค่า LIMIT โดยตรงในคำสั่ง SQL
     const [loginLogs] = await pool.execute(`
       SELECT log_id, login_time, ip_address
       FROM login_logs
@@ -573,14 +573,14 @@ export const getUserLoginHistory = asyncHandler(async (req, res) => {
       return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
-    // ดึงประวัติการเข้าสู่ระบบ
+    // ดึงประวัติการเข้าสู่ระบบ - ใช้ค่า LIMIT โดยตรงในคำสั่ง SQL
     const [loginLogs] = await pool.execute(`
       SELECT log_id, login_time, ip_address
       FROM login_logs
       WHERE user_id = ?
       ORDER BY login_time DESC
-      LIMIT ?
-    `, [userId, limit]);
+      LIMIT ${limit}
+    `, [userId]);
     
     return res.json(successResponse({
       userId,

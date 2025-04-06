@@ -67,6 +67,7 @@ const Project = () => {
       const formattedData = formatProjectData(data);
       
       setProjects(formattedData);
+      console.log(data)
       setFilteredProjects(formattedData);
       
       // Count pending projects for notifications

@@ -40,12 +40,13 @@ export const getAllProjects = async (filters = {}) => {
     }
     
     const response = await axiosGet(endpoint);
+    // console.log(response)
     
     // ตรวจสอบรูปแบบของข้อมูลที่ได้รับกลับมา
-    if (response && response.data) {
-      return response.data; // ถ้าข้อมูลอยู่ใน response.data
-    } else if (Array.isArray(response)) {
-      return response; // ถ้า response เป็น array
+    if (response && response.projects) {
+      return response.projects; // ถ้าข้อมูลอยู่ใน response.data
+    } else if (Array.isArray(response.projects)) {
+      return response.projects; // ถ้า response เป็น array
     }
     
     // ถ้าไม่ใช่ทั้งสองกรณี ให้ส่งคืน array ว่าง
