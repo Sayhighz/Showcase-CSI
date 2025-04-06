@@ -1,174 +1,348 @@
+// src/services/userService.js
 import { axiosGet, axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/axios';
+import { USER } from '../constants/apiEndpoints';
 
 /**
- * ดึงรายการผู้ใช้งานทั้งหมด (เฉพาะ admin)
- * @returns {Promise} - Promise ที่ส่งคืนข้อมูลผู้ใช้งาน
+ * ดึงรายการผู้ใช้ทั้งหมด
+ * @param {Object} filters - ตัวกรองข้อมูลผู้ใช้
+ * @returns {Promise<Object>} - ข้อมูลผู้ใช้
  */
-export const getAllUsers = async () => {
-    try {
-      const response = await axiosGet('/users/all');
-      return response;
-    } catch (error) {
-      console.error('Error fetching all users:', error);
-      throw error;
+export const getAllUsers = async (filters = {}) => {
+  try {
+    // สร้าง query string จาก filters
+    const queryParams = new URLSearchParams();
+    
+    if (filters.role) {
+      queryParams.append('role', filters.role);
     }
-  };
+    
+    if (filters.status) {
+      queryParams.append('status', filters.status);
+    }
+    
+    if (filters.search) {
+      queryParams.append('search', filters.search);
+    }
+    
+    if (filters.limit) {
+      queryParams.append('limit', filters.limit);
+    }
+    
+    if (filters.page) {
+      queryParams.append('page', filters.page);
+    }
+    
+    // สร้าง URL พร้อม query string
+    const url = USER.GET_ALL + (queryParams.toString() ? `?${queryParams.toString()}` : '');
+    
+    const response = await axiosGet(url);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      total: response.total,
+      page: response.page,
+      limit: response.limit
+    };
+  } catch (error) {
+    console.error('Get all users error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้',
+      data: []
+    };
+  }
+};
 
 /**
- * ดึงข้อมูลผู้ใช้งานตาม ID
- * @param {string} userId - รหัสผู้ใช้งาน
- * @returns {Promise} - Promise ที่ส่งคืนข้อมูลผู้ใช้งาน
+ * ดึงข้อมูลผู้ใช้ตาม ID
+ * @param {string|number} userId - รหัสผู้ใช้
+ * @returns {Promise<Object>} - ข้อมูลผู้ใช้
  */
 export const getUserById = async (userId) => {
   try {
-    const response = await axiosGet(`/users/${userId}`);
-    return response;
+    if (!userId) {
+      return {
+        success: false,
+        message: 'ไม่ระบุรหัสผู้ใช้'
+      };
+    }
+    
+    const url = USER.GET_BY_ID(userId);
+    const response = await axiosGet(url);
+    
+    return {
+      success: true,
+      data: response.data || response
+    };
   } catch (error) {
-    console.error(`Error fetching user ${userId}:`, error);
-    throw error;
+    console.error(`Get user ${userId} error:`, error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้'
+    };
   }
 };
 
 /**
- * ลงทะเบียนผู้ใช้งานใหม่
- * @param {Object} userData - ข้อมูลผู้ใช้งานที่ต้องการลงทะเบียน
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การลงทะเบียน
+ * สร้างผู้ใช้ใหม่
+ * @param {Object} userData - ข้อมูลผู้ใช้
+ * @returns {Promise<Object>} - ผลลัพธ์การสร้างผู้ใช้
  */
-export const registerUser = async (userData) => {
+export const createUser = async (userData) => {
   try {
-    const response = await axiosPost('/users/register', userData);
-    return response;
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (!userData.username || !userData.password || !userData.full_name || !userData.email) {
+      return {
+        success: false,
+        message: 'กรุณากรอกข้อมูลให้ครบถ้วน'
+      };
+    }
+    
+    const response = await axiosPost(USER.CREATE, userData);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'สร้างผู้ใช้สำเร็จ'
+    };
   } catch (error) {
-    console.error('Error registering user:', error);
-    throw error;
+    console.error('Create user error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้'
+    };
   }
 };
 
 /**
- * อัปเดตข้อมูลผู้ใช้งาน
- * @param {string} userId - รหัสผู้ใช้งาน
- * @param {Object} userData - ข้อมูลผู้ใช้งานที่ต้องการอัปเดต
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การอัปเดต
+ * อัปเดตข้อมูลผู้ใช้
+ * @param {string|number} userId - รหัสผู้ใช้
+ * @param {Object} userData - ข้อมูลผู้ใช้ที่ต้องการอัปเดต
+ * @returns {Promise<Object>} - ผลลัพธ์การอัปเดตผู้ใช้
  */
 export const updateUser = async (userId, userData) => {
   try {
-    const response = await axiosPut(`/users/update/${userId}`, userData);
-    return response;
+    if (!userId) {
+      return {
+        success: false,
+        message: 'ไม่ระบุรหัสผู้ใช้'
+      };
+    }
+    
+    const url = USER.UPDATE(userId);
+    const response = await axiosPut(url, userData);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'อัปเดตข้อมูลผู้ใช้สำเร็จ'
+    };
   } catch (error) {
-    console.error(`Error updating user ${userId}:`, error);
-    throw error;
+    console.error(`Update user ${userId} error:`, error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้'
+    };
   }
 };
 
 /**
- * อัปโหลดรูปโปรไฟล์ของผู้ใช้งาน
- * @param {string} userId - รหัสผู้ใช้งาน
- * @param {FormData} formData - ข้อมูลไฟล์รูปภาพ
- * @param {Function} onProgress - ฟังก์ชันสำหรับติดตามความคืบหน้าการอัปโหลด
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การอัปโหลด
- */
-export const uploadProfileImage = async (userId, formData, onProgress) => {
-  try {
-    const response = await axiosUpload(`/upload/profile-image/${userId}`, formData, onProgress);
-    return response;
-  } catch (error) {
-    console.error(`Error uploading profile image for user ${userId}:`, error);
-    throw error;
-  }
-};
-
-/**
- * เปลี่ยนรหัสผ่านของผู้ใช้งาน
- * @param {string} userId - รหัสผู้ใช้งาน
- * @param {string} currentPassword - รหัสผ่านปัจจุบัน
- * @param {string} newPassword - รหัสผ่านใหม่
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การเปลี่ยนรหัสผ่าน
- */
-export const changePassword = async (userId, currentPassword, newPassword) => {
-  try {
-    const response = await axiosPost(`/users/${userId}/change-password`, {
-      current_password: currentPassword,
-      new_password: newPassword
-    });
-    return response;
-  } catch (error) {
-    console.error(`Error changing password for user ${userId}:`, error);
-    throw error;
-  }
-};
-
-/**
- * เปลี่ยนบทบาทของผู้ใช้งาน (เฉพาะ admin)
- * @param {string} userId - รหัสผู้ใช้งาน
- * @param {string} role - บทบาทใหม่ (student, admin, visitor)
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การเปลี่ยนบทบาท
- */
-export const changeUserRole = async (userId, role) => {
-  try {
-    const response = await axiosPut(`/users/${userId}/role`, { role });
-    return response;
-  } catch (error) {
-    console.error(`Error changing role for user ${userId}:`, error);
-    throw error;
-  }
-};
-
-/**
- * ลบผู้ใช้งาน (เฉพาะ admin)
- * @param {string} userId - รหัสผู้ใช้งาน
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การลบ
+ * ลบผู้ใช้
+ * @param {string|number} userId - รหัสผู้ใช้
+ * @returns {Promise<Object>} - ผลลัพธ์การลบผู้ใช้
  */
 export const deleteUser = async (userId) => {
   try {
-    const response = await axiosDelete(`/users/delete/${userId}`);
-    return response;
+    if (!userId) {
+      return {
+        success: false,
+        message: 'ไม่ระบุรหัสผู้ใช้'
+      };
+    }
+    
+    const url = USER.DELETE(userId);
+    const response = await axiosDelete(url);
+    
+    return {
+      success: true,
+      message: response.message || 'ลบผู้ใช้สำเร็จ'
+    };
   } catch (error) {
-    console.error(`Error deleting user ${userId}:`, error);
-    throw error;
+    console.error(`Delete user ${userId} error:`, error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการลบผู้ใช้'
+    };
   }
 };
 
 /**
- * ดึงประวัติการเข้าสู่ระบบของผู้ใช้งาน
- * @param {string} userId - รหัสผู้ใช้งาน
- * @returns {Promise} - Promise ที่ส่งคืนข้อมูลประวัติการเข้าสู่ระบบ
+ * อัปโหลดรูปโปรไฟล์
+ * @param {string|number} userId - รหัสผู้ใช้
+ * @param {FormData} formData - ข้อมูลรูปภาพ
+ * @param {Function} onProgress - ฟังก์ชันติดตามความคืบหน้า
+ * @returns {Promise<Object>} - ผลลัพธ์การอัปโหลดรูปโปรไฟล์
  */
-export const getUserLoginHistory = async (userId) => {
+export const uploadProfileImage = async (userId, formData, onProgress) => {
   try {
-    const response = await axiosGet(`/users/${userId}/login-history`);
-    return response;
+    if (!userId) {
+      return {
+        success: false,
+        message: 'ไม่ระบุรหัสผู้ใช้'
+      };
+    }
+    
+    if (!formData || !(formData instanceof FormData)) {
+      return {
+        success: false,
+        message: 'ข้อมูลไม่ถูกต้อง'
+      };
+    }
+    
+    const url = USER.UPLOAD_PROFILE_IMAGE(userId);
+    const response = await axiosUpload(url, formData, onProgress);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'อัปโหลดรูปโปรไฟล์สำเร็จ'
+    };
   } catch (error) {
-    console.error(`Error fetching login history for user ${userId}:`, error);
-    throw error;
+    console.error(`Upload profile image for user ${userId} error:`, error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์'
+    };
   }
 };
 
 /**
- * ดึงโปรเจคที่ผู้ใช้งานมีส่วนร่วม
- * @param {string} userId - รหัสผู้ใช้งาน
- * @returns {Promise} - Promise ที่ส่งคืนข้อมูลโปรเจค
+ * ดึงประวัติการเข้าสู่ระบบของผู้ใช้
+ * @param {string|number} userId - รหัสผู้ใช้
+ * @param {Object} filters - ตัวกรองข้อมูล
+ * @returns {Promise<Object>} - ข้อมูลประวัติการเข้าสู่ระบบ
  */
-export const getUserProjects = async (userId) => {
+export const getUserLoginHistory = async (userId, filters = {}) => {
   try {
-    const response = await axiosGet(`/users/${userId}/projects`);
-    return response;
+    if (!userId) {
+      return {
+        success: false,
+        message: 'ไม่ระบุรหัสผู้ใช้'
+      };
+    }
+    
+    // สร้าง query string จาก filters
+    const queryParams = new URLSearchParams();
+    
+    if (filters.limit) {
+      queryParams.append('limit', filters.limit);
+    }
+    
+    if (filters.page) {
+      queryParams.append('page', filters.page);
+    }
+    
+    if (filters.startDate) {
+      queryParams.append('start_date', filters.startDate);
+    }
+    
+    if (filters.endDate) {
+      queryParams.append('end_date', filters.endDate);
+    }
+    
+    // สร้าง URL พร้อม query string
+    const url = USER.LOGIN_HISTORY(userId) + (queryParams.toString() ? `?${queryParams.toString()}` : '');
+    
+    const response = await axiosGet(url);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      total: response.total,
+      page: response.page,
+      limit: response.limit
+    };
   } catch (error) {
-    console.error(`Error fetching projects for user ${userId}:`, error);
-    throw error;
+    console.error(`Get login history for user ${userId} error:`, error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงประวัติการเข้าสู่ระบบ',
+      data: []
+    };
   }
 };
 
 /**
- * ค้นหาผู้ใช้งาน
- * @param {string} keyword - คำค้นหา
- * @returns {Promise} - Promise ที่ส่งคืนผลลัพธ์การค้นหา
+ * ลงทะเบียนผู้ใช้ใหม่
+ * @param {Object} userData - ข้อมูลผู้ใช้ที่ต้องการลงทะเบียน
+ * @returns {Promise<Object>} - ผลลัพธ์การลงทะเบียน
  */
-export const searchUsers = async (keyword) => {
+export const registerUser = async (userData) => {
   try {
-    const response = await axiosGet(`/search/users?keyword=${keyword}`);
-    return response;
+    // ตรวจสอบข้อมูลที่จำเป็น
+    if (!userData.username || !userData.password || !userData.full_name || !userData.email) {
+      return {
+        success: false,
+        message: 'กรุณากรอกข้อมูลให้ครบถ้วน'
+      };
+    }
+    
+    const response = await axiosPost(USER.REGISTER, userData);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'ลงทะเบียนผู้ใช้สำเร็จ'
+    };
   } catch (error) {
-    console.error('Error searching users:', error);
-    throw error;
+    console.error('Register user error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการลงทะเบียน'
+    };
   }
+};
+
+/**
+ * ดึงสถิติผู้ใช้งาน
+ * @returns {Promise<Object>} - ข้อมูลสถิติผู้ใช้งาน
+ */
+export const getUserStats = async () => {
+  try {
+    const response = await axiosGet(USER.STATS);
+    
+    return {
+      success: true,
+      data: response.data || response
+    };
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสถิติผู้ใช้งาน',
+      data: {}
+    };
+  }
+};
+
+export default {
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+  uploadProfileImage,
+  getUserLoginHistory,
+  registerUser,
+  getUserStats
 };
