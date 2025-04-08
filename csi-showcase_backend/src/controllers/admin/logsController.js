@@ -17,53 +17,78 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
     // ใช้ getPaginationParams จาก pagination helper
     const pagination = getPaginationParams(req);
     const { page, limit, offset } = pagination;
+    console.log(`Page: ${page}, Limit: ${limit}, Offset: ${offset}`);
     
     const userId = req.query.userId || '';
     const startDate = req.query.startDate || '';
     const endDate = req.query.endDate || '';
+    const search = req.query.search || '';
     
-    // สร้าง query พื้นฐาน
-    let query = `
-      SELECT l.log_id, l.user_id, l.login_time, l.ip_address,
-             u.username, u.full_name, u.role
-      FROM login_logs l
-      JOIN users u ON l.user_id = u.user_id
-      WHERE 1=1
-    `;
-    
-    const queryParams = [];
+    // สร้างเงื่อนไขการค้นหา
+    let whereConditions = [];
+    let queryParams = [];
     
     // เพิ่มการค้นหาตาม userId ถ้ามี
     if (userId) {
-      query += ` AND l.user_id = ?`;
+      whereConditions.push('l.user_id = ?');
       queryParams.push(userId);
     }
     
     // เพิ่มการค้นหาตามช่วงเวลา
     if (startDate) {
-      query += ` AND l.login_time >= ?`;
-      queryParams.push(startDate);
+      whereConditions.push('l.login_time >= ?');
+      queryParams.push(new Date(startDate));
     }
     
     if (endDate) {
-      query += ` AND l.login_time <= ?`;
-      queryParams.push(endDate);
+      whereConditions.push('l.login_time <= ?');
+      queryParams.push(new Date(endDate));
     }
     
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
-    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
+    // เพิ่มการค้นหาตาม search term
+    if (search) {
+      whereConditions.push('(u.username LIKE ? OR u.full_name LIKE ? OR l.ip_address LIKE ?)');
+      const searchTerm = `%${search}%`;
+      queryParams.push(searchTerm, searchTerm, searchTerm);
+    }
+    
+    // สร้าง WHERE clause
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}` 
+      : '';
+    
+    // สร้าง query สำหรับนับจำนวนทั้งหมด
+    const countQuery = `
+      SELECT COUNT(*) as total 
+      FROM login_logs l
+      JOIN users u ON l.user_id = u.user_id
+      ${whereClause}
+    `;
+    
+    // ดึงข้อมูลจำนวนทั้งหมด
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
     
     // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
     const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY l.login_time DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
+    // Try an alternative approach using direct value insertion for LIMIT and OFFSET
+    const limitValue = Number(limit);
+    const offsetValue = Number(offset);
     
-    // ดึงข้อมูลการเข้าสู่ระบบ
-    const [logs] = await pool.execute(query, queryParams);
+    // สร้าง query สำหรับดึงข้อมูล (insert values directly instead of using parameters)
+    const dataQuery = `
+      SELECT l.log_id, l.user_id, l.login_time, l.ip_address,
+             u.username, u.full_name, u.role
+      FROM login_logs l
+      JOIN users u ON l.user_id = u.user_id
+      ${whereClause}
+      ORDER BY l.login_time DESC
+      LIMIT ${limitValue} OFFSET ${offsetValue}
+    `;
+    
+    // ดึงข้อมูลการเข้าสู่ระบบโดยไม่รวม LIMIT และ OFFSET ในพารามิเตอร์
+    const [logs] = await pool.execute(dataQuery, queryParams);
     
     // แปลงข้อมูลให้เหมาะสมกับ frontend
     const formattedLogs = logs.map(log => ({
@@ -87,6 +112,7 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
     return handleServerError(res, error);
   }
 });
+
 
 /**
  * ดึงข้อมูลการเข้าชมโครงการจากบริษัท

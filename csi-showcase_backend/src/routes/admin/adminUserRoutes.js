@@ -11,6 +11,7 @@ import {
 } from '../../controllers/admin/adminUserController.js';
 import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
 import { API_ROUTES } from '../../constants/routes.js';
+import { uploadProfileImage } from '../../controllers/common/uploadController.js';
 
 const router = express.Router();
 
@@ -34,7 +35,8 @@ router.get(
 // สร้างผู้ใช้ใหม่
 router.post(
   API_ROUTES.ADMIN.USER.CREATE, 
-  adminAuth, 
+  adminAuth,
+  uploadProfileImage,
   createUser
 );
 

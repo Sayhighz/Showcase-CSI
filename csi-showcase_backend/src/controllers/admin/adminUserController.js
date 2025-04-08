@@ -16,6 +16,7 @@ import { ERROR_MESSAGES, getErrorMessage } from '../../constants/errorMessages.j
 import { isValidRole, ROLES } from '../../constants/roles.js';
 import logger from '../../config/logger.js';
 import { asyncHandler } from '../../middleware/loggerMiddleware.js';
+import { uploadProfileImage } from '../common/uploadController.js';
 
 /**
  * ดึงข้อมูลผู้ใช้ทั้งหมด
@@ -123,6 +124,8 @@ export const getAllUsers = asyncHandler(async (req, res) => {
  * @param {Object} res - Express response object
  */
 export const createUser = asyncHandler(async (req, res) => {
+  let connection = null;
+  
   try {
     const { 
       username, 
@@ -145,31 +148,7 @@ export const createUser = asyncHandler(async (req, res) => {
       );
     }
     
-    // ตรวจสอบรูปแบบอีเมล
-    if (!isValidEmail(email)) {
-      return validationErrorResponse(res, 
-        getErrorMessage('USER.INVALID_EMAIL'),
-        { email: 'Invalid email format' }
-      );
-    }
-    
-    // ตรวจสอบรูปแบบ username
-    if (!isValidUsername(username)) {
-      return validationErrorResponse(res, 
-        getErrorMessage('USER.INVALID_USERNAME'),
-        { username: 'Username must contain only letters, numbers, or underscores and be 4-20 characters long' }
-      );
-    }
-    
-    // ตรวจสอบความถูกต้องของบทบาท
-    if (!isValidRole(role)) {
-      return validationErrorResponse(res, 
-        getErrorMessage('USER.INVALID_ROLE'),
-        { role: 'Invalid role. Role must be visitor, student, or admin' }
-      );
-    }
-    
-    // ตรวจสอบว่ามี username หรือ email ซ้ำหรือไม่
+    // ตรวจสอบความซ้ำซ้อนของ username และ email โดยใช้ pool แทน connection
     const [existingUsers] = await pool.execute(`
       SELECT * FROM users 
       WHERE username = ? OR email = ?
@@ -191,12 +170,27 @@ export const createUser = asyncHandler(async (req, res) => {
     // เข้ารหัสรหัสผ่าน
     const hashedPassword = await hashPassword(password);
     
+    // ลองใช้ pool แทน connection เพื่อหลีกเลี่ยงปัญหา transaction
     // เพิ่มผู้ใช้ใหม่
     const [result] = await pool.execute(`
       INSERT INTO users 
       (username, password_hash, full_name, email, role) 
       VALUES (?, ?, ?, ?, ?)
     `, [username, hashedPassword, full_name, email, role]);
+    
+    const userId = result.insertId;
+    
+    // อัปโหลดรูปโปรไฟล์ (ถ้ามี)
+    let profileImagePath = null;
+    if (req.file) {
+      // บันทึกเส้นทางของไฟล์
+      profileImagePath = req.file.path;
+      
+      // อัปเดตเส้นทางรูปภาพในฐานข้อมูล
+      await pool.execute(`
+        UPDATE users SET image = ? WHERE user_id = ?
+      `, [profileImagePath, userId]);
+    }
     
     // ส่งอีเมลต้อนรับ
     try {
@@ -208,11 +202,12 @@ export const createUser = asyncHandler(async (req, res) => {
     
     return res.status(201).json(successResponse({
       user: {
-        id: result.insertId,
+        id: userId,
         username,
         full_name,
         email,
-        role
+        role,
+        image: profileImagePath
       }
     }, 'User created successfully'));
     

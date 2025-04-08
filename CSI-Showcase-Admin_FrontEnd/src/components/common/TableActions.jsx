@@ -1,143 +1,190 @@
-// src/components/common/TableActions.jsx
 import React from 'react';
-import { Button, Dropdown, Tooltip, Space } from 'antd';
+import { Space, Button, Tooltip, Dropdown } from 'antd';
 import { 
-  EllipsisOutlined, 
-  EyeOutlined, 
-  EditOutlined, 
-  DeleteOutlined,
-  CheckOutlined,
-  CloseOutlined 
+  EyeOutlined, EditOutlined, DeleteOutlined, 
+  CheckCircleOutlined, CloseCircleOutlined, 
+  FileTextOutlined, MoreOutlined
 } from '@ant-design/icons';
-import { Link } from 'react-router-dom';
-import { hasPermission } from '../../config/roles';
-import { useAuth } from '../../context/AuthContext';
 
 /**
- * Component สำหรับแสดงปุ่มดำเนินการในตาราง
- * 
- * @param {Object} props
- * @param {string} props.recordId - รหัสของรายการ
- * @param {string} props.viewPath - เส้นทางสำหรับดูรายละเอียด
- * @param {Function} props.onEdit - ฟังก์ชันที่เรียกเมื่อกดปุ่มแก้ไข
- * @param {Function} props.onDelete - ฟังก์ชันที่เรียกเมื่อกดปุ่มลบ
- * @param {Function} props.onApprove - ฟังก์ชันที่เรียกเมื่อกดปุ่มอนุมัติ
- * @param {Function} props.onReject - ฟังก์ชันที่เรียกเมื่อกดปุ่มปฏิเสธ
+ * คอมโพเนนต์ปุ่มดำเนินการในตาราง
+ * @param {Object} props - พร็อพเพอร์ตี้ของคอมโพเนนต์
+ * @param {string|number} props.recordId - ไอดีของรายการ
+ * @param {Object} props.record - ข้อมูลแถวในตาราง (เพิ่มเติม)
  * @param {boolean} props.showView - แสดงปุ่มดูรายละเอียดหรือไม่
  * @param {boolean} props.showEdit - แสดงปุ่มแก้ไขหรือไม่
  * @param {boolean} props.showDelete - แสดงปุ่มลบหรือไม่
  * @param {boolean} props.showApprove - แสดงปุ่มอนุมัติหรือไม่
  * @param {boolean} props.showReject - แสดงปุ่มปฏิเสธหรือไม่
- * @param {string} props.type - ประเภทของรายการ ('project', 'user')
+ * @param {boolean} props.showReview - แสดงปุ่มตรวจสอบหรือไม่
+ * @param {boolean} props.useDropdown - ใช้ดรอปดาวน์แทนปุ่มหรือไม่
+ * @param {function} props.onView - ฟังก์ชันเมื่อกดดูรายละเอียด
+ * @param {function} props.onEdit - ฟังก์ชันเมื่อกดแก้ไข
+ * @param {function} props.onDelete - ฟังก์ชันเมื่อกดลบ
+ * @param {function} props.onApprove - ฟังก์ชันเมื่อกดอนุมัติ
+ * @param {function} props.onReject - ฟังก์ชันเมื่อกดปฏิเสธ
+ * @param {function} props.onReview - ฟังก์ชันเมื่อกดตรวจสอบ
+ * @returns {JSX.Element} - คอมโพเนนต์ปุ่มดำเนินการ
  */
-const TableActions = ({ 
+const TableActions = ({
   recordId,
-  viewPath,
+  record,
+  showView = true,
+  showEdit = false,
+  showDelete = true,
+  showApprove = false,
+  showReject = false,
+  showReview = false,
+  useDropdown = false,
+  onView,
   onEdit,
   onDelete,
   onApprove,
   onReject,
-  showView = true,
-  showEdit = true,
-  showDelete = true,
-  showApprove = false,
-  showReject = false,
-  type = 'project'
+  onReview,
+  disabled = false,
 }) => {
-  const { admin } = useAuth();
-  const role = admin?.role || '';
-
-  // ตรวจสอบสิทธิ์การเข้าถึง
-  const canEdit = type === 'project' 
-    ? hasPermission(role, 'project:edit') 
-    : hasPermission(role, 'user:edit');
-
-  const canDelete = type === 'project' 
-    ? hasPermission(role, 'project:delete') 
-    : hasPermission(role, 'user:delete');
-
-  const canReview = type === 'project' && hasPermission(role, 'project:review');
-
-  // สร้างรายการเมนู dropdown
-  const getMenuItems = () => {
+  // ถ้าใช้ดรอปดาวน์
+  if (useDropdown) {
     const items = [];
-
-    if (showView && viewPath) {
+    
+    // เพิ่มรายการในดรอปดาวน์
+    if (showView && onView) {
       items.push({
         key: 'view',
+        label: 'ดูรายละเอียด',
         icon: <EyeOutlined />,
-        label: <Link to={viewPath}>ดูรายละเอียด</Link>
+        onClick: () => onView(recordId, record),
       });
     }
-
-    if (showEdit && onEdit && canEdit) {
+    
+    if (showReview && onReview) {
+      items.push({
+        key: 'review',
+        label: 'ตรวจสอบ',
+        icon: <FileTextOutlined />,
+        onClick: () => onReview(recordId, record),
+      });
+    }
+    
+    if (showEdit && onEdit) {
       items.push({
         key: 'edit',
+        label: 'แก้ไข',
         icon: <EditOutlined />,
-        label: <span onClick={() => onEdit(recordId)}>แก้ไข</span>
+        onClick: () => onEdit(recordId, record),
       });
     }
-
-    if (showDelete && onDelete && canDelete) {
-      items.push({
-        key: 'delete',
-        icon: <DeleteOutlined />,
-        label: <span onClick={() => onDelete(recordId)}>ลบ</span>,
-        danger: true
-      });
-    }
-
-    if (showApprove && onApprove && canReview) {
+    
+    if (showApprove && onApprove) {
       items.push({
         key: 'approve',
-        icon: <CheckOutlined />,
-        label: <span onClick={() => onApprove(recordId)}>อนุมัติ</span>
+        label: 'อนุมัติ',
+        icon: <CheckCircleOutlined style={{ color: 'green' }} />,
+        onClick: () => onApprove(recordId, record),
       });
     }
-
-    if (showReject && onReject && canReview) {
+    
+    if (showReject && onReject) {
       items.push({
         key: 'reject',
-        icon: <CloseOutlined />,
-        label: <span onClick={() => onReject(recordId)}>ปฏิเสธ</span>,
-        danger: true
+        label: 'ปฏิเสธ',
+        icon: <CloseCircleOutlined style={{ color: 'red' }} />,
+        onClick: () => onReject(recordId, record),
       });
     }
-
-    return items;
-  };
-
-  const menuItems = getMenuItems();
-
-  // ถ้าไม่มีรายการใดๆ ให้แสดง "ไม่มีการดำเนินการ"
-  if (menuItems.length === 0) {
-    return <span className="text-gray-400">ไม่มีการดำเนินการ</span>;
-  }
-
-  // ถ้ามีเพียงปุ่มเดียว แสดงปุ่มตรงๆ
-  if (menuItems.length === 1) {
-    const item = menuItems[0];
+    
+    if (showDelete && onDelete) {
+      items.push({
+        key: 'delete',
+        label: 'ลบ',
+        icon: <DeleteOutlined style={{ color: 'red' }} />,
+        onClick: () => onDelete(recordId, record),
+      });
+    }
+    
     return (
-      <Button 
-        type="link"
-        icon={item.icon}
-        onClick={item.onClick}
-        className="p-0"
-      >
-        {item.label}
-      </Button>
+      <Dropdown menu={{ items }} disabled={disabled}>
+        <Button icon={<MoreOutlined />} size="small" />
+      </Dropdown>
     );
   }
-
-  // ถ้ามีหลายปุ่ม แสดงเป็น dropdown
+  
+  // ถ้าใช้ปุ่มปกติ
   return (
-    <Dropdown 
-      menu={{ items: menuItems }} 
-      trigger={['click']}
-      placement="bottomRight"
-    >
-      <Button type="text" icon={<EllipsisOutlined />} />
-    </Dropdown>
+    <Space size="small">
+      {showView && onView && (
+        <Tooltip title="ดูรายละเอียด">
+          <Button
+            icon={<EyeOutlined />}
+            size="small"
+            onClick={() => onView(recordId, record)}
+            disabled={disabled}
+          />
+        </Tooltip>
+      )}
+      
+      {showReview && onReview && (
+        <Tooltip title="ตรวจสอบ">
+          <Button
+            icon={<FileTextOutlined />}
+            size="small"
+            onClick={() => onReview(recordId, record)}
+            disabled={disabled}
+          />
+        </Tooltip>
+      )}
+      
+      {showEdit && onEdit && (
+        <Tooltip title="แก้ไข">
+          <Button
+            icon={<EditOutlined />}
+            size="small"
+            onClick={() => onEdit(recordId, record)}
+            disabled={disabled}
+          />
+        </Tooltip>
+      )}
+      
+      {showApprove && onApprove && (
+        <Tooltip title="อนุมัติ">
+          <Button
+            icon={<CheckCircleOutlined />}
+            type="primary"
+            className="bg-green-600 hover:bg-green-700"
+            size="small"
+            onClick={() => onApprove(recordId, record)}
+            disabled={disabled}
+          />
+        </Tooltip>
+      )}
+      
+      {showReject && onReject && (
+        <Tooltip title="ปฏิเสธ">
+          <Button
+            icon={<CloseCircleOutlined />}
+            type="primary"
+            danger
+            size="small"
+            onClick={() => onReject(recordId, record)}
+            disabled={disabled}
+          />
+        </Tooltip>
+      )}
+      
+      {showDelete && onDelete && (
+        <Tooltip title="ลบ">
+          <Button
+            icon={<DeleteOutlined />}
+            type="primary"
+            danger
+            size="small"
+            onClick={() => onDelete(recordId, record)}
+            disabled={disabled}
+          />
+        </Tooltip>
+      )}
+    </Space>
   );
 };
 

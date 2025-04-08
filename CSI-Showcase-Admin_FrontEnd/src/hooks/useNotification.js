@@ -1,5 +1,5 @@
 // src/hooks/useNotification.js
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, createElement } from 'react';
 import { message, notification, Modal } from 'antd';
 import { 
   CheckCircleOutlined, 
@@ -46,7 +46,7 @@ const useNotification = () => {
     message.success({
       content,
       duration,
-      icon: <CheckCircleOutlined />
+      icon: CheckCircleOutlined ? createElement(CheckCircleOutlined) : null
     });
     
     // เพิ่มการแจ้งเตือนในระบบ
@@ -66,7 +66,7 @@ const useNotification = () => {
     message.info({
       content,
       duration,
-      icon: <InfoCircleOutlined />
+      icon: InfoCircleOutlined ? createElement(InfoCircleOutlined) : null
     });
     
     // เพิ่มการแจ้งเตือนในระบบ
@@ -86,7 +86,7 @@ const useNotification = () => {
     message.warning({
       content,
       duration,
-      icon: <WarningOutlined />
+      icon: WarningOutlined ? createElement(WarningOutlined) : null
     });
     
     // เพิ่มการแจ้งเตือนในระบบ
@@ -106,7 +106,7 @@ const useNotification = () => {
     message.error({
       content,
       duration,
-      icon: <CloseCircleOutlined />
+      icon: CloseCircleOutlined ? createElement(CloseCircleOutlined) : null
     });
     
     // เพิ่มการแจ้งเตือนในระบบ
@@ -142,19 +142,19 @@ const useNotification = () => {
     let icon;
     switch (type) {
       case 'success':
-        icon = <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+        icon = CheckCircleOutlined ? createElement(CheckCircleOutlined, { style: { color: '#52c41a' } }) : null;
         break;
       case 'info':
-        icon = <InfoCircleOutlined style={{ color: '#1890ff' }} />;
+        icon = InfoCircleOutlined ? createElement(InfoCircleOutlined, { style: { color: '#1890ff' } }) : null;
         break;
       case 'warning':
-        icon = <WarningOutlined style={{ color: '#faad14' }} />;
+        icon = WarningOutlined ? createElement(WarningOutlined, { style: { color: '#faad14' } }) : null;
         break;
       case 'error':
-        icon = <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
+        icon = CloseCircleOutlined ? createElement(CloseCircleOutlined, { style: { color: '#ff4d4f' } }) : null;
         break;
       default:
-        icon = <InfoCircleOutlined style={{ color: '#1890ff' }} />;
+        icon = InfoCircleOutlined ? createElement(InfoCircleOutlined, { style: { color: '#1890ff' } }) : null;
     }
     
     notification[type]({
@@ -183,7 +183,7 @@ const useNotification = () => {
     Modal.confirm({
       title,
       content,
-      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      icon: ExclamationCircleOutlined ? createElement(ExclamationCircleOutlined, { style: { color: '#ff4d4f' } }) : null,
       okText: 'ยืนยัน',
       okType: 'danger',
       cancelText: 'ยกเลิก',
@@ -203,7 +203,7 @@ const useNotification = () => {
     Modal.confirm({
       title,
       content,
-      icon: <ExclamationCircleOutlined style={{ color: '#1890ff' }} />,
+      icon: ExclamationCircleOutlined ? createElement(ExclamationCircleOutlined, { style: { color: '#1890ff' } }) : null,
       okText: 'ยืนยัน',
       cancelText: 'ยกเลิก',
       onOk,

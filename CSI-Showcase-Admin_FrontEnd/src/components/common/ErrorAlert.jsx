@@ -2,7 +2,7 @@
 import React from 'react';
 import { Alert, Space, Button } from 'antd';
 import { CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons';
-import { ERROR_MESSAGES } from '../../constants/errorMessages';
+import { GENERAL_ERRORS } from '../../constants/errorMessages';
 
 /**
  * Component แสดงข้อความแจ้งเตือนข้อผิดพลาด
@@ -17,7 +17,7 @@ import { ERROR_MESSAGES } from '../../constants/errorMessages';
  * @param {string} props.className - className เพิ่มเติม
  */
 const ErrorAlert = ({
-  message = ERROR_MESSAGES.GENERAL_ERRORS.UNKNOWN,
+  message = GENERAL_ERRORS.UNKNOWN,
   description,
   onRetry,
   showRetry = true,

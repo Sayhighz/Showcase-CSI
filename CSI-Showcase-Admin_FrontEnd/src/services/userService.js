@@ -119,6 +119,52 @@ export const createUser = async (userData) => {
 };
 
 /**
+ * สร้างผู้ใช้ใหม่พร้อมรูปโปรไฟล์
+ * @param {Object} userData - ข้อมูลผู้ใช้
+ * @param {File} profileImage - ไฟล์รูปโปรไฟล์ (optional)
+ * @returns {Promise<Object>} - ผลลัพธ์การสร้างผู้ใช้
+ */
+/**
+ * สร้างผู้ใช้ใหม่พร้อมรูปโปรไฟล์
+ * @param {Object} userData - ข้อมูลผู้ใช้
+ * @param {File} imageFile - ไฟล์รูปโปรไฟล์
+ * @param {Function} onProgress - ฟังก์ชันติดตามความคืบหน้า (optional)
+ * @returns {Promise<Object>} - ผลลัพธ์การสร้างผู้ใช้
+ */
+/**
+ * สร้างผู้ใช้ใหม่พร้อมรูปโปรไฟล์
+ * @param {FormData} formData - FormData ที่มีข้อมูลผู้ใช้และรูปภาพ
+ * @returns {Promise<Object>} - ผลลัพธ์การสร้างผู้ใช้
+ */
+export const createUserWithImage = async (formData) => {
+  try {
+    // ตรวจสอบว่าเป็น FormData
+    if (!(formData instanceof FormData)) {
+      return {
+        success: false,
+        message: 'ข้อมูลไม่ถูกต้อง กรุณาส่งข้อมูลในรูปแบบ FormData'
+      };
+    }
+    
+    // ส่งข้อมูลไปยัง API โดยใช้ axiosUpload
+    const response = await axiosUpload(USER.CREATE, formData);
+    
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'สร้างผู้ใช้สำเร็จ'
+    };
+  } catch (error) {
+    console.error('Create user with image error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้'
+    };
+  }
+};
+
+/**
  * อัปเดตข้อมูลผู้ใช้
  * @param {string|number} userId - รหัสผู้ใช้
  * @param {Object} userData - ข้อมูลผู้ใช้ที่ต้องการอัปเดต

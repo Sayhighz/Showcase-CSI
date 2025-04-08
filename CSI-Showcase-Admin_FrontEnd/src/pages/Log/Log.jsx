@@ -1,185 +1,318 @@
+// src/pages/Log/Log.jsx
 import React, { useState } from 'react';
-import { Table, Button, Input, Modal, Form, Space, Select } from 'antd';
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'; // Import icons directly
-import 'tailwindcss/tailwind.css';
-
-// Mock data for login history
-const mockData = [
-  {
-    key: '1',
-    username: 'john_doe',
-    loginTime: '22 มิ.ย. 68 10:30 AM',
-    ipAddress: '192.168.1.1',
-    status: 'สำเร็จ', // Success
-    details: 'Chrome, Windows 10',
-  },
-  {
-    key: '2',
-    username: 'jane_smith',
-    loginTime: '22 มิ.ย. 68 11:00 AM',
-    ipAddress: '192.168.1.2',
-    status: 'ล้มเหลว', // Failed
-    details: 'Firefox, MacOS',
-  },
-  {
-    key: '3',
-    username: 'alice_jones',
-    loginTime: '22 มิ.ย. 68 11:30 AM',
-    ipAddress: '192.168.1.3',
-    status: 'สำเร็จ', // Success
-    details: 'Safari, iPhone',
-  },
-  {
-    key: '4',
-    username: 'bob_brown',
-    loginTime: '22 มิ.ย. 68 12:00 PM',
-    ipAddress: '192.168.1.4',
-    status: 'ล้มเหลว', // Failed
-    details: 'Edge, Windows 7',
-  },
-];
+import { Card, Tabs, Alert, Divider, Row, Col, Statistic, Button, Badge, Progress, Space } from 'antd';
+import { 
+  ClockCircleOutlined, 
+  FileTextOutlined, 
+  InfoCircleOutlined, 
+  ReloadOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  UserOutlined,
+  LaptopOutlined,
+  GlobalOutlined,
+  BarChartOutlined,
+  PieChartOutlined,
+  LineChartOutlined,
+  EyeOutlined
+} from '@ant-design/icons';
+import PageHeader from '../../components/common/PageHeader';
+import LoginLogTable from '../../components/log/LoginLogTable';
+import LoginLogFilter from '../../components/log/LoginLogFilter';
+import LoginLogDetailModal from '../../components/log/LoginLogDetailModal';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorAlert from '../../components/common/ErrorAlert';
+import EmptyState from '../../components/common/EmptyState';
+import useLoginLog from '../../hooks/useLoginLog';
+import { HEADERS, HEADER_DESCRIPTIONS } from '../../constants/thaiMessages';
 
 const Log = () => {
-  const [logData, setLogData] = useState(mockData);
-  const [filteredData, setFilteredData] = useState(mockData);
-  const [statusFilter, setStatusFilter] = useState(''); // For filtering status
-  const [usernameFilter, setUsernameFilter] = useState(''); // For filtering username
-  const [passwordVisible, setPasswordVisible] = useState({}); // State for each password visibility
+  // นำเข้า hook สำหรับจัดการข้อมูลประวัติการเข้าสู่ระบบ
+  const {
+    logs,
+    stats,
+    chartData,
+    loading,
+    statsLoading,
+    error,
+    pagination,
+    filters,
+    handleFilterChange,
+    resetFilters,
+    handlePaginationChange,
+    refreshLogs,
+    refreshStats
+  } = useLoginLog();
+  
+  // สถานะสำหรับการแสดง Modal รายละเอียด
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  
+  // แสดง Modal รายละเอียด
+  const showDetailModal = (log) => {
+    setSelectedLog(log);
+    setDetailModalVisible(true);
+  };
+  
+  // ปิด Modal รายละเอียด
+  const closeDetailModal = () => {
+    setDetailModalVisible(false);
+    setSelectedLog(null);
+  };
+  
+  // รีเฟรชข้อมูล
+  const handleRefresh = () => {
+    refreshLogs(pagination.current, pagination.pageSize);
+    refreshStats();
+  };
 
-  // Table columns
-  const columns = [
-    {
-      title: 'ลำดับ',
-      dataIndex: 'index',
-      key: 'index',
-      render: (_, __, index) => index + 1, // Display index as sequence number
-    },
-    {
-      title: 'ชื่อผู้ใช้',
-      dataIndex: 'username',
-      key: 'username',
-      filterDropdown: () => (
-        <div style={{ padding: 8 }}>
-          <Input
-            placeholder="ค้นหาชื่อผู้ใช้"
-            value={usernameFilter}
-            onChange={(e) => setUsernameFilter(e.target.value)}
-            style={{ width: 188, marginBottom: 8, display: 'block' }}
-          />
-          <Button
-            type="primary"
-            onClick={() => handleFilterData()}
-            size="small"
-            style={{ width: 90, marginBottom: 8 }}
-          >
-            กรอง
-          </Button>
-        </div>
-      ),
-      onFilter: (value, record) => record.username.toLowerCase().includes(value.toLowerCase()),
-    },
-    {
-      title: 'รหัสผ่าน',
-      dataIndex: 'password',
-      key: 'password',
-      render: (text, record) => (
-        <Space>
-          <span>{passwordVisible[record.key] ? text : '******'}</span>
-          <EyeOutlined
-            style={{ color: '#1890ff', cursor: 'pointer' }}
-            onClick={() => handlePasswordToggle(record.key)}
-          />
-        </Space>
-      ),
-    },
-    {
-      title: 'เวลาเข้าระบบ',
-      dataIndex: 'loginTime',
-      key: 'loginTime',
-    },
-    {
-      title: 'IP Address',
-      dataIndex: 'ipAddress',
-      key: 'ipAddress',
-    },
-    {
-      title: 'สถานะการเข้าใช้งาน',
-      dataIndex: 'status',
-      key: 'status',
-      filters: [
-        { text: 'สำเร็จ', value: 'สำเร็จ' },
-        { text: 'ล้มเหลว', value: 'ล้มเหลว' },
-      ],
-      onFilter: (value, record) => record.status.indexOf(value) === 0,
-      render: (text) => (
-        <span className={text === 'สำเร็จ' ? 'text-green-500' : 'text-red-500'}>{text}</span>
-      ),
-    },
-    {
-      title: 'รายละเอียดการเข้าใช้งาน',
-      dataIndex: 'details',
-      key: 'details',
-    },
-  ];
+  // คำนวณอัตราความสำเร็จ
+  const getSuccessRate = () => {
+    if (!stats) return 0;
+    const totalLogins = stats.totalSuccess + stats.totalFailed || 0;
+    if (totalLogins === 0) return 0;
+    return Math.round((stats.totalSuccess / totalLogins) * 100);
+  };
 
-  // Handle filtering based on the selected filters
-  const handleFilterData = () => {
-    let filtered = mockData;
-
-    if (statusFilter) {
-      filtered = filtered.filter((item) => item.status === statusFilter);
+  // สร้างข้อมูลสถิติ
+  const renderStatistics = () => {
+    if (statsLoading) {
+      return <LoadingState type="card" count={4} />;
     }
-
-    if (usernameFilter) {
-      filtered = filtered.filter((item) =>
-        item.username.toLowerCase().includes(usernameFilter.toLowerCase())
+    
+    if (!stats) {
+      return (
+        <EmptyState 
+          type="stats" 
+          onAction={refreshStats}
+          actionText="โหลดข้อมูลสถิติ"
+        />
       );
     }
 
-    setFilteredData(filtered);
-  };
-
-  // Handle password visibility toggle
-  const handlePasswordToggle = (key) => {
-    setPasswordVisible((prevState) => ({
-      ...prevState,
-      [key]: !prevState[key], // Toggle visibility for the specific row
-    }));
-  };
-
-  return (
-    <div className="p-6">
-
-      {/* Filters */}
-      <div className="mb-4 flex space-x-4">
-        <Select
-          placeholder="กรองตามสถานะ"
-          style={{ width: 200 }}
-          onChange={(value) => setStatusFilter(value)}
-          value={statusFilter}
-        >
-          <Select.Option value="">ทั้งหมด</Select.Option>
-          <Select.Option value="สำเร็จ">สำเร็จ</Select.Option>
-          <Select.Option value="ล้มเหลว">ล้มเหลว</Select.Option>
-        </Select>
-
-        <Button
-          type="primary"
-          onClick={handleFilterData}
-          size="small"
-          style={{ width: 90 }}
-        >
-          กรอง
-        </Button>
+    const successRate = getSuccessRate();
+    
+    return (
+      <div className="mb-6">
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={6}>
+            <Card 
+              className="h-full hover:shadow-md transition-shadow duration-300 border-t-4 border-t-blue-500"
+              bodyStyle={{ padding: '20px' }}
+            >
+              <Statistic
+                title={<div className="flex items-center"><UserOutlined className="mr-2 text-blue-500" /> จำนวนผู้ใช้ทั้งหมด</div>}
+                value={stats.totalUsers || 0}
+                valueStyle={{ color: '#1890ff' }}
+                prefix={<UserOutlined />}
+              />
+              <div className="text-xs text-gray-500 mt-2">ผู้ใช้ที่มีการเข้าสู่ระบบ</div>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card 
+              className="h-full hover:shadow-md transition-shadow duration-300 border-t-4 border-t-green-500"
+              bodyStyle={{ padding: '20px' }}
+            >
+              <Statistic
+                title={<div className="flex items-center"><CheckCircleOutlined className="mr-2 text-green-500" /> เข้าสู่ระบบสำเร็จ</div>}
+                value={stats.totalSuccess || 0}
+                valueStyle={{ color: '#52c41a' }}
+                prefix={<CheckCircleOutlined />}
+              />
+              <div className="text-xs text-gray-500 mt-2">จำนวนครั้งที่เข้าสู่ระบบสำเร็จ</div>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card 
+              className="h-full hover:shadow-md transition-shadow duration-300 border-t-4 border-t-red-500"
+              bodyStyle={{ padding: '20px' }}
+            >
+              <Statistic
+                title={<div className="flex items-center"><CloseCircleOutlined className="mr-2 text-red-500" /> เข้าสู่ระบบล้มเหลว</div>}
+                value={stats.totalFailed || 0}
+                valueStyle={{ color: '#ff4d4f' }}
+                prefix={<CloseCircleOutlined />}
+              />
+              <div className="text-xs text-gray-500 mt-2">จำนวนครั้งที่เข้าสู่ระบบล้มเหลว</div>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Card 
+              className="h-full hover:shadow-md transition-shadow duration-300 border-t-4 border-t-purple-500"
+              bodyStyle={{ padding: '20px' }}
+            >
+              <Statistic
+                title={<div className="flex items-center"><PieChartOutlined className="mr-2 text-purple-500" /> อัตราความสำเร็จ</div>}
+                value={successRate}
+                suffix="%"
+                valueStyle={{ color: successRate > 90 ? '#52c41a' : successRate > 70 ? '#faad14' : '#ff4d4f' }}
+              />
+              <Progress 
+                percent={successRate} 
+                size="small" 
+                status={successRate > 90 ? 'success' : successRate > 70 ? 'normal' : 'exception'} 
+                className="mt-2"
+                showInfo={false}
+              />
+            </Card>
+          </Col>
+        </Row>
       </div>
-
-      <Table
-        columns={columns}
-        dataSource={filteredData}
-        rowKey="key"
-        pagination={{ pageSize: 5 }} // Pagination with 5 items per page
-        bordered
+    );
+  };
+  
+  // รายการแท็บ
+  const tabItems = [
+    {
+      key: 'login-logs',
+      label: <span><ClockCircleOutlined /> ประวัติการเข้าสู่ระบบ</span>,
+      children: (
+        <div>
+          <LoginLogFilter 
+            onFilterChange={handleFilterChange}
+            onReset={resetFilters}
+            filters={filters}
+          />
+          
+          {error ? (
+            <ErrorAlert 
+              message="ไม่สามารถโหลดข้อมูลได้" 
+              description={error} 
+              onRetry={handleRefresh}
+            />
+          ) : (
+            <>
+              {loading ? (
+                <LoadingState type="table" columns={6} count={5} />
+              ) : logs.length === 0 ? (
+                <EmptyState 
+                  type="log" 
+                  onAction={handleRefresh}
+                  actionText="รีเฟรชข้อมูล"
+                />
+              ) : (
+                <LoginLogTable 
+                  data={logs}
+                  loading={loading}
+                  onRefresh={handleRefresh}
+                  pagination={pagination}
+                  onPaginationChange={handlePaginationChange}
+                  onViewDetail={showDetailModal}
+                />
+              )}
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+  
+  return (
+    <div className="page-container">
+      <PageHeader
+        title={
+          <Space>
+            {HEADERS.LOGIN_INFO}
+            <Badge 
+              count={logs.length} 
+              overflowCount={999} 
+              style={{ backgroundColor: '#1890ff' }}
+            />
+          </Space>
+        }
+        subtitle={HEADER_DESCRIPTIONS.LOGIN_INFO}
+        breadcrumb={[
+          { title: 'แดชบอร์ด', path: '/dashboard' },
+          { title: 'ข้อมูลการเข้าสู่ระบบ' }
+        ]}
+        extra={
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+            loading={loading || statsLoading}
+            className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600"
+          >
+            รีเฟรชข้อมูล
+          </Button>
+        }
       />
+      
+      <Alert
+        message={
+          <div className="font-medium">คำแนะนำการใช้งาน</div>
+        }
+        description={
+          <div className="text-sm">
+            <p>หน้านี้แสดงประวัติการเข้าสู่ระบบของผู้ใช้ทั้งหมด คุณสามารถดูได้ทั้งในรูปแบบตารางและสถิติ</p>
+            <ul className="mt-2 list-disc list-inside">
+              <li>แท็บ <strong>ประวัติการเข้าสู่ระบบ</strong> แสดงรายละเอียดการเข้าสู่ระบบแต่ละครั้ง</li>
+              <li>คลิกที่ปุ่ม <EyeOutlined /> เพื่อดูรายละเอียดเพิ่มเติมของการเข้าสู่ระบบแต่ละครั้ง</li>
+            </ul>
+          </div>
+        }
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined className="text-blue-500" />}
+        closable
+        className="mb-6 border-blue-200 bg-blue-50"
+      />
+      
+      <Card 
+        className="shadow-sm hover:shadow-md transition-shadow duration-300 mb-6 rounded-lg overflow-hidden"
+        bodyStyle={{ padding: 0 }}
+      >
+        <Tabs 
+          defaultActiveKey="login-logs" 
+          items={tabItems} 
+          className="login-log-tabs"
+          tabBarStyle={{ background: '#f5f7fa', padding: '8px 16px 0' }}
+          size="large"
+        />
+      </Card>
+      
+      {/* Modal แสดงรายละเอียดประวัติการเข้าสู่ระบบ */}
+      <LoginLogDetailModal
+        visible={detailModalVisible}
+        onClose={closeDetailModal}
+        log={selectedLog}
+      />
+      
+      {/* CSS สำหรับ styling */}
+      <style jsx global>{`
+        .login-log-tabs .ant-tabs-nav::before {
+          border-bottom: none;
+        }
+        
+        .login-log-tabs .ant-tabs-tab {
+          margin-right: 24px;
+          padding: 12px 0;
+          font-size: 15px;
+        }
+        
+        .login-log-tabs .ant-tabs-tab-active {
+          font-weight: 600;
+        }
+        
+        .login-log-tabs .ant-tabs-ink-bar {
+          height: 3px;
+          border-radius: 3px 3px 0 0;
+        }
+        
+        .login-log-tabs .ant-tabs-tab:hover {
+          color: #1890ff;
+        }
+        
+        .page-container {
+          animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 };

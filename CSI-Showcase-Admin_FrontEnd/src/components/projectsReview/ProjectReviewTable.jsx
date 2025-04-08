@@ -7,7 +7,7 @@ import {
 import { 
   getCategoryName, 
   getCategoryColor, 
-  formatThaiDate 
+  formatProjectData 
 } from '../../utils/projectUtils';
 
 const { Text } = Typography;
@@ -97,7 +97,7 @@ const ProjectReviewTable = ({
       render: (date) => {
         if (!date) return <Text type="secondary">ไม่ระบุ</Text>;
         
-        const formattedDate = formatThaiDate(date);
+        const formattedDate = formatProjectData(date);
         return <Text>{formattedDate}</Text>;
       },
     },

@@ -8,8 +8,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { 
   getCategoryName, 
-  formatThaiDate 
 } from '../../utils/projectUtils';
+
+import { 
+  formatThaiDate, 
+} from '../../utils/dataUtils';
 
 const { Text, Paragraph } = Typography;
 const { TabPane } = Tabs;

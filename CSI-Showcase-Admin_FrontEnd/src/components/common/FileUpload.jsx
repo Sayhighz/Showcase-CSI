@@ -25,7 +25,7 @@ import {
   formatFileSize,
   getFileExtension
 } from '../../utils/fileUtils';
-import { ERROR_MESSAGES } from '../../constants/errorMessages';
+import { FILE_ERRORS } from '../../constants/errorMessages';
 
 /**
  * Component สำหรับอัปโหลดไฟล์
@@ -67,13 +67,13 @@ const FileUpload = ({
   const beforeUpload = (file) => {
     // ตรวจสอบประเภทไฟล์
     if (allowedTypes && !isAllowedFileType(file, allowedTypes)) {
-      message.error(ERROR_MESSAGES.FILE_ERRORS.INVALID_FILE_TYPE);
+      message.error(FILE_ERRORS.INVALID_FILE_TYPE);
       return Upload.LIST_IGNORE;
     }
 
     // ตรวจสอบขนาดไฟล์
     if (!isAllowedFileSize(file, maxSize)) {
-      message.error(`${ERROR_MESSAGES.FILE_ERRORS.FILE_TOO_LARGE} (สูงสุด: ${formatFileSize(maxSize)})`);
+      message.error(`${FILE_ERRORS.FILE_TOO_LARGE} (สูงสุด: ${formatFileSize(maxSize)})`);
       return Upload.LIST_IGNORE;
     }
 
@@ -109,7 +109,7 @@ const FileUpload = ({
       }
     } catch (error) {
       console.error('Upload error:', error);
-      message.error(ERROR_MESSAGES.FILE_ERRORS.UPLOAD_FAILED);
+      message.error(FILE_ERRORS.UPLOAD_FAILED);
       onError();
     } finally {
       setIsUploading(false);

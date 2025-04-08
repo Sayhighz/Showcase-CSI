@@ -1,49 +1,92 @@
-// src/components/common/PageHeader.jsx
 import React from 'react';
-import { Typography, Breadcrumb, Space } from 'antd';
+import { Typography, Space, Button, Breadcrumb } from 'antd';
 import { Link } from 'react-router-dom';
-import { HomeOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, HomeOutlined, UserOutlined, FileTextOutlined, TeamOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 /**
- * Component สำหรับส่วนหัวของแต่ละหน้า
- * ประกอบด้วย breadcrumb, หัวข้อ และรายละเอียด
- * 
- * @param {Object} props
- * @param {string} props.title - หัวข้อของหน้า
- * @param {string} props.subtitle - รายละเอียดของหน้า
- * @param {Array} props.breadcrumb - ข้อมูล breadcrumb เช่น [{title: 'หน้าหลัก', path: '/'}, {title: 'ผู้ใช้งาน'}]
- * @param {React.ReactNode} props.extra - องค์ประกอบเพิ่มเติมที่ต้องการแสดงทางขวามือ (เช่น ปุ่ม)
+ * คอมโพเนนต์ส่วนหัวของหน้า
+ * @param {Object} props - พร็อพเพอร์ตี้ของคอมโพเนนต์
+ * @param {string} props.title - หัวข้อหลัก
+ * @param {string} props.subtitle - หัวข้อย่อย
+ * @param {React.ReactNode} props.icon - ไอคอนหัวข้อ
+ * @param {React.ReactNode} props.extra - ส่วนเสริมที่จะแสดงด้านขวา
+ * @param {boolean} props.showBack - แสดงปุ่มย้อนกลับหรือไม่
+ * @param {function} props.onBack - ฟังก์ชันเมื่อกดปุ่มย้อนกลับ
+ * @param {Array} props.breadcrumb - ข้อมูลเส้นทางนำทาง
+ * @returns {JSX.Element} - คอมโพเนนต์ส่วนหัวของหน้า
  */
-const PageHeader = ({ title, subtitle, breadcrumb = [], extra }) => {
+const PageHeader = ({
+  title,
+  subtitle,
+  icon,
+  extra,
+  showBack = false,
+  onBack,
+  breadcrumb = [],
+}) => {
+  // ฟังก์ชันสร้างไอคอนตามประเภท
+  const getIcon = (type) => {
+    switch (type) {
+      case 'home':
+        return <HomeOutlined />;
+      case 'user':
+        return <UserOutlined />;
+      case 'file':
+        return <FileTextOutlined />;
+      case 'team':
+        return <TeamOutlined />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="bg-white p-6 rounded-md shadow-sm mb-6">
+    <div className="mb-6">
       {/* Breadcrumb */}
       {breadcrumb.length > 0 && (
         <Breadcrumb className="mb-4">
-          <Breadcrumb.Item>
-            <Link to="/dashboard">
-              <HomeOutlined /> หน้าหลัก
-            </Link>
-          </Breadcrumb.Item>
           {breadcrumb.map((item, index) => (
             <Breadcrumb.Item key={index}>
-              {item.path ? (
-                <Link to={item.path}>{item.title}</Link>
+              {item.link ? (
+                <Link to={item.link}>
+                  {item.icon && getIcon(item.icon)}
+                  {item.icon && ' '}
+                  {item.title}
+                </Link>
               ) : (
-                item.title
+                <>
+                  {item.icon && getIcon(item.icon)}
+                  {item.icon && ' '}
+                  {item.title}
+                </>
               )}
             </Breadcrumb.Item>
           ))}
         </Breadcrumb>
       )}
 
+      {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <Title level={4} className="mb-1">{title}</Title>
-          {subtitle && <Text type="secondary">{subtitle}</Text>}
-        </div>
+        <Space>
+          {showBack && (
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={onBack}
+              className="mr-2"
+            />
+          )}
+          
+          <div>
+            <Title level={4} className="mb-0 flex items-center">
+              {icon && <span className="mr-2">{icon}</span>}
+              {title}
+            </Title>
+            {subtitle && <Text type="secondary">{subtitle}</Text>}
+          </div>
+        </Space>
+        
         {extra && <div>{extra}</div>}
       </div>
     </div>

@@ -1,85 +1,104 @@
-// src/components/common/StatusTag.jsx
 import React from 'react';
 import { Tag } from 'antd';
-import { 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
-import { 
-  PROJECT_STATUS, 
-  PROJECT_STATUS_COLORS,
-  PROJECT_STATUS_NAMES 
-} from '../../constants/projectConstants';
-import { 
-  USER_STATUS,
-  USER_STATUS_COLORS,
-  USER_STATUS_NAMES
-} from '../../constants/userConstants';
+import { PROJECT_STATUS, PROJECT_STATUS_COLORS, PROJECT_STATUS_NAMES } from '../../constants/projectConstants';
+import { USER_STATUS, USER_STATUS_COLORS, USER_STATUS_NAMES } from '../../constants/userConstants';
+import { LOGIN_STATUS, LOGIN_STATUS_COLORS, LOGIN_STATUS_NAMES } from '../../constants/userConstants';
 
 /**
- * Component แสดงสถานะในรูปแบบ Tag
- * รองรับสถานะของโปรเจคและผู้ใช้
- * 
- * @param {Object} props
- * @param {string} props.type - ประเภทของสถานะ ('project', 'user')
- * @param {string} props.status - รหัสสถานะ
- * @param {string} props.className - className เพิ่มเติม
+ * คอมโพเนนต์แสดงสถานะในรูปแบบแท็ก
+ * @param {Object} props - พร็อพเพอร์ตี้ของคอมโพเนนต์
+ * @param {string} props.type - ประเภทของสถานะ ('project', 'user', 'login')
+ * @param {string} props.status - ค่าของสถานะ
+ * @param {string} props.text - ข้อความแสดงสถานะ (ถ้าไม่ระบุจะใช้ค่าเริ่มต้นตามประเภทและสถานะ)
+ * @param {React.ReactNode} props.icon - ไอคอนแสดงสถานะ (ถ้าไม่ระบุจะใช้ค่าเริ่มต้นตามประเภทและสถานะ)
+ * @param {string} props.color - สีของแท็ก (ถ้าไม่ระบุจะใช้ค่าเริ่มต้นตามประเภทและสถานะ)
+ * @returns {React.ReactNode} - คอมโพเนนต์แท็กแสดงสถานะ
  */
-const StatusTag = ({ type = 'project', status, className = '' }) => {
-  // กำหนดค่า default สำหรับ status ที่ไม่ตรงกับที่มีในระบบ
-  let color = 'default';
-  let text = 'ไม่ระบุ';
-  let icon = null;
+const StatusTag = ({ type, status, text, icon, color, ...restProps }) => {
+  // กำหนดค่าเริ่มต้นตามประเภทและสถานะ
+  let defaultText = '';
+  let defaultColor = '';
+  let defaultIcon = null;
 
-  if (type === 'project') {
-    // สถานะของโปรเจค
-    switch (status) {
-      case PROJECT_STATUS.PENDING:
-        color = PROJECT_STATUS_COLORS[PROJECT_STATUS.PENDING];
-        text = PROJECT_STATUS_NAMES[PROJECT_STATUS.PENDING];
-        icon = <ClockCircleOutlined />;
-        break;
-      case PROJECT_STATUS.APPROVED:
-        color = PROJECT_STATUS_COLORS[PROJECT_STATUS.APPROVED];
-        text = PROJECT_STATUS_NAMES[PROJECT_STATUS.APPROVED];
-        icon = <CheckCircleOutlined />;
-        break;
-      case PROJECT_STATUS.REJECTED:
-        color = PROJECT_STATUS_COLORS[PROJECT_STATUS.REJECTED];
-        text = PROJECT_STATUS_NAMES[PROJECT_STATUS.REJECTED];
-        icon = <CloseCircleOutlined />;
-        break;
-      default:
-        icon = <ExclamationCircleOutlined />;
-    }
-  } else if (type === 'user') {
-    // สถานะของผู้ใช้
-    switch (status) {
-      case USER_STATUS.ACTIVE:
-        color = USER_STATUS_COLORS[USER_STATUS.ACTIVE];
-        text = USER_STATUS_NAMES[USER_STATUS.ACTIVE];
-        icon = <CheckCircleOutlined />;
-        break;
-      case USER_STATUS.INACTIVE:
-        color = USER_STATUS_COLORS[USER_STATUS.INACTIVE];
-        text = USER_STATUS_NAMES[USER_STATUS.INACTIVE];
-        icon = <ClockCircleOutlined />;
-        break;
-      case USER_STATUS.SUSPENDED:
-        color = USER_STATUS_COLORS[USER_STATUS.SUSPENDED];
-        text = USER_STATUS_NAMES[USER_STATUS.SUSPENDED];
-        icon = <CloseCircleOutlined />;
-        break;
-      default:
-        icon = <ExclamationCircleOutlined />;
-    }
+  switch (type) {
+    case 'project':
+      defaultText = PROJECT_STATUS_NAMES[status] || status;
+      defaultColor = PROJECT_STATUS_COLORS[status] || 'default';
+      
+      // กำหนดไอคอนตามสถานะของโปรเจค
+      switch (status) {
+        case PROJECT_STATUS.APPROVED:
+          defaultIcon = <CheckCircleOutlined />;
+          break;
+        case PROJECT_STATUS.PENDING:
+          defaultIcon = <ClockCircleOutlined />;
+          break;
+        case PROJECT_STATUS.REJECTED:
+          defaultIcon = <CloseCircleOutlined />;
+          break;
+        default:
+          defaultIcon = <InfoCircleOutlined />;
+      }
+      break;
+      
+    case 'user':
+      defaultText = USER_STATUS_NAMES[status] || status;
+      defaultColor = USER_STATUS_COLORS[status] || 'default';
+      
+      // กำหนดไอคอนตามสถานะของผู้ใช้
+      switch (status) {
+        case USER_STATUS.ACTIVE:
+          defaultIcon = <CheckCircleOutlined />;
+          break;
+        case USER_STATUS.INACTIVE:
+          defaultIcon = <CloseCircleOutlined />;
+          break;
+        case USER_STATUS.SUSPENDED:
+          defaultIcon = <ExclamationCircleOutlined />;
+          break;
+        default:
+          defaultIcon = <InfoCircleOutlined />;
+      }
+      break;
+      
+    case 'login':
+      defaultText = LOGIN_STATUS_NAMES[status] || status;
+      defaultColor = LOGIN_STATUS_COLORS[status] || 'default';
+      
+      // กำหนดไอคอนตามสถานะการเข้าสู่ระบบ
+      switch (status) {
+        case LOGIN_STATUS.SUCCESS:
+          defaultIcon = <CheckCircleOutlined />;
+          break;
+        case LOGIN_STATUS.FAILED:
+          defaultIcon = <CloseCircleOutlined />;
+          break;
+        default:
+          defaultIcon = <InfoCircleOutlined />;
+      }
+      break;
+      
+    default:
+      defaultText = status;
+      defaultColor = 'default';
+      defaultIcon = <InfoCircleOutlined />;
   }
 
+  // ใช้ค่าที่กำหนดมาหรือค่าเริ่มต้น
+  const tagText = text || defaultText;
+  const tagColor = color || defaultColor;
+  const tagIcon = icon || defaultIcon;
+
   return (
-    <Tag color={color} icon={icon} className={`px-2 py-1 ${className}`}>
-      {text}
+    <Tag color={tagColor} icon={tagIcon} {...restProps}>
+      {tagText}
     </Tag>
   );
 };

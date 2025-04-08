@@ -1,217 +1,469 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Typography, message, Form, Modal } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
-import { getAllProjects, reviewProject } from '../../services/projectService';
-import { useAdminState } from '../../context/AdminStateContext';
-import useDebounce from '../../hooks/useDebounce';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, message, Tabs, Badge, Card, Typography } from 'antd';
+import { 
+  PlusOutlined, 
+  ReloadOutlined, 
+  FileTextOutlined, 
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined
+} from '@ant-design/icons';
+import './projectStyle.css'
 
-// นำเข้าคอมโพเนนต์ย่อย
+// Components
+import PageHeader from '../../components/common/PageHeader';
+import ProjectList from '../../components/projects/ProjectList';
 import ProjectFilter from '../../components/projects/ProjectFilter';
-import ProjectTable from '../../components/projects/ProjectTable';
-import ProjectTabs from '../../components/projects/ProjectTabs';
-import ProjectReviewModal from '../../components/projects/ProjectReviewModal';
-import ProjectRejectModal from '../../components/projects/ProjectRejectModal';
+import ProjectStats from '../../components/projects/ProjectStats';
+import LoadingState from '../../components/common/LoadingState';
+import ErrorAlert from '../../components/common/ErrorAlert';
+import ApproveRejectModal from '../../components/projects/ApproveRejectModal';
+import DeleteProjectModal from '../../components/projects/DeleteProjectModal';
 
-// นำเข้าฟังก์ชันช่วยเหลือ
-import { filterProjects, formatProjectData } from '../../utils/projectUtils';
+// Hooks and Services
+import useProject from '../../hooks/useProject';
+import { getProjectStats } from '../../services/projectService';
+import useNotification from '../../hooks/useNotification';
+
+// Constants
+import { TABS } from '../../constants/thaiMessages';
 
 const { Title } = Typography;
 
+/**
+ * หน้าจัดการผลงาน
+ * แสดงรายการผลงานทั้งหมด สามารถค้นหา กรอง ดูรายละเอียด อนุมัติ ปฏิเสธ และลบผลงานได้
+ * @returns {React.ReactElement} หน้าจัดการผลงาน
+ */
 const Project = () => {
-  // State for projects and loading
-  const [projects, setProjects] = useState([]);
-  const [filteredProjects, setFilteredProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState('all');
+  const { showSuccess, showError } = useNotification();
   
-  // State for review actions
-  const [reviewModalVisible, setReviewModalVisible] = useState(false);
-  const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [form] = Form.useForm();
-
+  // สถานะสำหรับแท็บปัจจุบัน
+  const [activeTab, setActiveTab] = useState('all');
   
-  // State for filtering and searching
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
-  const [filters, setFilters] = useState({
-    type: '',
-    year: '',
-    studyYear: ''
+  // สถานะสำหรับข้อมูลสถิติ
+  const [stats, setStats] = useState({
+    total_projects: 0,
+    approved_count: 0,
+    pending_count: 0,
+    rejected_count: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
+  
+  // สถานะสำหรับ Modal
+  const [approveRejectModal, setApproveRejectModal] = useState({
+    visible: false,
+    type: 'approve',
+    projectId: null,
+    projectTitle: ''
+  });
+  const [deleteModal, setDeleteModal] = useState({
+    visible: false,
+    projectId: null,
+    projectTitle: ''
   });
   
-  const { updateFilters, resetFilters, setPendingProjectsCount } = useAdminState();
-
-  // Load projects on component mount
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  // Apply filters and search when those values change
-  useEffect(() => {
-    if (projects.length > 0) {
-      const result = filterProjects(projects, debouncedSearchTerm, currentTab, filters);
-      setFilteredProjects(result);
-    }
-  }, [projects, debouncedSearchTerm, currentTab, filters]);
-
-  // Load projects from API
-  const loadProjects = async () => {
-    setLoading(true);
+  // ใช้ custom hook สำหรับจัดการข้อมูลโปรเจค
+  const {
+    projects,
+    loading,
+    error,
+    pagination,
+    filters,
+    handleFilterChange,
+    resetFilters,
+    handlePaginationChange,
+    approveProject,
+    rejectProject,
+    deleteProject,
+    refreshProjects
+  } = useProject(
+    // กำหนดค่าเริ่มต้นของ filter ตาม tab ที่เลือก
+    activeTab === 'all' ? 'all' : (
+      activeTab === 'pending' ? 'pending' : 'all'
+    ),
+    'list',
+    { status: activeTab === 'all' ? '' : activeTab }
+  );
+  
+  // Breadcrumb สำหรับ PageHeader
+  const breadcrumb = [
+    { title: 'หน้าหลัก', href: '/' },
+    { title: 'จัดการผลงาน' }
+  ];
+  
+  // ดึงข้อมูลสถิติโปรเจค
+  const fetchProjectStats = useCallback(async () => {
+    setStatsLoading(true);
     try {
-      const data = await getAllProjects();
-      
-      // Format data to match our component structure
-      const formattedData = formatProjectData(data);
-      
-      setProjects(formattedData);
-      console.log(data)
-      setFilteredProjects(formattedData);
-      
-      // Count pending projects for notifications
-      const pendingCount = formattedData.filter(project => project.status === 'pending').length;
-      setPendingProjectsCount(pendingCount);
-    } catch (error) {
-      console.error('Failed to load projects:', error);
-      message.error('ไม่สามารถโหลดข้อมูลโปรเจคได้');
+      const response = await getProjectStats();
+      if (response.success) {
+        setStats(response.data.project_counts);
+      } else {
+        showError('ไม่สามารถโหลดข้อมูลสถิติได้');
+      }
+    } catch (err) {
+      console.error('Error fetching project stats:', err);
+      showError('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ');
     } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
+  }, [showError]);
+  
+  // โหลดข้อมูลสถิติเมื่อ component mount
+  useEffect(() => {
+    fetchProjectStats();
+  }, [fetchProjectStats]);
+  
+  // สร้างตัวเลือกปีการศึกษา
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear() + 543; // แปลงเป็นปี พ.ศ.
+    const years = [];
+    // แสดงย้อนหลัง 5 ปี และปีปัจจุบัน
+    for (let i = 0; i <= 5; i++) {
+      years.push(currentYear - i);
+    }
+    return years;
   };
-
-  // Handle tab change
+  
+  // จัดการเมื่อเปลี่ยนแท็บ
   const handleTabChange = (key) => {
-    setCurrentTab(key);
+    setActiveTab(key);
+    
+    // ตั้งค่าตัวกรองสถานะตาม tab ที่เลือก
+    let statusFilter = '';
+    if (key !== 'all') {
+      statusFilter = key;
+    }
+    
+    handleFilterChange({ status: statusFilter });
   };
-
-  // Reset all filters
-  const handleResetFilters = () => {
-    setSearchTerm('');
-    setFilters({
-      type: '',
-      year: '',
-      studyYear: ''
+  
+  // จัดการเมื่อกดปุ่มรีเฟรช
+  const handleRefresh = async () => {
+    await refreshProjects();
+    await fetchProjectStats();
+    showSuccess('รีเฟรชข้อมูลสำเร็จ');
+  };
+  
+  // จัดการเมื่อกดปุ่มอนุมัติจากตาราง
+  const handleApproveClick = (projectId) => {
+    if (!projectId) {
+      showError('เกิดข้อผิดพลาด: ไม่พบรหัสโปรเจค');
+      return;
+    }
+    
+    // ตรวจสอบว่า projects เป็น array และมีข้อมูลหรือไม่
+    if (!Array.isArray(projects)) {
+      setApproveRejectModal({
+        visible: true,
+        type: 'approve',
+        projectId: projectId,
+        projectTitle: `โปรเจค #${projectId}`
+      });
+      return;
+    }
+    
+    // หาโปรเจคที่ต้องการอนุมัติ
+    const project = projects.find(p => String(p.project_id) === String(projectId));
+    
+    // ตั้งค่า modal
+    setApproveRejectModal({
+      visible: true,
+      type: 'approve',
+      projectId: projectId,
+      projectTitle: project ? project.title : `โปรเจค #${projectId}`
     });
-    resetFilters('projects');
-    setFilteredProjects(projects);
   };
-
-  // Handle project approval
-  const handleApprove = (project) => {
-    Modal.confirm({
-      title: 'ยืนยันการอนุมัติ',
-      icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-      content: `คุณต้องการอนุมัติโปรเจค "${project.title}" ใช่หรือไม่?`,
-      okText: 'อนุมัติ',
-      cancelText: 'ยกเลิก',
-      okButtonProps: { style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } },
-      onOk: async () => {
-        setIsReviewing(true);
-        try {
-          await reviewProject(project.project_id, 'approved');
-          message.success('อนุมัติโปรเจคสำเร็จ');
-          
-          // Refresh project list
-          loadProjects();
-        } catch (error) {
-          console.error('Approval failed:', error);
-          message.error('ไม่สามารถอนุมัติโปรเจคได้');
-        } finally {
-          setIsReviewing(false);
+  
+  // จัดการเมื่อกดปุ่มปฏิเสธจากตาราง
+  const handleRejectClick = (projectId) => {
+    if (!projectId) {
+      showError('เกิดข้อผิดพลาด: ไม่พบรหัสโปรเจค');
+      return;
+    }
+    
+    // ตรวจสอบว่า projects เป็น array และมีข้อมูลหรือไม่
+    if (!Array.isArray(projects)) {
+      setApproveRejectModal({
+        visible: true,
+        type: 'reject',
+        projectId: projectId,
+        projectTitle: `โปรเจค #${projectId}`
+      });
+      return;
+    }
+    
+    // หาโปรเจคที่ต้องการปฏิเสธ
+    const project = projects.find(p => String(p.project_id) === String(projectId));
+    
+    // ตั้งค่า modal
+    setApproveRejectModal({
+      visible: true,
+      type: 'reject',
+      projectId: projectId,
+      projectTitle: project ? project.title : `โปรเจค #${projectId}`
+    });
+  };
+  
+  // จัดการเมื่อกดปุ่มลบจากตาราง
+  const handleDeleteClick = (projectId) => {
+    if (!projectId) {
+      showError('เกิดข้อผิดพลาด: ไม่พบรหัสโปรเจค');
+      return;
+    }
+    
+    // ตรวจสอบว่า projects เป็น array และมีข้อมูลหรือไม่
+    if (!Array.isArray(projects)) {
+      setDeleteModal({
+        visible: true,
+        projectId: projectId,
+        projectTitle: `โปรเจค #${projectId}`
+      });
+      return;
+    }
+    
+    // หาโปรเจคที่ต้องการลบ
+    const project = projects.find(p => String(p.project_id) === String(projectId));
+    
+    // ตั้งค่า modal
+    setDeleteModal({
+      visible: true,
+      projectId: projectId,
+      projectTitle: project ? project.title : `โปรเจค #${projectId}`
+    });
+  };
+  
+  // จัดการเมื่อยืนยันการอนุมัติหรือปฏิเสธ
+  const handleApproveRejectConfirm = async (comment) => {
+    const projectId = approveRejectModal.projectId;
+    
+    if (!projectId) {
+      showError('เกิดข้อผิดพลาด: ไม่พบรหัสโปรเจค');
+      return;
+    }
+    
+    try {
+      let success = false;
+      
+      if (approveRejectModal.type === 'approve') {
+        // เรียกใช้ฟังก์ชันอนุมัติโปรเจคพร้อมส่ง projectId
+        success = await approveProject(projectId, comment);
+        
+        if (success) {
+          showSuccess('อนุมัติผลงานสำเร็จ');
+        }
+      } else {
+        // เรียกใช้ฟังก์ชันปฏิเสธโปรเจคพร้อมส่ง projectId และ comment
+        success = await rejectProject(projectId, comment);
+        
+        if (success) {
+          showSuccess('ปฏิเสธผลงานสำเร็จ');
         }
       }
-    });
-  };
-
-  // Show reject modal
-  const showRejectModal = (project) => {
-    setSelectedProject(project);
-    form.resetFields();
-    setRejectReason('');
-    setRejectModalVisible(true);
-  };
-
-  // Handle project rejection
-  const handleReject = async () => {
-    try {
-      await form.validateFields();
-      setIsReviewing(true);
       
-      try {
-        await reviewProject(selectedProject.project_id, 'rejected', rejectReason);
-        message.success('ปฏิเสธโปรเจคสำเร็จ');
-        setRejectModalVisible(false);
+      if (success) {
+        // ปิด modal และอัพเดตสถิติ
+        setApproveRejectModal({
+          visible: false,
+          type: 'approve',
+          projectId: null,
+          projectTitle: ''
+        });
         
-        // Refresh project list
-        loadProjects();
-      } catch (error) {
-        console.error('Rejection failed:', error);
-        message.error('ไม่สามารถปฏิเสธโปรเจคได้');
-      } finally {
-        setIsReviewing(false);
+        // อัพเดตสถิติ
+        await fetchProjectStats();
+        // รีเฟรชโปรเจค
+        await refreshProjects();
       }
-    } catch (error) {
-      // Form validation error
-      console.error('Validation failed:', error);
+    } catch (err) {
+      console.error('Error in approve/reject confirmation:', err);
+      showError('เกิดข้อผิดพลาดในการดำเนินการ');
+    }
+  };
+  
+  // จัดการเมื่อยืนยันการลบ
+  const handleDeleteConfirm = async () => {
+    // ดึง projectId จาก state ที่เก็บไว้
+    const projectId = deleteModal.projectId;
+    
+    if (!projectId) {
+      showError('เกิดข้อผิดพลาด: ไม่พบรหัสโปรเจค');
+      return;
+    }
+    
+    try {
+      const success = await deleteProject(projectId);
+      if (success) {
+        showSuccess('ลบผลงานสำเร็จ');
+        setDeleteModal({ 
+          visible: false, 
+          projectId: null, 
+          projectTitle: '' 
+        });
+        
+        // อัพเดตสถิติหลังจากลบ
+        await fetchProjectStats();
+        // รีเฟรชโปรเจค
+        await refreshProjects();
+      }
+    } catch (err) {
+      console.error('Error deleting project:', err);
+      showError('เกิดข้อผิดพลาดในการลบผลงาน');
     }
   };
 
-  // Show review modal
-  const handleShowReview = (project) => {
-    setSelectedProject(project);
-    console.log(selectedProject)
-    setReviewModalVisible(true);
+  // สร้าง items สำหรับ Tabs
+  const createTabItems = () => {
+    return [
+      {
+        key: 'all',
+        label: (
+          <span className="flex items-center">
+            <FileTextOutlined className="mr-1" />
+            <span>{TABS.ALL}</span>
+            <Badge count={stats.total_projects} className="ml-2" />
+          </span>
+        ),
+      },
+      {
+        key: 'pending',
+        label: (
+          <span className="flex items-center">
+            <ClockCircleOutlined className="mr-1" style={{ color: '#faad14' }} />
+            <span>{TABS.PENDING}</span>
+            <Badge count={stats.pending_count} className="ml-2" style={{ backgroundColor: '#faad14' }} />
+          </span>
+        ),
+      },
+      {
+        key: 'approved',
+        label: (
+          <span className="flex items-center">
+            <CheckCircleOutlined className="mr-1" style={{ color: '#52c41a' }} />
+            <span>{TABS.APPROVED}</span>
+            <Badge count={stats.approved_count} className="ml-2" style={{ backgroundColor: '#52c41a' }} />
+          </span>
+        ),
+      },
+      {
+        key: 'rejected',
+        label: (
+          <span className="flex items-center">
+            <CloseCircleOutlined className="mr-1" style={{ color: '#ff4d4f' }} />
+            <span>{TABS.REJECTED}</span>
+            <Badge count={stats.rejected_count} className="ml-2" style={{ backgroundColor: '#ff4d4f' }} />
+          </span>
+        ),
+      },
+    ];
   };
-
+  
   return (
-    <div className="p-6">
-      <Card className="mb-6">
-        <Title level={4} className="mb-4">จัดการผลงาน</Title>
-        
-        <ProjectTabs 
-          currentTab={currentTab} 
-          handleTabChange={handleTabChange}
-          pendingCount={projects.filter(p => p.status === 'pending').length}
-        />
-        
-        <ProjectFilter 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          filters={filters}
-          setFilters={setFilters}
-          handleResetFilters={handleResetFilters}
-        />
-        
-        <ProjectTable 
-          projects={filteredProjects}
-          loading={loading}
-          handleApprove={handleApprove}
-          showRejectModal={showRejectModal}
-          handleShowReview={handleShowReview}
-        />
-      </Card>
-      
-      {/* โมดัลตรวจสอบโปรเจค */}
-      <ProjectReviewModal 
-        visible={reviewModalVisible}
-        setVisible={setReviewModalVisible}
-        project={selectedProject}
-        handleApprove={handleApprove}
-        showRejectModal={showRejectModal}
+    <div className="project-management-page">
+      {/* Header */}
+      <PageHeader
+        title="จัดการผลงาน"
+        subtitle="จัดการผลงานนักศึกษาทั้งหมด รวมถึงอนุมัติ ปฏิเสธ และดูรายละเอียด"
+        breadcrumb={breadcrumb}
+        extra={
+          <div className="flex space-x-2">
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={handleRefresh}
+              loading={loading || statsLoading}
+              className="flex items-center rounded-md shadow-sm hover:shadow"
+              size="large"
+            >
+              รีเฟรช
+            </Button>
+          </div>
+        }
+        className="mb-6 shadow-sm"
       />
       
-      {/* โมดัลปฏิเสธโปรเจค */}
-      <ProjectRejectModal 
-        visible={rejectModalVisible}
-        setVisible={setRejectModalVisible}
-        project={selectedProject}
-        rejectReason={rejectReason}
-        setRejectReason={setRejectReason}
-        handleReject={handleReject}
-        isReviewing={isReviewing}
-        form={form}
+      {/* สถิติโปรเจค */}
+      <ProjectStats stats={stats} loading={statsLoading} />
+      
+      {/* แสดงข้อความผิดพลาด (ถ้ามี) */}
+      {error && (
+        <ErrorAlert
+          message={error}
+          description="ไม่สามารถโหลดข้อมูลผลงานได้ กรุณาลองใหม่อีกครั้ง"
+          onRetry={refreshProjects}
+          className="mb-6"
+        />
+      )}
+      
+      {/* กรองข้อมูล */}
+      <ProjectFilter
+        onFilterChange={handleFilterChange}
+        onReset={resetFilters}
+        filters={filters}
+        yearOptions={generateYearOptions()}
+      />
+      
+      {/* แท็บสถานะ */}
+      <Card 
+        className="rounded-md overflow-hidden shadow-sm mb-6 hover:shadow-md transition-all duration-300"
+        bodyStyle={{ padding: 0 }}
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          items={createTabItems()}
+          className="px-4 pt-4"
+          size="large"
+          type="card"
+          animated={{ inkBar: true, tabPane: true }}
+        />
+        
+        {/* ตารางรายการผลงาน */}
+        <div className="p-4">
+          {loading ? (
+            <LoadingState type="table" columns={8} count={5} />
+          ) : (
+            <ProjectList
+              projects={projects}
+              pagination={pagination}
+              onPaginationChange={handlePaginationChange}
+              onApprove={handleApproveClick}
+              onReject={handleRejectClick}
+              onDelete={handleDeleteClick}
+              loading={loading}
+            />
+          )}
+        </div>
+      </Card>
+      
+      {/* Modal สำหรับอนุมัติหรือปฏิเสธโปรเจค */}
+      <ApproveRejectModal
+        visible={approveRejectModal.visible}
+        modalType={approveRejectModal.type}
+        projectId={approveRejectModal.projectId}
+        projectTitle={approveRejectModal.projectTitle}
+        onConfirm={handleApproveRejectConfirm}
+        onCancel={() => setApproveRejectModal({ 
+          visible: false, 
+          type: 'approve', 
+          projectId: null, 
+          projectTitle: '' 
+        })}
+        loading={loading}
+      />
+      
+      {/* Modal สำหรับลบโปรเจค */}
+      <DeleteProjectModal
+        visible={deleteModal.visible}
+        projectId={deleteModal.projectId}
+        projectTitle={deleteModal.projectTitle}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteModal({ 
+          visible: false, 
+          projectId: null, 
+          projectTitle: '' 
+        })}
+        loading={loading}
       />
     </div>
   );

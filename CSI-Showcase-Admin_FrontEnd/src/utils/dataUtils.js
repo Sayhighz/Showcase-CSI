@@ -7,14 +7,8 @@
  * @returns {string} - วันที่ในรูปแบบภาษาไทย
  */
 export const formatThaiDate = (date, options = {}) => {
+    console.log(date)
     if (!date) return 'ไม่ระบุ';
-    
-    const defaultOptions = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      ...options
-    };
     
     try {
       // แปลงเป็น Date object ถ้า date เป็น string
@@ -25,7 +19,39 @@ export const formatThaiDate = (date, options = {}) => {
         return 'วันที่ไม่ถูกต้อง';
       }
       
-      // แปลงเป็นรูปแบบไทย
+      // แยกตัวเลือกเป็นตัวเลือกสำหรับวันที่และเวลา
+      const { dateStyle, timeStyle, ...otherOptions } = options;
+      
+      // ถ้ามีทั้ง dateStyle และ timeStyle
+      if (dateStyle && timeStyle) {
+        return dateObj.toLocaleString('th-TH', { dateStyle, timeStyle });
+      }
+      
+      // ถ้ามีแค่ timeStyle
+      if (timeStyle) {
+        const formattedDate = dateObj.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          ...otherOptions
+        });
+        const formattedTime = dateObj.toLocaleTimeString('th-TH', { timeStyle });
+        return `${formattedDate} ${formattedTime}`;
+      }
+      
+      // ถ้ามีแค่ dateStyle
+      if (dateStyle) {
+        return dateObj.toLocaleDateString('th-TH', { dateStyle });
+      }
+      
+      // กรณีปกติ
+      const defaultOptions = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        ...otherOptions
+      };
+      
       return dateObj.toLocaleDateString('th-TH', defaultOptions);
     } catch (error) {
       console.error('Error formatting date:', error);

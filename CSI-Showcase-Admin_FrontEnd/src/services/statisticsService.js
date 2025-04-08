@@ -9,10 +9,11 @@ import { STATISTICS } from '../constants/apiEndpoints';
 export const getDashboardStats = async () => {
   try {
     const response = await axiosGet(STATISTICS.DASHBOARD);
+    console.log(response)
     
     return {
       success: true,
-      data: response.data || response
+      data: response || response
     };
   } catch (error) {
     console.error('Get dashboard statistics error:', error);
@@ -32,6 +33,7 @@ export const getDashboardStats = async () => {
 export const getTodayStats = async () => {
   try {
     const response = await axiosGet(STATISTICS.TODAY);
+    console.log(response)
     
     return {
       success: true,

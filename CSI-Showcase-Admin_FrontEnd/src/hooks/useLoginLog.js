@@ -62,13 +62,14 @@ const useLoginLog = (initialFilters = {}) => {
       
       if (response.success) {
         // ปรับรูปแบบวันที่ให้เป็นภาษาไทย
-        const formattedLogs = response.data.map(log => ({
+        const formattedLogs = (response.data.logs).map(log => ({
           ...log,
           login_time: formatThaiDate(log.login_time, { 
             dateStyle: 'medium', 
             timeStyle: 'short' 
           })
         }));
+        console.log(response)
         
         setLogs(formattedLogs);
         setPagination({

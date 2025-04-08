@@ -71,7 +71,8 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       const response = await getAllUsers(queryParams);
       
       if (response.success) {
-        setUsers(response.data);
+        setUsers(response.data.users);
+        console.log(response.data)
         setPagination({
           current: page,
           pageSize,

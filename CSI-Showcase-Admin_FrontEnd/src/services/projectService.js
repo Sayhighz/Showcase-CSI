@@ -164,6 +164,7 @@ export const getProjectById = async (projectId) => {
  */
 export const reviewProject = async (projectId, status, comment = '') => {
   try {
+    console.log("asd",comment);
     if (!projectId) {
       return {
         success: false,
@@ -187,7 +188,8 @@ export const reviewProject = async (projectId, status, comment = '') => {
     }
     
     const url = PROJECT.REVIEW(projectId);
-    const response = await axiosPost(url, { status, review_comment: comment });
+    const response = await axiosPost(url, { status, comment: comment });
+    console.log(response);
     
     return {
       success: true,
