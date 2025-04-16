@@ -2,7 +2,7 @@
  * Context สำหรับจัดการการยืนยันตัวตน
  * ใช้สำหรับจัดการและแชร์ state ที่เกี่ยวข้องกับการล็อกอิน ล็อกเอาท์ การลงทะเบียน และการตรวจสอบสิทธิ์ของผู้ใช้
  */
-import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 
@@ -348,14 +348,14 @@ export const AuthProvider = ({ children }) => {
  * Custom hook สำหรับใช้งาน AuthContext
  * @returns {Object} - Auth context
  */
-export const useAuthContext = () => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   
   if (!context) {
-    throw new Error('useAuthContext ต้องใช้ภายใน AuthProvider');
+    throw new Error('useAuth ต้องใช้ภายใน AuthProvider');
   }
   
   return context;
 };
 
-export default { AuthContext, AuthProvider, useAuthContext };
+export default { AuthContext, AuthProvider, useAuth };

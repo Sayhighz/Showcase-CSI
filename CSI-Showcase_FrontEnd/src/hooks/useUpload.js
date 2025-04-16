@@ -43,6 +43,25 @@ const useUpload = () => {
   });
 
   /**
+   * ดึงข้อมูลสถานะพื้นที่จัดเก็บไฟล์
+   */
+  const fetchStorageStatus = useCallback(async () => {
+    try {
+      const response = await getStorageStatus();
+      
+      if (response) {
+        setStorageStatus({
+          used: response.used || 0,
+          total: response.total || 0,
+          percentage: response.percentage || 0
+        });
+      }
+    } catch (err) {
+      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลสถานะพื้นที่จัดเก็บไฟล์:', err);
+    }
+  }, []);
+
+  /**
    * ตรวจสอบไฟล์ก่อนอัพโหลด
    * @param {File} file - ไฟล์ที่ต้องการตรวจสอบ
    * @param {Array} allowedTypes - ประเภทไฟล์ที่อนุญาต
@@ -122,6 +141,69 @@ const useUpload = () => {
       setIsUploading(false);
     }
   }, [validateUploadFile, fetchStorageStatus]);
+
+  /**
+   * อัพโหลดรูปภาพ
+   * @param {File[]} files - ไฟล์รูปภาพที่ต้องการอัพโหลด
+   * @returns {Promise} - ผลลัพธ์จากการอัพโหลดรูปภาพ
+   */
+  const handleUploadImages = useCallback(async (files) => {
+    if (!files || files.length === 0) {
+      message.error('กรุณาเลือกรูปภาพ');
+      return null;
+    }
+    
+    // ตรวจสอบไฟล์ทั้งหมด
+    const invalidFiles = Array.from(files).filter(file => 
+      !validateUploadFile(file, ALLOWED_FILE_TYPES.image, FILE_SIZE_LIMITS.image)
+    );
+    
+    if (invalidFiles.length > 0) {
+      return null;
+    }
+    
+    setIsUploading(true);
+    setProgress(0);
+    setError(null);
+    
+    try {
+      // จำลองความก้าวหน้าของการอัพโหลด
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return 95;
+          }
+          return prev + 5;
+        });
+      }, 100);
+      
+      const response = await uploadImages(files);
+      
+      // หยุดการจำลองความก้าวหน้า
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      if (response) {
+        setUploadedFiles(response);
+        message.success('อัพโหลดรูปภาพสำเร็จ');
+        
+        // อัปเดตข้อมูลการใช้พื้นที่จัดเก็บ
+        fetchStorageStatus();
+        
+        return response;
+      } else {
+        throw new Error('ไม่สามารถอัพโหลดรูปภาพได้');
+      }
+    } catch (err) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ');
+      message.error(err.message || 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ');
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  }, [validateUploadFile, fetchStorageStatus]);
+
   /**
    * อัพโหลดวิดีโอ
    * @param {File} file - ไฟล์วิดีโอที่ต้องการอัพโหลด
@@ -178,7 +260,7 @@ const useUpload = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [validateUploadFile]);
+  }, [validateUploadFile, fetchStorageStatus]);
 
   /**
    * อัพโหลดเอกสาร
@@ -240,7 +322,7 @@ const useUpload = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [validateUploadFile]);
+  }, [validateUploadFile, fetchStorageStatus]);
 
   /**
    * อัพโหลดไฟล์หลายประเภทในคราวเดียว
@@ -322,7 +404,7 @@ const useUpload = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [validateUploadFile]);
+  }, [validateUploadFile, fetchStorageStatus]);
 
   /**
    * ลบไฟล์ที่อัพโหลดไว้
@@ -359,26 +441,7 @@ const useUpload = () => {
       message.error(err.message || 'เกิดข้อผิดพลาดในการลบไฟล์');
       return false;
     }
-  }, []);
-
-  /**
-   * ดึงข้อมูลสถานะพื้นที่จัดเก็บไฟล์
-   */
-  const fetchStorageStatus = useCallback(async () => {
-    try {
-      const response = await getStorageStatus();
-      
-      if (response) {
-        setStorageStatus({
-          used: response.used || 0,
-          total: response.total || 0,
-          percentage: response.percentage || 0
-        });
-      }
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลสถานะพื้นที่จัดเก็บไฟล์:', err);
-    }
-  }, []);
+  }, [fetchStorageStatus]);
 
   /**
    * ล้างข้อมูลการอัพโหลด
@@ -421,64 +484,4 @@ const useUpload = () => {
   };
 };
 
-export default useUpload;  /**
-   * อัพโหลดรูปภาพ
-   * @param {File[]} files - ไฟล์รูปภาพที่ต้องการอัพโหลด
-   * @returns {Promise} - ผลลัพธ์จากการอัพโหลดรูปภาพ
-   */
-  const handleUploadImages = useCallback(async (files) => {
-    if (!files || files.length === 0) {
-      message.error('กรุณาเลือกรูปภาพ');
-      return null;
-    }
-    
-    // ตรวจสอบไฟล์ทั้งหมด
-    const invalidFiles = Array.from(files).filter(file => 
-      !validateUploadFile(file, ALLOWED_FILE_TYPES.image, FILE_SIZE_LIMITS.image)
-    );
-    
-    if (invalidFiles.length > 0) {
-      return null;
-    }
-    
-    setIsUploading(true);
-    setProgress(0);
-    setError(null);
-    
-    try {
-      // จำลองความก้าวหน้าของการอัพโหลด
-      const progressInterval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return 95;
-          }
-          return prev + 5;
-        });
-      }, 100);
-      
-      const response = await uploadImages(files);
-      
-      // หยุดการจำลองความก้าวหน้า
-      clearInterval(progressInterval);
-      setProgress(100);
-      
-      if (response) {
-        setUploadedFiles(response);
-        message.success('อัพโหลดรูปภาพสำเร็จ');
-        
-        // อัปเดตข้อมูลการใช้พื้นที่จัดเก็บ
-        fetchStorageStatus();
-        
-        return response;
-      } else {
-        throw new Error('ไม่สามารถอัพโหลดรูปภาพได้');
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ');
-      message.error(err.message || 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ');
-      return null;
-    } finally {
-      setIsUploading(false);
-    }
-  }, [validateUploadFile, fetchStorageStatus]);
+export default useUpload;

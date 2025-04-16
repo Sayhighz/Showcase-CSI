@@ -65,6 +65,5 @@ export default {
   USER,
   PROJECT,
   SEARCH,
-  ADMIN,
   GENERAL,
 };
