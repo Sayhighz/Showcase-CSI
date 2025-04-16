@@ -358,6 +358,8 @@ const Project = () => {
       },
     ];
   };
+
+  console.log('projects', projects);
   
   return (
     <div className="project-management-page">

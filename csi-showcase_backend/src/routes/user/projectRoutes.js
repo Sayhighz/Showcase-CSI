@@ -19,10 +19,10 @@ import {
   getProjectTypes,
   getProjectYears,
   getStudyYears,
-  getProjectStats,
-  getUploadStatus,
-  cancelUpload,
-  upload
+  getProjectStats
+  // getUploadStatus - ไม่ได้ export จาก controller
+  // cancelUpload - ไม่ได้ export จาก controller
+  // upload - ไม่ได้ export จาก controller
 } from '../../controllers/user/projectController.js';
 import { authenticateToken, isAdmin, isResourceOwner } from '../../middleware/authMiddleware.js';
 import { API_ROUTES } from '../../constants/routes.js';
@@ -56,44 +56,59 @@ router.get(API_ROUTES.PROJECT.YEARS, getProjectYears);
 // ดึงข้อมูลชั้นปีของนักศึกษาทั้งหมด (สำหรับ dropdown)
 router.get(API_ROUTES.PROJECT.STUDY_YEARS, getStudyYears);
 
-// อัปโหลดโครงการใหม่
+// อัปโหลดโครงการใหม่ - ต้องแก้ไขเพราะไม่มี upload export ออกมา
+// router.post(
+//   API_ROUTES.PROJECT.UPLOAD, 
+//   authenticateToken, 
+//   isResourceOwner, 
+//   upload.fields([
+//     { name: 'coverImage', maxCount: 1 },
+//     { name: 'posterImage', maxCount: 1 },
+//     { name: 'courseworkPoster', maxCount: 1 },
+//     { name: 'courseworkImage', maxCount: 1 },
+//     { name: 'courseworkVideo', maxCount: 1 },
+//     { name: 'competitionPoster', maxCount: 1 },
+//     { name: 'pdfFiles', maxCount: 3 }
+//   ]), 
+//   uploadProject
+// );
+
+// ใช้ route อย่างง่ายไปก่อน ไม่ใช้ multer upload
 router.post(
   API_ROUTES.PROJECT.UPLOAD, 
   authenticateToken, 
   isResourceOwner, 
-  upload.fields([
-    { name: 'coverImage', maxCount: 1 },
-    { name: 'posterImage', maxCount: 1 },
-    { name: 'courseworkPoster', maxCount: 1 },
-    { name: 'courseworkImage', maxCount: 1 },
-    { name: 'courseworkVideo', maxCount: 1 },
-    { name: 'competitionPoster', maxCount: 1 },
-    { name: 'pdfFiles', maxCount: 3 }
-  ]), 
   uploadProject
 );
 
-// อัปโหลดไฟล์สำหรับโครงการ
+// อัปโหลดไฟล์สำหรับโครงการ - ต้องแก้ไขเพราะไม่มี upload export ออกมา
+// router.post(
+//   API_ROUTES.PROJECT.UPLOAD_FILE, 
+//   authenticateToken, 
+//   upload.single('file'), 
+//   uploadProjectFile
+// );
+
+// ใช้ route อย่างง่ายไปก่อน ไม่ใช้ multer upload
 router.post(
   API_ROUTES.PROJECT.UPLOAD_FILE, 
   authenticateToken, 
-  upload.single('file'), 
   uploadProjectFile
 );
 
-// เช็คสถานะการอัปโหลด
-router.get(
-  API_ROUTES.PROJECT.UPLOAD_STATUS, 
-  authenticateToken, 
-  getUploadStatus
-);
+// เช็คสถานะการอัปโหลด - ต้องแก้ไขเพราะไม่มีฟังก์ชัน getUploadStatus
+// router.get(
+//   API_ROUTES.PROJECT.UPLOAD_STATUS, 
+//   authenticateToken, 
+//   getUploadStatus
+// );
 
-// ยกเลิกการอัปโหลด
-router.post(
-  API_ROUTES.PROJECT.CANCEL_UPLOAD, 
-  authenticateToken, 
-  cancelUpload
-);
+// ยกเลิกการอัปโหลด - ต้องแก้ไขเพราะไม่มีฟังก์ชัน cancelUpload
+// router.post(
+//   API_ROUTES.PROJECT.CANCEL_UPLOAD, 
+//   authenticateToken, 
+//   cancelUpload
+// );
 
 // อัปเดตโครงการ
 router.put(
@@ -125,8 +140,6 @@ router.post(
 
 // ดึงข้อมูลโครงการที่รอการอนุมัติ
 router.get(
-  // routes/user/projectRoutes.js (ต่อ)
-
   API_ROUTES.PROJECT.PENDING, 
   authenticateToken, 
   isAdmin, 

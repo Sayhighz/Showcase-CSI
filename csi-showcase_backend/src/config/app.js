@@ -27,12 +27,17 @@ export const createApp = (options = {}) => {
   const app = express();
   
   // ตั้งค่า middleware พื้นฐาน
-  app.use(helmet()); // ช่วยในการรักษาความปลอดภัย HTTP headers
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })); // ช่วยในการรักษาความปลอดภัย HTTP headers แต่อนุญาต cross-origin
+  
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'secret_key', 'admin_secret_key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'secret_key', 'admin_secret_key'],
+    credentials: true
   }));
+  
   app.use(compression()); // บีบอัดข้อมูลเพื่อลดขนาดการส่งข้อมูล
   app.use(express.json({ limit: '10mb' })); // แปลง JSON request bodies
   app.use(express.urlencoded({ extended: true, limit: '10mb' })); // แปลง URL-encoded request bodies
@@ -66,8 +71,13 @@ export const createApp = (options = {}) => {
     app.use(checkSecretKey);
   }
   
-  // กำหนดเส้นทางสำหรับไฟล์ static
-  app.use('/uploads', express.static(path.join(__dirname, '..', '..', 'uploads')));
+  // กำหนดเส้นทางสำหรับไฟล์ static พร้อมกับเพิ่ม CORS headers
+  app.use('/uploads', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    next();
+  }, express.static(path.join(__dirname, '..', '..', 'uploads')));
   
   // กำหนดเส้นทางสำหรับ health check
   app.get('/health', (req, res) => {

@@ -1,12 +1,18 @@
 // src/components/projectDetail/ProjectInfo.jsx
 import React from 'react';
-import { Typography, Card, Descriptions, Divider } from 'antd';
+import { Typography, Card, Descriptions, Divider, Tag, Alert, Empty } from 'antd';
 import { 
   TrophyOutlined,
   BookOutlined,
   TeamOutlined,
   GlobalOutlined,
-  TagOutlined
+  TagOutlined,
+  CalendarOutlined,
+  BuildOutlined,
+  UserOutlined,
+  ReadOutlined,
+  ApartmentOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 
 // Constants for mapping competition levels to Thai names
@@ -18,9 +24,23 @@ const COMPETITION_LEVELS = {
   international: 'ระดับนานาชาติ'
 };
 
-const { Title, Paragraph } = Typography;
+// Map level to color
+const LEVEL_COLORS = {
+  department: 'blue',
+  faculty: 'cyan',
+  university: 'purple',
+  national: 'magenta',
+  international: 'gold'
+};
+
+const { Title, Paragraph, Text } = Typography;
 
 const ProjectInfo = ({ projectDetails }) => {
+  // Check if projectDetails is available
+  if (!projectDetails) {
+    return <Empty description="ไม่มีข้อมูลผลงาน" />;
+  }
+
   // Extract specific details based on project type
   const renderSpecificInfo = () => {
     switch(projectDetails.type) {
@@ -28,23 +48,63 @@ const ProjectInfo = ({ projectDetails }) => {
         if (!projectDetails.competition) return null;
         
         return (
-          <Card className="mb-6">
-            <Title level={5} className="flex items-center">
-              <TrophyOutlined className="mr-2" /> ข้อมูลการแข่งขัน
-            </Title>
-            <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-              <Descriptions.Item label="ชื่อการแข่งขัน" span={2}>
-                {projectDetails.competition.competition_name}
+          <Card 
+            className="mb-6 hover-shadow" 
+            title={
+              <Title level={5} className="flex items-center my-0">
+                <TrophyOutlined className="mr-2 text-yellow-500" /> ข้อมูลการแข่งขัน
+              </Title>
+            }
+          >
+            {projectDetails.competition.achievement && (
+              <Alert
+                message={
+                  <div className="flex items-center">
+                    <TrophyOutlined className="mr-2 text-yellow-500" />
+                    <Text strong>{projectDetails.competition.achievement}</Text>
+                  </div>
+                }
+                type="success"
+                className="mb-4"
+                showIcon={false}
+              />
+            )}
+
+            <Descriptions bordered column={{ xs: 1, sm: 2 }} className="competition-info">
+              <Descriptions.Item 
+                label={<Text strong><CalendarOutlined className="mr-1" /> ชื่อการแข่งขัน</Text>} 
+                span={2}
+              >
+                <Text>{projectDetails.competition.competition_name}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="ปีที่จัดการแข่งขัน">
-                {projectDetails.competition.competition_year}
+              <Descriptions.Item 
+                label={<Text strong><CalendarOutlined className="mr-1" /> ปีที่จัดการแข่งขัน</Text>}
+              >
+                <Tag color="blue">{projectDetails.competition.competition_year}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="ระดับการแข่งขัน">
-                {COMPETITION_LEVELS[projectDetails.competition.competition_level] || projectDetails.competition.competition_level}
+              <Descriptions.Item 
+                label={<Text strong><ApartmentOutlined className="mr-1" /> ระดับการแข่งขัน</Text>}
+              >
+                <Tag color={LEVEL_COLORS[projectDetails.competition.competition_level] || 'blue'}>
+                  {COMPETITION_LEVELS[projectDetails.competition.competition_level] || projectDetails.competition.competition_level}
+                </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="ผลงานที่ได้รับ" span={2}>
-                {projectDetails.competition.achievement || 'ไม่ระบุ'}
-              </Descriptions.Item>
+              
+              {projectDetails.competition.team_members && (
+                <Descriptions.Item 
+                  label={<Text strong><TeamOutlined className="mr-1" /> ทีม</Text>} 
+                  span={2}
+                >
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {projectDetails.competition.team_members.split(',').map((member, idx) => (
+                      <Tag key={idx} color="cyan" className="py-1">
+                        <UserOutlined className="mr-1" />
+                        {member.trim()}
+                      </Tag>
+                    ))}
+                  </div>
+                </Descriptions.Item>
+              )}
             </Descriptions>
           </Card>
         );
@@ -53,27 +113,60 @@ const ProjectInfo = ({ projectDetails }) => {
         if (!projectDetails.academic) return null;
         
         return (
-          <Card className="mb-6">
-            <Title level={5} className="flex items-center">
-              <BookOutlined className="mr-2" /> ข้อมูลบทความวิชาการ
-            </Title>
-            <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-              <Descriptions.Item label="ปีที่ตีพิมพ์">
-                {projectDetails.academic.published_year}
+          <Card 
+            className="mb-6 hover-shadow" 
+            title={
+              <Title level={5} className="flex items-center my-0">
+                <BookOutlined className="mr-2 text-blue-500" /> ข้อมูลบทความวิชาการ
+              </Title>
+            }
+          >
+            <Descriptions bordered column={{ xs: 1, sm: 2 }} className="academic-info">
+              <Descriptions.Item 
+                label={<Text strong><CalendarOutlined className="mr-1" /> ปีที่ตีพิมพ์</Text>}
+              >
+                <Tag color="blue">{projectDetails.academic.published_year}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="วันที่ตีพิมพ์">
+              <Descriptions.Item 
+                label={<Text strong><CalendarOutlined className="mr-1" /> วันที่ตีพิมพ์</Text>}
+              >
                 {projectDetails.academic.publication_date || 'ไม่ระบุ'}
               </Descriptions.Item>
-              <Descriptions.Item label="แหล่งตีพิมพ์" span={2}>
-                {projectDetails.academic.publication_venue || 'ไม่ระบุ'}
+              <Descriptions.Item 
+                label={<Text strong><GlobalOutlined className="mr-1" /> แหล่งตีพิมพ์</Text>}
+                span={2}
+              >
+                <Tag color="cyan">{projectDetails.academic.publication_venue || 'ไม่ระบุ'}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="ผู้เขียน" span={2}>
-                {projectDetails.academic.authors || 'ไม่ระบุ'}
-              </Descriptions.Item>
-              <Descriptions.Item label="บทคัดย่อ" span={2}>
-                {projectDetails.academic.abstract || 'ไม่มีบทคัดย่อ'}
+              <Descriptions.Item 
+                label={<Text strong><UserOutlined className="mr-1" /> ผู้เขียน</Text>}
+                span={2}
+              >
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {projectDetails.academic.authors ? 
+                    projectDetails.academic.authors.split(',').map((author, idx) => (
+                      <Tag key={idx} color="geekblue" className="py-1">
+                        <UserOutlined className="mr-1" />
+                        {author.trim()}
+                      </Tag>
+                    )) : 'ไม่ระบุ'
+                  }
+                </div>
               </Descriptions.Item>
             </Descriptions>
+
+            {projectDetails.academic.abstract && (
+              <div className="mt-4">
+                <Title level={5} className="flex items-center">
+                  <FileTextOutlined className="mr-2" /> บทคัดย่อ
+                </Title>
+                <Card className="bg-gray-50">
+                  <Paragraph>
+                    {projectDetails.academic.abstract}
+                  </Paragraph>
+                </Card>
+              </div>
+            )}
           </Card>
         );
       
@@ -81,19 +174,33 @@ const ProjectInfo = ({ projectDetails }) => {
         if (!projectDetails.coursework) return null;
         
         return (
-          <Card className="mb-6">
-            <Title level={5} className="flex items-center">
-              <TeamOutlined className="mr-2" /> ข้อมูลผลงานการเรียนการสอน
-            </Title>
-            <Descriptions bordered column={{ xs: 1, sm: 2 }}>
-              <Descriptions.Item label="รหัสวิชา">
-                {projectDetails.coursework.course_code || 'ไม่ระบุ'}
+          <Card 
+            className="mb-6 hover-shadow" 
+            title={
+              <Title level={5} className="flex items-center my-0">
+                <TeamOutlined className="mr-2 text-green-500" /> ข้อมูลผลงานการเรียนการสอน
+              </Title>
+            }
+          >
+            <Descriptions bordered column={{ xs: 1, sm: 2 }} className="coursework-info">
+              <Descriptions.Item 
+                label={<Text strong><ReadOutlined className="mr-1" /> รหัสวิชา</Text>}
+              >
+                <Tag color="green">{projectDetails.coursework.course_code || 'ไม่ระบุ'}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="ชื่อวิชา">
-                {projectDetails.coursework.course_name || 'ไม่ระบุ'}
+              <Descriptions.Item 
+                label={<Text strong><BookOutlined className="mr-1" /> ชื่อวิชา</Text>}
+              >
+                <Text>{projectDetails.coursework.course_name || 'ไม่ระบุ'}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="อาจารย์ผู้สอน" span={2}>
-                {projectDetails.coursework.instructor || 'ไม่ระบุ'}
+              <Descriptions.Item 
+                label={<Text strong><UserOutlined className="mr-1" /> อาจารย์ผู้สอน</Text>}
+                span={2}
+              >
+                <Tag color="cyan">
+                  <UserOutlined className="mr-1" />
+                  {projectDetails.coursework.instructor || 'ไม่ระบุ'}
+                </Tag>
               </Descriptions.Item>
             </Descriptions>
           </Card>
@@ -105,15 +212,27 @@ const ProjectInfo = ({ projectDetails }) => {
   };
 
   return (
-    <div>
+    <div className="fade-in">
       {/* Project Description */}
-      <Card className="mb-6">
-        <Title level={5} className="flex items-center">
-          <TagOutlined className="mr-2" /> รายละเอียดผลงาน
-        </Title>
-        <Paragraph>
-          {projectDetails.description || 'ไม่มีคำอธิบายรายละเอียด'}
-        </Paragraph>
+      <Card 
+        className="mb-6 hover-shadow" 
+        title={
+          <Title level={5} className="flex items-center my-0">
+            <TagOutlined className="mr-2 text-primary" /> รายละเอียดผลงาน
+          </Title>
+        }
+      >
+        <div className="bg-gray-50 p-4 rounded-lg">
+          {projectDetails.description ? (
+            <Paragraph className="whitespace-pre-line">
+              {projectDetails.description}
+            </Paragraph>
+          ) : (
+            <div className="text-center py-4">
+              <Text type="secondary" italic>ไม่มีคำอธิบายรายละเอียด</Text>
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* Type-specific information */}

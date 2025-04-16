@@ -19,6 +19,7 @@ const RecentProjects = ({ projects = [] }) => {
     return <Empty description="ไม่มีโปรเจคล่าสุด" />;
   }
 
+
   return (
     <List
       dataSource={projects}

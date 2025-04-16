@@ -39,61 +39,65 @@ export const AuthProvider = ({ children }) => {
 
                 // Verify token with backend
                 const response = await verifyToken(token);
+                console.log("response",response)
                 
                 if (response.valid) {
                     // If valid, decode and set admin data
                     const decodedToken = jwtDecode(token);
                     setAdmin({
-                        id: decodedToken.id,
-                        username: decodedToken.username,
-                        role: decodedToken.role,
-                        avatar: decodedToken.avatar || null
+                      id: decodedToken.id,
+                      username: response.user.fullName,
+                      role: decodedToken.role,
+                      avatar: response.user.image || null
                     });
+                    console.log("asd",admin)
                     setIsAuthenticated(true);
-                } else {
+                  } else {
                     // If invalid, clear auth data
                     removeAuthCookie();
                     setIsAuthenticated(false);
+                  }
+                } catch (error) {
+                  console.error('Auth verification error:', error);
+                  removeAuthCookie();
+                  setIsAuthenticated(false);
+                } finally {
+                  setIsLoading(false);
                 }
-            } catch (error) {
-                console.error('Auth verification error:', error);
-                removeAuthCookie();
-                setIsAuthenticated(false);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        verifyAuth();
-    }, []);
-
-    // Login function - แก้ไขให้มีชื่อที่ไม่ซ้ำกับ import
-    const handleLogin = useCallback(async (username, password) => {
-        setIsLoading(true);
-        try {
-            const response = await login(username, password);
+              };
+              
+              verifyAuth();
+            }, []);
             
-            if (response.success && response.data && response.data.token) {
-                // Fixed: Get token from response.data.token
-                const token = response.data.token;
-                const decodedToken = jwtDecode(token);
+            // Login function - แก้ไขให้มีชื่อที่ไม่ซ้ำกับ import
+            const handleLogin = useCallback(async (username, password) => {
+              setIsLoading(true);
+              try {
+                const response = await login(username, password);
+                console.log(response)
                 
-                // Check if user is admin
-                if (decodedToken.role !== 'admin') {
+                if (response.success && response.data && response.data.token) {
+                  // Fixed: Get token from response.data.token
+                  const token = response.data.token;
+                  const decodedToken = jwtDecode(token);
+                  console.log(decodedToken);
+                  
+                  // Check if user is admin
+                  if (decodedToken.role !== 'admin') {
                     message.error('คุณไม่มีสิทธิ์เข้าถึงระบบผู้ดูแล');
                     setIsLoading(false);
                     return false;
-                }
-                
+                  }
+                  
                 // Set token in cookie
                 setAuthCookie(token);
                 
                 // Set admin data
                 setAdmin({
                     id: decodedToken.id,
-                    username: decodedToken.username,
+                    username: response.data.user.fullName,
                     role: decodedToken.role,
-                    avatar: decodedToken.avatar || null
+                    avatar: response.data.user.image || null
                 });
                 
                 setIsAuthenticated(true);

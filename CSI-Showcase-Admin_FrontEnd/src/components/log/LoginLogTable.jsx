@@ -73,26 +73,6 @@ const LoginLogTable = ({
       width: '12%',
     },
     {
-      title: 'สถานะ',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => (
-        <Tag
-          icon={status === LOGIN_STATUS.SUCCESS ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-          color={status === LOGIN_STATUS.SUCCESS ? 'success' : 'error'}
-          className="px-3 py-1 flex items-center w-24 justify-center"
-        >
-          {status === LOGIN_STATUS.SUCCESS ? 'สำเร็จ' : 'ล้มเหลว'}
-        </Tag>
-      ),
-      width: '12%',
-      filters: [
-        { text: 'สำเร็จ', value: LOGIN_STATUS.SUCCESS },
-        { text: 'ล้มเหลว', value: LOGIN_STATUS.FAILED },
-      ],
-      onFilter: (value, record) => record.status === value,
-    },
-    {
       title: 'การดำเนินการ',
       key: 'action',
       render: (_, record) => (

@@ -27,7 +27,14 @@ const Sidebar = ({ isMobile, onClose }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [openKeys, setOpenKeys] = useState([]);
-  const { admin, handleLogout } = useAuth();
+  
+  // เรียกใช้ useAuth() และเก็บทั้ง object ไว้
+  const auth = useAuth();
+  // ดึงเฉพาะ admin จาก auth
+  const admin = auth.admin;
+  
+  console.log("Auth object:", auth);
+  console.log("Admin:", admin);
 
   // Set initial openKeys based on current path
   useEffect(() => {
@@ -48,16 +55,46 @@ const Sidebar = ({ isMobile, onClose }) => {
 
   // Current selected menu item
   const selectedKey = location.pathname;
+  
+  // แก้ไขฟังก์ชัน logout ให้ตรวจสอบฟังก์ชันที่มีอยู่จริงใน auth
+  const logout = () => {
+    console.log("Attempting to logout with auth methods:", Object.keys(auth));
+    
+    // ตรวจสอบฟังก์ชันที่น่าจะใช้สำหรับ logout
+    if (typeof auth.logout === 'function') {
+      auth.logout();
+    } else if (typeof auth.signOut === 'function') {
+      auth.signOut();
+    } else if (typeof auth.handleSignOut === 'function') {
+      auth.handleSignOut();
+    } else if (typeof auth.logoutUser === 'function') {
+      auth.logoutUser();
+    } else if (typeof auth.handleLogout === 'function') {
+      auth.handleLogout();
+    } else {
+      console.error("ไม่พบฟังก์ชันสำหรับออกจากระบบใน AuthContext");
+      // อาจนำทางไปหน้า login โดยตรง
+      navigate('/login');
+    }
+  }
 
   // Custom menu item component
-  const MenuItem = ({ icon, label, badge, path, danger, submenu, isOpen, children }) => {
+  const MenuItem = ({ icon, label, badge, path, danger, submenu, isOpen, children, onClick }) => {
     const isActive = path === selectedKey;
     const isSubMenuOpen = submenu && openKeys.includes(submenu);
     
     return (
       <div className="px-3 mb-1">
         <div 
-          onClick={() => path ? handleNavigation(path) : submenu ? handleSubmenuToggle(submenu) : null}
+          onClick={() => {
+            if (onClick) {
+              onClick();
+            } else if (path) {
+              handleNavigation(path);
+            } else if (submenu) {
+              handleSubmenuToggle(submenu);
+            }
+          }}
           className={`
             flex items-center px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200
             ${isActive ? 'bg-purple-50 text-purple-900 shadow-sm' : 'hover:bg-gray-50'}
@@ -130,7 +167,7 @@ const Sidebar = ({ isMobile, onClose }) => {
         {collapsed ? (
           <Tooltip title="อาจารย์ ดร.สมชาย - ผู้ดูแลระบบ" placement="right">
             <Avatar 
-              src="https://randomuser.me/api/portraits/men/85.jpg"
+              src={`http://localhost:4000/${admin?.avatar}`}
               size={46} 
               className="border-2 border-white shadow-md"
             />
@@ -138,7 +175,7 @@ const Sidebar = ({ isMobile, onClose }) => {
         ) : (
           <div className="flex items-center">
             <Avatar 
-              src="https://randomuser.me/api/portraits/men/85.jpg" 
+              src={`http://localhost:4000/${admin?.avatar}`}
               size={46}
               className="border-2 border-white shadow-md" 
             />
@@ -217,7 +254,7 @@ const Sidebar = ({ isMobile, onClose }) => {
       icon: <LogoutOutlined />,
       label: "ออกจากระบบ",
       danger: true,
-      onClick: () => handleLogout(),
+      onClick: () => logout(),
     }
   ];
 
@@ -301,8 +338,9 @@ const Sidebar = ({ isMobile, onClose }) => {
             key={item.key}
             icon={item.icon}
             label={item.label}
-            path={item.key}
+            path={undefined}
             danger={item.danger}
+            onClick={item.onClick}
           />
         ))}
       </div>

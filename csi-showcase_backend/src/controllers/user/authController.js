@@ -10,6 +10,7 @@ import { STATUS_CODES } from '../../constants/statusCodes.js';
 import { ERROR_MESSAGES, getErrorMessage } from '../../constants/errorMessages.js';
 import { isValidEmail } from '../../utils/validationHelper.js';
 import { logLogin } from '../../utils/logHelper.js';
+import { UAParser } from 'ua-parser-js';
 
 /**
  * ล็อกอินสำหรับผู้ใช้
@@ -59,11 +60,25 @@ export const login = async (req, res) => {
       role: user.role,
     });
     
+    // วิเคราะห์ User Agent
+    const uaParser = new UAParser(req.headers['user-agent']);
+    const device = uaParser.getDevice();
+    const os = uaParser.getOS();
+    const browser = uaParser.getBrowser();
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    
     // บันทึกประวัติการเข้าสู่ระบบ
     await pool.execute(`
-      INSERT INTO login_logs (user_id, ip_address)
-      VALUES (?, ?)
-    `, [user.user_id, req.ip]);
+      INSERT INTO login_logs (user_id, ip_address, device_type, os, browser, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      user.user_id, 
+      req.ip, 
+      device.type || 'Unknown', 
+      `${os.name || 'Unknown'} ${os.version || ''}`, 
+      `${browser.name || 'Unknown'} ${browser.version || ''}`,
+      userAgent
+    ]);
     
     logLogin(username, req.ip, true);
     logger.info(`User ${username} logged in successfully`);

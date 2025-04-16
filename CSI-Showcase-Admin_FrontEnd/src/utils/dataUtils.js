@@ -7,7 +7,6 @@
  * @returns {string} - วันที่ในรูปแบบภาษาไทย
  */
 export const formatThaiDate = (date, options = {}) => {
-    console.log(date)
     if (!date) return 'ไม่ระบุ';
     
     try {

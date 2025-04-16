@@ -135,15 +135,6 @@ const UserTable = ({
     );
   };
   
-  // แสดงสถานะออนไลน์
-  const getStatusBadge = (status) => {
-    return (
-      <Badge 
-        status={status === 'active' ? 'success' : 'default'} 
-        text={status === 'active' ? 'ออนไลน์' : 'ออฟไลน์'}
-      />
-    );
-  };
   
   // กำหนดคอลัมน์สำหรับแสดงในตาราง
   const columns = [
@@ -191,7 +182,6 @@ const UserTable = ({
             <div className="font-medium">{record.full_name}</div>
             <div className="text-gray-500 text-sm flex items-center">
               <span className="mr-1">@{record.username}</span>
-              {getStatusBadge(record.status)}
             </div>
           </div>
         </div>

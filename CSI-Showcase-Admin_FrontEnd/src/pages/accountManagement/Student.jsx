@@ -87,112 +87,53 @@ const Student = () => {
   
   // จัดการการสร้างหรือแก้ไขผู้ใช้
 // ในไฟล์ที่เรียกใช้ UserForm (เช่น StudentPage หรือ AdminPage)
-const handleSubmit = async (data, hasImage) => {
+// แก้ไขฟังก์ชัน handleSubmit ใน Student.jsx
+// ใน Student.jsx
+// ใน Student.jsx
+const handleSubmit = async (values, hasImage) => {
   setActionLoading(true);
   
   try {
-    let success = false;
-    
-    if (drawerMode === 'create') {
-      // กรณีสร้างผู้ใช้ใหม่
-      if (hasImage) {
-        // ถ้ามีการอัปโหลดรูปภาพ ใช้ FormData ที่ส่งมา
-        try {
-          // แสดง loading message
-          const loadingMessage = message.loading('กำลังสร้างบัญชีผู้ใช้และอัปโหลดรูปภาพ...', 0);
-          
-          // เรียกใช้ API สร้างผู้ใช้พร้อมอัปโหลดรูปภาพ
-          const response = await createUserWithImage(data);
-          
-          // ปิด loading message
-          loadingMessage();
-          
-          if (response && response.success) {
-            success = true;
-          } else {
-            throw new Error(response?.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
-          }
-        } catch (uploadError) {
-          console.error('Upload error:', uploadError);
-          showError(uploadError.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
-          return;
-        }
-      } else {
-        // ถ้าไม่มีรูปโปรไฟล์ ใช้ฟังก์ชันเดิม
-        try {
-          const response = await createUser(data);
-          success = response && response.success;
-          
-          if (!success) {
-            throw new Error(response?.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
-          }
-        } catch (createError) {
-          console.error('Create user error:', createError);
-          showError(createError.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
-          return;
-        }
-      }
+    // ตรวจสอบว่าเป็น FormData หรือไม่ และมีข้อมูลหรือไม่
+    if (hasImage && values instanceof FormData) {
+      console.log("Values is FormData, attempting to create user with image");
       
-      if (success) {
-        showSuccess('เพิ่มบัญชีผู้ใช้สำเร็จ');
-        closeDrawer();
-        refreshUsers();
-      }
-    } else if (drawerMode === 'edit' && selectedUser?.user_id) {
-      // กรณีแก้ไขผู้ใช้
       try {
-        if (hasImage) {
-          // ถ้ามีการอัปโหลดรูปภาพ
-          // 1. อัปเดตข้อมูลผู้ใช้ก่อน (ดึงข้อมูลจาก FormData แปลงเป็นออบเจกต์)
-          const userData = {};
-          for (const [key, value] of data.entries()) {
-            if (key !== 'profileImage') {
-              userData[key] = value;
-            }
-          }
-          
-          const updateResponse = await updateUser(selectedUser.user_id, userData);
-          success = updateResponse && updateResponse.success;
-          
-          if (!success) {
-            throw new Error(updateResponse?.message || 'เกิดข้อผิดพลาดในการอัปเดตผู้ใช้');
-          }
-          
-          // 2. อัปโหลดรูปภาพ
-          try {
-            const uploadFormData = new FormData();
-            uploadFormData.append('profileImage', data.get('profileImage'));
-            
-            const loadingMessage = message.loading('กำลังอัปโหลดรูปโปรไฟล์...', 0);
-            const uploadResponse = await uploadProfileImage(selectedUser.user_id, uploadFormData);
-            loadingMessage();
-            
-            if (!uploadResponse || !uploadResponse.success) {
-              showWarning('อัปเดตข้อมูลสำเร็จ แต่ไม่สามารถอัปโหลดรูปโปรไฟล์ได้');
-            }
-          } catch (uploadError) {
-            console.error('Upload profile image error:', uploadError);
-            showWarning('อัปเดตข้อมูลสำเร็จ แต่เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์');
-          }
-        } else {
-          // ถ้าไม่มีการอัปโหลดรูปภาพ ใช้ข้อมูลปกติ
-          const updateResponse = await updateUser(selectedUser.user_id, data);
-          success = updateResponse && updateResponse.success;
-          
-          if (!success) {
-            throw new Error(updateResponse?.message || 'เกิดข้อผิดพลาดในการอัปเดตผู้ใช้');
-          }
-        }
+        // ใช้ createUser ที่มาจาก useUser hook สำหรับส่งข้อมูลใหม่
+        const response = await axiosPost('/users', values); // ส่ง FormData ตรงๆ ไปที่ API
         
-        showSuccess('แก้ไขข้อมูลผู้ใช้สำเร็จ');
-        closeDrawer();
-        refreshUsers();
-      } catch (updateError) {
-        console.error('Update user error:', updateError);
-        showError(updateError.message || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลผู้ใช้');
+        if (response.success) {
+          showSuccess('เพิ่มนักศึกษาสำเร็จ');
+          closeDrawer();
+          refreshUsers();
+        } else {
+          throw new Error(response.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
+        }
+      } catch (err) {
+        console.error('Error creating user with image:', err);
+        showError(err.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้พร้อมรูปภาพ');
       }
     } else {
-      showError('ไม่พบข้อมูลผู้ใช้ที่ต้องการแก้ไข');
+      // กรณีไม่มีการอัปโหลดรูปภาพ ใช้ข้อมูลเดิม
+      console.log("Using regular user data without image");
+      
+      let userData = values;
+      if (drawerMode === 'create') {
+        userData = {
+          ...values,
+          role: USER_ROLES.STUDENT
+        };
+      }
+      
+      const success = drawerMode === 'create' 
+        ? await createUser(userData) 
+        : await updateUser(selectedUser.user_id, userData);
+      
+      if (success) {
+        showSuccess(drawerMode === 'create' ? 'เพิ่มนักศึกษาสำเร็จ' : 'แก้ไขข้อมูลนักศึกษาสำเร็จ');
+        closeDrawer();
+        refreshUsers();
+      }
     }
   } catch (err) {
     console.error('User operation error:', err);

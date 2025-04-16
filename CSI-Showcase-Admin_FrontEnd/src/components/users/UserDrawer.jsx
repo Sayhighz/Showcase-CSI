@@ -60,8 +60,11 @@ const UserDrawer = ({
   };
 
   // จัดการการส่งฟอร์ม
-  const handleSubmit = (values) => {
-    onSubmit(values);
+ // ใน UserDrawer.jsx
+const handleSubmit = (values, hasImage) => {
+    console.log("Values received in UserDrawer:", values);
+    console.log("Has image:", hasImage);
+    onSubmit(values, hasImage);
   };
 
   return (

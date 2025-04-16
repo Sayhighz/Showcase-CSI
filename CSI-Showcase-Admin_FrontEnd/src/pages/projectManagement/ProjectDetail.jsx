@@ -1,12 +1,21 @@
 // src/pages/projectManagement/ProjectDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Divider, Space, message, Tabs } from 'antd';
+import { Button, Divider, Space, message, Tabs, Typography, Card, Badge, Affix, Tooltip } from 'antd';
 import { 
   ArrowLeftOutlined, 
   CheckCircleOutlined, 
   CloseCircleOutlined,
-  EditOutlined
+  EditOutlined,
+  EyeOutlined,
+  ShareAltOutlined,
+  HistoryOutlined,
+  DeleteOutlined,
+  PrinterOutlined,
+  FileTextOutlined,
+  TeamOutlined,
+  PictureOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons';
 
 // Components
@@ -24,6 +33,7 @@ import ReviewModal from '../../components/projectDetail/ReviewModal';
 import useProject from '../../hooks/useProject';
 
 const { TabPane } = Tabs;
+const { Title, Text } = Typography;
 
 const ProjectDetail = () => {
   const { projectId } = useParams();
@@ -31,6 +41,7 @@ const ProjectDetail = () => {
   
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewAction, setReviewAction] = useState('approve');
+  const [activeTabKey, setActiveTabKey] = useState('info');
   
   // Use the useProject hook to handle project data and actions
   const { 
@@ -59,15 +70,21 @@ const ProjectDetail = () => {
     let success = false;
     
     if (reviewAction === 'approve') {
-      success = await approveProject(projectId);
+      success = await approveProject(projectId, comment);
     } else {
       success = await rejectProject(projectId, comment);
     }
     
     if (success) {
       setReviewModalVisible(false);
+      message.success(`${reviewAction === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}ผลงานเรียบร้อยแล้ว`);
       refreshProjectDetails();
     }
+  };
+
+  // Handle tab change
+  const handleTabChange = (key) => {
+    setActiveTabKey(key);
   };
 
   // Create breadcrumb for the page
@@ -76,9 +93,22 @@ const ProjectDetail = () => {
     { title: projectDetails?.title || 'รายละเอียดผลงาน' }
   ];
 
+  // Get status config
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case 'approved':
+        return { color: 'success', text: 'อนุมัติแล้ว', icon: <CheckCircleOutlined /> };
+      case 'rejected':
+        return { color: 'error', text: 'ถูกปฏิเสธ', icon: <CloseCircleOutlined /> };
+      case 'pending':
+      default:
+        return { color: 'warning', text: 'รอตรวจสอบ', icon: <ClockCircleOutlined /> };
+    }
+  };
+
   // Additional actions for page header
   const pageActions = (
-    <Space>
+    <Space size={8}>
       {projectDetails?.status === 'pending' && (
         <>
           <Button 
@@ -86,6 +116,8 @@ const ProjectDetail = () => {
             icon={<CheckCircleOutlined />} 
             onClick={handleApproveProject}
             loading={actionLoading}
+            size="large"
+            className="px-4"
           >
             อนุมัติ
           </Button>
@@ -94,13 +126,14 @@ const ProjectDetail = () => {
             icon={<CloseCircleOutlined />} 
             onClick={handleRejectProject}
             loading={actionLoading}
+            size="large"
+            className="px-4"
           >
             ปฏิเสธ
           </Button>
         </>
       )}
-      <Button icon={<EditOutlined />}>แก้ไข</Button>
-      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/projects')}>
+      <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/projects')} size="large">
         กลับ
       </Button>
     </Space>
@@ -130,51 +163,138 @@ const ProjectDetail = () => {
     );
   }
 
+  // Status configuration
+  const statusConfig = getStatusConfig(projectDetails.status);
+
+  // Get tab items for the tab component
+  const tabItems = [
+    {
+      key: 'info',
+      label: (
+        <div className="flex items-center">
+          <FileTextOutlined className="mr-1" />
+          <span>ข้อมูลทั่วไป</span>
+        </div>
+      ),
+      children: <ProjectInfo projectDetails={projectDetails} />
+    },
+    {
+      key: 'files',
+      label: (
+        <div className="flex items-center">
+          <PictureOutlined className="mr-1" />
+          <span>ไฟล์และรูปภาพ</span>
+          {projectDetails.files && projectDetails.files.length > 0 && (
+            <Badge count={projectDetails.files.length} size="small" offset={[5, -5]} />
+          )}
+        </div>
+      ),
+      children: <ProjectFiles files={projectDetails.files} />
+    },
+    {
+      key: 'contributors',
+      label: (
+        <div className="flex items-center">
+          <TeamOutlined className="mr-1" />
+          <span>ผู้ร่วมงาน</span>
+        </div>
+      ),
+      children: (
+        <ProjectContributors 
+          contributors={projectDetails.contributors} 
+          owner={{
+            user_id: projectDetails.user_id,
+            username: projectDetails.username,
+            full_name: projectDetails.full_name,
+            user_image: projectDetails.user_image,
+            email: projectDetails.email
+          }}
+          teamMembers={projectDetails.competition?.team_members}
+        />
+      )
+    },
+    {
+      key: 'reviews',
+      label: (
+        <div className="flex items-center">
+          <HistoryOutlined className="mr-1" />
+          <span>ประวัติการตรวจสอบ</span>
+          {projectDetails.reviews && projectDetails.reviews.length > 0 && (
+            <Badge count={projectDetails.reviews.length} size="small" offset={[5, -5]} />
+          )}
+        </div>
+      ),
+      children: <ProjectReviewHistory reviews={projectDetails.reviews} />
+    }
+  ];
+
   return (
-    <div>
+    <div className="fade-in">
       <PageHeader 
         title={`รายละเอียดผลงาน: ${projectDetails.title}`}
-        subtitle="ดูรายละเอียดและจัดการผลงาน"
+        subtitle={
+          <div className="flex items-center mt-1">
+            <Badge status={statusConfig.color} text={null} /> 
+            <Text className="ml-1">{statusConfig.text}</Text>
+            <Divider type="vertical" />
+            <Text><EyeOutlined className="mr-1" />{projectDetails.views_count || 0} ครั้ง</Text>
+          </div>
+        }
         breadcrumb={breadcrumb}
         extra={pageActions}
       />
 
-      <div className="bg-white p-6 rounded-md shadow-sm mb-6">
+      <div className="bg-white p-6 rounded-lg shadow-sm mb-6 fade-in">
+        {/* Project Header */}
         <ProjectDetailHeader projectDetails={projectDetails} />
         
-        <Divider />
+        <Divider style={{ margin: '32px 0' }} />
         
-        <Tabs defaultActiveKey="info">
-          <TabPane tab="ข้อมูลทั่วไป" key="info">
-            <ProjectInfo projectDetails={projectDetails} />
-          </TabPane>
-          <TabPane tab="ไฟล์และรูปภาพ" key="files">
-            <ProjectFiles files={projectDetails.files} />
-          </TabPane>
-          <TabPane tab="ผู้ร่วมงาน" key="contributors">
-            <ProjectContributors 
-              contributors={projectDetails.contributors} 
-              owner={{
-                user_id: projectDetails.user_id,
-                username: projectDetails.username,
-                full_name: projectDetails.full_name,
-                email: projectDetails.email
-              }}
-              teamMembers={projectDetails.competition?.team_members}
-            />
-          </TabPane>
-          <TabPane tab="ประวัติการตรวจสอบ" key="reviews">
-            <ProjectReviewHistory reviews={projectDetails.reviews} />
-          </TabPane>
-        </Tabs>
+        {/* Floating Action Buttons */}
+        <Affix offsetBottom={20} style={{ position: 'fixed', right: '20px', bottom: '20px', zIndex: 10 }}>
+          <div className="flex flex-col space-y-3">
+            <Tooltip title="พิมพ์" placement="left">
+              <Button 
+                type="primary" 
+                shape="circle" 
+                icon={<PrinterOutlined />} 
+                size="large"
+                style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              />
+            </Tooltip>
+            <Tooltip title="ลบ" placement="left">
+              <Button 
+                type="primary" 
+                danger
+                shape="circle" 
+                icon={<DeleteOutlined />}
+                size="large"
+                style={{ width: '50px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              />
+            </Tooltip>
+          </div>
+        </Affix>
+        
+        {/* Tabs */}
+        <Tabs 
+          activeKey={activeTabKey} 
+          onChange={handleTabChange}
+          type="card"
+          size="large"
+          items={tabItems}
+          className="project-tabs"
+          animated
+        />
       </div>
 
+      {/* Review Modal */}
       <ReviewModal 
         visible={reviewModalVisible}
         onCancel={() => setReviewModalVisible(false)}
         onSubmit={handleReviewSubmit}
         type={reviewAction}
         loading={actionLoading}
+        projectTitle={projectDetails.title}
       />
     </div>
   );

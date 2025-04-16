@@ -99,6 +99,7 @@ export const verifyToken = async () => {
     
     return {
       valid: response.valid || false,
+      user: response.user || null,
       message: response.message || 'ตรวจสอบ token สำเร็จ'
     };
   } catch (error) {

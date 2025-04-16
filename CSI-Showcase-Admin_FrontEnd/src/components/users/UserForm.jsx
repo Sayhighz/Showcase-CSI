@@ -95,6 +95,7 @@ const UserForm = ({
         ...values,
         image: initialValues.image
       };
+      console.log("User data:", userData);
       
       onSubmit(userData, false);
     }

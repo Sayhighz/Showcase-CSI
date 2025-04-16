@@ -1,53 +1,40 @@
 // controllers/user/projectController.js
-import pool from "../../config/database.js";
-import {
-  handleServerError,
-  notFoundResponse,
-  successResponse,
+import pool, { beginTransaction, commitTransaction, rollbackTransaction } from "../../config/database.js";
+import logger from "../../config/logger.js";
+import { 
+  successResponse, 
+  errorResponse, 
+  handleServerError, 
+  notFoundResponse, 
+  forbiddenResponse,
+  validationErrorResponse 
 } from "../../utils/responseFormatter.js";
-import { deleteFile } from "../../utils/fileHelper.js";
-import multer from "multer";
-import path from "path";
-import fs from "fs";
-import { sendProjectStatusEmail } from "../../services/emailService.js";
+import { 
+  PROJECT_STATUSES, 
+  PROJECT_TYPES, 
+  COMPETITION_LEVELS,
+  SEMESTERS,
+  isValidStatus,
+  isValidType 
+} from "../../constants/projectStatuses.js";
+import { getPaginationInfo, getPaginationParams } from "../../constants/pagination.js";
+import { ERROR_MESSAGES, getErrorMessage } from "../../constants/errorMessages.js";
+import { STATUS_CODES } from "../../constants/statusCodes.js";
+import storageService from "../../services/storageService.js";
+import projectService from "../../services/projectService.js";
+import searchService from "../../services/searchService.js";
+import notificationService from "../../services/notificationService.js";
+import { isResourceOwner } from "../../middleware/authMiddleware.js";
+import { isAdmin } from "../../middleware/adminMiddleware.js";
+import { handleMulterError } from "../../middleware/userMiddleware.js";
+import { sanitizeHTML, isEmpty } from "../../utils/validationHelper.js";
+import { formatToISODate } from "../../utils/dateHelper.js";
+import { slugify, truncateText } from "../../utils/stringHelper.js";
 
-// สร้าง storage และกำหนดตำแหน่งที่เก็บไฟล์
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    let uploadPath = "uploads/";
-
-    // กำหนด path ตามประเภทของไฟล์
-    if (file.mimetype.startsWith("image/")) {
-      uploadPath += "images/";
-    } else if (file.mimetype.startsWith("video/")) {
-      uploadPath += "videos/";
-    } else if (file.mimetype === "application/pdf") {
-      uploadPath += "documents/";
-    } else {
-      uploadPath += "others/";
-    }
-
-    // สร้างโฟลเดอร์ถ้ายังไม่มี
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
-
-// กำหนด multer สำหรับอัปโหลดไฟล์
-export const upload = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-});
+// Create uploader instances for different file types
+const imageUploader = storageService.createUploader('images', { maxSize: 5 * 1024 * 1024 });
+const documentUploader = storageService.createUploader('documents', { maxSize: 20 * 1024 * 1024 });
+const videoUploader = storageService.createUploader('videos', { maxSize: 50 * 1024 * 1024 });
 
 /**
  * ดึงข้อมูลโครงการทั้งหมดที่ได้รับการอนุมัติแล้ว
@@ -56,82 +43,47 @@ export const upload = multer({
  */
 export const getAllProjects = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-    const category = req.query.category || "";
-    const year = req.query.year || "";
-    const level = req.query.level || "";
-
-    // สร้าง query พื้นฐาน
-    let query = `
-      SELECT p.*, u.username, u.full_name,
-             (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image,
-             (SELECT COUNT(*) FROM visitor_views vv WHERE vv.project_id = p.project_id) + 
-             (SELECT COUNT(*) FROM company_views cv WHERE cv.project_id = p.project_id) as views_count
-      FROM projects p
-      JOIN users u ON p.user_id = u.user_id
-      WHERE p.status = 'approved' AND p.visibility = 1
-    `;
-
-    const queryParams = [];
-
-    // เพิ่มเงื่อนไขการค้นหา
-    if (category) {
-      query += ` AND p.type = ?`;
-      queryParams.push(category);
-    }
-
-    if (year) {
-      query += ` AND p.year = ?`;
-      queryParams.push(year);
-    }
-
-    if (level) {
-      query += ` AND p.study_year = ?`;
-      queryParams.push(level);
-    }
-
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
-    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
-    const [countResult] = await pool.execute(countQuery, queryParams);
-    const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
-
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
-
-    // ดึงข้อมูลโครงการ
-    const [projects] = await pool.execute(query, queryParams);
-
+    // Get pagination parameters from request
+    const pagination = getPaginationParams(req);
+    
+    // Get filters from request
+    const filters = {
+      type: req.query.category || null,
+      year: req.query.year || null,
+      studyYear: req.query.level || null,
+      onlyVisible: true,
+      status: PROJECT_STATUSES.APPROVED
+    };
+    
+    // Get projects from service
+    const result = await projectService.getAllProjects(filters, pagination);
+    
+    // Format projects for response
+    const formattedProjects = result.projects.map(project => ({
+      id: project.project_id,
+      title: project.title,
+      description: truncateText(project.description, 200),
+      category: project.type,
+      level: `ปี ${project.study_year}`,
+      year: project.year,
+      image: project.image || null,
+      student: project.full_name,
+      studentId: project.user_id,
+      projectLink: `/projects/${project.project_id}`,
+      viewsCount: project.views_count || 0,
+    }));
+    
     return res.json(
       successResponse(
         {
-          projects: projects.map((project) => ({
-            id: project.project_id,
-            title: project.title,
-            description: project.description,
-            category: project.type,
-            level: `ปี ${project.study_year}`,
-            year: project.year,
-            image: project.image || "https://via.placeholder.com/150",
-            student: project.full_name,
-            studentId: project.user_id,
-            projectLink: `/projects/${project.project_id}`,
-            viewsCount: project.views_count,
-          })),
-          pagination: {
-            page,
-            limit,
-            totalItems,
-            totalPages,
-          },
+          projects: formattedProjects,
+          pagination: result.pagination
         },
         "Projects retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting all projects:", error);
     return handleServerError(res, error);
   }
 };
@@ -143,6 +95,19 @@ export const getAllProjects = async (req, res) => {
  */
 export const getTop9Projects = async (req, res) => {
   try {
+    // Set filters for top projects
+    const filters = {
+      onlyVisible: true,
+      status: PROJECT_STATUSES.APPROVED
+    };
+    
+    // Set pagination for top 9 projects
+    const pagination = {
+      page: 1,
+      limit: 9
+    };
+    
+    // Get projects sorted by views
     const query = `
       SELECT p.*, u.username, u.full_name,
              (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image,
@@ -150,75 +115,97 @@ export const getTop9Projects = async (req, res) => {
              (SELECT COUNT(*) FROM company_views cv WHERE cv.project_id = p.project_id) as views_count
       FROM projects p
       JOIN users u ON p.user_id = u.user_id
-      WHERE p.status = 'approved' AND p.visibility = 1
-      ORDER BY views_count DESC
-      LIMIT 9
+      WHERE p.status = ? AND p.visibility = 1
+      ORDER BY views_count DESC, p.created_at DESC
+      LIMIT ?
     `;
-
-    const [projects] = await pool.execute(query);
-
+    
+    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit]);
+    
+    // Format projects for response
+    const formattedProjects = projects.map(project => ({
+      id: project.project_id,
+      title: project.title,
+      description: truncateText(project.description, 150),
+      category: project.type,
+      level: `ปี ${project.study_year}`,
+      year: project.year,
+      image: project.image || null,
+      student: project.full_name,
+      studentId: project.user_id,
+      projectLink: `/projects/${project.project_id}`,
+      viewsCount: project.views_count || 0,
+    }));
+    
     return res.json(
       successResponse(
-        projects.map((project) => ({
-          id: project.project_id,
-          title: project.title,
-          description: project.description,
-          category: project.type,
-          level: `ปี ${project.study_year}`,
-          year: project.year,
-          image: project.image || "https://via.placeholder.com/150",
-          student: project.full_name,
-          studentId: project.user_id,
-          projectLink: `/projects/${project.project_id}`,
-          viewsCount: project.views_count,
-        })),
-        "Top 9 projects retrieved successfully"
+        formattedProjects,
+        "Top projects retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting top projects:", error);
     return handleServerError(res, error);
   }
 };
 
 /**
- * ดึงข้อมูลโครงการล่าสุด 9 โครงการ
+ * ดึงข้อมูลโครงการล่าสุด
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 export const getLatestProjects = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 9;
-
+    
+    // Set filters for latest projects
+    const filters = {
+      onlyVisible: true,
+      status: PROJECT_STATUSES.APPROVED
+    };
+    
+    // Set pagination
+    const pagination = {
+      page: 1,
+      limit: limit
+    };
+    
+    // Get projects ordered by creation date
     const query = `
       SELECT p.*, u.username, u.full_name,
              (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
       FROM projects p
       JOIN users u ON p.user_id = u.user_id
-      WHERE p.status = 'approved' AND p.visibility = 1
+      WHERE p.status = ? AND p.visibility = 1
       ORDER BY p.created_at DESC
       LIMIT ?
     `;
-
-    const [projects] = await pool.execute(query, [limit]);
-
+    
+    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit]);
+    
+    // Format projects for response
+    const formattedProjects = projects.map(project => ({
+      id: project.project_id,
+      title: project.title,
+      description: truncateText(project.description, 150),
+      category: project.type,
+      level: `ปี ${project.study_year}`,
+      year: project.year,
+      image: project.image || null,
+      student: project.full_name,
+      studentId: project.user_id,
+      projectLink: `/projects/${project.project_id}`,
+      createdAt: project.created_at
+    }));
+    
     return res.json(
       successResponse(
-        projects.map((project) => ({
-          id: project.project_id,
-          title: project.title,
-          description: project.description,
-          category: project.type,
-          level: `ปี ${project.study_year}`,
-          year: project.year,
-          image: project.image || "https://via.placeholder.com/150",
-          student: project.full_name,
-          studentId: project.user_id,
-          projectLink: `/projects/${project.project_id}`,
-        })),
+        formattedProjects,
         "Latest projects retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting latest projects:", error);
     return handleServerError(res, error);
   }
 };
@@ -231,44 +218,49 @@ export const getLatestProjects = async (req, res) => {
 export const getMyProjects = async (req, res) => {
   try {
     const userId = req.params.user_id;
-
-    // ตรวจสอบว่าผู้ใช้เป็นเจ้าของโครงการจริงหรือไม่
+    
+    // Check if user has permission to view these projects
     if (req.user.id != userId && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You can only view your own projects",
-      });
+      return forbiddenResponse(res, "You can only view your own projects");
     }
-
-    const query = `
-      SELECT p.*, 
-             (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
-      FROM projects p
-      WHERE p.user_id = ?
-      OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?)
-      ORDER BY p.created_at DESC
-    `;
-
-    const [projects] = await pool.execute(query, [userId, userId]);
-
+    
+    // Set filters for user's projects
+    const filters = {
+      userId: userId
+    };
+    
+    // Get pagination parameters
+    const pagination = getPaginationParams(req);
+    
+    // Get user's projects
+    const result = await projectService.getAllProjects(filters, pagination);
+    
+    // Format projects for response
+    const formattedProjects = result.projects.map(project => ({
+      id: project.project_id,
+      title: project.title,
+      description: truncateText(project.description, 150),
+      category: project.type,
+      level: `ปี ${project.study_year}`,
+      year: project.year,
+      status: project.status,
+      image: project.image || null,
+      projectLink: `/projects/${project.project_id}`,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at
+    }));
+    
     return res.json(
       successResponse(
-        projects.map((project) => ({
-          id: project.project_id,
-          title: project.title,
-          description: project.description,
-          category: project.type,
-          level: `ปี ${project.study_year}`,
-          year: project.year,
-          status: project.status,
-          image: project.image || "https://via.placeholder.com/150",
-          projectLink: `/projects/${project.project_id}`,
-        })),
+        {
+          projects: formattedProjects,
+          pagination: result.pagination
+        },
         "My projects retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error(`Error getting projects for user ${req.params.user_id}:`, error);
     return handleServerError(res, error);
   }
 };
@@ -281,126 +273,48 @@ export const getMyProjects = async (req, res) => {
 export const getProjectDetails = async (req, res) => {
   try {
     const projectId = req.params.projectId;
-
-    // ดึงข้อมูลโครงการ
-    const [projects] = await pool.execute(
-      `
-      SELECT p.*, u.username, u.full_name
-      FROM projects p
-      JOIN users u ON p.user_id = u.user_id
-      WHERE p.project_id = ?
-    `,
-      [projectId]
-    );
-
-    if (projects.length === 0) {
+    const viewerId = req.user ? req.user.id : null;
+    
+    // Options for getting project details
+    const options = {
+      includeReviews: req.user && req.user.role === "admin",
+      recordView: !req.user || req.user.id != projectId,
+      viewerId: viewerId
+    };
+    
+    // Get project from service
+    const project = await projectService.getProjectById(projectId, options);
+    
+    if (!project) {
       return notFoundResponse(res, "Project not found");
     }
-
-    const project = projects[0];
-
-    // ตรวจสอบว่าสามารถเข้าถึงได้หรือไม่ (กรณีที่ visibility = 0 และไม่ใช่เจ้าของหรือผู้ดูแลระบบ)
-    if (
-      project.visibility === 0 &&
-      (!req.user ||
-        (req.user.id != project.user_id && req.user.role !== "admin"))
-    ) {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You do not have permission to view this project",
-      });
+    
+    // Check if user can access the project
+    if (project.visibility === 0 && 
+        (!req.user || (req.user.id != project.user_id && req.user.role !== "admin"))) {
+      return forbiddenResponse(res, "You do not have permission to view this project");
     }
-
-    // ดึงข้อมูลไฟล์
-    const [files] = await pool.execute(
-      `
-      SELECT file_id, file_type, file_path, file_name
-      FROM project_files
-      WHERE project_id = ?
-    `,
-      [projectId]
-    );
-
-    // ดึงข้อมูลผู้ร่วมงาน
-    const [authors] = await pool.execute(
-      `
-      SELECT u.user_id, u.username, u.full_name, u.image
-      FROM project_groups pg
-      JOIN users u ON pg.user_id = u.user_id
-      WHERE pg.project_id = ?
-    `,
-      [projectId]
-    );
-
-    // ดึงข้อมูลเพิ่มเติมตามประเภทของโครงการ
-    let additionalData = {};
-
-    if (project.type === "academic") {
-      const [academic] = await pool.execute(
-        `
-        SELECT * FROM academic_papers WHERE project_id = ?
-      `,
-        [projectId]
-      );
-
-      if (academic.length > 0) {
-        additionalData = {
-          academic: academic[0],
-        };
-      }
-    } else if (project.type === "competition") {
-      const [competition] = await pool.execute(
-        `
-        SELECT * FROM competitions WHERE project_id = ?
-      `,
-        [projectId]
-      );
-
-      if (competition.length > 0) {
-        additionalData = {
-          competition: competition[0],
-        };
-      }
-    } else if (project.type === "coursework") {
-      const [coursework] = await pool.execute(
-        `
-        SELECT * FROM courseworks WHERE project_id = ?
-      `,
-        [projectId]
-      );
-
-      if (coursework.length > 0) {
-        additionalData = {
-          coursework: coursework[0],
-        };
-      }
-    }
-
-    // บันทึกการเข้าชม (ยกเว้นเจ้าของโครงการ)
+    
+    // If the viewer is not the owner, record the view
     if (!req.user || req.user.id != project.user_id) {
-      // บันทึกการเข้าชมของผู้เยี่ยมชม
-      await pool.execute(
-        `
-        INSERT INTO visitor_views (project_id, ip_address, user_agent)
-        VALUES (?, ?, ?)
-      `,
-        [projectId, req.ip, req.headers["user-agent"]]
-      );
-
-      // อัปเดตจำนวนการเข้าชม
-      await pool.execute(
-        `
+      // Increment view count
+      await pool.execute(`
         UPDATE projects
         SET views_count = views_count + 1
         WHERE project_id = ?
-      `,
-        [projectId]
-      );
+      `, [projectId]);
+      
+      // Record visitor view
+      if (!req.user) {
+        await pool.execute(`
+          INSERT INTO visitor_views (project_id, ip_address, user_agent)
+          VALUES (?, ?, ?)
+        `, [projectId, req.ip, req.headers["user-agent"] || 'Unknown']);
+      }
     }
-
-    // จัดรูปแบบข้อมูลสำหรับการส่งกลับ
-    const projectData = {
+    
+    // Format project for response
+    const formattedProject = {
       projectId: project.project_id,
       title: project.title,
       description: project.description,
@@ -414,34 +328,47 @@ export const getProjectDetails = async (req, res) => {
         id: project.user_id,
         username: project.username,
         fullName: project.full_name,
+        email: req.user && (req.user.id == project.user_id || req.user.role === "admin") ? project.email : undefined
       },
-      authors: authors.map((author) => ({
-        userId: author.user_id,
-        username: author.username,
-        fullName: author.full_name,
-        image: author.image,
-      })),
-      images: files
-        .filter((file) => file.file_type === "image")
-        .map((file) => file.file_path),
-      pdfFiles: files
-        .filter((file) => file.file_type === "pdf")
-        .map((file) => ({
-          id: file.file_id,
-          name: file.file_name,
-          url: file.file_path,
-        })),
-      video: files
-        .filter((file) => file.file_type === "video")
-        .map((file) => file.file_path)[0],
-      projectCreatedAt: project.created_at,
-      ...additionalData,
+      contributors: project.contributors || [],
+      files: project.files ? project.files.map(file => ({
+        id: file.file_id,
+        type: file.file_type,
+        path: file.file_path,
+        name: file.file_name,
+        size: file.file_size
+      })) : [],
+      viewsCount: project.views_count || 0,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at
     };
-
+    
+    // Add type-specific data
+    if (project.academic) {
+      formattedProject.academic = project.academic;
+    }
+    
+    if (project.competition) {
+      formattedProject.competition = project.competition;
+    }
+    
+    if (project.coursework) {
+      formattedProject.coursework = project.coursework;
+    }
+    
+    // Add reviews for admin
+    if (options.includeReviews && project.reviews) {
+      formattedProject.reviews = project.reviews;
+    }
+    
     return res.json(
-      successResponse(projectData, "Project details retrieved successfully")
+      successResponse(
+        formattedProject,
+        "Project details retrieved successfully"
+      )
     );
   } catch (error) {
+    logger.error(`Error getting project details for project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   }
 };
@@ -454,87 +381,29 @@ export const getProjectDetails = async (req, res) => {
 export const searchProjects = async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
-    const type = req.query.type || "";
-    const year = req.query.year || "";
-    const studyYear = req.query.study_year || "";
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-
-    // สร้าง query พื้นฐาน
-    let query = `
-      SELECT p.*, u.username, u.full_name,
-             (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
-      FROM projects p
-      JOIN users u ON p.user_id = u.user_id
-      WHERE p.status = 'approved' AND p.visibility = 1
-    `;
-
-    const queryParams = [];
-
-    // เพิ่มเงื่อนไขการค้นหา
-    if (keyword) {
-      query += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)`;
-      queryParams.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
-    }
-
-    if (type) {
-      query += ` AND p.type = ?`;
-      queryParams.push(type);
-    }
-
-    if (year) {
-      query += ` AND p.year = ?`;
-      queryParams.push(year);
-    }
-
-    if (studyYear) {
-      query += ` AND p.study_year = ?`;
-      queryParams.push(studyYear);
-    }
-
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
-    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
-    const [countResult] = await pool.execute(countQuery, queryParams);
-    const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
-
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
-
-    // ดึงข้อมูลโครงการ
-    const [projects] = await pool.execute(query, queryParams);
-
-    // จัดรูปแบบข้อมูลสำหรับการส่งกลับ
-    const searchResults = projects.map((project) => ({
-      id: project.project_id,
-      title: project.title,
-      description: project.description,
-      category: project.type,
-      level: `ปี ${project.study_year}`,
-      year: project.year,
-      image: project.image || "https://via.placeholder.com/150",
-      student: project.full_name,
-      studentId: project.user_id,
-      projectLink: `/projects/${project.project_id}`,
-    }));
-
+    
+    // Create filters object
+    const filters = {
+      type: req.query.type || null,
+      year: req.query.year || null,
+      studyYear: req.query.study_year || null,
+      userId: req.user ? req.user.id : null
+    };
+    
+    // Get pagination parameters
+    const pagination = getPaginationParams(req);
+    
+    // Search projects using search service
+    const result = await searchService.searchProjects(keyword, filters, pagination);
+    
     return res.json(
       successResponse(
-        {
-          projects: searchResults,
-          pagination: {
-            page,
-            limit,
-            totalItems,
-            totalPages,
-          },
-        },
+        result,
         "Search results retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error searching projects:", error);
     return handleServerError(res, error);
   }
 };
@@ -545,306 +414,127 @@ export const searchProjects = async (req, res) => {
  * @param {Object} res - Express response object
  */
 export const uploadProject = async (req, res) => {
+  const connection = await pool.getConnection();
+  
   try {
-    // เริ่มต้น transaction
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      const userId = req.params.user_id;
-      const {
-        title,
-        description,
-        type,
-        study_year,
-        year,
-        semester,
-        visibility = 1,
-        tags = "",
-        contributors = [],
-        videoLink = "",
-      } = req.body;
-
-      // ตรวจสอบข้อมูลที่จำเป็น
-      if (
-        !title ||
-        !description ||
-        !type ||
-        !study_year ||
-        !year ||
-        !semester
-      ) {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message:
-            "Title, description, type, study_year, year, and semester are required",
-        });
-      }
-
-      // เพิ่มข้อมูลโครงการหลัก
-      const [result] = await connection.execute(
-        `
-    INSERT INTO projects (
-      user_id, title, description, type, study_year, year, semester, visibility, status, tags
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-  `,
-        [
-          userId,
-          title,
-          description,
-          type,
-          study_year,
-          year,
-          semester,
-          visibility,
-          tags,
-        ]
-      );
-
-      const projectId = result.insertId;
-
-      // เพิ่มข้อมูลผู้ร่วมงาน
-      if (contributors && contributors.length > 0) {
-        const parsedContributors =
-          typeof contributors === "string"
-            ? JSON.parse(contributors)
-            : contributors;
-
-        for (const contributor of parsedContributors) {
-          await connection.execute(
-            `
-        INSERT INTO project_groups (project_id, user_id)
-        VALUES (?, ?)
-      `,
-            [projectId, contributor.user_id]
-          );
-        }
-      }
-
-      // เพิ่มข้อมูลวิดีโอลิงก์ (ถ้ามี)
-      if (videoLink) {
-        await connection.execute(
-          `
-      INSERT INTO project_files (project_id, file_type, file_path, file_name, file_size)
-      VALUES (?, 'video', ?, ?, 0)
-    `,
-          [projectId, videoLink, "video_link"]
-        );
-      }
-
-      // เพิ่มข้อมูลเฉพาะประเภท
-      if (type === "academic") {
-        const {
-          abstract = "",
-          publication_date = null,
-          published_year = year,
-          authors = "",
-          publication_venue = "",
-        } = req.body;
-
-        await connection.execute(
-          `
-      INSERT INTO academic_papers (
-        project_id, publication_date, published_year, abstract, authors, publication_venue
-      ) VALUES (?, ?, ?, ?, ?, ?)
-    `,
-          [
-            projectId,
-            publication_date,
-            published_year,
-            abstract,
-            authors,
-            publication_venue,
-          ]
-        );
-      } else if (type === "competition") {
-        const {
-          competition_name = "",
-          competition_year = year,
-          competition_level = "university",
-          achievement = "",
-          team_members = "",
-        } = req.body;
-
-        await connection.execute(
-          `
-      INSERT INTO competitions (
-        project_id, competition_name, competition_year, competition_level, achievement, team_members
-      ) VALUES (?, ?, ?, ?, ?, ?)
-    `,
-          [
-            projectId,
-            competition_name,
-            competition_year,
-            competition_level,
-            achievement,
-            team_members,
-          ]
-        );
-      } else if (type === "coursework") {
-        const {
-          course_code = "",
-          course_name = "",
-          instructor = "",
-        } = req.body;
-
-        await connection.execute(
-          `
-      INSERT INTO courseworks (
-        project_id, course_code, course_name, instructor
-      ) VALUES (?, ?, ?, ?)
-    `,
-          [projectId, course_code, course_name, instructor]
-        );
-      }
-
-      // จัดการกับไฟล์ที่อัปโหลด
-      if (req.files) {
-        for (const fieldName in req.files) {
-          const files = Array.isArray(req.files[fieldName])
-            ? req.files[fieldName]
-            : [req.files[fieldName]];
-
-          for (const file of files) {
-            let fileType = "other";
-
-            if (file.mimetype.startsWith("image/")) {
-              fileType = "image";
-            } else if (file.mimetype.startsWith("video/")) {
-              fileType = "video";
-            } else if (file.mimetype === "application/pdf") {
-              fileType = "pdf";
-            }
-
-            await connection.execute(
-              `
-          INSERT INTO project_files (
-            project_id, file_type, file_path, file_name, file_size
-          ) VALUES (?, ?, ?, ?, ?)
-        `,
-              [projectId, fileType, file.path, file.originalname, file.size]
-            );
-
-            // ถ้าเป็น cover image ให้อัปเดต cover_image_id ในตาราง projects
-            if (fieldName === "coverImage") {
-              const [fileResult] = await connection.execute(
-                `
-            SELECT file_id FROM project_files 
-            WHERE project_id = ? AND file_path = ?
-          `,
-                [projectId, file.path]
-              );
-
-              if (fileResult.length > 0) {
-                await connection.execute(
-                  `
-              UPDATE projects SET cover_image_id = ? WHERE project_id = ?
-            `,
-                  [fileResult[0].file_id, projectId]
-                );
-              }
-            }
-
-            // จัดการกับไฟล์เฉพาะประเภท
-            if (type === "competition" && fieldName === "poster_file") {
-              const [fileResult] = await connection.execute(
-                `
-            SELECT file_id FROM project_files 
-            WHERE project_id = ? AND file_path = ?
-          `,
-                [projectId, file.path]
-              );
-
-              if (fileResult.length > 0) {
-                await connection.execute(
-                  `
-              UPDATE competitions SET poster_file_id = ? WHERE project_id = ?
-            `,
-                  [fileResult[0].file_id, projectId]
-                );
-              }
-            } else if (type === "academic" && fieldName === "paper_file") {
-              const [fileResult] = await connection.execute(
-                `
-            SELECT file_id FROM project_files 
-            WHERE project_id = ? AND file_path = ?
-          `,
-                [projectId, file.path]
-              );
-
-              if (fileResult.length > 0) {
-                await connection.execute(
-                  `
-              UPDATE academic_papers SET paper_file_id = ? WHERE project_id = ?
-            `,
-                  [fileResult[0].file_id, projectId]
-                );
-              }
-            } else if (type === "coursework") {
-              if (fieldName === "coursework_poster") {
-                const [fileResult] = await connection.execute(
-                  `
-              SELECT file_id FROM project_files 
-              WHERE project_id = ? AND file_path = ?
-            `,
-                  [projectId, file.path]
-                );
-
-                if (fileResult.length > 0) {
-                  await connection.execute(
-                    `
-                UPDATE courseworks SET poster_file_id = ? WHERE project_id = ?
-              `,
-                    [fileResult[0].file_id, projectId]
-                  );
-                }
-              } else if (fieldName === "coursework_video") {
-                const [fileResult] = await connection.execute(
-                  `
-              SELECT file_id FROM project_files 
-              WHERE project_id = ? AND file_path = ?
-            `,
-                  [projectId, file.path]
-                );
-
-                if (fileResult.length > 0) {
-                  await connection.execute(
-                    `
-                UPDATE courseworks SET video_file_id = ? WHERE project_id = ?
-              `,
-                    [fileResult[0].file_id, projectId]
-                  );
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Commit the transaction
-      await connection.commit();
-
-      return res.status(201).json(
-        successResponse(
-          {
-            projectId,
-            message:
-              "Project submitted successfully. Please wait for admin approval.",
-          },
-          "Project created successfully"
-        )
-      );
-    } catch (error) {
-      // Rollback the transaction if there's an error
-      await connection.rollback();
-      throw error;
-    } finally {
-      // Release the connection
-      connection.release();
+    const userId = req.params.user_id;
+    
+    // Check if user has permission to upload
+    if (req.user.id != userId && req.user.role !== "admin") {
+      return forbiddenResponse(res, "You can only upload your own projects");
     }
+    
+    // Start transaction
+    await connection.beginTransaction();
+    
+    // Extract and validate project data
+    const {
+      title,
+      description,
+      type,
+      study_year,
+      year,
+      semester,
+      visibility = 1,
+      tags = "",
+    } = req.body;
+    
+    // Validate required fields
+    if (!title || !description || !type || !study_year || !year || !semester) {
+      return validationErrorResponse(
+        res,
+        "Missing required fields",
+        {
+          title: !title ? "Title is required" : null,
+          description: !description ? "Description is required" : null,
+          type: !type ? "Type is required" : null,
+          study_year: !study_year ? "Study year is required" : null,
+          year: !year ? "Year is required" : null,
+          semester: !semester ? "Semester is required" : null
+        }
+      );
+    }
+    
+    // Validate type
+    if (!isValidType(type)) {
+      return validationErrorResponse(
+        res,
+        "Invalid project type",
+        { type: `Type must be one of: ${Object.values(PROJECT_TYPES).join(', ')}` }
+      );
+    }
+    
+    // Prepare project data
+    const projectData = {
+      user_id: userId,
+      title: sanitizeHTML(title),
+      description: sanitizeHTML(description),
+      type,
+      study_year,
+      year,
+      semester,
+      visibility,
+      tags: sanitizeHTML(tags),
+      contributors: req.body.contributors || []
+    };
+    
+    // Add type-specific data
+    if (type === PROJECT_TYPES.ACADEMIC) {
+      Object.assign(projectData, {
+        abstract: sanitizeHTML(req.body.abstract || ""),
+        publication_date: req.body.publication_date || null,
+        published_year: req.body.published_year || year,
+        authors: sanitizeHTML(req.body.authors || ""),
+        publication_venue: sanitizeHTML(req.body.publication_venue || "")
+      });
+    } else if (type === PROJECT_TYPES.COMPETITION) {
+      Object.assign(projectData, {
+        competition_name: sanitizeHTML(req.body.competition_name || ""),
+        competition_year: req.body.competition_year || year,
+        competition_level: req.body.competition_level || "university",
+        achievement: sanitizeHTML(req.body.achievement || ""),
+        team_members: sanitizeHTML(req.body.team_members || "")
+      });
+    } else if (type === PROJECT_TYPES.COURSEWORK) {
+      Object.assign(projectData, {
+        course_code: sanitizeHTML(req.body.course_code || ""),
+        course_name: sanitizeHTML(req.body.course_name || ""),
+        instructor: sanitizeHTML(req.body.instructor || "")
+      });
+    }
+    
+    // Create project using service
+    const project = await projectService.createProject(projectData, req.files || {});
+    
+    // Commit transaction
+    await connection.commit();
+    
+    // Notify admins of new project
+    await notificationService.notifyAdminsNewProject(
+      project.project_id,
+      project.title,
+      req.user.fullName,
+      type
+    );
+    
+    return res.status(STATUS_CODES.CREATED).json(
+      successResponse(
+        {
+          projectId: project.project_id,
+          title: project.title,
+          message: "Project submitted successfully. Please wait for admin approval."
+        },
+        "Project created successfully"
+      )
+    );
   } catch (error) {
+    // Rollback transaction on error
+    await connection.rollback();
+    logger.error("Error uploading project:", error);
     return handleServerError(res, error);
+  } finally {
+    // Release connection
+    connection.release();
   }
 };
 
@@ -854,475 +544,500 @@ export const uploadProject = async (req, res) => {
  * @param {Object} res - Express response object
  */
 export const updateProject = async (req, res) => {
+  const connection = await pool.getConnection();
+  
   try {
     const projectId = req.params.projectId;
-
-    // ตรวจสอบว่าโครงการมีอยู่จริงหรือไม่
+    
+    // Get project to check ownership
     const [projects] = await pool.execute(
-      `
-  SELECT * FROM projects WHERE project_id = ?
-`,
+      `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
-
+    
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-
+    
     const project = projects[0];
-
-    // ตรวจสอบว่าผู้ใช้เป็นเจ้าของโครงการหรือไม่
+    
+    // Check if user has permission to update
     if (req.user.id != project.user_id && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You can only update your own projects",
-      });
+      return forbiddenResponse(res, "You can only update your own projects");
     }
-
-    // เริ่มต้น transaction
-    const connection = await pool.getConnection();
+    
+    // Start transaction
     await connection.beginTransaction();
-
-    try {
-      const {
-        title,
-        description,
-        study_year,
-        year,
-        semester,
-        visibility,
-        tags,
-        contributors,
-        videoLink,
-      } = req.body;
-
-      // อัปเดตข้อมูลโครงการหลัก
+    
+    // Extract update data
+    const updateData = req.body;
+    
+    // Create update query with only provided fields
+    let updateFields = [];
+    let updateParams = [];
+    
+    if (updateData.title !== undefined) {
+      updateFields.push("title = ?");
+      updateParams.push(sanitizeHTML(updateData.title));
+    }
+    
+    if (updateData.description !== undefined) {
+      updateFields.push("description = ?");
+      updateParams.push(sanitizeHTML(updateData.description));
+    }
+    
+    if (updateData.study_year !== undefined) {
+      updateFields.push("study_year = ?");
+      updateParams.push(updateData.study_year);
+    }
+    
+    if (updateData.year !== undefined) {
+      updateFields.push("year = ?");
+      updateParams.push(updateData.year);
+    }
+    
+    if (updateData.semester !== undefined) {
+      updateFields.push("semester = ?");
+      updateParams.push(updateData.semester);
+    }
+    
+    if (updateData.visibility !== undefined) {
+      updateFields.push("visibility = ?");
+      updateParams.push(updateData.visibility);
+    }
+    
+    if (updateData.tags !== undefined) {
+      updateFields.push("tags = ?");
+      updateParams.push(sanitizeHTML(updateData.tags));
+    }
+    
+    // Set status back to pending for admin review
+    updateFields.push("status = ?");
+    updateParams.push(PROJECT_STATUSES.PENDING);
+    
+    // Update timestamp
+    updateFields.push("updated_at = NOW()");
+    
+    // Add project ID to parameters
+    updateParams.push(projectId);
+    
+    // Update project
+    if (updateFields.length > 0) {
+      const updateQuery = `
+        UPDATE projects 
+        SET ${updateFields.join(", ")} 
+        WHERE project_id = ?
+      `;
+      
+      await connection.execute(updateQuery, updateParams);
+    }
+    
+    // Update contributors if provided
+    if (updateData.contributors !== undefined) {
+      // Delete existing contributors
       await connection.execute(
-        `
-    UPDATE projects
-    SET title = COALESCE(?, title),
-        description = COALESCE(?, description),
-        study_year = COALESCE(?, study_year),
-        year = COALESCE(?, year),
-        semester = COALESCE(?, semester),
-        visibility = COALESCE(?, visibility),
-        tags = COALESCE(?, tags),
-        status = 'pending',
-        updated_at = NOW()
-    WHERE project_id = ?
-  `,
-        [
-          title,
-          description,
-          study_year,
-          year,
-          semester,
-          visibility,
-          tags,
-          projectId,
-        ]
+        `DELETE FROM project_groups WHERE project_id = ?`,
+        [projectId]
       );
-
-      // อัปเดตข้อมูลผู้ร่วมงาน (ถ้ามี)
-      if (contributors) {
-        // ลบข้อมูลผู้ร่วมงานเดิม
-        await connection.execute(
-          `
-      DELETE FROM project_groups WHERE project_id = ?
-    `,
-          [projectId]
-        );
-
-        // เพิ่มข้อมูลผู้ร่วมงานใหม่
-        const parsedContributors =
-          typeof contributors === "string"
-            ? JSON.parse(contributors)
-            : contributors;
-
-        for (const contributor of parsedContributors) {
+      
+      // Add new contributors
+      const contributors = typeof updateData.contributors === 'string' 
+        ? JSON.parse(updateData.contributors) 
+        : updateData.contributors;
+      
+      if (Array.isArray(contributors) && contributors.length > 0) {
+        for (const contributor of contributors) {
           await connection.execute(
-            `
-        INSERT INTO project_groups (project_id, user_id)
-        VALUES (?, ?)
-      `,
+            `INSERT INTO project_groups (project_id, user_id) VALUES (?, ?)`,
             [projectId, contributor.user_id]
           );
         }
       }
-
-      // อัปเดตข้อมูลวิดีโอลิงก์ (ถ้ามี)
-      if (videoLink !== undefined) {
-        // ลบข้อมูลวิดีโอลิงก์เดิม
-        await connection.execute(
-          `
-      DELETE FROM project_files
-      WHERE project_id = ? AND file_type = 'video' AND file_name = 'video_link'
-    `,
-          [projectId]
-        );
-
-        // เพิ่มข้อมูลวิดีโอลิงก์ใหม่ (ถ้ามี)
-        if (videoLink) {
-          await connection.execute(
-            `
-        INSERT INTO project_files (project_id, file_type, file_path, file_name, file_size)
-        VALUES (?, 'video', ?, 'video_link', 0)
-      `,
-            [projectId, videoLink]
-          );
-        }
-      }
-
-      // อัปเดตข้อมูลเฉพาะประเภท
-      if (project.type === "academic") {
-        const {
-          abstract,
-          publication_date,
-          published_year,
-          authors,
-          publication_venue,
-        } = req.body;
-
-        // ตรวจสอบว่ามีข้อมูลในตาราง academic_papers หรือไม่
-        const [academic] = await connection.execute(
-          `
-      SELECT * FROM academic_papers WHERE project_id = ?
-    `,
-          [projectId]
-        );
-
-        if (academic.length > 0) {
-          // อัปเดตข้อมูล
-          await connection.execute(
-            `
-        UPDATE academic_papers
-        SET publication_date = COALESCE(?, publication_date),
-            published_year = COALESCE(?, published_year),
-            abstract = COALESCE(?, abstract),
-            authors = COALESCE(?, authors),
-            publication_venue = COALESCE(?, publication_venue),
-            last_updated = NOW()
-        WHERE project_id = ?
-      `,
-            [
-              publication_date,
-              published_year,
-              abstract,
-              authors,
-              publication_venue,
-              projectId,
-            ]
-          );
-        } else {
-          // เพิ่มข้อมูลใหม่
-          await connection.execute(
-            `
-        INSERT INTO academic_papers (
-          project_id, publication_date, published_year, abstract, authors, publication_venue
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `,
-            [
-              projectId,
-              publication_date || null,
-              published_year || year,
-              abstract || "",
-              authors || "",
-              publication_venue || "",
-            ]
-          );
-        }
-      } else if (project.type === "competition") {
-        const {
-          competition_name,
-          competition_year,
-          competition_level,
-          achievement,
-          team_members,
-        } = req.body;
-
-        // ตรวจสอบว่ามีข้อมูลในตาราง competitions หรือไม่
-        const [competition] = await connection.execute(
-          `
-      SELECT * FROM competitions WHERE project_id = ?
-    `,
-          [projectId]
-        );
-
-        if (competition.length > 0) {
-          // อัปเดตข้อมูล
-          await connection.execute(
-            `
-        UPDATE competitions
-        SET competition_name = COALESCE(?, competition_name),
-            competition_year = COALESCE(?, competition_year),
-            competition_level = COALESCE(?, competition_level),
-            achievement = COALESCE(?, achievement),
-            team_members = COALESCE(?, team_members)
-        WHERE project_id = ?
-      `,
-            [
-              competition_name,
-              competition_year,
-              competition_level,
-              achievement,
-              team_members,
-              projectId,
-            ]
-          );
-        } else {
-          // เพิ่มข้อมูลใหม่
-          await connection.execute(
-            `
-        INSERT INTO competitions (
-          project_id, competition_name, competition_year, competition_level, achievement, team_members
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `,
-            [
-              projectId,
-              competition_name || "",
-              competition_year || year,
-              competition_level || "university",
-              achievement || "",
-              team_members || "",
-            ]
-          );
-        }
-      } else if (project.type === "coursework") {
-        const { course_code, course_name, instructor } = req.body;
-
-        // ตรวจสอบว่ามีข้อมูลในตาราง courseworks หรือไม่
-        const [coursework] = await connection.execute(
-          `
-      SELECT * FROM courseworks WHERE project_id = ?
-    `,
-          [projectId]
-        );
-
-        if (coursework.length > 0) {
-          // อัปเดตข้อมูล
-          await connection.execute(
-            `
-        UPDATE courseworks
-        SET course_code = COALESCE(?, course_code),
-            course_name = COALESCE(?, course_name),
-            instructor = COALESCE(?, instructor)
-        WHERE project_id = ?
-      `,
-            [course_code, course_name, instructor, projectId]
-          );
-        } else {
-          // เพิ่มข้อมูลใหม่
-          await connection.execute(
-            `
-        INSERT INTO courseworks (
-          project_id, course_code, course_name, instructor
-        ) VALUES (?, ?, ?, ?)
-      `,
-            [projectId, course_code || "", course_name || "", instructor || ""]
-          );
-        }
-      }
-
-      // จัดการกับไฟล์ที่อัปโหลด
-      if (req.files) {
-        for (const fieldName in req.files) {
-          const files = Array.isArray(req.files[fieldName])
-            ? req.files[fieldName]
-            : [req.files[fieldName]];
-
-          for (const file of files) {
-            let fileType = "other";
-
-            if (file.mimetype.startsWith("image/")) {
-              fileType = "image";
-            } else if (file.mimetype.startsWith("video/")) {
-              fileType = "video";
-            } else if (file.mimetype === "application/pdf") {
-              fileType = "pdf";
-            }
-
-            // เพิ่มข้อมูลไฟล์
-            await connection.execute(
-              `
-          INSERT INTO project_files (
-            project_id, file_type, file_path, file_name, file_size
-          ) VALUES (?, ?, ?, ?, ?)
-        `,
-              [projectId, fileType, file.path, file.originalname, file.size]
-            );
-
-            // จัดการกับไฟล์เฉพาะประเภท (เหมือนกับ uploadProject)
-            // ...
-          }
-        }
-      }
-
-      // Commit the transaction
-      await connection.commit();
-
-      return res.json(
-        successResponse(
-          {
-            projectId,
-            message:
-              "Project updated successfully. Please wait for admin approval.",
-          },
-          "Project updated successfully"
-        )
-      );
-    } catch (error) {
-      // Rollback the transaction if there's an error
-      await connection.rollback();
-      throw error;
-    } finally {
-      // Release the connection
-      connection.release();
     }
+    
+    // Update type-specific data
+    if (project.type === PROJECT_TYPES.ACADEMIC) {
+      await updateAcademicData(connection, projectId, updateData, project.year);
+    } else if (project.type === PROJECT_TYPES.COMPETITION) {
+      await updateCompetitionData(connection, projectId, updateData, project.year);
+    } else if (project.type === PROJECT_TYPES.COURSEWORK) {
+      await updateCourseworkData(connection, projectId, updateData);
+    }
+    
+    // Handle file uploads
+    if (req.files && Object.keys(req.files).length > 0) {
+      await handleProjectFiles(connection, projectId, project.type, req.files);
+    }
+    
+    // Commit transaction
+    await connection.commit();
+    
+    // Notify admins of updated project
+    await notificationService.notifyAdminsNewProject(
+      projectId,
+      project.title,
+      req.user.fullName,
+      project.type
+    );
+    
+    return res.json(
+      successResponse(
+        {
+          projectId,
+          message: "Project updated successfully. Please wait for admin approval."
+        },
+        "Project updated successfully"
+      )
+    );
   } catch (error) {
+    // Rollback transaction on error
+    await connection.rollback();
+    logger.error(`Error updating project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
+  } finally {
+    // Release connection
+    connection.release();
   }
 };
 
+/**
+ * Helper function to update academic paper data
+ */
+async function updateAcademicData(connection, projectId, updateData, defaultYear) {
+  // Check if academic paper exists
+  const [academic] = await connection.execute(
+    `SELECT * FROM academic_papers WHERE project_id = ?`,
+    [projectId]
+  );
+  
+  if (academic.length > 0) {
+    // Update existing record
+    const updateFields = [];
+    const updateParams = [];
+    
+    if (updateData.publication_date !== undefined) {
+      updateFields.push("publication_date = ?");
+      updateParams.push(updateData.publication_date);
+    }
+    
+    if (updateData.published_year !== undefined) {
+      updateFields.push("published_year = ?");
+      updateParams.push(updateData.published_year);
+    }
+    
+    if (updateData.abstract !== undefined) {
+      updateFields.push("abstract = ?");
+      updateParams.push(sanitizeHTML(updateData.abstract));
+    }
+    
+    if (updateData.authors !== undefined) {
+      updateFields.push("authors = ?");
+      updateParams.push(sanitizeHTML(updateData.authors));
+    }
+    
+    if (updateData.publication_venue !== undefined) {
+      updateFields.push("publication_venue = ?");
+      updateParams.push(sanitizeHTML(updateData.publication_venue));
+    }
+    
+    // Update timestamp
+    updateFields.push("last_updated = NOW()");
+    
+    // Add project ID to parameters
+    updateParams.push(projectId);
+    
+    if (updateFields.length > 0) {
+      const updateQuery = `
+        UPDATE academic_papers
+        SET ${updateFields.join(", ")}
+        WHERE project_id = ?
+      `;
+      
+      await connection.execute(updateQuery, updateParams);
+    }
+  } else {
+    // Insert new record
+    await connection.execute(`
+      INSERT INTO academic_papers (
+        project_id, 
+        publication_date, 
+        published_year, 
+        abstract, 
+        authors, 
+        publication_venue
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      projectId,
+      updateData.publication_date || null,
+      updateData.published_year || defaultYear,
+      sanitizeHTML(updateData.abstract || ""),
+      sanitizeHTML(updateData.authors || ""),
+      sanitizeHTML(updateData.publication_venue || "")
+    ]);
+  }
+}
+
+/**
+ * Helper function to update competition data
+ */
+async function updateCompetitionData(connection, projectId, updateData, defaultYear) {
+  // Check if competition exists
+  const [competition] = await connection.execute(
+    `SELECT * FROM competitions WHERE project_id = ?`,
+    [projectId]
+  );
+  
+  if (competition.length > 0) {
+    // Update existing record
+    const updateFields = [];
+    const updateParams = [];
+    
+    if (updateData.competition_name !== undefined) {
+      updateFields.push("competition_name = ?");
+      updateParams.push(sanitizeHTML(updateData.competition_name));
+    }
+    
+    if (updateData.competition_year !== undefined) {
+      updateFields.push("competition_year = ?");
+      updateParams.push(updateData.competition_year);
+    }
+    
+    if (updateData.competition_level !== undefined) {
+      updateFields.push("competition_level = ?");
+      updateParams.push(updateData.competition_level);
+    }
+    
+    if (updateData.achievement !== undefined) {
+      updateFields.push("achievement = ?");
+      updateParams.push(sanitizeHTML(updateData.achievement));
+    }
+    
+    if (updateData.team_members !== undefined) {
+      updateFields.push("team_members = ?");
+      updateParams.push(sanitizeHTML(updateData.team_members));
+    }
+    
+    // Add project ID to parameters
+    updateParams.push(projectId);
+    
+    if (updateFields.length > 0) {
+      const updateQuery = `
+        UPDATE competitions
+        SET ${updateFields.join(", ")}
+        WHERE project_id = ?
+      `;
+      
+      await connection.execute(updateQuery, updateParams);
+    }
+  } else {
+    // Insert new record
+    await connection.execute(`
+      INSERT INTO competitions (
+        project_id, 
+        competition_name, 
+        competition_year, 
+        competition_level, 
+        achievement, 
+        team_members
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      projectId,
+      sanitizeHTML(updateData.competition_name || ""),
+      updateData.competition_year || defaultYear,
+      updateData.competition_level || "university",
+      sanitizeHTML(updateData.achievement || ""),
+      sanitizeHTML(updateData.team_members || "")
+    ]);
+  }
+}
+
+/**
+ * Helper function to update coursework data
+ */
+async function updateCourseworkData(connection, projectId, updateData) {
+  // Check if coursework exists
+  const [coursework] = await connection.execute(
+    `SELECT * FROM courseworks WHERE project_id = ?`,
+    [projectId]
+  );
+  
+  if (coursework.length > 0) {
+    // Update existing record
+    const updateFields = [];
+    const updateParams = [];
+    
+    if (updateData.course_code !== undefined) {
+      updateFields.push("course_code = ?");
+      updateParams.push(sanitizeHTML(updateData.course_code));
+    }
+    
+    if (updateData.course_name !== undefined) {
+      updateFields.push("course_name = ?");
+      updateParams.push(sanitizeHTML(updateData.course_name));
+    }
+    
+    if (updateData.instructor !== undefined) {
+      updateFields.push("instructor = ?");
+      updateParams.push(sanitizeHTML(updateData.instructor));
+    }
+    
+    // Add project ID to parameters
+    updateParams.push(projectId);
+    
+    if (updateFields.length > 0) {
+      const updateQuery = `
+        UPDATE courseworks
+        SET ${updateFields.join(", ")}
+        WHERE project_id = ?
+      `;
+      
+      await connection.execute(updateQuery, updateParams);
+    }
+  } else {
+    // Insert new record
+    await connection.execute(`
+      INSERT INTO courseworks (
+        project_id, 
+        course_code, 
+        course_name, 
+        instructor
+      ) VALUES (?, ?, ?, ?)
+    `, [
+      projectId,
+      sanitizeHTML(updateData.course_code || ""),
+      sanitizeHTML(updateData.course_name || ""),
+      sanitizeHTML(updateData.instructor || "")
+    ]);
+  }
+}
+
+/**
+ * Helper function to handle project file uploads
+ */
 /**
  * ลบโครงการ
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 export const deleteProject = async (req, res) => {
+  const connection = await pool.getConnection();
+  
   try {
     const projectId = req.params.projectId;
-
-    // ตรวจสอบว่าโครงการมีอยู่จริงหรือไม่
+    
+    // Get project to check ownership
     const [projects] = await pool.execute(
-      `
-  SELECT * FROM projects WHERE project_id = ?
-`,
+      `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
-
+    
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-
+    
     const project = projects[0];
-
-    // ตรวจสอบว่าผู้ใช้เป็นเจ้าของโครงการหรือไม่
+    
+    // Check if user has permission to delete
     if (req.user.id != project.user_id && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You can only delete your own projects",
-      });
+      return forbiddenResponse(res, "You can only delete your own projects");
     }
-
-    // ดึงข้อมูลไฟล์ที่เกี่ยวข้องกับโครงการ
+    
+    // Get files to delete after database transaction
     const [files] = await pool.execute(
-      `
-  SELECT * FROM project_files WHERE project_id = ?
-`,
+      `SELECT file_path FROM project_files WHERE project_id = ?`,
       [projectId]
     );
-
-    // เริ่มต้น transaction
-    const connection = await pool.getConnection();
+    
+    // Start transaction
     await connection.beginTransaction();
-
+    
     try {
-      // ลบข้อมูลตามประเภทของโครงการ
-      if (project.type === "academic") {
+      // Delete related records in order to avoid foreign key constraints
+      
+      // Delete type-specific data first
+      if (project.type === PROJECT_TYPES.ACADEMIC) {
         await connection.execute(
-          `
-      DELETE FROM academic_papers WHERE project_id = ?
-    `,
+          `DELETE FROM academic_papers WHERE project_id = ?`,
           [projectId]
         );
-      } else if (project.type === "competition") {
+      } else if (project.type === PROJECT_TYPES.COMPETITION) {
         await connection.execute(
-          `
-      DELETE FROM competitions WHERE project_id = ?
-    `,
+          `DELETE FROM competitions WHERE project_id = ?`,
           [projectId]
         );
-      } else if (project.type === "coursework") {
+      } else if (project.type === PROJECT_TYPES.COURSEWORK) {
         await connection.execute(
-          `
-      DELETE FROM courseworks WHERE project_id = ?
-    `,
+          `DELETE FROM courseworks WHERE project_id = ?`,
           [projectId]
         );
       }
-
-      // ลบข้อมูลผู้ร่วมงาน
+      
+      // Delete project groups
       await connection.execute(
-        `
-    DELETE FROM project_groups WHERE project_id = ?
-  `,
+        `DELETE FROM project_groups WHERE project_id = ?`,
         [projectId]
       );
-
-      // ลบข้อมูลการเข้าชม
+      
+      // Delete visitor views
       await connection.execute(
-        `
-    DELETE FROM visitor_views WHERE project_id = ?
-  `,
+        `DELETE FROM visitor_views WHERE project_id = ?`,
         [projectId]
       );
-
+      
+      // Delete company views
       await connection.execute(
-        `
-    DELETE FROM company_views WHERE project_id = ?
-  `,
+        `DELETE FROM company_views WHERE project_id = ?`,
         [projectId]
       );
-
-      // ลบข้อมูลไฟล์
+      
+      // Delete project reviews
       await connection.execute(
-        `
-    DELETE FROM project_files WHERE project_id = ?
-  `,
+        `DELETE FROM project_reviews WHERE project_id = ?`,
         [projectId]
       );
-
-      // ลบข้อมูลการตรวจสอบ
+      
+      // Delete project images
       await connection.execute(
-        `
-    DELETE FROM project_reviews WHERE project_id = ?
-  `,
+        `DELETE FROM project_images WHERE project_id = ?`,
         [projectId]
       );
-
-      // ลบข้อมูลโครงการหลัก
+      
+      // Delete project files
       await connection.execute(
-        `
-    DELETE FROM projects WHERE project_id = ?
-  `,
+        `DELETE FROM project_files WHERE project_id = ?`,
         [projectId]
       );
-
-      // Commit the transaction
+      
+      // Delete project
+      await connection.execute(
+        `DELETE FROM projects WHERE project_id = ?`,
+        [projectId]
+      );
+      
+      // Commit transaction
       await connection.commit();
-
-      // ลบไฟล์จริงจากระบบ (นอก transaction เพื่อไม่ให้กระทบกับ database transaction)
+      
+      // Delete physical files
       for (const file of files) {
-        // ข้ามไฟล์ที่เป็น link (ไม่ได้เก็บในระบบไฟล์)
-        if (file.file_name === "video_link") continue;
-
-        // ลบไฟล์จากระบบ
-        deleteFile(file.file_path);
+        await storageService.deleteFile(file.file_path);
       }
-
-      return res.json(successResponse(null, "Project deleted successfully"));
+      
+      return res.json(
+        successResponse(
+          null,
+          "Project deleted successfully"
+        )
+      );
     } catch (error) {
-      // Rollback the transaction if there's an error
+      // Rollback on error
       await connection.rollback();
       throw error;
-    } finally {
-      // Release the connection
-      connection.release();
     }
   } catch (error) {
+    logger.error(`Error deleting project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
+  } finally {
+    connection.release();
   }
 };
 
@@ -1334,43 +1049,33 @@ export const deleteProject = async (req, res) => {
 export const uploadProjectFile = async (req, res) => {
   try {
     const projectId = req.params.projectId;
-
-    // ตรวจสอบว่าโครงการมีอยู่จริงหรือไม่
+    
+    // Get project to check ownership
     const [projects] = await pool.execute(
-      `
-  SELECT * FROM projects WHERE project_id = ?
-`,
+      `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
-
+    
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-
+    
     const project = projects[0];
-
-    // ตรวจสอบว่าผู้ใช้เป็นเจ้าของโครงการหรือไม่
+    
+    // Check if user has permission to upload
     if (req.user.id != project.user_id && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You can only upload files to your own projects",
-      });
+      return forbiddenResponse(res, "You can only upload files to your own projects");
     }
-
-    // ตรวจสอบว่ามีไฟล์หรือไม่
+    
+    // Check if file was uploaded
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: "No file uploaded",
-      });
+      return validationErrorResponse(res, "No file uploaded");
     }
-
+    
     const file = req.file;
     let fileType = "other";
-
-    // กำหนดประเภทไฟล์
+    
+    // Determine file type
     if (file.mimetype.startsWith("image/")) {
       fileType = "image";
     } else if (file.mimetype.startsWith("video/")) {
@@ -1378,133 +1083,46 @@ export const uploadProjectFile = async (req, res) => {
     } else if (file.mimetype === "application/pdf") {
       fileType = "pdf";
     }
-
-    // บันทึกข้อมูลไฟล์
-    const [result] = await pool.execute(
-      `
-  INSERT INTO project_files (
-    project_id, file_type, file_path, file_name, file_size
-  ) VALUES (?, ?, ?, ?, ?)
-`,
-      [projectId, fileType, file.path, file.originalname, file.size]
-    );
-
-    return res.status(201).json(
+    
+    // Save file
+    const [result] = await pool.execute(`
+      INSERT INTO project_files (
+        project_id, file_type, file_path, file_name, file_size
+      ) VALUES (?, ?, ?, ?, ?)
+    `, [
+      projectId,
+      fileType,
+      file.path,
+      file.originalname,
+      file.size
+    ]);
+    
+    const fileId = result.insertId;
+    
+    // Set status back to pending for admin review
+    await pool.execute(`
+      UPDATE projects SET status = ? WHERE project_id = ?
+    `, [PROJECT_STATUSES.PENDING, projectId]);
+    
+    return res.status(STATUS_CODES.CREATED).json(
       successResponse(
         {
-          fileId: result.insertId,
-          filename: file.originalname,
-          path: file.path,
-          size: file.size,
-          type: fileType,
+          fileId,
+          fileName: file.originalname,
+          filePath: file.path,
+          fileSize: file.size,
+          fileType
         },
         "File uploaded successfully"
       )
     );
   } catch (error) {
-    // ถ้ามีไฟล์ที่อัปโหลดแล้วเกิด error ให้ลบไฟล์ออก
+    // Delete uploaded file if an error occurs
     if (req.file) {
-      deleteFile(req.file.path);
+      await storageService.deleteFile(req.file.path);
     }
-
-    return handleServerError(res, error);
-  }
-};
-
-/**
- * ตรวจสอบสถานะการอัปโหลด
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-export const getUploadStatus = async (req, res) => {
-  try {
-    const sessionId = req.params.sessionId;
-
-    // ตรวจสอบว่า session มีอยู่จริงหรือไม่
-    const [sessions] = await pool.execute(
-      `
-  SELECT * FROM upload_sessions WHERE session_id = ?
-`,
-      [sessionId]
-    );
-
-    if (sessions.length === 0) {
-      return notFoundResponse(res, "Upload session not found");
-    }
-
-    const session = sessions[0];
-
-    // ตรวจสอบว่าผู้ใช้เป็นเจ้าของ session หรือไม่
-    if (req.user.id != session.user_id && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You can only check your own upload sessions",
-      });
-    }
-
-    return res.json(
-      successResponse(
-        {
-          sessionId,
-          status: session.status,
-          progress: session.progress,
-          totalFiles: session.total_files,
-          completedFiles: session.completed_files,
-          startTime: session.start_time,
-          lastUpdated: session.last_updated,
-        },
-        "Upload status retrieved successfully"
-      )
-    );
-  } catch (error) {
-    return handleServerError(res, error);
-  }
-};
-
-/**
- * ยกเลิกการอัปโหลด
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-export const cancelUpload = async (req, res) => {
-  try {
-    const sessionId = req.params.sessionId;
-
-    // ตรวจสอบว่า session มีอยู่จริงหรือไม่
-    const [sessions] = await pool.execute(
-      `
-  SELECT * FROM upload_sessions WHERE session_id = ?
-`,
-      [sessionId]
-    );
-
-    if (sessions.length === 0) {
-      return notFoundResponse(res, "Upload session not found");
-    }
-
-    const session = sessions[0];
-
-    // ตรวจสอบว่าผู้ใช้เป็นเจ้าของ session หรือไม่
-    if (req.user.id != session.user_id && req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "You can only cancel your own upload sessions",
-      });
-    }
-
-    // อัปเดตสถานะเป็น cancelled
-    await pool.execute(
-      `
-  UPDATE upload_sessions SET status = 'cancelled', last_updated = NOW()
-  WHERE session_id = ?
-`,
-      [sessionId]
-    );
-
-    return res.json(successResponse(null, "Upload cancelled successfully"));
-  } catch (error) {
+    
+    logger.error(`Error uploading file to project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   }
 };
@@ -1518,60 +1136,66 @@ export const recordCompanyView = async (req, res) => {
   try {
     const projectId = req.params.projectId;
     const { company_name, contact_email } = req.body;
-
-    // ตรวจสอบข้อมูลที่จำเป็น
+    
+    // Validate required fields
     if (!company_name || !contact_email) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: "Company name and contact email are required",
-      });
+      return validationErrorResponse(
+        res,
+        "Missing required fields",
+        {
+          company_name: !company_name ? "Company name is required" : null,
+          contact_email: !contact_email ? "Contact email is required" : null
+        }
+      );
     }
-
-    // ตรวจสอบว่าโครงการมีอยู่จริงหรือไม่
+    
+    // Get project
     const [projects] = await pool.execute(
-      `
-  SELECT * FROM projects WHERE project_id = ?
-`,
-      [projectId]
+      `SELECT p.*, u.user_id FROM projects p
+       JOIN users u ON p.user_id = u.user_id
+       WHERE p.project_id = ? AND p.status = ? AND p.visibility = 1`,
+      [projectId, PROJECT_STATUSES.APPROVED]
     );
-
+    
     if (projects.length === 0) {
-      return notFoundResponse(res, "Project not found");
+      return notFoundResponse(res, "Project not found or not publicly accessible");
     }
-
-    // ตรวจสอบว่าโครงการเป็นสาธารณะหรือไม่
-    if (projects[0].visibility === 0) {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "This project is not publicly accessible",
-      });
-    }
-
-    // บันทึกการเข้าชม
-    await pool.execute(
-      `
-  INSERT INTO company_views (project_id, company_name, contact_email)
-  VALUES (?, ?, ?)
-`,
-      [projectId, company_name, contact_email]
+    
+    const project = projects[0];
+    
+    // Record company view
+    await pool.execute(`
+      INSERT INTO company_views (
+        company_name, contact_email, project_id
+      ) VALUES (?, ?, ?)
+    `, [
+      sanitizeHTML(company_name),
+      sanitizeHTML(contact_email),
+      projectId
+    ]);
+    
+    // Update view count
+    await pool.execute(`
+      UPDATE projects SET views_count = views_count + 1 WHERE project_id = ?
+    `, [projectId]);
+    
+    // Notify project owner
+    await notificationService.notifyCompanyView(
+      project.user_id,
+      projectId,
+      project.title,
+      company_name,
+      contact_email
     );
-
-    // อัปเดตจำนวนการเข้าชม
-    await pool.execute(
-      `
-  UPDATE projects
-  SET views_count = views_count + 1
-  WHERE project_id = ?
-`,
-      [projectId]
-    );
-
+    
     return res.json(
-      successResponse(null, "Company view recorded successfully")
+      successResponse(
+        null,
+        "Company view recorded successfully"
+      )
     );
   } catch (error) {
+    logger.error(`Error recording company view for project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   }
 };
@@ -1584,51 +1208,41 @@ export const recordCompanyView = async (req, res) => {
 export const recordVisitorView = async (req, res) => {
   try {
     const projectId = req.params.projectId;
-
-    // ตรวจสอบว่าโครงการมีอยู่จริงหรือไม่
+    
+    // Get project
     const [projects] = await pool.execute(
-      `
-  SELECT * FROM projects WHERE project_id = ?
-`,
-      [projectId]
+      `SELECT * FROM projects WHERE project_id = ? AND status = ? AND visibility = 1`,
+      [projectId, PROJECT_STATUSES.APPROVED]
     );
-
+    
     if (projects.length === 0) {
-      return notFoundResponse(res, "Project not found");
+      return notFoundResponse(res, "Project not found or not publicly accessible");
     }
-
-    // ตรวจสอบว่าโครงการเป็นสาธารณะหรือไม่
-    if (projects[0].visibility === 0) {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "This project is not publicly accessible",
-      });
-    }
-
-    // บันทึกการเข้าชม
-    await pool.execute(
-      `
-  INSERT INTO visitor_views (project_id, ip_address, user_agent)
-  VALUES (?, ?, ?)
-`,
-      [projectId, req.ip, req.headers["user-agent"]]
-    );
-
-    // อัปเดตจำนวนการเข้าชม
-    await pool.execute(
-      `
-  UPDATE projects
-  SET views_count = views_count + 1
-  WHERE project_id = ?
-`,
-      [projectId]
-    );
-
+    
+    // Record visitor view
+    await pool.execute(`
+      INSERT INTO visitor_views (
+        project_id, ip_address, user_agent
+      ) VALUES (?, ?, ?)
+    `, [
+      projectId,
+      req.ip,
+      req.headers["user-agent"] || "Unknown"
+    ]);
+    
+    // Update view count
+    await pool.execute(`
+      UPDATE projects SET views_count = views_count + 1 WHERE project_id = ?
+    `, [projectId]);
+    
     return res.json(
-      successResponse(null, "Visitor view recorded successfully")
+      successResponse(
+        null,
+        "Visitor view recorded successfully"
+      )
     );
   } catch (error) {
+    logger.error(`Error recording visitor view for project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   }
 };
@@ -1640,16 +1254,22 @@ export const recordVisitorView = async (req, res) => {
  */
 export const getProjectTypes = async (req, res) => {
   try {
-    const projectTypes = [
-      { value: "coursework", label: "ผลงานการเรียน" },
-      { value: "academic", label: "บทความวิชาการ" },
-      { value: "competition", label: "การแข่งขัน" },
-    ];
-
+    // Get project types from constants
+    const projectTypes = Object.values(PROJECT_TYPES).map(type => ({
+      value: type,
+      label: type === PROJECT_TYPES.COURSEWORK ? "ผลงานการเรียน" :
+             type === PROJECT_TYPES.ACADEMIC ? "บทความวิชาการ" : 
+             "การแข่งขัน"
+    }));
+    
     return res.json(
-      successResponse(projectTypes, "Project types retrieved successfully")
+      successResponse(
+        projectTypes,
+        "Project types retrieved successfully"
+      )
     );
   } catch (error) {
+    logger.error("Error getting project types:", error);
     return handleServerError(res, error);
   }
 };
@@ -1662,16 +1282,19 @@ export const getProjectTypes = async (req, res) => {
 export const getProjectYears = async (req, res) => {
   try {
     const [years] = await pool.execute(`
-  SELECT DISTINCT year FROM projects ORDER BY year DESC
-`);
-
+      SELECT DISTINCT year FROM projects 
+      WHERE status = ? 
+      ORDER BY year DESC
+    `, [PROJECT_STATUSES.APPROVED]);
+    
     return res.json(
       successResponse(
-        years.map((y) => y.year),
+        years.map(y => y.year),
         "Project years retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting project years:", error);
     return handleServerError(res, error);
   }
 };
@@ -1684,16 +1307,19 @@ export const getProjectYears = async (req, res) => {
 export const getStudyYears = async (req, res) => {
   try {
     const [years] = await pool.execute(`
-  SELECT DISTINCT study_year FROM projects ORDER BY study_year
-`);
-
+      SELECT DISTINCT study_year FROM projects 
+      WHERE status = ? 
+      ORDER BY study_year
+    `, [PROJECT_STATUSES.APPROVED]);
+    
     return res.json(
       successResponse(
-        years.map((y) => y.study_year),
+        years.map(y => y.study_year),
         "Study years retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting study years:", error);
     return handleServerError(res, error);
   }
 };
@@ -1705,43 +1331,49 @@ export const getStudyYears = async (req, res) => {
  */
 export const getPendingProjects = async (req, res) => {
   try {
-    // ตรวจสอบว่าผู้ใช้เป็น admin หรือไม่
+    // Check if user is admin
     if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "Only admin can access pending projects",
-      });
+      return forbiddenResponse(res, "Only admin can access pending projects");
     }
-
-    const [projects] = await pool.execute(`
-  SELECT p.*, u.username, u.full_name,
-         (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
-  FROM projects p
-  JOIN users u ON p.user_id = u.user_id
-  WHERE p.status = 'pending'
-  ORDER BY p.created_at DESC
-`);
-
+    
+    // Get pagination parameters
+    const pagination = getPaginationParams(req);
+    
+    // Set filters for pending projects
+    const filters = {
+      status: PROJECT_STATUSES.PENDING
+    };
+    
+    // Get pending projects
+    const result = await projectService.getAllProjects(filters, pagination);
+    
+    // Format projects for response
+    const formattedProjects = result.projects.map(project => ({
+      id: project.project_id,
+      title: project.title,
+      description: truncateText(project.description, 150),
+      category: project.type,
+      level: `ปี ${project.study_year}`,
+      year: project.year,
+      image: project.image || null,
+      student: project.full_name,
+      studentId: project.user_id,
+      projectLink: `/projects/${project.project_id}`,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at
+    }));
+    
     return res.json(
       successResponse(
-        projects.map((project) => ({
-          id: project.project_id,
-          title: project.title,
-          description: project.description,
-          category: project.type,
-          level: `ปี ${project.study_year}`,
-          year: project.year,
-          image: project.image || "https://via.placeholder.com/150",
-          student: project.full_name,
-          studentId: project.user_id,
-          projectLink: `/projects/${project.project_id}`,
-          createdAt: project.created_at,
-        })),
+        {
+          projects: formattedProjects,
+          pagination: result.pagination
+        },
         "Pending projects retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting pending projects:", error);
     return handleServerError(res, error);
   }
 };
@@ -1753,81 +1385,91 @@ export const getPendingProjects = async (req, res) => {
  */
 export const reviewProject = async (req, res) => {
   try {
-    // ตรวจสอบว่าผู้ใช้เป็น admin หรือไม่
+    // Check if user is admin
     if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "Only admin can review projects",
-      });
+      return forbiddenResponse(res, "Only admin can review projects");
     }
-
+    
     const projectId = req.params.projectId;
     const { status, comment } = req.body;
-
-    // ตรวจสอบข้อมูลที่จำเป็น
-    if (!status || !["approved", "rejected"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: 'Status must be either "approved" or "rejected"',
-      });
+    
+    // Validate status
+    if (!status || !isValidStatus(status) || status === PROJECT_STATUSES.PENDING) {
+      return validationErrorResponse(
+        res,
+        "Invalid status",
+        { status: `Status must be either "${PROJECT_STATUSES.APPROVED}" or "${PROJECT_STATUSES.REJECTED}"` }
+      );
     }
-
-    // ตรวจสอบว่าโครงการมีอยู่จริงหรือไม่
-    const [projects] = await pool.execute(
-      `
-  SELECT p.*, u.email, u.username
-  FROM projects p
-  JOIN users u ON p.user_id = u.user_id
-  WHERE p.project_id = ?
-`,
-      [projectId]
-    );
-
+    
+    // Get project
+    const [projects] = await pool.execute(`
+      SELECT p.*, u.email, u.username, u.full_name
+      FROM projects p
+      JOIN users u ON p.user_id = u.user_id
+      WHERE p.project_id = ?
+    `, [projectId]);
+    
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-
+    
     const project = projects[0];
-
-    // อัปเดตสถานะโครงการ
-    await pool.execute(
-      `
-  UPDATE projects SET status = ? WHERE project_id = ?
-`,
-      [status, projectId]
-    );
-
-    // บันทึกการตรวจสอบ
-    await pool.execute(
-      `
-  INSERT INTO project_reviews (project_id, admin_id, status, review_comment)
-  VALUES (?, ?, ?, ?)
-`,
-      [projectId, req.user.id, status, comment || null]
-    );
-
-    // ส่งอีเมลแจ้งสถานะการอนุมัติ
-    sendProjectStatusEmail(
-      project.email,
-      project.username,
-      project.title,
-      status,
-      comment
-    );
-
-    return res.json(
-      successResponse(
-        {
-          projectId,
-          status,
-          comment,
-        },
-        `Project ${status} successfully`
-      )
-    );
+    
+    // Start transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Update project status
+      await connection.execute(`
+        UPDATE projects SET status = ? WHERE project_id = ?
+      `, [status, projectId]);
+      
+      // Record review
+      await connection.execute(`
+        INSERT INTO project_reviews (
+          project_id, admin_id, status, review_comment
+        ) VALUES (?, ?, ?, ?)
+      `, [
+        projectId,
+        req.user.id,
+        status,
+        comment || null
+      ]);
+      
+      // Commit transaction
+      await connection.commit();
+      
+      // Notify project owner
+      await notificationService.notifyProjectReview(
+        project.user_id,
+        projectId,
+        project.title,
+        status,
+        comment
+      );
+      
+      return res.json(
+        successResponse(
+          {
+            projectId,
+            status,
+            title: project.title,
+            studentName: project.full_name,
+            studentEmail: project.email
+          },
+          `Project ${status === PROJECT_STATUSES.APPROVED ? 'approved' : 'rejected'} successfully`
+        )
+      );
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
+    logger.error(`Error reviewing project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   }
 };
@@ -1839,69 +1481,164 @@ export const reviewProject = async (req, res) => {
  */
 export const getProjectStats = async (req, res) => {
   try {
-    // ตรวจสอบว่าผู้ใช้เป็น admin หรือไม่
+    // Check if user is admin
     if (req.user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: "Only admin can access project statistics",
-      });
+      return forbiddenResponse(res, "Only admin can access project statistics");
     }
-
-    // จำนวนโครงการทั้งหมด
+    
+    // Get total projects count
     const [totalProjects] = await pool.execute(`
-  SELECT COUNT(*) as count FROM projects
-`);
-
-    // จำนวนโครงการแยกตามประเภท
+      SELECT COUNT(*) as count FROM projects
+    `);
+    
+    // Get projects by type
     const [projectsByType] = await pool.execute(`
-  SELECT type, COUNT(*) as count FROM projects GROUP BY type
-`);
-
-    // จำนวนโครงการแยกตามสถานะ
+      SELECT type, COUNT(*) as count FROM projects GROUP BY type
+    `);
+    
+    // Get projects by status
     const [projectsByStatus] = await pool.execute(`
-  SELECT status, COUNT(*) as count FROM projects GROUP BY status
-`);
-
-    // จำนวนโครงการที่อัปโหลดในแต่ละเดือน (12 เดือนล่าสุด)
+      SELECT status, COUNT(*) as count FROM projects GROUP BY status
+    `);
+    
+    // Get projects by month (last 12 months)
     const [projectsByMonth] = await pool.execute(`
-  SELECT 
-    DATE_FORMAT(created_at, '%Y-%m') as month, 
-    COUNT(*) as count 
-  FROM projects 
-  WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-  GROUP BY month 
-  ORDER BY month
-`);
-
-    // โครงการที่มียอดเข้าชมมากที่สุด 10 อันดับแรก
+      SELECT 
+        DATE_FORMAT(created_at, '%Y-%m') as month, 
+        COUNT(*) as count 
+      FROM projects 
+      WHERE created_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
+      GROUP BY month 
+      ORDER BY month
+    `);
+    
+    // Get top viewed projects
     const [topViewedProjects] = await pool.execute(`
-  SELECT p.project_id, p.title, p.views_count, p.type, u.username, u.full_name
-  FROM projects p
-  JOIN users u ON p.user_id = u.user_id
-  ORDER BY p.views_count DESC
-  LIMIT 10
-`);
-
+      SELECT p.project_id, p.title, p.views_count, p.type, u.username, u.full_name
+      FROM projects p
+      JOIN users u ON p.user_id = u.user_id
+      WHERE p.status = ?
+      ORDER BY p.views_count DESC
+      LIMIT 10
+    `, [PROJECT_STATUSES.APPROVED]);
+    
     return res.json(
       successResponse(
         {
           total: totalProjects[0].count,
-          byType: projectsByType,
-          byStatus: projectsByStatus,
+          byType: projectsByType.map(item => ({
+            type: item.type,
+            count: item.count,
+            label: item.type === PROJECT_TYPES.COURSEWORK ? "ผลงานการเรียน" :
+                   item.type === PROJECT_TYPES.ACADEMIC ? "บทความวิชาการ" : 
+                   "การแข่งขัน"
+          })),
+          byStatus: projectsByStatus.map(item => ({
+            status: item.status,
+            count: item.count,
+            label: item.status === PROJECT_STATUSES.PENDING ? "รอการอนุมัติ" :
+                   item.status === PROJECT_STATUSES.APPROVED ? "อนุมัติแล้ว" : 
+                   "ถูกปฏิเสธ"
+          })),
           byMonth: projectsByMonth,
-          topViewed: topViewedProjects.map((project) => ({
+          topViewed: topViewedProjects.map(project => ({
             id: project.project_id,
             title: project.title,
             views: project.views_count,
             type: project.type,
             author: project.full_name,
-          })),
+            username: project.username
+          }))
         },
         "Project statistics retrieved successfully"
       )
     );
   } catch (error) {
+    logger.error("Error getting project statistics:", error);
     return handleServerError(res, error);
   }
 };
+
+/**
+ * Helper function to handle project file uploads
+ */
+async function handleProjectFiles(connection, projectId, projectType, files) {
+  for (const fieldName in files) {
+    const fileList = Array.isArray(files[fieldName]) ? files[fieldName] : [files[fieldName]];
+    
+    for (const file of fileList) {
+      let fileType = "other";
+      
+      // Determine file type
+      if (file.mimetype.startsWith("image/")) {
+        fileType = "image";
+      } else if (file.mimetype.startsWith("video/")) {
+        fileType = "video";
+      } else if (file.mimetype === "application/pdf") {
+        fileType = "pdf";
+      }
+      
+      // Insert file record
+      const [fileResult] = await connection.execute(`
+        INSERT INTO project_files (
+          project_id, file_type, file_path, file_name, file_size
+        ) VALUES (?, ?, ?, ?, ?)
+      `, [
+        projectId, 
+        fileType, 
+        file.path, 
+        file.originalname, 
+        file.size
+      ]);
+      
+      const fileId = fileResult.insertId;
+      
+      // Handle special file types
+      if (fieldName === "coverImage" && fileType === "image") {
+        await connection.execute(`
+          UPDATE projects 
+          SET cover_image_id = ? 
+          WHERE project_id = ?
+        `, [fileId, projectId]);
+      }
+      
+      if (projectType === PROJECT_TYPES.ACADEMIC) {
+        if (fieldName === "paper_file" && fileType === "pdf") {
+          await connection.execute(`
+            UPDATE academic_papers 
+            SET paper_file_id = ? 
+            WHERE project_id = ?
+          `, [fileId, projectId]);
+        } else if (fieldName === "cover_image" && fileType === "image") {
+          await connection.execute(`
+            UPDATE academic_papers 
+            SET cover_image_id = ? 
+            WHERE project_id = ?
+          `, [fileId, projectId]);
+        }
+      } else if (projectType === PROJECT_TYPES.COMPETITION) {
+        if (fieldName === "poster_file" && fileType === "image") {
+          await connection.execute(`
+            UPDATE competitions 
+            SET poster_file_id = ? 
+            WHERE project_id = ?
+          `, [fileId, projectId]);
+        }
+      } else if (projectType === PROJECT_TYPES.COURSEWORK) {
+        if (fieldName === "coursework_poster" && fileType === "image") {
+          await connection.execute(`
+            UPDATE courseworks 
+            SET poster_file_id = ? 
+            WHERE project_id = ?
+          `, [fileId, projectId]);
+        } else if (fieldName === "coursework_video" && fileType === "video") {
+          await connection.execute(`
+            UPDATE courseworks 
+            SET video_file_id = ? 
+            WHERE project_id = ?
+          `, [fileId, projectId]);
+        }
+      }
+    }
+  }
+}

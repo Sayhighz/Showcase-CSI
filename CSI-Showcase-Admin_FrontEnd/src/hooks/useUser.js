@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   getAllUsers, 
   getUserById, 
-  createUser, 
+  createUserWithImage, 
   updateUser, 
   deleteUser,
   getUserLoginHistory,
@@ -203,7 +203,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     setActionLoading(true);
     
     try {
-      const response = await createUser(userData);
+      const response = await createUserWithImage(userData);
       
       if (response.success) {
         message.success('สร้างผู้ใช้สำเร็จ');

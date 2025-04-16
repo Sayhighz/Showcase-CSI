@@ -634,7 +634,7 @@ export const getUserLoginHistory = async (req, res) => {
     const userId = req.params.userId;
 
     // ตรวจสอบว่าสามารถเข้าถึงข้อมูลของผู้ใช้ได้หรือไม่
-    if (req.user.id != userId && req.user.role !== ROLES.ADMIN) {
+    if (req.user.id != userId && req.user.role !== 'admin') {
       return forbiddenResponse(res, 'You can only view your own login history or you need admin privileges');
     }
 
@@ -660,6 +660,10 @@ export const getUserLoginHistory = async (req, res) => {
       id: log.log_id,
       time: formatToISODateTime(log.login_time),
       ipAddress: log.ip_address,
+      device: log.device_type,
+      os: log.os,
+      browser: log.browser,
+      userAgent: log.user_agent
     }));
 
     return res.json(

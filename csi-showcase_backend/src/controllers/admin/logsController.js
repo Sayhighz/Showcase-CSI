@@ -17,7 +17,6 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
     // ใช้ getPaginationParams จาก pagination helper
     const pagination = getPaginationParams(req);
     const { page, limit, offset } = pagination;
-    console.log(`Page: ${page}, Limit: ${limit}, Offset: ${offset}`);
     
     const userId = req.query.userId || '';
     const startDate = req.query.startDate || '';
@@ -47,9 +46,9 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
     
     // เพิ่มการค้นหาตาม search term
     if (search) {
-      whereConditions.push('(u.username LIKE ? OR u.full_name LIKE ? OR l.ip_address LIKE ?)');
+      whereConditions.push('(u.username LIKE ? OR u.full_name LIKE ? OR l.ip_address LIKE ? OR l.device_type LIKE ? OR l.os LIKE ? OR l.browser LIKE ?)');
       const searchTerm = `%${search}%`;
-      queryParams.push(searchTerm, searchTerm, searchTerm);
+      queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
     
     // สร้าง WHERE clause
@@ -78,7 +77,7 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
     
     // สร้าง query สำหรับดึงข้อมูล (insert values directly instead of using parameters)
     const dataQuery = `
-      SELECT l.log_id, l.user_id, l.login_time, l.ip_address,
+      SELECT l.log_id, l.user_id, l.login_time, l.ip_address, l.device_type, l.os, l.browser, l.user_agent,
              u.username, u.full_name, u.role
       FROM login_logs l
       JOIN users u ON l.user_id = u.user_id
@@ -98,7 +97,11 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
       fullName: log.full_name,
       role: log.role,
       loginTime: log.login_time,
-      ipAddress: log.ip_address
+      ipAddress: log.ip_address,
+      device: log.device_type,
+      os: log.os,
+      browser: log.browser,
+      userAgent: log.user_agent
     }));
     
     // ใช้ successResponse helper function พร้อม status code
@@ -373,6 +376,8 @@ export const getSystemStats = asyncHandler(async (req, res) => {
       GROUP BY date 
       ORDER BY date
     `);
+
+    
     
     // ใช้ formatToISODate เพื่อจัดรูปแบบวันที่
     const formattedLoginsByDay = loginsByDay.map(item => ({

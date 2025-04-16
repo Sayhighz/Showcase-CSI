@@ -40,6 +40,7 @@ const ProjectList = ({
   onDelete,
   loading = false
 }) => {
+  console.log("asd",projects);
   // กำหนดคอลัมน์ของตาราง
   const columns = [
     {
@@ -80,7 +81,7 @@ const ProjectList = ({
           <UserAvatar 
             user={{ 
               full_name: record.full_name, 
-              image: record.image, 
+              image: `http://localhost:4000/${record.user_image}`, 
               role: 'student' 
             }} 
             size="small" 

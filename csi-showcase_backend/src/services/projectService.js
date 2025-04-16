@@ -13,91 +13,91 @@ import { isValidStatus, isValidType } from '../constants/projectStatuses.js';
  * @returns {Promise<Object>} - รายการโครงการและข้อมูลการแบ่งหน้า
  */
 export const getAllProjects = async (filters = {}, pagination = {}) => {
-  try {
-    // กำหนดค่าเริ่มต้นสำหรับการแบ่งหน้า
-    const page = parseInt(pagination.page || 1);
-    const limit = parseInt(pagination.limit || 10);
-    const offset = (page - 1) * limit;
-    
-    // สร้าง query พื้นฐาน
-    let baseQuery = `
-      SELECT p.*, u.username, u.full_name,
-             (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
-      FROM projects p
-      JOIN users u ON p.user_id = u.user_id
-      WHERE 1=1
-    `;
-    
-    const queryParams = [];
-    
-    // เพิ่มเงื่อนไขการกรอง
-    if (filters.status) {
-      if (isValidStatus(filters.status)) {
-        baseQuery += ` AND p.status = ?`;
-        queryParams.push(filters.status);
+    try {
+      // กำหนดค่าเริ่มต้นสำหรับการแบ่งหน้า
+      const page = parseInt(pagination.page || 1);
+      const limit = parseInt(pagination.limit || 10);
+      const offset = (page - 1) * limit;
+      
+      // สร้าง query พื้นฐาน
+      let baseQuery = `
+        SELECT p.*, u.username, u.full_name, u.image as user_image,
+               (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
+        FROM projects p
+        JOIN users u ON p.user_id = u.user_id
+        WHERE 1=1
+      `;
+      
+      const queryParams = [];
+      
+      // เพิ่มเงื่อนไขการกรอง
+      if (filters.status) {
+        if (isValidStatus(filters.status)) {
+          baseQuery += ` AND p.status = ?`;
+          queryParams.push(filters.status);
+        }
       }
-    }
-    
-    if (filters.type) {
-      if (isValidType(filters.type)) {
-        baseQuery += ` AND p.type = ?`;
-        queryParams.push(filters.type);
+      
+      if (filters.type) {
+        if (isValidType(filters.type)) {
+          baseQuery += ` AND p.type = ?`;
+          queryParams.push(filters.type);
+        }
       }
-    }
-    
-    if (filters.year) {
-      baseQuery += ` AND p.year = ?`;
-      queryParams.push(filters.year);
-    }
-    
-    if (filters.studyYear) {
-      baseQuery += ` AND p.study_year = ?`;
-      queryParams.push(filters.studyYear);
-    }
-    
-    if (filters.userId) {
-      baseQuery += ` AND (p.user_id = ? OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?))`;
-      queryParams.push(filters.userId, filters.userId);
-    }
-    
-    if (filters.search) {
-      baseQuery += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)`;
-      const searchPattern = `%${filters.search}%`;
-      queryParams.push(searchPattern, searchPattern, searchPattern);
-    }
-    
-    // ตรวจสอบการเข้าถึง สำหรับผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ
-    if (filters.onlyVisible && (!filters.role || filters.role !== 'admin')) {
-      baseQuery += ` AND (p.visibility = 1 AND p.status = 'approved')`;
-    }
-    
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
-    // แยก query สำหรับการนับจำนวนเพื่อหลีกเลี่ยงปัญหา parameters
-    const countQuery = `SELECT COUNT(*) as total FROM (${baseQuery}) as countTable`;
-    const [countResult] = await pool.execute(countQuery, queryParams);
-    const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
-    
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query หลัก โดยใช้ string interpolation แทนการใช้ parameters
-    const mainQuery = `${baseQuery} ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
-    
-    // ดึงข้อมูลโครงการโดยใช้ parameters ชุดเดิม (ไม่ใส่ limit และ offset เป็น parameters)
-    const [projects] = await pool.execute(mainQuery, queryParams);
-    
-    return {
-      projects,
-      pagination: {
-        page,
-        limit,
-        totalItems,
-        totalPages
+      
+      if (filters.year) {
+        baseQuery += ` AND p.year = ?`;
+        queryParams.push(filters.year);
       }
-    };
-  } catch (error) {
-    logger.error('Error getting all projects:', error);
-    throw error;
-  }
-};
+      
+      if (filters.studyYear) {
+        baseQuery += ` AND p.study_year = ?`;
+        queryParams.push(filters.studyYear);
+      }
+      
+      if (filters.userId) {
+        baseQuery += ` AND (p.user_id = ? OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?))`;
+        queryParams.push(filters.userId, filters.userId);
+      }
+      
+      if (filters.search) {
+        baseQuery += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)`;
+        const searchPattern = `%${filters.search}%`;
+        queryParams.push(searchPattern, searchPattern, searchPattern);
+      }
+      
+      // ตรวจสอบการเข้าถึง สำหรับผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ
+      if (filters.onlyVisible && (!filters.role || filters.role !== 'admin')) {
+        baseQuery += ` AND (p.visibility = 1 AND p.status = 'approved')`;
+      }
+      
+      // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
+      // แยก query สำหรับการนับจำนวนเพื่อหลีกเลี่ยงปัญหา parameters
+      const countQuery = `SELECT COUNT(*) as total FROM (${baseQuery}) as countTable`;
+      const [countResult] = await pool.execute(countQuery, queryParams);
+      const totalItems = countResult[0].total;
+      const totalPages = Math.ceil(totalItems / limit);
+      
+      // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query หลัก โดยใช้ string interpolation แทนการใช้ parameters
+      const mainQuery = `${baseQuery} ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
+      
+      // ดึงข้อมูลโครงการโดยใช้ parameters ชุดเดิม (ไม่ใส่ limit และ offset เป็น parameters)
+      const [projects] = await pool.execute(mainQuery, queryParams);
+      
+      return {
+        projects,
+        pagination: {
+          page,
+          limit,
+          totalItems,
+          totalPages
+        }
+      };
+    } catch (error) {
+      logger.error('Error getting all projects:', error);
+      throw error;
+    }
+  };
 
 /**
  * ดึงข้อมูลโครงการตาม ID
@@ -106,97 +106,97 @@ export const getAllProjects = async (filters = {}, pagination = {}) => {
  * @returns {Promise<Object>} - ข้อมูลโครงการ
  */
 export const getProjectById = async (projectId, options = {}) => {
-  try {
-    // ดึงข้อมูลหลักของโครงการ
-    const [projects] = await pool.execute(`
-      SELECT p.*, u.username, u.full_name, u.email
-      FROM projects p
-      JOIN users u ON p.user_id = u.user_id
-      WHERE p.project_id = ?
-    `, [projectId]);
-    
-    if (projects.length === 0) {
-      return null;
-    }
-    
-    const project = projects[0];
-    
-    // ดึงข้อมูลไฟล์ที่เกี่ยวข้อง
-    const [files] = await pool.execute(`
-      SELECT * FROM project_files
-      WHERE project_id = ?
-    `, [projectId]);
-    
-    // ดึงข้อมูลสมาชิกในกลุ่ม
-    const [contributors] = await pool.execute(`
-      SELECT u.user_id, u.username, u.full_name, u.email, u.image
-      FROM project_groups pg
-      JOIN users u ON pg.user_id = u.user_id
-      WHERE pg.project_id = ?
-    `, [projectId]);
-    
-    // ดึงข้อมูลเพิ่มเติมตามประเภทของโครงการ
-    let additionalData = {};
-    
-    if (project.type === PROJECT_TYPES.ACADEMIC) {
-      const [academic] = await pool.execute(`
-        SELECT * FROM academic_papers WHERE project_id = ?
+    try {
+      // ดึงข้อมูลหลักของโครงการ
+      const [projects] = await pool.execute(`
+        SELECT p.*, u.username, u.full_name, u.email, u.image as user_image
+        FROM projects p
+        JOIN users u ON p.user_id = u.user_id
+        WHERE p.project_id = ?
       `, [projectId]);
       
-      if (academic.length > 0) {
-        additionalData.academic = academic[0];
+      if (projects.length === 0) {
+        return null;
       }
-    } else if (project.type === PROJECT_TYPES.COMPETITION) {
-      const [competition] = await pool.execute(`
-        SELECT * FROM competitions WHERE project_id = ?
-      `, [projectId]);
       
-      if (competition.length > 0) {
-        additionalData.competition = competition[0];
-      }
-    } else if (project.type === PROJECT_TYPES.COURSEWORK) {
-      const [coursework] = await pool.execute(`
-        SELECT * FROM courseworks WHERE project_id = ?
-      `, [projectId]);
+      const project = projects[0];
       
-      if (coursework.length > 0) {
-        additionalData.coursework = coursework[0];
-      }
-    }
-    
-    // ดึงข้อมูลประวัติการตรวจสอบ
-    if (options.includeReviews) {
-      const [reviews] = await pool.execute(`
-        SELECT r.*, a.username as admin_username, a.full_name as admin_name
-        FROM project_reviews r
-        LEFT JOIN users a ON r.admin_id = a.user_id
-        WHERE r.project_id = ?
-        ORDER BY r.reviewed_at DESC
-      `, [projectId]);
-      
-      additionalData.reviews = reviews;
-    }
-    
-    // บันทึกการเข้าชม
-    if (options.recordView && options.viewerId && options.viewerId !== project.user_id) {
-      await pool.execute(`
-        UPDATE projects
-        SET views_count = views_count + 1
+      // ดึงข้อมูลไฟล์ที่เกี่ยวข้อง
+      const [files] = await pool.execute(`
+        SELECT * FROM project_files
         WHERE project_id = ?
       `, [projectId]);
+      
+      // ดึงข้อมูลสมาชิกในกลุ่ม
+      const [contributors] = await pool.execute(`
+        SELECT u.user_id, u.username, u.full_name, u.email, u.image
+        FROM project_groups pg
+        JOIN users u ON pg.user_id = u.user_id
+        WHERE pg.project_id = ?
+      `, [projectId]);
+      
+      // ดึงข้อมูลเพิ่มเติมตามประเภทของโครงการ
+      let additionalData = {};
+      
+      if (project.type === PROJECT_TYPES.ACADEMIC) {
+        const [academic] = await pool.execute(`
+          SELECT * FROM academic_papers WHERE project_id = ?
+        `, [projectId]);
+        
+        if (academic.length > 0) {
+          additionalData.academic = academic[0];
+        }
+      } else if (project.type === PROJECT_TYPES.COMPETITION) {
+        const [competition] = await pool.execute(`
+          SELECT * FROM competitions WHERE project_id = ?
+        `, [projectId]);
+        
+        if (competition.length > 0) {
+          additionalData.competition = competition[0];
+        }
+      } else if (project.type === PROJECT_TYPES.COURSEWORK) {
+        const [coursework] = await pool.execute(`
+          SELECT * FROM courseworks WHERE project_id = ?
+        `, [projectId]);
+        
+        if (coursework.length > 0) {
+          additionalData.coursework = coursework[0];
+        }
+      }
+      
+      // ดึงข้อมูลประวัติการตรวจสอบ
+      if (options.includeReviews) {
+        const [reviews] = await pool.execute(`
+          SELECT r.*, a.username as admin_username, a.full_name as admin_name, a.image as admin_image
+          FROM project_reviews r
+          LEFT JOIN users a ON r.admin_id = a.user_id
+          WHERE r.project_id = ?
+          ORDER BY r.reviewed_at DESC
+        `, [projectId]);
+        
+        additionalData.reviews = reviews;
+      }
+      
+      // บันทึกการเข้าชม
+      if (options.recordView && options.viewerId && options.viewerId !== project.user_id) {
+        await pool.execute(`
+          UPDATE projects
+          SET views_count = views_count + 1
+          WHERE project_id = ?
+        `, [projectId]);
+      }
+      
+      return {
+        ...project,
+        files,
+        contributors,
+        ...additionalData
+      };
+    } catch (error) {
+      logger.error(`Error getting project ${projectId}:`, error);
+      throw error;
     }
-    
-    return {
-      ...project,
-      files,
-      contributors,
-      ...additionalData
-    };
-  } catch (error) {
-    logger.error(`Error getting project ${projectId}:`, error);
-    throw error;
-  }
-};
+  };
 
 /**
  * สร้างโครงการใหม่

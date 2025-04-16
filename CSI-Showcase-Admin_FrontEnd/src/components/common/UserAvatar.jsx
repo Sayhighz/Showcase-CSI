@@ -45,7 +45,7 @@ const UserAvatar = ({
   const avatar = (
     <Avatar
       size={size}
-      src={image}
+      src={`http://localhost:4000/${image}`}
       icon={!image && <UserOutlined />}
       shape={shape}
       className={className}

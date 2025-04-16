@@ -37,24 +37,15 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
     timeStyle: 'medium'
   });
 
-  // แยกข้อมูล user agent
-  const getUserAgentInfo = (userAgent) => {
-    if (!userAgent) return { browser: 'ไม่มีข้อมูล', os: 'ไม่มีข้อมูล', device: 'ไม่มีข้อมูล' };
-    
-    // อิงตามตัวอย่างข้อมูล
-    const browserInfo = userAgent.match(/(chrome|safari|firefox|msie|trident)\/?\s*([\d.]+)/i);
-    const browser = browserInfo ? browserInfo[1] : 'ไม่ระบุ';
-    
-    const osInfo = userAgent.match(/(windows|mac|linux|android|ios|iphone|ipad)/i);
-    const os = osInfo ? osInfo[1] : 'ไม่ระบุ';
-    
-    const isMobile = /mobile|android|iphone|ipad/i.test(userAgent);
-    const device = isMobile ? 'อุปกรณ์มือถือ' : 'คอมพิวเตอร์';
-    
-    return { browser, os, device };
+  // ใช้ข้อมูลที่ส่งมาจาก backend โดยตรง แทนที่จะวิเคราะห์เอง
+  const deviceInfo = {
+    // ถ้ามี device_type จาก backend ให้ใช้ ถ้าไม่มีให้ใช้ค่าเดิม
+    device: log.device_type || log.device || 'ไม่มีข้อมูล',
+    // ถ้ามี os จาก backend ให้ใช้ ถ้าไม่มีให้ใช้ค่าเดิม
+    os: log.os || 'ไม่มีข้อมูล',
+    // ถ้ามี browser จาก backend ให้ใช้ ถ้าไม่มีให้ใช้ค่าเดิม
+    browser: log.browser || 'ไม่มีข้อมูล'
   };
-
-  const { browser, os, device } = getUserAgentInfo(log.user_agent);
 
   return (
     <Modal
@@ -108,43 +99,6 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
           </div>
         </Card>
         
-        {/* ส่วนแสดงสถานะ */}
-        <Card 
-          className={`mb-4 border-l-4 ${
-            log.status === LOGIN_STATUS.SUCCESS 
-              ? 'border-l-green-500 bg-green-50' 
-              : 'border-l-red-500 bg-red-50'
-          }`}
-          bodyStyle={{ padding: '16px' }}
-        >
-          <Title level={5} className="mb-2 flex items-center">
-            <InfoCircleOutlined className="mr-2" />
-            สถานะการเข้าสู่ระบบ
-          </Title>
-          <div className="flex items-center">
-            {log.status === LOGIN_STATUS.SUCCESS ? (
-              <Badge
-                status="success"
-                text={
-                  <Space>
-                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} />
-                    <Text strong className="text-green-700 text-lg">เข้าสู่ระบบสำเร็จ</Text>
-                  </Space>
-                }
-              />
-            ) : (
-              <Badge
-                status="error"
-                text={
-                  <Space>
-                    <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '18px' }} />
-                    <Text strong className="text-red-700 text-lg">เข้าสู่ระบบล้มเหลว</Text>
-                  </Space>
-                }
-              />
-            )}
-          </div>
-        </Card>
         
         {/* ส่วนแสดงรายละเอียดเวลาและอุปกรณ์ */}
         <Row gutter={[16, 16]} className="mb-4">
@@ -184,7 +138,7 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
                 <GlobalOutlined className="mr-2 mt-1 text-gray-500" />
                 <span>
                   <Text strong className="block text-sm">IP Address</Text>
-                  <Text className="text-gray-600" copyable>{log.ipAddress || 'ไม่มีข้อมูล'}</Text>
+                  <Text className="text-gray-600" copyable>{log.ipAddress || log.ip_address || 'ไม่มีข้อมูล'}</Text>
                 </span>
               </Paragraph>
             </Card>
@@ -208,7 +162,7 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
                   <DesktopOutlined />
                 </div>
                 <div className="text-sm font-medium">อุปกรณ์</div>
-                <div className="text-gray-600">{device}</div>
+                <div className="text-gray-600">{deviceInfo.device}</div>
               </Card>
             </Col>
             <Col xs={24} md={8}>
@@ -219,7 +173,7 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
                   </svg>
                 </div>
                 <div className="text-sm font-medium">ระบบปฏิบัติการ</div>
-                <div className="text-gray-600">{os}</div>
+                <div className="text-gray-600">{deviceInfo.os}</div>
               </Card>
             </Col>
             <Col xs={24} md={8}>
@@ -230,7 +184,7 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
                   </svg>
                 </div>
                 <div className="text-sm font-medium">เบราว์เซอร์</div>
-                <div className="text-gray-600">{browser}</div>
+                <div className="text-gray-600">{deviceInfo.browser}</div>
               </Card>
             </Col>
           </Row>
@@ -246,7 +200,7 @@ const LoginLogDetailModal = ({ visible, onClose, log }) => {
           >
             <Descriptions.Item label="User Agent">
               <div className="text-xs break-words" style={{ wordBreak: 'break-all' }}>
-                {log.user_agent || 'ไม่มีข้อมูล'}
+                {log.userAgent || 'ไม่มีข้อมูล'}
               </div>
             </Descriptions.Item>
           </Descriptions>

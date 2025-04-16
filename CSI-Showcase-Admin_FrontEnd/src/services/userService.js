@@ -384,7 +384,7 @@ export const getUserStats = async () => {
 export default {
   getAllUsers,
   getUserById,
-  createUser,
+  createUserWithImage,
   updateUser,
   deleteUser,
   uploadProfileImage,

@@ -16,7 +16,6 @@ import { ERROR_MESSAGES, getErrorMessage } from '../../constants/errorMessages.j
 import { isValidRole, ROLES } from '../../constants/roles.js';
 import logger from '../../config/logger.js';
 import { asyncHandler } from '../../middleware/loggerMiddleware.js';
-import { uploadProfileImage } from '../common/uploadController.js';
 
 /**
  * ดึงข้อมูลผู้ใช้ทั้งหมด

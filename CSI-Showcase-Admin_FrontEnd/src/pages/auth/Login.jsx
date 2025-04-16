@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { 
   UserOutlined, LockOutlined, LoginOutlined, SafetyOutlined,
-  EyeInvisibleOutlined, EyeTwoTone
+  EyeInvisibleOutlined, EyeTwoTone, RocketOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -13,14 +13,253 @@ import Logo from '../../assets/Logo_CSI.png';
 
 const { Title, Text } = Typography;
 
+// Add space-themed CSS
+const spaceStyles = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '12px 4px',
+    background: `
+      linear-gradient(135deg, #090215 0%, #170b29 25%, #1f0a31 50%, #90278E 100%)
+    `,
+    backgroundSize: '400% 400%',
+    animation: 'spaceGradient 15s ease infinite',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  starsContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  card: {
+    width: '100%',
+    maxWidth: '440px',
+    borderRadius: '16px',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
+    position: 'relative',
+    zIndex: 2,
+    overflow: 'hidden',
+  },
+  cardInner: {
+    padding: '30px',
+  },
+  headerText: {
+    color: '#330033',
+    textShadow: '0 0 8px rgba(144, 39, 142, 0.2)',
+    marginBottom: 0,
+    fontWeight: 'bold',
+  },
+  subheaderText: {
+    color: '#666666',
+  },
+  loginButton: {
+    height: '48px',
+    borderRadius: '12px',
+    background: '#90278E',
+    borderColor: '#90278E',
+    boxShadow: '0 0 15px rgba(144, 39, 142, 0.6)',
+    transition: 'all 0.3s ease',
+  },
+  loginButtonHover: {
+    background: '#7D1A7A',
+    borderColor: '#7D1A7A',
+    boxShadow: '0 0 20px rgba(144, 39, 142, 0.8)',
+  },
+  linkText: {
+    color: '#BB8FCE',
+  },
+  safeLoginBox: {
+    background: 'rgba(144, 39, 142, 0.05)',
+    borderRadius: '12px',
+    border: '1px solid rgba(144, 39, 142, 0.2)',
+    padding: '12px',
+    marginBottom: '16px',
+  },
+  footerText: {
+    color: '#777777',
+  },
+  formLabel: {
+    color: '#212121',
+    fontWeight: 'bold',
+  },
+  input: {
+    background: '#f9f9f9',
+    borderColor: 'rgba(144, 39, 142, 0.5)',
+    borderRadius: '12px',
+    color: '#212121',
+  },
+  inputHover: {
+    borderColor: '#90278E',
+    boxShadow: '0 0 0 2px rgba(144, 39, 142, 0.2), 0 3px 8px rgba(0, 0, 0, 0.1)',
+  },
+  cardGlow: {
+    position: 'absolute',
+    top: '-50%',
+    left: '-50%',
+    width: '200%',
+    height: '200%',
+    background: 'radial-gradient(circle, rgba(144, 39, 142, 0.1) 0%, rgba(255, 255, 255, 0) 70%)',
+    zIndex: 0,
+  },
+};
+
+// Stars animation
+const StarField = () => {
+  const numberOfStars = 150;
+  
+  const generateStars = () => {
+    const stars = [];
+    for (let i = 0; i < numberOfStars; i++) {
+      const size = Math.random() * 2;
+      const opacity = Math.random() * 0.8 + 0.2;
+      const left = `${Math.random() * 100}%`;
+      const top = `${Math.random() * 100}%`;
+      const animationDuration = `${Math.random() * 3 + 2}s`;
+      
+      const starStyle = {
+        position: 'absolute',
+        width: `${size}px`,
+        height: `${size}px`,
+        backgroundColor: i % 5 === 0 ? '#BB8FCE' : '#fff',
+        borderRadius: '50%',
+        left,
+        top,
+        opacity,
+        animation: `twinkle ${animationDuration} infinite alternate`,
+      };
+      
+      stars.push(<div key={i} style={starStyle} />);
+    }
+    return stars;
+  };
+  
+  return <div style={spaceStyles.starsContainer}>{generateStars()}</div>;
+};
+
+const SpaceParticles = () => {
+  const numberOfParticles = 20;
+  
+  const generateParticles = () => {
+    const particles = [];
+    for (let i = 0; i < numberOfParticles; i++) {
+      const size = Math.random() * 60 + 20;
+      const opacity = Math.random() * 0.15;
+      const left = `${Math.random() * 100}%`;
+      const top = `${Math.random() * 100}%`;
+      
+      const particleStyle = {
+        position: 'absolute',
+        width: `${size}px`,
+        height: `${size}px`,
+        background: 'radial-gradient(circle, rgba(144, 39, 142, 0.8) 0%, rgba(144, 39, 142, 0) 70%)',
+        borderRadius: '50%',
+        left,
+        top,
+        opacity,
+      };
+      
+      particles.push(<div key={i} style={particleStyle} />);
+    }
+    return particles;
+  };
+  
+  return <div style={spaceStyles.starsContainer}>{generateParticles()}</div>;
+};
+
 const Login = () => {
   const [form] = Form.useForm();
   const { login, isAuthenticated, isLoading } = useAuth();
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
   const [secureLogin, setSecureLogin] = useState(false);
+  const [buttonHover, setButtonHover] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // CSS to inject for space theme animations
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes spaceGradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      
+      @keyframes twinkle {
+        0% { opacity: 0.2; }
+        100% { opacity: 1; }
+      }
+      
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      input::placeholder {
+        color: #757575 !important;
+        opacity: 1 !important;
+      }
+
+      .ant-input::placeholder {
+        color:rgb(124, 124, 124) !important;
+        opacity: 1 !important;
+      }
+      
+      .ant-input-affix-wrapper {
+        background: #f9f9f9 !important;
+        border-color: rgba(144, 39, 142, 0.5) !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05) !important;
+      }
+      
+      .ant-input-affix-wrapper:hover {
+        border-color: #90278E !important;
+      }
+      
+      .ant-input-affix-wrapper-focused {
+        box-shadow: 0 0 0 2px rgba(144, 39, 142, 0.2), 0 3px 8px rgba(0, 0, 0, 0.08) !important;
+        border-color: #90278E !important;
+      }
+      
+      .ant-input {
+        background: transparent !important;
+        color: #212121 !important;
+      }
+      
+      .ant-form-item-label > label {
+        color: #212121 !important;
+        font-weight: bold !important;
+      }
+
+      .ant-form-item-required {
+        color: #212121 !important;
+      }
+
+      .ant-typography {
+        color: #212121 !important;
+      }
+
+      .login-label {
+        color: #212121 !important;
+        font-weight: bold !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   
   // ดึง path ที่ต้องการ redirect หลังจากเข้าสู่ระบบสำเร็จ
   const from = location.state?.from || '/dashboard';
@@ -41,9 +280,6 @@ const Login = () => {
     try {
       const success = await login(username, password);
       if (success) {
-        // เข้าสู่ระบบสำเร็จ
-        message.success('เข้าสู่ระบบสำเร็จ กำลังนำท่านไปยังหน้าแดชบอร์ด...');
-        
         // นำทางไปยังหน้าที่ต้องการ (เช่น dashboard หรือหน้าที่พยายามเข้าถึงก่อนหน้า)
         setTimeout(() => {
           navigate(from, { replace: true });
@@ -63,44 +299,41 @@ const Login = () => {
   // แสดง loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <Spin size="large" tip="กำลังตรวจสอบการเข้าสู่ระบบ..." />
+      <div style={spaceStyles.container}>
+        <StarField />
+        <SpaceParticles />
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          justifyContent: 'center',
+          position: 'relative',
+          zIndex: 2
+        }}>
+          <Spin size="large" tip="กำลังตรวจสอบการเข้าสู่ระบบ..." />
+          <Text style={{ color: 'white', marginTop: '16px', textShadow: '0 0 10px rgba(144, 39, 142, 0.8)' }}>กำลังเชื่อมต่อไปยังระบบ...</Text>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#0D0221] via-[#90278E] to-[#FF5E8C] py-12 px-4 sm:px-6 lg:px-8">
-      {/* Animated stars in background */}
-      <div className="fixed inset-0 overflow-hidden z-0">
-        {Array.from({ length: 50 }).map((_, index) => (
-          <div 
-            key={index}
-            className="absolute rounded-full bg-white animate-pulse"
-            style={{
-              width: Math.random() * 3 + 1 + 'px',
-              height: Math.random() * 3 + 1 + 'px',
-              top: Math.random() * 100 + '%',
-              left: Math.random() * 100 + '%',
-              opacity: Math.random() * 0.8,
-              animationDuration: Math.random() * 4 + 1 + 's',
-            }}
-          />
-        ))}
-      </div>
+    <div style={spaceStyles.container}>
+      <StarField />
+      <SpaceParticles />
       
-      <Card 
-        className="w-full max-w-md shadow-2xl border-0"
-        style={{ 
-          background: 'rgba(255, 255, 255, 0.9)', 
-          backdropFilter: 'blur(10px)'
-        }}
-      >
-        <div className="text-center mb-6">
-          <img src={Logo} alt="CSI Logo" className="h-20 mx-auto mb-4" />
-          <Title level={2} className="text-[#90278E]">CSI Showcase</Title>
-          <Title level={4} className="m-0">ระบบผู้ดูแล</Title>
-          <Text type="secondary">
+      <Card style={spaceStyles.card} bodyStyle={spaceStyles.cardInner}>
+        <div style={spaceStyles.cardGlow}></div>
+        
+        {/* Header area */}
+        <div style={{ textAlign: 'center', marginBottom: '24px', position: 'relative', zIndex: 2 }}>
+          {/* Space rocket icon */}
+          <div style={{ marginBottom: '16px', animation: 'float 6s ease-in-out infinite' }}>
+            <RocketOutlined style={{ fontSize: '42px', color: '#90278E' }} />
+          </div>
+          
+          <Title level={3} style={{...spaceStyles.headerText, color: '#212121'}}>ระบบผู้ดูแล</Title>
+          <Text style={{...spaceStyles.subheaderText, color: '#424242'}}>
             กรุณาเข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบ
           </Text>
         </div>
@@ -114,6 +347,11 @@ const Login = () => {
             showIcon
             closable
             className="mb-4"
+            style={{
+              background: 'rgba(255, 59, 48, 0.1)',
+              borderColor: 'rgba(255, 59, 48, 0.2)',
+              marginBottom: '20px',
+            }}
           />
         )}
         
@@ -123,11 +361,11 @@ const Login = () => {
           layout="vertical"
           initialValues={{ remember: true }}
           onFinish={handleSubmit}
-          className="mt-4"
+          style={{ position: 'relative', zIndex: 2 }}
         >
           <Form.Item
             name="username"
-            label="ชื่อผู้ใช้"
+            label={<span style={{color: '#212121', fontWeight: 'bold'}}>ชื่อผู้ใช้</span>}
             rules={[
               { 
                 required: true, 
@@ -136,16 +374,22 @@ const Login = () => {
             ]}
           >
             <Input 
-              prefix={<UserOutlined className="text-gray-400" />} 
+              prefix={<UserOutlined style={{ color: '#90278E' }} />} 
               size="large" 
               placeholder="กรอกชื่อผู้ใช้"
-              className="rounded-lg" 
+              style={{ 
+                borderRadius: '12px', 
+                height: '48px',
+                background: '#f9f9f9',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.05)',
+                color: '#212121'
+              }}
             />
           </Form.Item>
           
           <Form.Item
             name="password"
-            label="รหัสผ่าน"
+            label={<span style={{color: '#212121', fontWeight: 'bold'}}>รหัสผ่าน</span>}
             rules={[
               { 
                 required: true, 
@@ -154,77 +398,89 @@ const Login = () => {
             ]}
           >
             <Input.Password 
-              prefix={<LockOutlined className="text-gray-400" />} 
+              prefix={<LockOutlined style={{ color: '#BB8FCE' }} />} 
               size="large" 
               placeholder="กรอกรหัสผ่าน"
-              className="rounded-lg"
+              style={{
+                borderRadius: '12px',
+                height: '48px',
+              }}
               iconRender={visible => (
-                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+                visible ? <EyeTwoTone twoToneColor={['#BB8FCE', '#90278E']} /> : <EyeInvisibleOutlined style={{ color: '#BB8FCE' }} />
               )}
             />
           </Form.Item>
           
           <Form.Item>
-            <div className="flex justify-between items-center">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Button
                 type="link"
-                onClick={() => message.info('กรุณาติดต่อผู้ดูแลระบบหลักเพื่อรีเซ็ตรหัสผ่าน')}
-                className="p-0 text-[#90278E]"
+                onClick={() => message.info({
+                  content: 'กรุณาติดต่อผู้ดูแลระบบหลักเพื่อรีเซ็ตรหัสผ่าน',
+                  style: {
+                    borderRadius: '10px',
+                    background: 'rgba(144, 39, 142, 0.1)',
+                    border: '1px solid rgba(144, 39, 142, 0.2)',
+                  },
+                })}
+                style={{...spaceStyles.linkText, color: '#90278E'}}
               >
                 ลืมรหัสผ่าน?
               </Button>
               
               <span 
                 onClick={() => setSecureLogin(!secureLogin)}
-                className="flex items-center text-xs cursor-pointer text-[#90278E] hover:text-[#FF5E8C] transition-colors"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  color: '#BB8FCE',
+                  transition: 'color 0.3s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#90278E'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#BB8FCE'}
               >
-                <SafetyOutlined className="mr-1" /> 
+                <SafetyOutlined style={{ marginRight: '4px' }} /> 
                 การเข้าสู่ระบบแบบปลอดภัย
               </span>
             </div>
           </Form.Item>
           
           {secureLogin && (
-            <div className="bg-blue-50 p-3 rounded-lg mb-4">
-              <Text type="secondary" className="text-xs">
+            <div style={spaceStyles.safeLoginBox}>
+              <Text style={{ color: '#424242', fontSize: '12px' }}>
                 การเข้าสู่ระบบแบบปลอดภัยจะมีการเข้ารหัสข้อมูลเพิ่มเติมเพื่อปกป้องรหัสผ่านของคุณ
                 และป้องกันการโจมตีแบบ man-in-the-middle
               </Text>
             </div>
           )}
           
-          <Form.Item>
+          <Form.Item style={{ marginTop: '16px' }}>
             <Button 
               type="primary" 
               htmlType="submit" 
               size="large" 
               block 
               loading={loginLoading}
-              className="h-12 rounded-lg bg-gradient-to-r from-[#90278E] to-[#FF5E8C] border-0 hover:opacity-90"
+              style={{ 
+                ...spaceStyles.loginButton,
+                ...(buttonHover ? spaceStyles.loginButtonHover : {})
+              }}
+              onMouseEnter={() => setButtonHover(true)}
+              onMouseLeave={() => setButtonHover(false)}
             >
-              <div className="flex items-center justify-center">
-                <LoginOutlined className="mr-2" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <LoginOutlined style={{ marginRight: '8px' }} />
                 <span>เข้าสู่ระบบผู้ดูแล</span>
               </div>
             </Button>
           </Form.Item>
         </Form>
         
-        <Divider>หรือ</Divider>
-        
-        <div className="text-center">
-          <Button 
-            type="default" 
-            onClick={() => window.location.href = '/'}
-            className="rounded-lg border-[#90278E] text-[#90278E] hover:bg-[#90278E] hover:text-white transition-all"
-          >
-            กลับไปยังหน้าแรก
-          </Button>
-        </div>
-        
-        <div className="mt-6 text-xs text-center text-gray-500">
-          <p>© 2025 CSI Showcase Admin. ระบบจัดการผลงานนักศึกษา</p>
-          <p>สงวนลิขสิทธิ์โดย คณะเทคโนโลยีสารสนเทศ</p>
+        <div style={{ marginTop: '24px', textAlign: 'center', position: 'relative', zIndex: 2 }}>
+          <p style={{...spaceStyles.footerText, color: '#424242'}}>© 2025 CSI Showcase Admin. ระบบจัดการผลงานนักศึกษา</p>
+          <p style={{...spaceStyles.footerText, color: '#424242'}}>สงวนลิขสิทธิ์โดย คณะเทคโนโลยีสารสนเทศ</p>
         </div>
       </Card>
     </div>
