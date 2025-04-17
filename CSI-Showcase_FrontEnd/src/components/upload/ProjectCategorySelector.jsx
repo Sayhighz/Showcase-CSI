@@ -1,10 +1,26 @@
 import React from 'react';
+import { PROJECT_TYPES } from '../../constants/projectTypes';
 
-const ProjectCategorySelector = ({ projectData, handleInputChange }) => {
-  const categories = [
-    { value: "academic", label: "วิชาการ", icon: "📚", description: "บทความ งานวิจัย หรือเอกสารทางวิชาการ" },
-    { value: "competition", label: "การแข่งขัน", icon: "🏆", description: "ผลงานที่ส่งเข้าประกวดหรือแข่งขัน" },
-    { value: "coursework", label: "ในชั้นเรียน", icon: "🎓", description: "ผลงานที่ทำในรายวิชาต่างๆ" }
+/**
+ * คอมโพเนนต์แสดงตัวเลือกประเภทของผลงาน
+ * 
+ * @param {Object} props - คุณสมบัติของคอมโพเนนต์
+ * @param {Object} props.projectData - ข้อมูลโปรเจค
+ * @param {Function} props.handleInputChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล input
+ * @param {Function} props.handleSelectChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล select
+ * @param {Object} props.projectTypes - ประเภทของโปรเจค (จาก constants)
+ */
+const ProjectCategorySelector = ({ 
+  projectData, 
+  handleInputChange, 
+  handleSelectChange,
+  projectTypes
+}) => {
+  // ใช้ PROJECT_TYPES จาก constants หรือใช้ค่าที่ส่งมาจาก props
+  const categories = PROJECT_TYPES || [
+    { value: "academic", label: "วิชาการ", emoji: "📚", description: "บทความ งานวิจัย หรือเอกสารทางวิชาการ" },
+    { value: "competition", label: "การแข่งขัน", emoji: "🏆", description: "ผลงานที่ส่งเข้าประกวดหรือแข่งขัน" },
+    { value: "coursework", label: "ในชั้นเรียน", emoji: "🎓", description: "ผลงานที่ทำในรายวิชาต่างๆ" }
   ];
 
   return (
@@ -71,7 +87,7 @@ const ProjectCategorySelector = ({ projectData, handleInputChange }) => {
                 className="sr-only" // Hide actual radio input
               />
               
-              <div className="text-4xl mb-3">{category.icon}</div>
+              <div className="text-4xl mb-3">{category.emoji}</div>
               <div className={`text-lg font-bold ${projectData.category === category.value ? 'text-white' : 'text-[#90278E]'}`}>
                 {category.label}
               </div>

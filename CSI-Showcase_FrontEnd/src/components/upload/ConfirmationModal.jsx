@@ -2,6 +2,15 @@ import React from 'react';
 import { Modal, Spin } from 'antd';
 import { RocketOutlined, LoadingOutlined } from '@ant-design/icons';
 
+/**
+ * แสดง Modal ยืนยันการส่งผลงาน
+ * 
+ * @param {Object} props - คุณสมบัติของคอมโพเนนต์
+ * @param {boolean} props.isModalVisible - สถานะการแสดง Modal
+ * @param {Function} props.handleConfirmSubmit - ฟังก์ชันที่ทำงานเมื่อกดปุ่มยืนยัน
+ * @param {Function} props.handleCancel - ฟังก์ชันที่ทำงานเมื่อกดปุ่มยกเลิก
+ * @param {boolean} props.isSubmitting - สถานะกำลังส่งข้อมูล
+ */
 const ConfirmationModal = ({ isModalVisible, handleConfirmSubmit, handleCancel, isSubmitting }) => {
   return (
     <Modal

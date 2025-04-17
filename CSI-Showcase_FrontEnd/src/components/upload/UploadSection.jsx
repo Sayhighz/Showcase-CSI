@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Select, DatePicker, message } from 'antd';
+import { Input, Select, DatePicker, Upload, Button } from 'antd';
 import { 
   FileTextOutlined, 
   VideoCameraOutlined, 
@@ -8,14 +8,71 @@ import {
   TrophyOutlined, 
   FileOutlined,
   CloudUploadOutlined,
-  FileImageOutlined
+  FileImageOutlined,
+  UploadOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
-
-import { generateStarBackground, getIcon } from './utils/helpers';
+import { PROJECT_TYPE, PROJECT_TYPE_DISPLAY, PROJECT_TYPE_ICON } from '../../constants/projectTypes';
 
 const { Option } = Select;
 const { TextArea } = Input;
 
+/**
+ * Generate star background for space theme
+ * @returns {JSX.Element} - Star background
+ */
+const generateStarBackground = () => {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {Array.from({ length: 15 }).map((_, i) => (
+        <div 
+          key={i} 
+          className="absolute w-1 h-1 bg-white rounded-full" 
+          style={{
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            opacity: Math.random() * 0.5 + 0.1,
+            boxShadow: '0 0 2px rgba(255, 255, 255, 0.8)'
+          }}
+        ></div>
+      ))}
+    </div>
+  );
+};
+
+/**
+ * Get icon based on file type
+ * @param {File} file - The file object
+ * @param {string} type - Type of the file ('image', 'videoFile', 'videoLink')
+ * @returns {JSX.Element} - Icon element
+ */
+const getIcon = (file, type) => {
+  if (!file) {
+    if (type === 'videoFile' || type === 'videoLink') {
+      return <VideoCameraOutlined className="text-[#FF5E8C] text-5xl mb-2" />;
+    }
+    return <CloudUploadOutlined className="text-[#90278E] text-5xl mb-2" />;
+  }
+  if (type === 'videoFile' || type === 'videoLink') {
+    return <VideoCameraOutlined className="text-green-400 text-5xl mb-2" />;
+  }
+  return <FileImageOutlined className="text-blue-400 text-5xl mb-2" />;
+};
+
+/**
+ * คอมโพเนนต์สำหรับอัปโหลดไฟล์และข้อมูลโปรเจค
+ * 
+ * @param {Object} props - คุณสมบัติของคอมโพเนนต์
+ * @param {Object} props.projectData - ข้อมูลโปรเจค
+ * @param {Function} props.handleInputChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล input
+ * @param {Function} props.handleFileChange - ฟังก์ชันจัดการการเปลี่ยนแปลงไฟล์
+ * @param {Function} props.handlePdfFileChange - ฟังก์ชันจัดการการเปลี่ยนแปลงไฟล์ PDF
+ * @param {Function} props.handleRemovePdf - ฟังก์ชันจัดการการลบไฟล์ PDF
+ * @param {Function} props.handleDateChange - ฟังก์ชันจัดการการเปลี่ยนแปลงวันที่
+ * @param {Function} props.handleSelectChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล select
+ * @param {Object} props.projectTypes - ประเภทของโปรเจค (จาก constants)
+ * @param {Object} props.allowedFileTypes - ประเภทไฟล์ที่อนุญาต
+ */
 const UploadSection = ({ 
   projectData, 
   handleInputChange, 
@@ -23,7 +80,13 @@ const UploadSection = ({
   handlePdfFileChange, 
   handleRemovePdf,
   handleDateChange, 
-  handleSelectChange 
+  handleSelectChange,
+  projectTypes = PROJECT_TYPE,
+  allowedFileTypes = {
+    image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    video: ['video/mp4', 'video/webm', 'video/quicktime'],
+    document: ['application/pdf']
+  }
 }) => {
   if (!projectData.category) return null;
 
@@ -90,7 +153,12 @@ const UploadSection = ({
                style={{ 
                  background: 'rgba(13, 2, 33, 0.05)',
                }}>
-          <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'coverImage')} accept="image/*" />
+          <input 
+            type="file" 
+            className="hidden" 
+            onChange={(e) => handleFileChange(e, 'coverImage')} 
+            accept={allowedFileTypes.image.join(',')} 
+          />
           
           {/* Star background */}
           {generateStarBackground()}
@@ -111,11 +179,16 @@ const UploadSection = ({
         </label>
         
         {/* Second upload slot that changes based on category */}
-        {projectData.category === 'coursework' ? (
+        {projectData.category === projectTypes.COURSEWORK ? (
           // For coursework, show video upload instead of poster
           <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer w-full h-44 group transition-all duration-300 overflow-hidden"
                  style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
-            <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkVideo')} accept="video/*" />
+            <input 
+              type="file" 
+              className="hidden" 
+              onChange={(e) => handleFileChange(e, 'courseworkVideo')} 
+              accept={allowedFileTypes.video.join(',')} 
+            />
             {generateStarBackground()}
             <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
               {getIcon(projectData.courseworkVideo, 'videoFile')}
@@ -130,7 +203,12 @@ const UploadSection = ({
           // For other categories, show poster upload
           <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer w-full h-44 group transition-all duration-300 overflow-hidden"
                  style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
-            <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'posterImage')} accept="image/*" />
+            <input 
+              type="file" 
+              className="hidden" 
+              onChange={(e) => handleFileChange(e, 'posterImage')} 
+              accept={allowedFileTypes.image.join(',')} 
+            />
             {generateStarBackground()}
             <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
               {getIcon(projectData.posterImage, 'image')}
@@ -183,7 +261,12 @@ const UploadSection = ({
                  style={{ 
                    background: 'rgba(13, 2, 33, 0.05)',
                  }}>
-            <input type="file" className="hidden" onChange={handlePdfFileChange} accept="application/pdf" />
+            <input 
+              type="file" 
+              className="hidden" 
+              onChange={handlePdfFileChange} 
+              accept="application/pdf" 
+            />
             
             {/* Star background */}
             {generateStarBackground()}
@@ -210,12 +293,15 @@ const UploadSection = ({
                     <FileTextOutlined className="text-[#90278E] text-xl mr-3" />
                     <span>{pdf.name}</span>
                   </div>
-                  <button 
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
                     onClick={() => handleRemovePdf(index)} 
-                    className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     ลบ
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -240,7 +326,7 @@ const UploadSection = ({
           </div>
 
           {/* Academic Paper Fields (Only shown for academic projects) */}
-          {projectData.category === 'academic' && (
+          {projectData.category === projectTypes.ACADEMIC && (
             <div className="col-span-2 bg-white/40 rounded-lg p-5 space-y-4 relative overflow-hidden mt-6" 
                  style={{ borderLeft: '4px solid #90278E' }}>
               <div className="absolute top-0 right-0 w-20 h-20 rounded-full bg-[#90278E]/5 blur-xl"></div>
@@ -326,7 +412,7 @@ const UploadSection = ({
           )}
 
           {/* Competition Fields (Only shown for competition projects) */}
-          {projectData.category === 'competition' && (
+          {projectData.category === projectTypes.COMPETITION && (
             <div className="col-span-2 bg-white/40 rounded-lg p-5 space-y-4 relative overflow-hidden mt-6" 
                   style={{ borderLeft: '4px solid #90278E' }}>
               <div className="absolute top-0 right-0 w-20 h-20 rounded-full bg-[#90278E]/5 blur-xl"></div>
@@ -416,7 +502,7 @@ const UploadSection = ({
           )}
 
           {/* Coursework Fields (Only shown for coursework projects) */}
-          {projectData.category === 'coursework' && (
+          {projectData.category === projectTypes.COURSEWORK && (
             <div className="col-span-2 bg-white/40 rounded-lg p-5 space-y-4 relative overflow-hidden mt-6" 
                   style={{ borderLeft: '4px solid #90278E' }}>
               <div className="absolute top-0 right-0 w-20 h-20 rounded-full bg-[#90278E]/5 blur-xl"></div>
@@ -470,7 +556,7 @@ const UploadSection = ({
                 {/* Replaced 3 columns with 2 since video is now in the main section */}
                 <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-40 group transition-all duration-300 overflow-hidden"
                        style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
-                  <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkPoster')} accept="image/*" />
+                  <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkPoster')} accept={allowedFileTypes.image.join(',')} />
                   {generateStarBackground()}
                   <div className="relative z-10 flex flex-col items-center">
                     {getIcon(projectData.courseworkPoster, 'image')}
@@ -482,7 +568,7 @@ const UploadSection = ({
                 
                 <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-40 group transition-all duration-300 overflow-hidden"
                        style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
-                  <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkImage')} accept="image/*" />
+                  <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkImage')} accept={allowedFileTypes.image.join(',')} />
                   {generateStarBackground()}
                   <div className="relative z-10 flex flex-col items-center">
                     {getIcon(projectData.courseworkImage, 'image')}

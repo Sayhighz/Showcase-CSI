@@ -6,8 +6,12 @@ import {
   TeamOutlined, 
   SendOutlined 
 } from '@ant-design/icons';
-import { axiosPost, axiosGet } from '../../lib/axios';
-import { useAuth } from '../../context/AuthContext';
+import useAuth from '../../hooks/useAuth';
+import useProject from '../../hooks/useProject';
+import useUpload from '../../hooks/useUpload';
+import { PROJECT_TYPE } from '../../constants/projectTypes';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorMessage from '../../components/common/ErrorMessage';
 
 // Import components
 import ProjectCategorySelector from '../../components/upload/ProjectCategorySelector';
@@ -20,7 +24,10 @@ import ConfirmationModal from '../../components/upload/ConfirmationModal';
 const { Step } = Steps;
 
 const UploadWork = () => {
-  const { authData } = useAuth();
+  const { user } = useAuth();
+  const { createProject, isLoading: isProjectLoading, error: projectError } = useProject();
+  const { uploadImages, uploadDocuments, uploadVideo, isUploading } = useUpload();
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectData, setProjectData] = useState({
@@ -36,6 +43,8 @@ const UploadWork = () => {
     posterImage: null,
     videoLink: '',
     pdfFiles: [],
+    contributors: [],
+    tags: '',
     
     // Academic paper fields
     publicationDate: null,
@@ -119,70 +128,81 @@ const UploadWork = () => {
     }
 
     try {
-      const results = await axiosGet(`/search/users?keyword=${value}`);
+      // Using the SearchContext or a service to search users would be better
+      // This is a simplified implementation
+      const response = await fetch(`/api/search/users?keyword=${value}`);
+      const results = await response.json();
       setSearchResults(results);
     } catch (error) {
       console.error('Error searching for users:', error);
+      message.error('ไม่สามารถค้นหาผู้ใช้ได้');
     }
   };
 
   const handleSelectContributor = (user) => {
-    setSelectedContributors((prev) => [
-      ...prev,
-      {
-        userId: user.user_id,
-        fullName: user.full_name,
-        image: user.image,
-      },
-    ]);
+    // Check if already selected
+    if (selectedContributors.some(contributor => contributor.userId === user.user_id)) {
+      message.warning('ผู้ร่วมงานนี้ถูกเพิ่มแล้ว');
+      return;
+    }
+    
+    const newContributor = {
+      userId: user.user_id,
+      fullName: user.full_name,
+      image: user.image,
+    };
+    
+    setSelectedContributors(prev => [...prev, newContributor]);
     setSearchResults([]);
     setSearchKeyword('');
     
     // Update projectData with selected contributors
     setProjectData(prev => ({
       ...prev,
-      contributors: [
-        ...(prev.contributors || []),
-        { userId: user.user_id, fullName: user.full_name, image: user.image }
-      ]
+      contributors: [...(prev.contributors || []), newContributor]
     }));
   };
 
-  const handleSubmit = () => {
-    // ตรวจสอบข้อมูลที่จำเป็นก่อนแสดง Modal ยืนยันการส่ง
+  const validateForm = () => {
+    // Required fields validation
     if (!projectData.title) {
-      message.error({
-        content: 'กรุณาระบุชื่อผลงาน',
-        style: {
-          borderRadius: '8px',
-          background: 'rgba(220, 38, 38, 0.9)',
-          color: 'white',
-        },
-      });
-      return;
+      message.error('กรุณาระบุชื่อผลงาน');
+      return false;
     }
     
     if (!projectData.description) {
-      message.error({
-        content: 'กรุณาระบุรายละเอียดผลงาน',
-        style: {
-          borderRadius: '8px',
-          background: 'rgba(220, 38, 38, 0.9)',
-          color: 'white',
-        },
-      });
-      return;
+      message.error('กรุณาระบุรายละเอียดผลงาน');
+      return false;
     }
     
     if (!projectData.coverImage) {
-      message.error({
-        content: 'กรุณาอัปโหลดภาพปก',
-        style: {
-          borderRadius: '8px',
-          background: 'rgba(220, 38, 38, 0.9)',
-          color: 'white',
-        },
-      });
+      message.error('กรุณาอัปโหลดภาพปก');
+      return false;
+    }
+    
+    // Category-specific validation
+    if (projectData.category === PROJECT_TYPE.ACADEMIC) {
+      if (!projectData.publishedYear) {
+        message.error('กรุณาระบุปีที่เผยแพร่');
+        return false;
+      }
+    } else if (projectData.category === PROJECT_TYPE.COMPETITION) {
+      if (!projectData.competitionName) {
+        message.error('กรุณาระบุชื่อการแข่งขัน');
+        return false;
+      }
+    } else if (projectData.category === PROJECT_TYPE.COURSEWORK) {
+      if (!projectData.courseName) {
+        message.error('กรุณาระบุชื่อวิชา');
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (!validateForm()) {
       return;
     }
     
@@ -191,7 +211,7 @@ const UploadWork = () => {
   };
 
   const handleRemoveContributor = (userId) => {
-    setSelectedContributors((prev) => prev.filter((contributor) => contributor.userId !== userId));
+    setSelectedContributors(prev => prev.filter(contributor => contributor.userId !== userId));
     
     // Update projectData when removing contributors
     setProjectData(prev => ({
@@ -201,7 +221,7 @@ const UploadWork = () => {
   };
 
   const handleSearchSelect = (value) => {
-    const selectedUser = searchResults.find((user) => user.full_name === value);
+    const selectedUser = searchResults.find(user => user.full_name === value);
     if (selectedUser) {
       handleSelectContributor(selectedUser);
     }
@@ -211,17 +231,8 @@ const UploadWork = () => {
   const handleFileChange = (e, type) => {
     const file = e.target.files[0];
     if (file) {
-      setProjectData((prev) => ({ ...prev, [type]: file }));
-      message.success({
-        content: `${file.name} อัปโหลดสำเร็จ`,
-        style: {
-          marginTop: '20px',
-          background: 'rgba(13, 2, 33, 0.8)',
-          borderLeft: '4px solid #90278E',
-          borderRadius: '4px',
-          color: 'white',
-        },
-      });
+      setProjectData(prev => ({ ...prev, [type]: file }));
+      message.success(`${file.name} อัปโหลดสำเร็จ`);
     }
   };
   
@@ -233,26 +244,17 @@ const UploadWork = () => {
         name: file.name,
       };
       
-      setProjectData((prev) => ({
+      setProjectData(prev => ({
         ...prev,
         pdfFiles: [...(prev.pdfFiles || []), newPdfFile],
       }));
       
-      message.success({
-        content: `${file.name} อัปโหลดสำเร็จ`,
-        style: {
-          marginTop: '20px',
-          background: 'rgba(13, 2, 33, 0.8)',
-          borderLeft: '4px solid #90278E',
-          borderRadius: '4px',
-          color: 'white',
-        },
-      });
+      message.success(`${file.name} อัปโหลดสำเร็จ`);
     }
   };
   
   const handleRemovePdf = (index) => {
-    setProjectData((prev) => ({
+    setProjectData(prev => ({
       ...prev,
       pdfFiles: prev.pdfFiles.filter((_, i) => i !== index),
     }));
@@ -260,170 +262,113 @@ const UploadWork = () => {
   
   // FORM INPUT FUNCTIONS
   const handleInputChange = (e, field) => {
-    setProjectData((prev) => ({
+    setProjectData(prev => ({
       ...prev,
       [field]: e.target.value,
     }));
   };
   
   const handleDateChange = (date, field) => {
-    setProjectData((prev) => ({
+    setProjectData(prev => ({
       ...prev,
       [field]: date,
     }));
   };
   
   const handleSelectChange = (value, field) => {
-    setProjectData((prev) => ({
+    setProjectData(prev => ({
       ...prev,
       [field]: value,
     }));
   };
   
-  // SUBMISSION FUNCTIONS
-// อัปเดตฟังก์ชัน handleConfirmSubmit
-const handleConfirmSubmit = async () => {
-  setIsModalVisible(false);
-  setIsSubmitting(true);  // เพิ่มสถานะกำลังส่งข้อมูล
+  // SUBMISSION FUNCTION
+  const handleConfirmSubmit = async () => {
+    setIsModalVisible(false);
+    setIsSubmitting(true);
 
-  try {
-    // เตรียมข้อมูลตามโครงสร้าง API
-    const formData = new FormData();
-    
-    // ข้อมูลพื้นฐานของโครงการ
-    formData.append('title', projectData.title);
-    formData.append('description', projectData.description);
-    formData.append('type', projectData.category);  // 'coursework', 'academic', 'competition'
-    formData.append('study_year', projectData.study_year);
-    formData.append('year', projectData.year);
-    formData.append('semester', projectData.semester);
-    formData.append('visibility', projectData.visibility);
-    formData.append('status', 'pending');
-    formData.append('tags', projectData.tags || '');  // ถ้ามีการเพิ่ม tags
-    
-    // ข้อมูลผู้ร่วมทำผลงาน
-    if (selectedContributors.length > 0) {
-      // เตรียม contributors ในรูปแบบที่ API ต้องการ
-      const contributors = selectedContributors.map(contributor => ({
-        user_id: contributor.userId
-      }));
-      formData.append('contributors', JSON.stringify(contributors));
-    }
-    
-    // อัปโหลดไฟล์ต่างๆ
-    if (projectData.coverImage) {
-      formData.append('coverImage', projectData.coverImage);
-    }
-    
-    if (projectData.posterImage) {
-      formData.append('posterImage', projectData.posterImage);
-    }
-    
-    if (projectData.videoLink) {
-      formData.append('videoLink', projectData.videoLink);
-    }
-    
-    // อัปโหลดไฟล์ PDF
-    if (projectData.pdfFiles && projectData.pdfFiles.length > 0) {
-      projectData.pdfFiles.forEach((pdf, index) => {
-        if (pdf.file) {
-          formData.append(`pdfFiles`, pdf.file);
+    try {
+      // Prepare the form data for submission
+      const formData = new FormData();
+      
+      // Add basic project data
+      Object.entries(projectData).forEach(([key, value]) => {
+        // Skip file fields that need special handling
+        if (
+          value !== null && 
+          typeof value !== 'undefined' && 
+          !['coverImage', 'posterImage', 'pdfFiles', 'competitionPoster', 'courseworkPoster', 'courseworkVideo', 'courseworkImage', 'contributors'].includes(key)
+        ) {
+          // Handle date objects
+          if (value instanceof Date) {
+            formData.append(key, value.toISOString());
+          } else if (typeof value === 'object') {
+            // For other objects, stringify them
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value);
+          }
         }
       });
+      
+      // Add files
+      if (projectData.coverImage) {
+        formData.append('coverImage', projectData.coverImage);
+      }
+      
+      if (projectData.posterImage) {
+        formData.append('posterImage', projectData.posterImage);
+      }
+      
+      // Add category-specific files
+      if (projectData.category === PROJECT_TYPE.COMPETITION && projectData.competitionPoster) {
+        formData.append('competitionPoster', projectData.competitionPoster);
+      }
+      
+      if (projectData.category === PROJECT_TYPE.COURSEWORK) {
+        if (projectData.courseworkPoster) {
+          formData.append('courseworkPoster', projectData.courseworkPoster);
+        }
+        if (projectData.courseworkVideo) {
+          formData.append('courseworkVideo', projectData.courseworkVideo);
+        }
+        if (projectData.courseworkImage) {
+          formData.append('courseworkImage', projectData.courseworkImage);
+        }
+      }
+      
+      // Add PDF files
+      if (projectData.pdfFiles && projectData.pdfFiles.length > 0) {
+        projectData.pdfFiles.forEach((pdf, index) => {
+          if (pdf.file) {
+            formData.append(`pdfFiles`, pdf.file);
+          }
+        });
+      }
+      
+      // Add contributors as JSON
+      if (projectData.contributors && projectData.contributors.length > 0) {
+        formData.append('contributors', JSON.stringify(projectData.contributors));
+      }
+      
+      // Use the createProject hook function to submit the project
+      const result = await createProject(user.id, projectData, formData);
+      
+      if (result) {
+        message.success('ส่งผลงานสำเร็จ! โปรดรอเจ้าหน้าที่ตรวจสอบ 1-2 วัน');
+        
+        // Navigate to the project page or my projects page after successful submission
+        setTimeout(() => {
+          window.location.href = `/projects/${result.id}`;
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      message.error('เกิดข้อผิดพลาดในการอัพโหลด กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    // ข้อมูลเฉพาะประเภทของโครงการ
-    if (projectData.category === 'academic') {
-      // ข้อมูลสำหรับบทความวิชาการ
-      if (projectData.publicationDate) {
-        formData.append('publication_date', projectData.publicationDate.format('YYYY-MM-DD'));
-      }
-      formData.append('published_year', projectData.publishedYear || new Date().getFullYear());
-      formData.append('abstract', projectData.abstract || '');
-      formData.append('authors', projectData.authors || '');
-      formData.append('publication_venue', projectData.publicationVenue || '');
-    } 
-    else if (projectData.category === 'competition') {
-      // ข้อมูลสำหรับการแข่งขัน
-      formData.append('competition_name', projectData.competitionName || '');
-      formData.append('competition_year', projectData.competitionYear || new Date().getFullYear());
-      formData.append('competition_level', projectData.competitionLevel || 'university');
-      formData.append('achievement', projectData.achievement || '');
-      formData.append('team_members', projectData.teamMembers || '');
-      
-      if (projectData.competitionPoster) {
-        formData.append('competition_poster', projectData.competitionPoster);
-      }
-    } 
-    else if (projectData.category === 'coursework') {
-      // ข้อมูลสำหรับงานการเรียน
-      formData.append('course_code', projectData.courseCode || '');
-      formData.append('course_name', projectData.courseName || '');
-      formData.append('instructor', projectData.instructor || '');
-      
-      if (projectData.courseworkPoster) {
-        formData.append('coursework_poster', projectData.courseworkPoster);
-      }
-      
-      if (projectData.courseworkVideo) {
-        formData.append('coursework_video', projectData.courseworkVideo);
-      }
-      
-      if (projectData.courseworkImage) {
-        formData.append('coursework_image', projectData.courseworkImage);
-      }
-    }
-  
-    // ส่งข้อมูลไปยัง API
-    const response = await axiosPost(`/projects/upload/${authData.userId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    // หากส่งสำเร็จ
-    message.success({
-      content: 'ส่งผลงานสำเร็จ! โปรดรอเจ้าหน้าที่ตรวจสอบ 1-2 วัน',
-      style: {
-        borderRadius: '8px',
-        background: 'rgba(13, 2, 33, 0.8)',
-        border: '1px solid #90278E',
-        color: 'white',
-        boxShadow: '0 4px 12px rgba(144, 39, 142, 0.3)',
-      },
-      duration: 5,
-    });
-    
-    // บันทึกค่า projectId ที่ได้รับกลับมา
-    const projectId = response.projectId;
-    
-    // นำทางไปยังหน้า Dashboard หรือหน้าแสดงผลงาน
-    setTimeout(() => {
-      window.location.href = `/projects/${projectId}`;
-    }, 3000);
-    
-  } catch (error) {
-    console.error('Upload error:', error);
-    
-    let errorMessage = 'เกิดข้อผิดพลาดในการอัพโหลด! กรุณาลองใหม่อีกครั้ง';
-    
-    // ตรวจสอบข้อความผิดพลาดจาก API response ถ้ามี
-    if (error?.message) {
-      errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
-    }
-    
-    message.error({
-      content: errorMessage,
-      style: {
-        borderRadius: '8px',
-        background: 'rgba(220, 38, 38, 0.9)',
-        color: 'white',
-      },
-    });
-  } finally {
-    setIsSubmitting(false);  // จบการส่งข้อมูล
-  }
-};
+  };
 
   // STEP NAVIGATION
   const nextStep = () => {
@@ -442,6 +387,8 @@ const handleConfirmSubmit = async () => {
       content: <ProjectCategorySelector 
                 projectData={projectData} 
                 handleInputChange={handleInputChange} 
+                handleSelectChange={handleSelectChange}
+                projectTypes={PROJECT_TYPE}
               />,
       description: 'เลือกประเภทผลงาน'
     },
@@ -456,6 +403,8 @@ const handleConfirmSubmit = async () => {
                 handleRemovePdf={handleRemovePdf}
                 handleDateChange={handleDateChange}
                 handleSelectChange={handleSelectChange}
+                projectTypes={PROJECT_TYPE}
+                allowedFileTypes={useUpload().ALLOWED_FILE_TYPES}
               />,
       description: 'อัปโหลดเอกสารและไฟล์มีเดีย'
     },
@@ -484,8 +433,26 @@ const handleConfirmSubmit = async () => {
     },
   ];
 
+  // Show error message if there's an error
+  if (projectError) {
+    return <ErrorMessage 
+             title="เกิดข้อผิดพลาด" 
+             message={projectError}
+             showReloadButton={true}
+           />;
+  }
+
   return (
     <div className="max-w-6xl mx-auto py-10 px-6 mt-16 relative">
+      {/* Show loading state during submission */}
+      {(isSubmitting || isProjectLoading || isUploading) && 
+        <LoadingSpinner 
+          tip={isSubmitting ? "กำลังส่งผลงาน..." : "กำลังโหลด..."} 
+          size="large"
+          fullPage={true}
+        />
+      }
+      
       {/* Space-themed background */}
       <div className="fixed inset-0 -z-10" 
            style={{
@@ -564,7 +531,9 @@ const handleConfirmSubmit = async () => {
         {!projectData.category && (
           <ProjectCategorySelector 
             projectData={projectData} 
-            handleInputChange={handleInputChange} 
+            handleInputChange={handleInputChange}
+            handleSelectChange={handleSelectChange}
+            projectTypes={PROJECT_TYPE} 
           />
         )}
         
@@ -592,6 +561,7 @@ const handleConfirmSubmit = async () => {
             <button 
               onClick={prevStep} 
               className="px-6 py-2 bg-gray-600 text-white font-bold rounded-full shadow-md hover:bg-gray-700 transition-all flex items-center"
+              disabled={isSubmitting}
             >
               <span className="mr-2">&#8592;</span> ย้อนกลับ
             </button>
@@ -601,6 +571,7 @@ const handleConfirmSubmit = async () => {
             <button 
               onClick={nextStep} 
               className="px-6 py-2 bg-[#90278E] text-white font-bold rounded-full shadow-md hover:bg-[#7a1f6c] transition-all ml-auto flex items-center"
+              disabled={isSubmitting}
             >
               ถัดไป <span className="ml-2">&#8594;</span>
             </button>
@@ -608,6 +579,7 @@ const handleConfirmSubmit = async () => {
             <button 
               onClick={handleSubmit} 
               className="px-6 py-2 bg-gradient-to-r from-[#90278E] to-[#FF5E8C] text-white font-bold rounded-full shadow-md hover:opacity-90 transition-all ml-auto flex items-center"
+              disabled={isSubmitting}
             >
               <SendOutlined className="mr-2" /> ส่งผลงาน
             </button>
@@ -620,6 +592,7 @@ const handleConfirmSubmit = async () => {
         isModalVisible={isModalVisible}
         handleConfirmSubmit={handleConfirmSubmit}
         handleCancel={() => setIsModalVisible(false)}
+        isSubmitting={isSubmitting}
       />
     </div>
   );

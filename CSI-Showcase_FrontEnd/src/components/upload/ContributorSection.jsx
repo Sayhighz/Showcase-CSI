@@ -2,6 +2,18 @@ import React from 'react';
 import { AutoComplete, Avatar, Tag } from 'antd';
 import { PlusOutlined, UserOutlined } from '@ant-design/icons';
 
+/**
+ * คอมโพเนนต์สำหรับจัดการผู้ร่วมโปรเจค
+ * 
+ * @param {Object} props - คุณสมบัติของคอมโพเนนต์
+ * @param {string} props.searchKeyword - คำค้นหาปัจจุบัน
+ * @param {Array} props.searchResults - ผลลัพธ์จากการค้นหา
+ * @param {Array} props.selectedContributors - ผู้ร่วมโปรเจคที่เลือกแล้ว
+ * @param {Function} props.handleSearchChange - ฟังก์ชันจัดการการเปลี่ยนแปลงคำค้นหา
+ * @param {Function} props.handleSearchSelect - ฟังก์ชันจัดการการเลือกจากผลการค้นหา
+ * @param {Function} props.handleSelectContributor - ฟังก์ชันจัดการการเลือกผู้ร่วมโปรเจค
+ * @param {Function} props.handleRemoveContributor - ฟังก์ชันจัดการการลบผู้ร่วมโปรเจค
+ */
 const ContributorSection = ({ 
   searchKeyword, 
   searchResults, 

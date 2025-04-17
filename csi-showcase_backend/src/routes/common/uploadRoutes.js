@@ -258,6 +258,6 @@ router.delete(API_ROUTES.UPLOAD.DELETE, authenticateToken, deleteFile);
  *       401:
  *         description: Unauthorized
  */
-router.get(API_ROUTES.UPLOAD.STORAGE_STATUS, adminAuth, getStorageStatus);
+router.get(API_ROUTES.UPLOAD.STORAGE_STATUS, getStorageStatus);
 
 export default router;

@@ -4,6 +4,13 @@ import { FileTextOutlined, EyeOutlined, EyeInvisibleOutlined, EditOutlined } fro
 
 const { TextArea } = Input;
 
+/**
+ * คอมโพเนนต์แบบฟอร์มสำหรับกรอกรายละเอียดโปรเจค
+ * 
+ * @param {Object} props - คุณสมบัติของคอมโพเนนต์
+ * @param {Object} props.projectData - ข้อมูลโปรเจค
+ * @param {Function} props.handleInputChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล input
+ */
 const ProjectDetailsForm = ({ projectData, handleInputChange }) => {
   return (
     <div className="space-y-6 p-6 rounded-lg relative"

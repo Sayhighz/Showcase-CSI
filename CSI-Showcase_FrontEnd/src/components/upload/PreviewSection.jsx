@@ -1,8 +1,47 @@
 import React from 'react';
 import { Avatar } from 'antd';
 import { FileTextOutlined, UserOutlined } from '@ant-design/icons';
-import { getEmbedUrl } from './utils/helpers';
 
+/**
+ * Helper utility for converting video URLs to embed URLs
+ * @param {string} url - The original video URL
+ * @returns {string|null} - The embed URL or null if not convertible
+ */
+const getEmbedUrl = (url) => {
+  if (!url) return null;
+  
+  // YouTube
+  if (url.includes('youtube.com/watch')) {
+    return url.replace("watch?v=", "embed/");
+  }
+  
+  // YouTube shortened URL
+  if (url.includes('youtu.be/')) {
+    const videoId = url.split('youtu.be/')[1].split('?')[0];
+    return `https://www.youtube.com/embed/${videoId}`;
+  }
+  
+  // TikTok
+  if (url.includes('tiktok.com')) {
+    return url;
+  }
+  
+  // Facebook
+  if (url.includes('facebook.com')) {
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`;
+  }
+  
+  return url;
+};
+
+/**
+ * คอมโพเนนต์สำหรับแสดงตัวอย่างโปรเจค
+ * 
+ * @param {Object} props - คุณสมบัติของคอมโพเนนต์
+ * @param {Object} props.projectData - ข้อมูลโปรเจค
+ * @param {Object} props.previewUrls - URLs สำหรับแสดงตัวอย่าง
+ * @param {Array} props.selectedContributors - ผู้ร่วมโปรเจคที่เลือกแล้ว
+ */
 const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
   // Helper function to get display images
   const getDisplayImages = () => {
