@@ -23,8 +23,8 @@ const { Header } = Layout;
 const { Search } = Input;
 
 const Navbar = () => {
-  const { isAuthenticated, authData } = useAuth();
-  const { username } = authData || {}; // ใช้ optional chaining เพื่อป้องกันกรณี authData เป็น null
+  const { isAuthenticated, user } = useAuth();
+  const { fullName } = user || {}; // ใช้ optional chaining เพื่อป้องกันกรณี authData เป็น null
   const location = useLocation();
 
   const [isVisible, setIsVisible] = useState(true);
@@ -170,7 +170,7 @@ const Navbar = () => {
             <div className="flex items-center space-x-3 mb-6 p-3 bg-purple-50 rounded-lg">
               <Avatar icon={<UserOutlined />} className="bg-[#90278E]" size="large" />
               <div>
-                <div className="font-medium text-[#90278E]">{username}</div>
+                <div className="font-medium text-[#90278E]">{fullName}</div>
                 <div className="text-xs text-gray-500">นักศึกษา CSI</div>
               </div>
             </div>
@@ -386,7 +386,7 @@ const Navbar = () => {
                       size="small" 
                       className="bg-[#1F1F5C]"
                     />
-                    <span className="hidden md:inline">{username}</span>
+                    <span className="hidden md:inline">{fullName}</span>
                   </motion.div>
                 </Dropdown>
               ) : (

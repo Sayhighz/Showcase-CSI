@@ -1,71 +1,109 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { Card, Skeleton, Typography, Tabs, Divider, Space, BackTop, Button, Empty, message } from 'antd';
-import { RocketOutlined, FireOutlined, ClockCircleOutlined, UpOutlined, ExperimentOutlined, 
-  TrophyOutlined, ReadOutlined, BulbOutlined } from '@ant-design/icons';
+import { 
+  RocketOutlined, 
+  FireOutlined, 
+  ClockCircleOutlined, 
+  UpOutlined, 
+  BulbOutlined, 
+  TrophyOutlined, 
+  ReadOutlined 
+} from '@ant-design/icons';
+
+// นำเข้า hooks และ components จากโปรเจค
+import { useProject } from '../../hooks';
+import { PROJECT_TYPES } from '../../constants/projectTypes';
+import { useAuth } from '../../context/AuthContext';
 import Banner from '../../components/Home/Banner';
 import Work_Col from '../../components/Work/Work_Col';
 import Work_Row from '../../components/Work/Work_Row';
-import { axiosGet } from '../../lib/axios';
-import { useAuth } from '../../context/AuthContext';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorMessage from '../../components/common/ErrorMessage';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 const Home = () => {
   const { isAuthenticated } = useAuth();
+  
+  // ใช้ useProject hook เพื่อเข้าถึงฟังก์ชัน และข้อมูลที่เกี่ยวข้อง
+  const { 
+    fetchLatestProjects,
+    fetchTopProjects,
+    isLoading,
+    error
+  } = useProject();
+
+  // สร้าง state สำหรับเก็บข้อมูลโปรเจคที่จะแสดงในหน้า Home
   const [latestProjects, setLatestProjects] = useState([]);
   const [topProjects, setTopProjects] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [loadingTop, setLoadingTop] = useState(false);
+  
   const workControls = useAnimation();
   const bannerControls = useAnimation();
   const [scrollY, setScrollY] = useState(0);
   const [bannerOpacity, setBannerOpacity] = useState(1);
 
-  // Define category options - ปรับตามประเภทโครงการจริง (coursework, academic, competition)
+  // Define category options จาก PROJECT_TYPES
   const categories = [
     { key: 'all', label: 'ทั้งหมด', icon: <RocketOutlined /> },
-    { key: 'coursework', label: 'ผลงานการเรียน', icon: <BulbOutlined /> },
-    { key: 'academic', label: 'บทความวิชาการ', icon: <ReadOutlined /> },
-    { key: 'competition', label: 'การแข่งขัน', icon: <TrophyOutlined /> },
+    ...PROJECT_TYPES.map(type => ({
+      key: type.value,
+      label: type.label,
+      icon: type.value === 'coursework' ? <BulbOutlined /> : 
+            type.value === 'academic' ? <ReadOutlined /> : 
+            type.value === 'competition' ? <TrophyOutlined /> : <RocketOutlined />
+    }))
   ];
 
+  // ฟังก์ชันสำหรับโหลดโปรเจคล่าสุดและยอดนิยม
+  const loadProjects = async () => {
+    try {
+      // โหลดโปรเจคล่าสุด
+      setLoadingLatest(true);
+      const latestData = await fetchLatestProjects(); // ขอข้อมูล 9 รายการ
+      
+      // ใช้ข้อมูลที่ได้จากการเรียก API โดยตรง
+      const filteredLatestProjects = selectedCategory !== 'all' 
+        ? latestData?.filter(project => project.category === selectedCategory) || []
+        : latestData || [];
+        console.log(latestData)
+        
+      setLatestProjects(filteredLatestProjects);
+      setLoadingLatest(false);
+
+      // โหลดโปรเจคยอดนิยม
+      setLoadingTop(true);
+      const topData = await fetchTopProjects();
+      console.log(topData)
+      
+      // ใช้ข้อมูลที่ได้จากการเรียก API โดยตรง
+      const filteredTopProjects = selectedCategory !== 'all' 
+        ? topData?.filter(project => project.category === selectedCategory) || []
+        : topData || [];
+        
+      setTopProjects(filteredTopProjects);
+      setLoadingTop(false);
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
+      message.error('ไม่สามารถโหลดข้อมูลโครงการได้ โปรดลองอีกครั้งในภายหลัง');
+      setLatestProjects([]);
+      setTopProjects([]);
+      setLoadingLatest(false);
+      setLoadingTop(false);
+    }
+  };
+
+  // โหลดข้อมูลเมื่อโหลดหน้าครั้งแรกหรือเมื่อเปลี่ยนประเภท
   useEffect(() => {
-    const fetchProjects = async () => {
-      setIsLoading(true);
-      try {
-        // สร้าง endpoint สำหรับการเรียกข้อมูลโครงการล่าสุด
-        let latestEndpoint = '/projects/latest';
-        if (selectedCategory !== 'all') {
-          latestEndpoint = `/projects/search?type=${selectedCategory}`;
-        }
-        
-        // สร้าง endpoint สำหรับการเรียกข้อมูลโครงการยอดนิยม
-        let topEndpoint = '/projects/top9';
-        if (selectedCategory !== 'all') {
-          topEndpoint = `/projects/search?type=${selectedCategory}`;
-        }
-        
-        // ดึงข้อมูลโครงการล่าสุด
-        const latestData = await axiosGet(latestEndpoint);
-        setLatestProjects(latestData || []);
-
-        // ดึงข้อมูลโครงการยอดนิยม
-        const topData = await axiosGet(topEndpoint);
-        setTopProjects(topData || []);
-      } catch (error) {
-        console.error("Failed to fetch projects", error);
-        message.error('ไม่สามารถโหลดข้อมูลโครงการได้ โปรดลองอีกครั้งในภายหลัง');
-        setLatestProjects([]);
-        setTopProjects([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProjects();
-
+    loadProjects();
+  }, [selectedCategory]);
+  
+  // ตั้งค่า scroll event listener แยกต่างหาก
+  useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
       const newOpacity = Math.max(1 - window.scrollY / 300, 0);
@@ -80,7 +118,7 @@ const Home = () => {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [bannerControls, workControls, selectedCategory]);
+  }, [bannerControls, workControls]);
 
   // Handle category change
   const handleCategoryChange = (category) => {
@@ -106,11 +144,25 @@ const Home = () => {
         </span>
       }
     >
-      <Button type="primary" onClick={() => setSelectedCategory('all')}>
+      <Button type="primary" onClick={() => handleCategoryChange('all')}>
         ดูผลงานทั้งหมด
       </Button>
     </Empty>
   );
+
+  // แสดงข้อความผิดพลาดถ้ามี error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <ErrorMessage 
+          title="ไม่สามารถโหลดข้อมูลได้" 
+          message={error} 
+          showReloadButton={true} 
+          onReloadClick={loadProjects}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -185,14 +237,10 @@ const Home = () => {
             </Tabs>
           </motion.div>
 
-          {/* Skeleton Loader for Top Projects */}
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, index) => (
-                <Card key={index} className="w-full overflow-hidden shadow-md" style={{ borderRadius: '12px' }}>
-                  <Skeleton active avatar paragraph={{ rows: 2 }} />
-                </Card>
-              ))}
+          {/* Top Projects Content */}
+          {loadingTop ? (
+            <div className="py-10 flex justify-center">
+              <LoadingSpinner tip="กำลังโหลดผลงานยอดนิยม..." />
             </div>
           ) : topProjects.length > 0 ? (
             <Work_Col title="" items={topProjects} side="center" description="" />
@@ -231,13 +279,9 @@ const Home = () => {
             viewport={{ once: true }}
             className="min-h-[40vh]"
           >
-            {isLoading ? (
-              <div className="space-y-6">
-                {[...Array(4)].map((_, index) => (
-                  <Card key={index} className="w-full overflow-hidden shadow-sm" style={{ borderRadius: '12px' }}>
-                    <Skeleton active avatar paragraph={{ rows: 3 }} />
-                  </Card>
-                ))}
+            {loadingLatest ? (
+              <div className="py-10 flex justify-center">
+                <LoadingSpinner tip="กำลังโหลดผลงานล่าสุด..." />
               </div>
             ) : latestProjects.length > 0 ? (
               <Work_Row title="" items={latestProjects} side="left" description="" />

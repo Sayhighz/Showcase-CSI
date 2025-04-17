@@ -1,172 +1,133 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Card, Tag, Space, Typography, Avatar, Tooltip } from 'antd';
-import { EyeOutlined, LikeOutlined, MessageOutlined } from '@ant-design/icons';
-import { formatDate, getTimeAgo } from '../../utils/dateUtils';
-import { PROJECT } from '../../constants/routes';
+import { Card, Typography, Tag, Space, Button, Tooltip, Popconfirm, Image } from 'antd';
+import { EditOutlined, DeleteOutlined, EyeOutlined, ClockCircleOutlined, TagOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+
+// นำเข้า utilities
+import { formatDate } from '../../utils/dateUtils'
+import { truncateText } from '../../utils/formatUtils';
 import { getProjectTypeInfo } from '../../constants/projectTypes';
 
-const { Meta } = Card;
+// นำเข้า constants
+import { PROJECT } from '../../constants/routes';
+
 const { Title, Text } = Typography;
+const { Meta } = Card;
 
 /**
- * ProjectCard component ใช้สำหรับแสดงข้อมูลโปรเจคในรูปแบบการ์ด
- * 
- * @param {Object} props - Props ของ component
+ * คอมโพเนนต์สำหรับแสดงการ์ดโปรเจค
+ * @param {Object} props - Props ของคอมโพเนนต์
  * @param {Object} props.project - ข้อมูลโปรเจค
- * @param {string} props.project.id - ID ของโปรเจค
- * @param {string} props.project.title - ชื่อโปรเจค
- * @param {string} props.project.description - คำอธิบายโปรเจค
- * @param {string} props.project.type - ประเภทของโปรเจค (academic, coursework, competition)
- * @param {string} props.project.coverImage - URL ของรูปภาพหน้าปก
- * @param {Date|string} props.project.createdAt - วันที่สร้างโปรเจค
- * @param {Date|string} props.project.updatedAt - วันที่อัปเดตโปรเจคล่าสุด
- * @param {Object} props.project.creator - ข้อมูลผู้สร้างโปรเจค
- * @param {Array} props.project.tags - แท็กของโปรเจค
- * @param {number} props.project.views - จำนวนการเข้าชม
- * @param {number} props.project.likes - จำนวนการถูกใจ
- * @param {number} props.project.comments - จำนวนความคิดเห็น
- * @param {string} props.size - ขนาดของการ์ด ('small', 'default', 'large')
- * @param {Function} props.onClick - ฟังก์ชันที่จะทำงานเมื่อคลิกที่การ์ด
- * @param {Object} props.style - Custom style สำหรับการ์ด
- * @returns {JSX.Element} ProjectCard component
+ * @param {Function} props.onEdit - ฟังก์ชันเมื่อกดปุ่มแก้ไข
+ * @param {Function} props.onDelete - ฟังก์ชันเมื่อกดปุ่มลบ
+ * @param {boolean} props.showActions - แสดงปุ่มแก้ไข/ลบหรือไม่
+ * @returns {React.ReactElement} - คอมโพเนนต์ ProjectCard
  */
-const ProjectCard = ({ 
-  project, 
-  size = 'default', 
-  onClick,
-  style
-}) => {
-  if (!project) return null;
-
-  const { 
-    id, 
-    title, 
-    description, 
-    type, 
-    coverImage, 
-    createdAt, 
-    creator, 
-    tags = [], 
-    views = 0, 
-    likes = 0, 
-    comments = 0 
-  } = project;
-
+const ProjectCard = ({ project, onEdit, onDelete, showActions = false }) => {
+  const navigate = useNavigate();
+  
   // ดึงข้อมูลประเภทโปรเจค
-  const projectTypeInfo = getProjectTypeInfo(type);
-
-  // สร้าง component action ด้านล่างของการ์ด
-  const cardActions = [
-    <Tooltip title="จำนวนการเข้าชม">
-      <Space>
-        <EyeOutlined /> 
-        {views}
-      </Space>
-    </Tooltip>,
-    <Tooltip title="จำนวนการถูกใจ">
-      <Space>
-        <LikeOutlined /> 
-        {likes}
-      </Space>
-    </Tooltip>,
-    <Tooltip title="จำนวนความคิดเห็น">
-      <Space>
-        <MessageOutlined /> 
-        {comments}
-      </Space>
-    </Tooltip>
-  ];
-
-  // สร้าง component รูปภาพหน้าปก
-  const cardCover = coverImage ? (
-    <div className="project-card-image-container" style={{ height: size === 'small' ? 120 : 180, overflow: 'hidden' }}>
-      <img 
-        alt={title}
-        src={coverImage}
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          objectFit: 'cover'
-        }}
-      />
-    </div>
-  ) : null;
-
-  const handleCardClick = () => {
-    if (onClick) {
-      onClick(project);
-    }
+  const projectTypeInfo = getProjectTypeInfo(project.type);
+  
+  // ฟังก์ชันเมื่อคลิกที่การ์ดเพื่อดูรายละเอียด
+  const handleViewDetails = () => {
+    navigate(PROJECT.VIEW(project.id));
   };
 
+  // ดูว่ามีรูปภาพหรือไม่
+  const coverImage = project.coverImage || project.images?.[0]?.url || '/placeholder-project.jpg';
+
   return (
-    <Link to={PROJECT.VIEW(id)} style={{ textDecoration: 'none' }}>
-      <Card
-        hoverable
-        cover={cardCover}
-        actions={cardActions}
-        size={size}
-        style={{ 
-          height: '100%', 
-          display: 'flex', 
-          flexDirection: 'column',
-          ...style
-        }}
-        onClick={handleCardClick}
-      >
-        <div style={{ marginBottom: 8 }}>
+    <Card
+      hoverable
+      className="shadow-md hover:shadow-lg transition-shadow duration-300"
+      cover={
+        <div className="relative h-48 overflow-hidden bg-gray-200">
+          <Image
+            alt={project.title}
+            src={coverImage}
+            className="object-cover w-full h-full"
+            preview={false}
+            fallback="/placeholder-project.jpg"
+            onClick={handleViewDetails}
+          />
           {projectTypeInfo && (
-            <Tag color={projectTypeInfo.color}>
+            <Tag 
+              color={projectTypeInfo.color} 
+              className="absolute top-3 right-3 px-2 py-1"
+            >
               {projectTypeInfo.emoji} {projectTypeInfo.label}
             </Tag>
           )}
         </div>
-        <Meta
-          title={
-            <Title level={4} ellipsis={{ rows: 2 }} style={{ marginBottom: 8 }}>
-              {title}
-            </Title>
-          }
-          description={
-            <Text type="secondary" ellipsis={{ rows: 2 }}>
-              {description || 'ไม่มีคำอธิบาย'}
+      }
+      actions={showActions ? [
+        <Tooltip title="ดูรายละเอียด" key="view">
+          <Button 
+            type="text" 
+            icon={<EyeOutlined />} 
+            onClick={handleViewDetails}
+          />
+        </Tooltip>,
+        <Tooltip title="แก้ไข" key="edit">
+          <Button 
+            type="text" 
+            icon={<EditOutlined />} 
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit && onEdit();
+            }}
+          />
+        </Tooltip>,
+        <Popconfirm
+          key="delete"
+          title="คุณแน่ใจหรือไม่ว่าต้องการลบโปรเจคนี้?"
+          okText="ใช่"
+          cancelText="ไม่"
+          okButtonProps={{ danger: true }}
+          onConfirm={(e) => {
+            e.stopPropagation();
+            onDelete && onDelete();
+          }}
+        >
+          <Tooltip title="ลบ">
+            <Button 
+              type="text" 
+              icon={<DeleteOutlined />} 
+              danger
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Tooltip>
+        </Popconfirm>
+      ] : undefined}
+      onClick={handleViewDetails}
+    >
+      <Meta
+        title={<Title level={4} ellipsis={{ rows: 1 }}>{project.title}</Title>}
+        description={
+          <div className="space-y-2">
+            <Text type="secondary" className="block" ellipsis={{ rows: 2 }}>
+              {truncateText(project.description || 'ไม่มีคำอธิบาย', 100)}
             </Text>
-          }
-        />
-        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {creator && (
-            <Space>
-              <Avatar 
-                src={creator.avatar} 
-                size="small"
-              >
-                {creator.fullName ? creator.fullName.charAt(0) : '?'}
-              </Avatar>
-              <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-                {creator.fullName || 'ไม่ระบุชื่อ'}
+            
+            <Space className="mt-2" size={16}>
+              <Text type="secondary">
+                <ClockCircleOutlined className="mr-1" />
+                {formatDate(project.createdAt)}
               </Text>
-            </Space>
-          )}
-          <Text type="secondary" style={{ fontSize: '0.85rem' }}>
-            {getTimeAgo(createdAt) || formatDate(createdAt) || 'ไม่ระบุวันที่'}
-          </Text>
-        </div>
-        {tags.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <Space size={[0, 4]} wrap>
-              {tags.slice(0, 3).map((tag, index) => (
-                <Tag key={index} style={{ marginRight: 4 }}>
-                  {tag}
-                </Tag>
-              ))}
-              {tags.length > 3 && (
-                <Tag>+{tags.length - 3}</Tag>
+              
+              {project.tags && project.tags.length > 0 && (
+                <Text type="secondary">
+                  <TagOutlined className="mr-1" />
+                  {project.tags.slice(0, 2).join(', ')}
+                  {project.tags.length > 2 && '...'}
+                </Text>
               )}
             </Space>
           </div>
-        )}
-      </Card>
-    </Link>
+        }
+      />
+    </Card>
   );
 };
 

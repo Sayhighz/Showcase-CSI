@@ -14,20 +14,31 @@ import {
   Space,
   Tag,
   Avatar,
-  List
+  List,
+  Badge,
+  Tooltip,
+  Result
 } from 'antd';
 import { 
   SearchOutlined, 
   ProjectOutlined, 
   UserOutlined, 
   TagOutlined,
-  FilterOutlined 
+  FilterOutlined,
+  ReloadOutlined,
+  ArrowRightOutlined,
+  RocketOutlined,
+  FireOutlined
 } from '@ant-design/icons';
+import { motion } from 'framer-motion';
 import { useSearch } from '../../hooks';
 import ProjectCard from '../../components/Project/ProjectCard';
 import FilterPanel from '../../components/common/FilterPanel';
 import Pagination from '../../components/common/Pagination';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import ErrorMessage from '../../components/common/ErrorMessage';
 import { SEARCH } from '../../constants/routes';
+import { colors, spaceTheme } from '../../config/themeConfig';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -176,27 +187,61 @@ const SearchResults = ({
     searchProjects(keyword);
   };
 
+  // ฟังก์ชันสำหรับการกดที่แท็ก
+  const handleTagClick = (tag) => {
+    searchByTag(tag);
+    setActiveTab('tags');
+    
+    // อัปเดต URL
+    const searchParams = new URLSearchParams();
+    searchParams.set('tag', tag);
+    searchParams.set('tab', 'tags');
+    navigate(`${SEARCH.RESULTS}?${searchParams.toString()}`);
+  };
+
   // แสดง loading state
   const renderLoading = () => (
-    <div style={{ textAlign: 'center', padding: '50px 0' }}>
-      <Spin size="large" />
-      <Text style={{ display: 'block', marginTop: 16 }}>กำลังค้นหา...</Text>
-    </div>
+    <LoadingSpinner tip="กำลังค้นหา..." />
   );
 
   // แสดงข้อความเมื่อไม่พบผลลัพธ์
   const renderEmpty = () => (
-    <Empty 
-      description="ไม่พบผลลัพธ์ที่ตรงกับการค้นหา" 
-      style={{ margin: '40px 0' }}
+    <Result
+      icon={<SearchOutlined style={{ color: colors.primary }} />}
+      title="ไม่พบผลลัพธ์ที่ตรงกับการค้นหา"
+      subTitle={keyword ? `ไม่พบข้อมูลที่ตรงกับ "${keyword}" กรุณาลองใช้คำค้นหาอื่น` : 'กรุณาระบุคำค้นหา'}
+      extra={
+        <Space direction="vertical" align="center">
+          <Text>ลองค้นหาด้วยคำอื่น หรือใช้ตัวกรองเพื่อปรับปรุงผลลัพธ์</Text>
+          <Button
+            type="primary"
+            icon={<FilterOutlined />}
+            onClick={() => navigate(SEARCH.ADVANCED)}
+          >
+            ค้นหาขั้นสูง
+          </Button>
+        </Space>
+      }
     />
   );
 
   // แสดงข้อความเมื่อเกิดข้อผิดพลาด
   const renderError = () => (
-    <Empty 
-      description={`เกิดข้อผิดพลาดในการค้นหา: ${error || 'โปรดลองอีกครั้ง'}`} 
-      style={{ margin: '40px 0' }}
+    <ErrorMessage
+      title="เกิดข้อผิดพลาดในการค้นหา"
+      message={error || 'โปรดลองอีกครั้งในภายหลัง'}
+      showBackButton={false}
+      showHomeButton={true}
+      showReloadButton={true}
+      onReloadClick={() => {
+        if (activeTab === 'projects') {
+          searchProjects(keyword);
+        } else if (activeTab === 'users') {
+          searchUsers(keyword);
+        } else if (activeTab === 'tags') {
+          searchByTag(keyword);
+        }
+      }}
     />
   );
 
@@ -209,9 +254,15 @@ const SearchResults = ({
     return (
       <>
         <Row gutter={[24, 24]}>
-          {searchResults.map((project) => (
+          {searchResults.map((project, index) => (
             <Col key={project.id} xs={24} sm={12} md={8}>
-              <ProjectCard project={project} />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <ProjectCard project={project} />
+              </motion.div>
             </Col>
           ))}
         </Row>
@@ -240,30 +291,63 @@ const SearchResults = ({
       <List
         itemLayout="horizontal"
         dataSource={searchResults}
-        renderItem={user => (
-          <List.Item>
-            <List.Item.Meta
-              avatar={
-                <Avatar 
-                  src={user.avatar} 
-                  size="large"
-                >
-                  {user.fullName ? user.fullName.charAt(0) : user.username ? user.username.charAt(0) : '?'}
-                </Avatar>
-              }
-              title={
-                <Link to={`/user/${user.id}`}>
-                  {user.fullName}
-                </Link>
-              }
-              description={
-                <>
-                  <Text type="secondary">@{user.username}</Text>
-                  {user.bio && <Paragraph ellipsis={{ rows: 2 }}>{user.bio}</Paragraph>}
-                </>
-              }
-            />
-          </List.Item>
+        renderItem={(user, index) => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+          >
+            <Card 
+              hoverable 
+              style={{ marginBottom: 16 }}
+              bodyStyle={{ padding: 16 }}
+            >
+              <List.Item style={{ padding: 0 }}>
+                <List.Item.Meta
+                  avatar={
+                    <Avatar 
+                      src={user.avatar} 
+                      size={64}
+                      style={{ border: `2px solid ${colors.primary}` }}
+                    >
+                      {user.fullName ? user.fullName.charAt(0) : user.username ? user.username.charAt(0) : '?'}
+                    </Avatar>
+                  }
+                  title={
+                    <Link to={`/user/${user.id}`} style={{ fontSize: 18, fontWeight: 'bold', color: colors.primary }}>
+                      {user.fullName}
+                    </Link>
+                  }
+                  description={
+                    <>
+                      <Text type="secondary" style={{ display: 'block' }}>@{user.username}</Text>
+                      {user.role && (
+                        <Tag color="blue" style={{ marginTop: 4, marginBottom: 8 }}>
+                          {user.role}
+                        </Tag>
+                      )}
+                      {user.bio && (
+                        <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 8 }}>
+                          {user.bio}
+                        </Paragraph>
+                      )}
+                      {user.projectCount > 0 && (
+                        <Text type="secondary">
+                          มีโปรเจคทั้งหมด {user.projectCount} โปรเจค
+                        </Text>
+                      )}
+                    </>
+                  }
+                />
+                <Button 
+                  type="primary"
+                  icon={<ArrowRightOutlined />}
+                  shape="circle"
+                  onClick={() => navigate(`/user/${user.id}`)}
+                />
+              </List.Item>
+            </Card>
+          </motion.div>
         )}
         pagination={{
           onChange: handlePageChange,
@@ -284,10 +368,27 @@ const SearchResults = ({
     // กรณีค้นหาด้วยแท็ก ผลลัพธ์จะเป็นโปรเจค
     return (
       <>
+        <div style={{ marginBottom: 24 }}>
+          <Tag color="blue" style={{ padding: '4px 8px', fontSize: 16 }}>
+            <TagOutlined /> #{location.search.includes('tag=') ? new URLSearchParams(location.search).get('tag') : keyword}
+          </Tag>
+          {searchResults.length > 0 && (
+            <Text style={{ marginLeft: 8 }}>
+              พบ {searchResults.length} โปรเจค
+            </Text>
+          )}
+        </div>
+
         <Row gutter={[24, 24]}>
-          {searchResults.map((project) => (
+          {searchResults.map((project, index) => (
             <Col key={project.id} xs={24} sm={12} md={8}>
-              <ProjectCard project={project} />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <ProjectCard project={project} />
+              </motion.div>
             </Col>
           ))}
         </Row>
@@ -312,24 +413,35 @@ const SearchResults = ({
 
     return (
       <div style={{ marginBottom: 24 }}>
-        <Title level={5}>แท็กยอดนิยม</Title>
+        <Title level={5} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <TagOutlined style={{ color: colors.primary }} /> แท็กยอดนิยม
+        </Title>
         <div>
           {popularTags.map((tag, index) => (
-            <Tag
+            <motion.div
               key={index}
-              color="blue"
-              style={{ margin: '4px' }}
-              onClick={() => {
-                searchByTag(tag.name);
-                setActiveTab('tags');
-                // อัปเดต URL
-                const searchParams = new URLSearchParams();
-                searchParams.set('tag', tag.name);
-                navigate(`${SEARCH.RESULTS}?${searchParams.toString()}`);
-              }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 * index }}
+              style={{ display: 'inline-block' }}
+              whileHover={{ scale: 1.05 }}
             >
-              {tag.name} ({tag.count})
-            </Tag>
+              <Tag
+                color="blue"
+                style={{ margin: '4px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => handleTagClick(tag.name)}
+              >
+                {tag.name} 
+                <Badge 
+                  count={tag.count} 
+                  style={{ 
+                    backgroundColor: colors.secondary,
+                    marginLeft: 5,
+                    boxShadow: 'none'
+                  }} 
+                />
+              </Tag>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -342,19 +454,37 @@ const SearchResults = ({
 
     return (
       <div style={{ marginBottom: 24 }}>
-        <Title level={5}>การค้นหายอดนิยม</Title>
+        <Title level={5} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FireOutlined style={{ color: '#f5222d' }} /> การค้นหายอดนิยม
+        </Title>
         <div>
           {popularSearches.map((item, index) => (
-            <Tag
+            <motion.div
               key={index}
-              style={{ margin: '4px', cursor: 'pointer' }}
-              onClick={() => {
-                handleKeywordChange(item.keyword);
-                handleSearch(item.keyword);
-              }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 * index }}
+              style={{ display: 'inline-block' }}
+              whileHover={{ scale: 1.05 }}
             >
-              {item.keyword} ({item.count})
-            </Tag>
+              <Tag
+                style={{ margin: '4px', padding: '4px 8px', cursor: 'pointer' }}
+                onClick={() => {
+                  handleKeywordChange(item.keyword);
+                  handleSearch(item.keyword);
+                }}
+              >
+                {item.keyword} 
+                <Badge 
+                  count={item.count} 
+                  style={{ 
+                    backgroundColor: colors.primary,
+                    marginLeft: 5,
+                    boxShadow: 'none'
+                  }} 
+                />
+              </Tag>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -363,71 +493,110 @@ const SearchResults = ({
 
   return (
     <div style={{ ...style }}>
-      <Card style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ marginBottom: 16 }}>
-          <SearchOutlined style={{ marginRight: 8 }} />
-          ค้นหา
-        </Title>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card 
+          style={{ 
+            marginBottom: 24,
+            ...spaceTheme.glassCard,
+            background: 'rgba(255, 255, 255, 0.8)'
+          }}
+        >
+          <Title level={3} style={{ marginBottom: 16, color: colors.primary }}>
+            <SearchOutlined style={{ marginRight: 8 }} />
+            ค้นหา
+          </Title>
 
-        <Search
-          placeholder="ค้นหาโปรเจค, ผู้ใช้, หรือแท็ก"
-          allowClear
-          enterButton="ค้นหา"
-          size="large"
-          value={keyword}
-          onChange={(e) => handleKeywordChange(e.target.value)}
-          onSearch={handleSearch}
-          loading={isSearching}
-          style={{ marginBottom: 16 }}
-        />
+          <Search
+            placeholder="ค้นหาโปรเจค, ผู้ใช้, หรือแท็ก"
+            allowClear
+            enterButton={
+              <Button
+                type="primary"
+                style={{ 
+                  background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`,
+                  borderColor: 'transparent'
+                }}
+              >
+                <SearchOutlined /> ค้นหา
+              </Button>
+            }
+            size="large"
+            value={keyword}
+            onChange={(e) => handleKeywordChange(e.target.value)}
+            onSearch={handleSearch}
+            loading={isSearching}
+            style={{ marginBottom: 16 }}
+          />
 
-        <Tabs activeKey={activeTab} onChange={handleTabChange}>
-          <TabPane 
-            tab={
-              <span>
-                <ProjectOutlined /> โปรเจค
-              </span>
-            } 
-            key="projects" 
-          />
-          <TabPane 
-            tab={
-              <span>
-                <UserOutlined /> ผู้ใช้
-              </span>
-            } 
-            key="users" 
-          />
-          <TabPane 
-            tab={
-              <span>
-                <TagOutlined /> แท็ก
-              </span>
-            } 
-            key="tags" 
-          />
-        </Tabs>
-      </Card>
+          <Tabs activeKey={activeTab} onChange={handleTabChange}>
+            <TabPane 
+              tab={
+                <span>
+                  <ProjectOutlined /> โปรเจค
+                </span>
+              } 
+              key="projects" 
+            />
+            <TabPane 
+              tab={
+                <span>
+                  <UserOutlined /> ผู้ใช้
+                </span>
+              } 
+              key="users" 
+            />
+            <TabPane 
+              tab={
+                <span>
+                  <TagOutlined /> แท็ก
+                </span>
+              } 
+              key="tags" 
+            />
+          </Tabs>
+        </Card>
+      </motion.div>
 
       {/* ส่วนแสดงผลการค้นหาและตัวกรอง */}
       <Row gutter={24}>
         {/* ตัวกรอง (แสดงเฉพาะในแท็บโปรเจค) */}
         {showFilter && activeTab === 'projects' && (
           <Col xs={24} md={6}>
-            <div style={{ marginBottom: 24 }}>
-              <Card>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Card 
+                style={{ 
+                  marginBottom: 24,
+                  ...spaceTheme.glassCard,
+                  background: 'rgba(255, 255, 255, 0.7)'
+                }}
+              >
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
                   marginBottom: 16
                 }}>
-                  <Title level={5} style={{ margin: 0 }}>ตัวกรอง</Title>
+                  <Title level={5} style={{ margin: 0, color: colors.primary }}>
+                    <FilterOutlined style={{ marginRight: 8 }} /> 
+                    ตัวกรอง
+                  </Title>
                   <Button 
                     type={showFilterPanel ? 'primary' : 'default'} 
                     icon={<FilterOutlined />}
                     onClick={() => setShowFilterPanel(!showFilterPanel)}
                     size="small"
+                    style={showFilterPanel ? {
+                      background: colors.primary,
+                      borderColor: colors.primary
+                    } : {}}
                   >
                     {showFilterPanel ? 'ซ่อน' : 'แสดง'}
                   </Button>
@@ -443,39 +612,158 @@ const SearchResults = ({
                       handleFilter(newFilters);
                     }}
                   >
-                    {/* รายละเอียดตัวกรองจะถูกเพิ่มเติมที่นี่ */}
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <div>
+                        <Text strong>ประเภทโปรเจค</Text>
+                        <Select 
+                          placeholder="เลือกประเภทโปรเจค" 
+                          style={{ width: '100%', marginTop: 8 }} 
+                          allowClear
+                          onChange={(value) => handleFilter({ ...advancedFilters, type: value })}
+                          value={advancedFilters.type}
+                          options={PROJECT_TYPES.map(type => ({
+                            value: type.value,
+                            label: `${type.emoji} ${type.label}`
+                          }))}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Text strong>ปีของโปรเจค</Text>
+                        <Select 
+                          placeholder="เลือกปีของโปรเจค" 
+                          style={{ width: '100%', marginTop: 8 }} 
+                          allowClear
+                          onChange={(value) => handleFilter({ ...advancedFilters, year: value })}
+                          value={advancedFilters.year}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Text strong>ชั้นปีของผู้สร้าง</Text>
+                        <Select 
+                          placeholder="เลือกชั้นปีของผู้สร้าง" 
+                          style={{ width: '100%', marginTop: 8 }} 
+                          allowClear
+                          onChange={(value) => handleFilter({ ...advancedFilters, studyYear: value })}
+                          value={advancedFilters.studyYear}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Text strong>แท็ก</Text>
+                        <Select
+                          mode="tags"
+                          placeholder="เลือกหรือเพิ่มแท็ก"
+                          style={{ width: '100%', marginTop: 8 }}
+                          onChange={(value) => handleFilter({ ...advancedFilters, tags: value })}
+                          value={advancedFilters.tags}
+                          tokenSeparators={[',']}
+                        />
+                      </div>
+                      
+                      <div style={{ marginTop: 16 }}>
+                        <Button 
+                          icon={<ReloadOutlined />} 
+                          onClick={handleResetFilter}
+                          block
+                        >
+                          รีเซ็ตตัวกรอง
+                        </Button>
+                      </div>
+                    </Space>
                   </FilterPanel>
                 )}
               </Card>
-            </div>
+            </motion.div>
 
-            {/* แท็กยอดนิยม */}
-            {renderPopularTags()}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              {/* แท็กยอดนิยม */}
+              <Card 
+                style={{ 
+                  marginBottom: 24,
+                  ...spaceTheme.glassCard,
+                  background: 'rgba(255, 255, 255, 0.7)'
+                }}
+              >
+                {renderPopularTags()}
+              </Card>
+            </motion.div>
 
-            {/* การค้นหายอดนิยม */}
-            {renderPopularSearches()}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              {/* การค้นหายอดนิยม */}
+              <Card 
+                style={{ 
+                  marginBottom: 24,
+                  ...spaceTheme.glassCard,
+                  background: 'rgba(255, 255, 255, 0.7)'
+                }}
+              >
+                {renderPopularSearches()}
+              </Card>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.8 }}
+              style={{ marginTop: 24 }}
+            >
+              <Button 
+                type="primary" 
+                icon={<FilterOutlined />} 
+                block
+                size="large"
+                onClick={() => navigate(SEARCH.ADVANCED)}
+                style={{ 
+                  background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`,
+                  borderColor: 'transparent'
+                }}
+              >
+                ค้นหาขั้นสูง
+              </Button>
+            </motion.div>
           </Col>
         )}
 
         {/* ผลลัพธ์การค้นหา */}
         <Col xs={24} md={showFilter && activeTab === 'projects' ? 18 : 24}>
-          <Card>
-            <Title level={4} style={{ marginBottom: 16 }}>
-              ผลการค้นหา {keyword ? `สำหรับ "${keyword}"` : ''}
-              {!isSearching && pagination.total > 0 && (
-                <Text type="secondary" style={{ fontSize: '1rem', marginLeft: 8 }}>
-                  ({pagination.total} รายการ)
-                </Text>
-              )}
-            </Title>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card 
+              style={{ 
+                ...spaceTheme.glassCard,
+                background: 'rgba(255, 255, 255, 0.7)'
+              }}
+            >
+              <Title level={4} style={{ marginBottom: 16, color: colors.primary }}>
+                ผลการค้นหา {keyword ? `สำหรับ "${keyword}"` : ''}
+                {!isSearching && pagination.total > 0 && (
+                  <Text type="secondary" style={{ fontSize: '1rem', marginLeft: 8 }}>
+                    ({pagination.total} รายการ)
+                  </Text>
+                )}
+              </Title>
 
-            <Divider style={{ margin: '12px 0 24px 0' }} />
+              <Divider style={{ margin: '12px 0 24px 0', borderColor: `${colors.primary}20` }} />
 
-            {/* แสดงผลลัพธ์ตามแท็บที่เลือก */}
-            {activeTab === 'projects' && renderProjectResults()}
-            {activeTab === 'users' && renderUserResults()}
-            {activeTab === 'tags' && renderTagResults()}
-          </Card>
+              {/* แสดงผลลัพธ์ตามแท็บที่เลือก */}
+              {activeTab === 'projects' && renderProjectResults()}
+              {activeTab === 'users' && renderUserResults()}
+              {activeTab === 'tags' && renderTagResults()}
+            </Card>
+          </motion.div>
         </Col>
       </Row>
     </div>

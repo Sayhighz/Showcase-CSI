@@ -3,7 +3,7 @@
  * ใช้สำหรับจัดการและแชร์ state ที่เกี่ยวข้องกับการล็อกอิน ล็อกเอาท์ การลงทะเบียน และการตรวจสอบสิทธิ์ของผู้ใช้
  */
 import { createContext, useState, useEffect, useCallback, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { message } from 'antd';
 
 // นำเข้า services ที่เกี่ยวข้อง
@@ -358,4 +358,5 @@ export const useAuth = () => {
   return context;
 };
 
-export default { AuthContext, AuthProvider, useAuth };
+// แก้ไขเป็น export แบบมีชื่อแทน
+export default AuthProvider;

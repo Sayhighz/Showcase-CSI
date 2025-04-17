@@ -3,7 +3,7 @@
  * ให้บริการฟังก์ชันเกี่ยวกับการดึงข้อมูล, สร้าง, แก้ไข, ลบโปรเจค เป็นต้น
  */
 import { get, post, put, del, uploadFile } from './apiService';
-import { PROJECT } from '../constants/apiEndpoints';
+import { API_ENDPOINTS } from '../constants/apiEndpoints';
 import { message } from 'antd';
 
 /**
@@ -18,7 +18,7 @@ import { message } from 'antd';
  */
 export const getAllProjects = async (params = {}) => {
   try {
-    const response = await get(PROJECT.GET_ALL, params);
+    const response = await get(API_ENDPOINTS.PROJECT.GET_ALL, params);
     
     if (response && response.success) {
       return response.data;
@@ -37,7 +37,7 @@ export const getAllProjects = async (params = {}) => {
  */
 export const getTopProjects = async () => {
   try {
-    const response = await get(PROJECT.TOP);
+    const response = await get(API_ENDPOINTS.PROJECT.TOP);
     
     if (response && response.success) {
       return response.data;
@@ -57,7 +57,7 @@ export const getTopProjects = async () => {
  */
 export const getLatestProjects = async (limit = 9) => {
   try {
-    const response = await get(PROJECT.LATEST, { limit });
+    const response = await get(API_ENDPOINTS.PROJECT.LATEST, { limit });
     
     if (response && response.success) {
       return response.data;
@@ -77,7 +77,7 @@ export const getLatestProjects = async (limit = 9) => {
  */
 export const getMyProjects = async (userId) => {
   try {
-    const response = await get(PROJECT.MY_PROJECTS(userId));
+    const response = await get(API_ENDPOINTS.PROJECT.MY_PROJECTS(userId));
     
     if (response && response.success) {
       return response.data;
@@ -97,7 +97,7 @@ export const getMyProjects = async (userId) => {
  */
 export const getProjectDetails = async (projectId) => {
   try {
-    const response = await get(PROJECT.GET_BY_ID(projectId));
+    const response = await get(API_ENDPOINTS.PROJECT.GET_BY_ID(projectId));
     
     if (response && response.success) {
       return response.data;
@@ -150,7 +150,7 @@ export const uploadProject = async (userId, projectData, files) => {
       });
     }
     
-    const response = await uploadFile(PROJECT.UPLOAD(userId), formData);
+    const response = await uploadFile(API_ENDPOINTS.PROJECT.UPLOAD(userId), formData);
     
     if (response && response.success) {
       message.success('อัปโหลดโปรเจคสำเร็จ');
@@ -205,7 +205,7 @@ export const updateProject = async (projectId, projectData, files) => {
       });
     }
     
-    const response = await uploadFile(PROJECT.UPDATE(projectId), formData);
+    const response = await uploadFile(API_ENDPOINTS.PROJECT.UPDATE(projectId), formData);
     
     if (response && response.success) {
       message.success('อัปเดตโปรเจคสำเร็จ');
@@ -227,7 +227,7 @@ export const updateProject = async (projectId, projectData, files) => {
  */
 export const deleteProject = async (projectId) => {
   try {
-    const response = await del(PROJECT.DELETE(projectId));
+    const response = await del(API_ENDPOINTS.PROJECT.DELETE(projectId));
     
     if (response && response.success) {
       message.success('ลบโปรเจคสำเร็จ');
@@ -255,7 +255,7 @@ export const deleteProject = async (projectId) => {
  */
 export const searchProjects = async (params = {}) => {
   try {
-    const response = await get(PROJECT.SEARCH, params);
+    const response = await get(API_ENDPOINTS.PROJECT.SEARCH, params);
     
     if (response && response.success) {
       return response.data;
@@ -279,7 +279,7 @@ export const uploadProjectFile = async (projectId, file) => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await uploadFile(PROJECT.UPLOAD_FILE(projectId), formData);
+    const response = await uploadFile(API_ENDPOINTS.PROJECT.UPLOAD_FILE(projectId), formData);
     
     if (response && response.success) {
       message.success('อัปโหลดไฟล์สำเร็จ');
@@ -301,7 +301,7 @@ export const uploadProjectFile = async (projectId, file) => {
  */
 export const recordVisitorView = async (projectId) => {
   try {
-    await post(PROJECT.VISITOR_VIEW(projectId));
+    await post(API_ENDPOINTS.PROJECT.VISITOR_VIEW(projectId));
     return true;
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการบันทึกการเข้าชมโปรเจค:', error);
@@ -316,7 +316,7 @@ export const recordVisitorView = async (projectId) => {
  */
 export const getProjectTypes = async () => {
   try {
-    const response = await get(PROJECT.TYPES);
+    const response = await get(API_ENDPOINTS.PROJECT.TYPES);
     
     if (response && response.success) {
       return response.data;
@@ -335,7 +335,7 @@ export const getProjectTypes = async () => {
  */
 export const getProjectYears = async () => {
   try {
-    const response = await get(PROJECT.YEARS);
+    const response = await get(API_ENDPOINTS.PROJECT.YEARS);
     
     if (response && response.success) {
       return response.data;
@@ -354,7 +354,7 @@ export const getProjectYears = async () => {
  */
 export const getStudyYears = async () => {
   try {
-    const response = await get(PROJECT.STUDY_YEARS);
+    const response = await get(API_ENDPOINTS.PROJECT.STUDY_YEARS);
     
     if (response && response.success) {
       return response.data;

@@ -1,6 +1,6 @@
 /**
  * Custom hook สำหรับจัดการการค้นหา
- * จัดการ state และฟังก์ชันที่เกี่ยวข้องกับการค้นหาโปรเจค, ผู้ใช้, แท็ก เป็นต้น
+ * จัดการ state และฟังก์ชันที่เกี่ยวข้องกับการค้นหาโปรเจค, ผู้ใช้ เป็นต้น
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -10,13 +10,6 @@ import { message } from 'antd';
 import {
   searchProjects,
   searchUsers,
-  searchProjectsByTag,
-  getPopularTags,
-  getPopularSearches,
-  logSearch,
-  getUserSearchHistory,
-  advancedSearch,
-  getSearchSuggestions,
   buildSearchQuery
 } from '../services/searchService';
 
@@ -32,10 +25,6 @@ const useSearch = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
   const [keyword, setKeyword] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [popularTags, setPopularTags] = useState([]);
-  const [popularSearches, setPopularSearches] = useState([]);
-  const [searchHistory, setSearchHistory] = useState([]);
   const [pagination, setPagination] = useState({
     total: 0,
     current: 1,
@@ -51,65 +40,6 @@ const useSearch = () => {
   const debounceTimeout = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-
-  /**
-   * ดึงข้อมูลแท็กยอดนิยม
-   */
-  const fetchPopularTags = useCallback(async () => {
-    try {
-      const response = await getPopularTags();
-      if (response) {
-        setPopularTags(response);
-      }
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลแท็กยอดนิยม:', err);
-    }
-  }, []);
-
-  /**
-   * ดึงข้อมูลการค้นหายอดนิยม
-   */
-  const fetchPopularSearches = useCallback(async () => {
-    try {
-      const response = await getPopularSearches();
-      if (response) {
-        setPopularSearches(response);
-      }
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลการค้นหายอดนิยม:', err);
-    }
-  }, []);
-
-  /**
-   * ดึงข้อมูลประวัติการค้นหาของผู้ใช้
-   */
-  const fetchSearchHistory = useCallback(async () => {
-    try {
-      const response = await getUserSearchHistory();
-      if (response) {
-        setSearchHistory(response);
-      }
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลประวัติการค้นหา:', err);
-    }
-  }, []);
-
-  /**
-   * บันทึกการค้นหา
-   * @param {string} term - คำค้นหา
-   */
-  const recordSearch = useCallback(async (term) => {
-    if (!term || term.trim() === '') return;
-    
-    try {
-      await logSearch(term);
-      
-      // อัปเดตประวัติการค้นหาหลังจากบันทึก
-      fetchSearchHistory();
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการบันทึกการค้นหา:', err);
-    }
-  }, [fetchSearchHistory]);
 
   /**
    * ค้นหาโปรเจค
@@ -148,11 +78,6 @@ const useSearch = () => {
           total: response.total || 0,
           current: response.page || 1,
         });
-        
-        // บันทึกการค้นหา
-        if (term && term.trim() !== '') {
-          recordSearch(term);
-        }
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการค้นหาโปรเจค');
@@ -160,7 +85,7 @@ const useSearch = () => {
     } finally {
       setIsSearching(false);
     }
-  }, [keyword, pagination, advancedFilters, recordSearch]);
+  }, [keyword, pagination, advancedFilters]);
 
   /**
    * ค้นหาผู้ใช้
@@ -178,11 +103,6 @@ const useSearch = () => {
       
       if (response) {
         setSearchResults(response || []);
-        
-        // บันทึกการค้นหา
-        if (term && term.trim() !== '') {
-          recordSearch(term);
-        }
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการค้นหาผู้ใช้');
@@ -190,118 +110,7 @@ const useSearch = () => {
     } finally {
       setIsSearching(false);
     }
-  }, [keyword, recordSearch]);
-
-  /**
-   * ค้นหาโปรเจคตามแท็ก
-   * @param {string} tag - แท็กที่ต้องการค้นหา
-   * @param {Object} params - พารามิเตอร์สำหรับการค้นหา
-   */
-  const handleSearchByTag = useCallback(async (tag, params = {}) => {
-    if (!tag) {
-      message.error('กรุณาระบุแท็กที่ต้องการค้นหา');
-      return;
-    }
-    
-    setIsSearching(true);
-    setError(null);
-    
-    try {
-      // รวมพารามิเตอร์จาก pagination และพารามิเตอร์ที่ส่งมา
-      const queryParams = {
-        page: pagination.current,
-        limit: pagination.pageSize,
-        ...params
-      };
-      
-      const response = await searchProjectsByTag(tag, queryParams);
-      
-      if (response) {
-        setSearchResults(response.projects || []);
-        setPagination({
-          ...pagination,
-          total: response.total || 0,
-          current: response.page || 1,
-        });
-        
-        // บันทึกการค้นหา
-        recordSearch(`#${tag}`);
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการค้นหาโปรเจคตามแท็ก');
-      console.error('เกิดข้อผิดพลาดในการค้นหาโปรเจคตามแท็ก:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [pagination, recordSearch]);
-
-  /**
-   * ค้นหาขั้นสูง
-   * @param {Object} filters - ตัวกรองสำหรับการค้นหา
-   * @param {Object} paginationParams - ข้อมูลการแบ่งหน้า
-   */
-  const handleAdvancedSearch = useCallback(async (filters = {}, paginationParams = {}) => {
-    setIsSearching(true);
-    setError(null);
-    
-    try {
-      // รวมตัวกรองจาก advancedFilters และ filters ที่ส่งมา
-      const combinedFilters = {
-        ...advancedFilters,
-        ...filters
-      };
-      
-      // รวมข้อมูลการแบ่งหน้าจาก pagination และ paginationParams ที่ส่งมา
-      const combinedPagination = {
-        page: pagination.current,
-        limit: pagination.pageSize,
-        ...paginationParams
-      };
-      
-      // อัปเดต state ของตัวกรองขั้นสูง
-      setAdvancedFilters(combinedFilters);
-      
-      const response = await advancedSearch(combinedFilters, combinedPagination);
-      
-      if (response) {
-        setSearchResults(response.projects || []);
-        setPagination({
-          ...pagination,
-          total: response.total || 0,
-          current: response.page || 1,
-        });
-        
-        // บันทึกการค้นหา
-        if (combinedFilters.keyword && combinedFilters.keyword.trim() !== '') {
-          recordSearch(combinedFilters.keyword);
-        }
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการค้นหาขั้นสูง');
-      console.error('เกิดข้อผิดพลาดในการค้นหาขั้นสูง:', err);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [advancedFilters, pagination, recordSearch]);
-
-  /**
-   * ดึงคำแนะนำการค้นหา
-   * @param {string} searchTerm - คำค้นหา
-   */
-  const fetchSuggestions = useCallback(async (searchTerm) => {
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    
-    try {
-      const response = await getSearchSuggestions(searchTerm);
-      setSuggestions(response || []);
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการดึงคำแนะนำการค้นหา:', err);
-      setSuggestions([]);
-    }
-  }, []);
+  }, [keyword]);
 
   /**
    * จัดการการเปลี่ยนแปลงคำค้นหา
@@ -314,12 +123,7 @@ const useSearch = () => {
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
-    
-    // สร้าง timeout ใหม่
-    debounceTimeout.current = setTimeout(() => {
-      fetchSuggestions(searchTerm);
-    }, 300); // รอ 300ms ก่อนดึงคำแนะนำ
-  }, [fetchSuggestions]);
+  }, []);
 
   /**
    * เปลี่ยนหน้าของผลลัพธ์การค้นหา
@@ -406,13 +210,6 @@ const useSearch = () => {
     }
   }, [location.search, handleSearchProjects]);
 
-  // ดึงข้อมูลแท็กยอดนิยมและการค้นหายอดนิยมเมื่อ hook ถูกเรียกใช้
-  useEffect(() => {
-    fetchPopularTags();
-    fetchPopularSearches();
-    fetchSearchHistory();
-  }, [fetchPopularTags, fetchPopularSearches, fetchSearchHistory]);
-
   // ยกเลิก timeout เมื่อ component unmount
   useEffect(() => {
     return () => {
@@ -428,28 +225,17 @@ const useSearch = () => {
     isSearching,
     error,
     keyword,
-    suggestions,
-    popularTags,
-    popularSearches,
-    searchHistory,
     pagination,
     advancedFilters,
     
     // Actions
     searchProjects: handleSearchProjects,
     searchUsers: handleSearchUsers,
-    searchByTag: handleSearchByTag,
-    advancedSearch: handleAdvancedSearch,
     changePage,
     handleKeywordChange,
     submitSearch,
     updateAdvancedFilters,
     clearAdvancedFilters,
-    
-    // Utilities
-    fetchPopularTags,
-    fetchPopularSearches,
-    fetchSearchHistory
   };
 };
 

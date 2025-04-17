@@ -9,30 +9,62 @@ import { isEmpty } from '../../utils/validationHelper.js';
 import searchService from '../../services/searchService.js';
 import { asyncHandler } from '../../middleware/loggerMiddleware.js';
 
-/**
- * ค้นหาโครงการตามคำค้นหา
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 export const searchProjects = asyncHandler(async (req, res) => {
   try {
-    const keyword = req.query.keyword || '';
-    const pagination = getPaginationParams(req);
+    // แก้ไข: ตรวจสอบว่า keyword เป็น object หรือไม่ และดึงค่า keyword ที่แท้จริงออกมา
+    let keyword = '';
+    let page = 1;
+    let limit = 10;
     
-    // สร้างออบเจกต์ filters
+    if (typeof req.query.keyword === 'object' && req.query.keyword !== null) {
+      // กรณีที่ keyword เป็น object
+      keyword = req.query.keyword.keyword || '';
+      page = parseInt(req.query.keyword.page) || 1;
+      limit = parseInt(req.query.keyword.limit) || 10;
+    } else {
+      // กรณีปกติ
+      keyword = req.query.keyword || '';
+      page = parseInt(req.query.page) || 1;
+      limit = parseInt(req.query.limit) || 10;
+    }
+    
+    // สร้าง pagination object
+    const pagination = {
+      page,
+      limit
+    };
+    
+    // Ensure all filter values are properly formatted
     const filters = {
-      type: req.query.type,
-      year: req.query.year ? parseInt(req.query.year) : null,
-      studyYear: req.query.studyYear ? parseInt(req.query.studyYear) : null,
+      type: req.query.type || null,
+      year: req.query.year ? parseInt(req.query.year, 10) : null,
+      studyYear: req.query.studyYear ? parseInt(req.query.studyYear, 10) : null,
       userId: req.user ? req.user.id : null
     };
     
-    // เรียกใช้เซอร์วิสสำหรับการค้นหาโครงการ
-    const result = await searchService.searchProjects(keyword, filters, pagination);
+    // Make sure none of the filters have invalid values (like NaN)
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== null && typeof filters[key] === 'number' && isNaN(filters[key])) {
+        filters[key] = null;
+      }
+    });
+    
+    // Sanitize keyword to prevent SQL injection
+    const sanitizedKeyword = keyword;
+    
+    // ส่งออกข้อมูลเพื่อ debug
+    console.log("Search params:", {
+      keyword: sanitizedKeyword,
+      filters,
+      pagination
+    });
+    
+    // Pass sanitized data to the service
+    const result = await searchService.searchProjects(sanitizedKeyword, filters, pagination);
     
     return res.status(STATUS_CODES.OK).json(successResponse(
       result,
-      keyword ? `Search results for "${keyword}"` : 'All projects retrieved successfully'
+      sanitizedKeyword ? `Search results for "${sanitizedKeyword}"` : 'All projects retrieved successfully'
     ));
   } catch (error) {
     logger.error('Error in searchProjects controller:', error);

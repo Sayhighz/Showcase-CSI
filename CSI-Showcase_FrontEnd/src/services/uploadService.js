@@ -3,7 +3,7 @@
  * ให้บริการฟังก์ชันเกี่ยวกับการอัพโหลดไฟล์, รูปภาพ, วิดีโอ เป็นต้น
  */
 import { post, del, get, uploadFile } from './apiService';
-import { UPLOAD } from '../constants/apiEndpoints';
+import { API_ENDPOINTS } from '../constants/apiEndpoints';
 import { message } from 'antd';
 import { formatFileSize, isAllowedFileType, isFileSizeValid } from '../utils/fileUtils';
 
@@ -32,7 +32,7 @@ export const uploadProfileImage = async (file) => {
     const formData = new FormData();
     formData.append('profileImage', file);
     
-    const response = await uploadFile(UPLOAD.PROFILE_IMAGE, formData);
+    const response = await uploadFile(API_ENDPOINTS.UPLOAD.PROFILE_IMAGE, formData);
     
     if (response && response.success) {
       message.success('อัพโหลดรูปโปรไฟล์สำเร็จ');
@@ -78,7 +78,7 @@ export const uploadImages = async (files) => {
       formData.append('images', file);
     });
     
-    const response = await uploadFile(UPLOAD.IMAGES, formData);
+    const response = await uploadFile(API_ENDPOINTS.UPLOAD.IMAGES, formData);
     
     if (response && response.success) {
       message.success('อัพโหลดรูปภาพสำเร็จ');
@@ -118,7 +118,7 @@ export const uploadVideo = async (file) => {
     const formData = new FormData();
     formData.append('video', file);
     
-    const response = await uploadFile(UPLOAD.VIDEO, formData);
+    const response = await uploadFile(API_ENDPOINTS.UPLOAD.VIDEO, formData);
     
     if (response && response.success) {
       message.success('อัพโหลดวิดีโอสำเร็จ');
@@ -173,7 +173,7 @@ export const uploadDocuments = async (files) => {
       formData.append('documents', file);
     });
     
-    const response = await uploadFile(UPLOAD.DOCUMENTS, formData);
+    const response = await uploadFile(API_ENDPOINTS.UPLOAD.DOCUMENTS, formData);
     
     if (response && response.success) {
       message.success('อัพโหลดเอกสารสำเร็จ');
@@ -210,7 +210,7 @@ export const uploadFiles = async (files) => {
       formData.append('files', file);
     });
     
-    const response = await uploadFile(UPLOAD.FILES, formData);
+    const response = await uploadFile(API_ENDPOINTS.UPLOAD.FILES, formData);
     
     if (response && response.success) {
       message.success('อัพโหลดไฟล์สำเร็จ');
@@ -263,7 +263,7 @@ export const uploadMultiple = async (files) => {
       });
     }
     
-    const response = await uploadFile(UPLOAD.MULTIPLE, formData);
+    const response = await uploadFile(API_ENDPOINTS.UPLOAD.MULTIPLE, formData);
     
     if (response && response.success) {
       message.success('อัพโหลดไฟล์สำเร็จ');
@@ -295,7 +295,7 @@ export const deleteFile = async (filePath, fileId = null) => {
       data.file_id = fileId;
     }
     
-    const response = await del(UPLOAD.DELETE, { data });
+    const response = await del(API_ENDPOINTS.UPLOAD.DELETE, { data });
     
     if (response && response.success) {
       message.success('ลบไฟล์สำเร็จ');
@@ -316,7 +316,7 @@ export const deleteFile = async (filePath, fileId = null) => {
  */
 export const getStorageStatus = async () => {
   try {
-    const response = await get(UPLOAD.STORAGE_STATUS);
+    const response = await get(API_ENDPOINTS.UPLOAD.STORAGE_STATUS);
     
     if (response && response.success) {
       return response.data;

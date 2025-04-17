@@ -12,12 +12,24 @@ import {
   Row, 
   Col,
   Space,
-  Tag
+  Tag,
+  Tooltip,
+  Alert
 } from 'antd';
-import { SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { 
+  SearchOutlined, 
+  FilterOutlined, 
+  ReloadOutlined, 
+  FireOutlined,
+  HistoryOutlined,
+  TagOutlined
+} from '@ant-design/icons';
+import { motion } from 'framer-motion';
 import { useSearch, useProject } from '../../hooks';
 import { PROJECT_TYPES } from '../../constants/projectTypes';
 import { SEARCH } from '../../constants/routes';
+import { colors, spaceTheme } from '../../config/themeConfig';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -39,6 +51,7 @@ const AdvancedSearch = ({
 }) => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [showInfo, setShowInfo] = useState(true);
   
   // เรียกใช้ hook เพื่อจัดการการค้นหา
   const { 
@@ -47,26 +60,24 @@ const AdvancedSearch = ({
     searchHistory,
     advancedSearch,
     handleKeywordChange,
+    isSearching
   } = useSearch();
 
-  // เรียกใช้ hook เพื่อดึงข้อมูลประเภทโปรเจค และปีที่มีในระบบ
+  // เรียกใช้ hook เพื่อดึงข้อมูลตัวกรอง
   const { 
-    fetchProjectTypes, 
-    fetchProjectYears, 
-    fetchStudyYears,
     projectTypes, 
     projectYears, 
-    studyYears 
+    studyYears,
+    isLoading: isLoadingFilters, 
+    fetchFilterOptions
   } = useProject();
 
-  // ดึงข้อมูลตัวเลือกสำหรับการกรอง
+  // ดึงข้อมูลตัวกรอง
   useEffect(() => {
-    fetchProjectTypes();
-    fetchProjectYears();
-    fetchStudyYears();
-  }, [fetchProjectTypes, fetchProjectYears, fetchStudyYears]);
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
 
-  // ฟังก์ชันสำหรับการค้นหาขั้นสูง
+  // จัดการการค้นหาขั้นสูง
   const handleSearch = (values) => {
     // สร้าง query parameters สำหรับ URL
     const queryParams = new URLSearchParams();
@@ -77,7 +88,13 @@ const AdvancedSearch = ({
         // ถ้าเป็น Array ให้แปลงเป็น string คั่นด้วยเครื่องหมายจุลภาค
         if (Array.isArray(value)) {
           queryParams.append(key, value.join(','));
-        } else {
+        } 
+        // ถ้าเป็น Moment object (Date) ให้แปลงเป็น ISO string
+        else if (value._isAMomentObject) {
+          queryParams.append(key, value.toISOString());
+        } 
+        // กรณีอื่นๆ
+        else {
           queryParams.append(key, value);
         }
       }
@@ -90,21 +107,49 @@ const AdvancedSearch = ({
     advancedSearch(values);
   };
 
-  // ฟังก์ชันสำหรับรีเซ็ตฟอร์ม
+  // จัดการการรีเซ็ตฟอร์ม
   const handleReset = () => {
     form.resetFields();
   };
 
-  // ฟังก์ชันสำหรับการเลือกแท็กหรือการค้นหายอดนิยม
+  // จัดการการเลือกแท็กหรือการค้นหายอดนิยม
   const handleQuickSearch = (keyword) => {
     form.setFieldsValue({ keyword });
     handleKeywordChange(keyword);
   };
 
+  if (isLoadingFilters) {
+    return <LoadingSpinner tip="กำลังโหลดตัวกรอง..." />;
+  }
+
   return (
-    <div style={{ ...style }}>
-      <Card>
-        <Title level={3}>
+    <motion.div 
+      style={{ ...style }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      {showInfo && (
+        <Alert
+          message="เคล็ดลับการค้นหา"
+          description="ใช้การค้นหาขั้นสูงเพื่อกรองผลลัพธ์อย่างละเอียด คุณสามารถค้นหาตามประเภทโปรเจค ปีที่สร้าง หรือชั้นปีของผู้สร้างได้"
+          type="info"
+          showIcon
+          closable
+          onClose={() => setShowInfo(false)}
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      <Card 
+        className="search-card"
+        style={{ 
+          ...spaceTheme.glassCard, 
+          background: 'rgba(255, 255, 255, 0.8)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+        }}
+      >
+        <Title level={3} style={{ color: colors.primary, marginBottom: 16 }}>
           <FilterOutlined style={{ marginRight: 8 }} />
           ค้นหาขั้นสูง
         </Title>
@@ -112,7 +157,7 @@ const AdvancedSearch = ({
           ใช้ตัวกรองต่อไปนี้เพื่อค้นหาโปรเจคที่ตรงกับความต้องการของคุณ
         </Paragraph>
         
-        <Divider />
+        <Divider style={{ borderColor: `${colors.primary}30` }} />
         
         <Form
           form={form}
@@ -120,6 +165,9 @@ const AdvancedSearch = ({
           layout="vertical"
           onFinish={handleSearch}
           requiredMark={false}
+          validateMessages={{
+            required: 'กรุณากรอก${label}'
+          }}
         >
           <Row gutter={[24, 16]}>
             <Col xs={24} md={12} lg={8}>
@@ -129,7 +177,8 @@ const AdvancedSearch = ({
               >
                 <Input 
                   placeholder="ค้นหาตามชื่อ, คำอธิบาย, หรือเนื้อหา" 
-                  prefix={<SearchOutlined />}
+                  prefix={<SearchOutlined style={{ color: colors.primary }} />}
+                  allowClear
                 />
               </Form.Item>
             </Col>
@@ -139,7 +188,12 @@ const AdvancedSearch = ({
                 name="type" 
                 label="ประเภทโปรเจค"
               >
-                <Select placeholder="เลือกประเภทโปรเจค" allowClear>
+                <Select 
+                  placeholder="เลือกประเภทโปรเจค" 
+                  allowClear
+                  showSearch
+                  optionFilterProp="children"
+                >
                   {PROJECT_TYPES.map(type => (
                     <Option key={type.value} value={type.value}>
                       {type.emoji} {type.label}
@@ -154,7 +208,12 @@ const AdvancedSearch = ({
                 name="year" 
                 label="ปีของโปรเจค"
               >
-                <Select placeholder="เลือกปีของโปรเจค" allowClear>
+                <Select 
+                  placeholder="เลือกปีของโปรเจค" 
+                  allowClear
+                  showSearch
+                  optionFilterProp="children"
+                >
                   {projectYears.map(year => (
                     <Option key={year} value={year}>{year}</Option>
                   ))}
@@ -167,7 +226,12 @@ const AdvancedSearch = ({
                 name="studyYear" 
                 label="ชั้นปีของผู้สร้าง"
               >
-                <Select placeholder="เลือกชั้นปีของผู้สร้าง" allowClear>
+                <Select 
+                  placeholder="เลือกชั้นปีของผู้สร้าง" 
+                  allowClear
+                  showSearch
+                  optionFilterProp="children"
+                >
                   {studyYears.map(year => (
                     <Option key={year} value={year}>ปี {year}</Option>
                   ))}
@@ -184,6 +248,7 @@ const AdvancedSearch = ({
                   mode="tags"
                   placeholder="เลือกหรือเพิ่มแท็ก"
                   tokenSeparators={[',']}
+                  allowClear
                 />
               </Form.Item>
             </Col>
@@ -196,12 +261,13 @@ const AdvancedSearch = ({
                 <RangePicker 
                   style={{ width: '100%' }}
                   placeholder={['วันเริ่มต้น', 'วันสิ้นสุด']}
+                  format="DD/MM/YYYY"
                 />
               </Form.Item>
             </Col>
           </Row>
           
-          <Divider />
+          <Divider style={{ borderColor: `${colors.primary}20` }} />
           
           <div style={{ textAlign: 'center', marginTop: 16 }}>
             <Space size="middle">
@@ -211,14 +277,24 @@ const AdvancedSearch = ({
               >
                 รีเซ็ต
               </Button>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                icon={<SearchOutlined />}
-                size="large"
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                ค้นหา
-              </Button>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  icon={<SearchOutlined />}
+                  size="large"
+                  loading={isSearching}
+                  style={{ 
+                    background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`,
+                    borderColor: 'transparent'
+                  }}
+                >
+                  ค้นหา
+                </Button>
+              </motion.div>
             </Space>
           </div>
         </Form>
@@ -226,63 +302,126 @@ const AdvancedSearch = ({
       
       {/* แสดงการค้นหายอดนิยม */}
       {showPopularQueries && popularSearches && popularSearches.length > 0 && (
-        <Card style={{ marginTop: 24 }}>
-          <Title level={4}>การค้นหายอดนิยม</Title>
-          <div>
-            {popularSearches.map((item, index) => (
-              <Tag
-                key={index}
-                color="blue"
-                style={{ margin: '4px', cursor: 'pointer' }}
-                onClick={() => handleQuickSearch(item.keyword)}
-              >
-                {item.keyword} ({item.count})
-              </Tag>
-            ))}
-          </div>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <Card 
+            style={{ 
+              marginTop: 24, 
+              ...spaceTheme.glassCard,
+              background: 'rgba(255, 255, 255, 0.7)'
+            }}
+          >
+            <Title level={4} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FireOutlined style={{ color: '#f5222d' }} /> การค้นหายอดนิยม
+            </Title>
+            <div style={{ marginTop: 16 }}>
+              {popularSearches.map((item, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 * index }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Tag
+                    color="blue"
+                    style={{ margin: '4px', cursor: 'pointer', padding: '4px 8px' }}
+                    onClick={() => handleQuickSearch(item.keyword)}
+                  >
+                    {item.keyword} <span style={{ color: '#fff', fontWeight: 'bold' }}>({item.count})</span>
+                  </Tag>
+                </motion.div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
       )}
       
       {/* แสดงแท็กยอดนิยม */}
       {showPopularTags && popularTags && popularTags.length > 0 && (
-        <Card style={{ marginTop: 24 }}>
-          <Title level={4}>แท็กยอดนิยม</Title>
-          <div>
-            {popularTags.map((tag, index) => (
-              <Tag
-                key={index}
-                color="green"
-                style={{ margin: '4px', cursor: 'pointer' }}
-                onClick={() => form.setFieldsValue({ tags: [tag.name] })}
-              >
-                {tag.name} ({tag.count})
-              </Tag>
-            ))}
-          </div>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <Card 
+            style={{ 
+              marginTop: 24, 
+              ...spaceTheme.glassCard,
+              background: 'rgba(255, 255, 255, 0.7)'
+            }}
+          >
+            <Title level={4} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <TagOutlined style={{ color: '#52c41a' }} /> แท็กยอดนิยม
+            </Title>
+            <div style={{ marginTop: 16 }}>
+              {popularTags.map((tag, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 * index }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Tag
+                    color="green"
+                    style={{ margin: '4px', cursor: 'pointer', padding: '4px 8px' }}
+                    onClick={() => form.setFieldsValue({ tags: [tag.name] })}
+                  >
+                    {tag.name} <span style={{ color: '#fff', fontWeight: 'bold' }}>({tag.count})</span>
+                  </Tag>
+                </motion.div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
       )}
       
       {/* แสดงประวัติการค้นหาของผู้ใช้ */}
       {searchHistory && searchHistory.length > 0 && (
-        <Card style={{ marginTop: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Title level={4} style={{ margin: 0 }}>ประวัติการค้นหาของคุณ</Title>
-            <Button type="link">ล้างประวัติ</Button>
-          </div>
-          <div>
-            {searchHistory.map((item, index) => (
-              <Tag
-                key={index}
-                style={{ margin: '4px', cursor: 'pointer' }}
-                onClick={() => handleQuickSearch(item.keyword)}
-              >
-                {item.keyword}
-              </Tag>
-            ))}
-          </div>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
+          <Card 
+            style={{ 
+              marginTop: 24, 
+              ...spaceTheme.glassCard,
+              background: 'rgba(255, 255, 255, 0.7)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Title level={4} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <HistoryOutlined style={{ color: colors.primary }} /> ประวัติการค้นหาของคุณ
+              </Title>
+              <Button type="link">ล้างประวัติ</Button>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              {searchHistory.map((item, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 * index }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Tag
+                    style={{ margin: '4px', cursor: 'pointer', padding: '4px 8px' }}
+                    onClick={() => handleQuickSearch(item.keyword || item)}
+                  >
+                    {item.keyword || item}
+                  </Tag>
+                </motion.div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

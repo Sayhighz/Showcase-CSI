@@ -32,7 +32,7 @@ export const createApp = (options = {}) => {
   })); // ช่วยในการรักษาความปลอดภัย HTTP headers แต่อนุญาต cross-origin
   
   app.use(cors({
-    origin: '*',
+    origin: 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'secret_key', 'admin_secret_key'],
     credentials: true

@@ -4,7 +4,7 @@
  */
 import { get, post } from './apiService';
 import { setAuthCookie, removeAuthCookie } from '../lib/cookie';
-import { AUTH } from '../constants/apiEndpoints';
+import { API_ENDPOINTS } from '../constants/apiEndpoints';
 import { message } from 'antd';
 
 /**
@@ -15,7 +15,7 @@ import { message } from 'antd';
  */
 export const login = async (username, password) => {
   try {
-    const response = await post(AUTH.LOGIN, { username, password });
+    const response = await post(API_ENDPOINTS.AUTH.LOGIN, { username, password });
     
     // ถ้าล็อกอินสำเร็จและได้รับ token
     if (response && response.success && response.data && response.data.token) {
@@ -60,7 +60,7 @@ export const register = async (userData) => {
       throw new Error('กรุณากรอกข้อมูลให้ครบถ้วน');
     }
     
-    const response = await post(AUTH.REGISTER, {
+    const response = await post(API_ENDPOINTS.AUTH.REGISTER, {
       username,
       password,
       full_name: fullName,
@@ -99,7 +99,7 @@ export const register = async (userData) => {
 export const logout = async () => {
   try {
     // เรียก API ล็อกเอาท์
-    await post(AUTH.LOGOUT);
+    await post(API_ENDPOINTS.AUTH.LOGOUT);
     
     // ลบ token จาก cookie
     removeAuthCookie();
@@ -127,7 +127,7 @@ export const logout = async () => {
  */
 export const getCurrentUser = async () => {
   try {
-    const response = await get(AUTH.ME);
+    const response = await get(API_ENDPOINTS.AUTH.ME);
     
     if (response && response.success && response.data) {
       return response.data;
@@ -155,7 +155,7 @@ export const getCurrentUser = async () => {
  */
 export const verifyToken = async () => {
   try {
-    const response = await get(AUTH.VERIFY_TOKEN);
+    const response = await get(API_ENDPOINTS.AUTH.VERIFY_TOKEN);
     
     if (response && response.success && response.data && response.data.valid) {
       return response.data;
@@ -181,7 +181,7 @@ export const verifyToken = async () => {
  */
 export const forgotPassword = async (email) => {
   try {
-    const response = await post(AUTH.FORGOT_PASSWORD, { email });
+    const response = await post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, { email });
     
     if (response && response.success) {
       message.success('กรุณาตรวจสอบอีเมลของคุณเพื่อรีเซ็ตรหัสผ่าน');
@@ -212,7 +212,7 @@ export const resetPassword = async (token, newPassword, confirmPassword) => {
       throw new Error('รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
     }
     
-    const response = await post(AUTH.RESET_PASSWORD, {
+    const response = await post(API_ENDPOINTS.AUTH.RESET_PASSWORD, {
       token,
       newPassword,
       confirmPassword,

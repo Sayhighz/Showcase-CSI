@@ -120,7 +120,7 @@ export const getTop9Projects = async (req, res) => {
       LIMIT ?
     `;
     
-    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit]);
+    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit.toString()]);
     
     // Format projects for response
     const formattedProjects = projects.map(project => ({
@@ -181,7 +181,7 @@ export const getLatestProjects = async (req, res) => {
       LIMIT ?
     `;
     
-    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit]);
+    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit.toString()]);
     
     // Format projects for response
     const formattedProjects = projects.map(project => ({
@@ -218,6 +218,7 @@ export const getLatestProjects = async (req, res) => {
 export const getMyProjects = async (req, res) => {
   try {
     const userId = req.params.user_id;
+    // console.log(userId)
     
     // Check if user has permission to view these projects
     if (req.user.id != userId && req.user.role !== "admin") {
@@ -328,6 +329,7 @@ export const getProjectDetails = async (req, res) => {
         id: project.user_id,
         username: project.username,
         fullName: project.full_name,
+        image : project.user_image,
         email: req.user && (req.user.id == project.user_id || req.user.role === "admin") ? project.email : undefined
       },
       contributors: project.contributors || [],

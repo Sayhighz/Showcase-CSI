@@ -108,10 +108,11 @@ const useProject = (projectId = null) => {
       
       if (response) {
         setProjects(response.projects || []);
+        // FIX: ใช้ฟังก์ชัน setter ที่ไม่อ้างอิงถึง previous state ของ pagination
         setPagination({
-          ...pagination,
           total: response.total || 0,
           current: response.page || 1,
+          pageSize: pagination.pageSize
         });
       }
     } catch (err) {
@@ -120,7 +121,7 @@ const useProject = (projectId = null) => {
     } finally {
       setIsLoading(false);
     }
-  }, [filters, pagination.current, pagination.pageSize, pagination]);
+  }, [filters, pagination.current, pagination.pageSize]); // FIX: แยกค่าที่ใช้จริงจาก pagination object
 
   /**
    * ดึงข้อมูลโปรเจคยอดนิยม
@@ -133,8 +134,10 @@ const useProject = (projectId = null) => {
       const response = await getTopProjects();
       
       if (response) {
-        setProjects(response || []);
+        setProjects(() => [...response]);
+        return response
       }
+      return null;
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคยอดนิยม');
       console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคยอดนิยม:', err);
@@ -155,8 +158,10 @@ const useProject = (projectId = null) => {
       const response = await getLatestProjects(limit);
       
       if (response) {
-        setProjects(response || []);
+        setProjects(response);
+        return response
       }
+      return null;
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคล่าสุด');
       console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคล่าสุด:', err);
@@ -351,19 +356,18 @@ const useProject = (projectId = null) => {
     setError(null);
     
     try {
-      // รวมพารามิเตอร์จาก state filters และพารามิเตอร์ที่ส่งมา
-      const queryParams = {
-        page: pagination.current,
-        limit: pagination.pageSize,
+      // อัปเดต state filters ด้วยพารามิเตอร์ที่ส่งมา
+      const newFilters = {
         ...filters,
         ...searchParams
       };
       
-      // อัปเดต state filters ด้วยพารามิเตอร์ที่ส่งมา
-      setFilters(prevFilters => ({
-        ...prevFilters,
-        ...searchParams
-      }));
+      // รวมพารามิเตอร์สำหรับการค้นหา
+      const queryParams = {
+        page: pagination.current,
+        limit: pagination.pageSize,
+        ...newFilters
+      };
       
       // กรองค่า null และ undefined ออก
       Object.keys(queryParams).forEach(key => {
@@ -376,11 +380,15 @@ const useProject = (projectId = null) => {
       
       if (response) {
         setProjects(response.projects || []);
+        // FIX: ใช้การกำหนดค่าแบบตรงไปตรงมาแทนการอ้างอิง previous state
         setPagination({
-          ...pagination,
           total: response.total || 0,
           current: response.page || 1,
+          pageSize: pagination.pageSize
         });
+        
+        // อัปเดตตัวกรองหลังจากการค้นหาสำเร็จ
+        setFilters(newFilters);
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการค้นหาโปรเจค');
@@ -388,7 +396,7 @@ const useProject = (projectId = null) => {
     } finally {
       setIsLoading(false);
     }
-  }, [filters, pagination]);
+  }, [filters, pagination.current, pagination.pageSize]); // FIX: เฉพาะค่าที่ใช้จริงจาก pagination
 
   /**
    * อัปเดตตัวกรอง
@@ -431,6 +439,18 @@ const useProject = (projectId = null) => {
   useEffect(() => {
     fetchFilterOptions();
   }, [fetchFilterOptions]);
+
+  // FIX: เพิ่ม useEffect สำหรับดึงข้อมูลโปรเจคเมื่อ pagination.current หรือ filters เปลี่ยนแปลง
+  // แยกออกมาเพื่อป้องกันการเกิด circular dependency
+  useEffect(() => {
+    // ข้ามการดึงข้อมูลในครั้งแรกที่ hook ถูกเรียกใช้
+    // จะให้ผู้ใช้เรียกใช้ฟังก์ชันดึงข้อมูลเองในครั้งแรก
+    const isInitialRender = pagination.current === 1 && pagination.total === 0;
+    if (!isInitialRender && !projectId) {
+      fetchAllProjects();
+    }
+  }, [pagination.current, filters]); // ลดการพึ่งพาตัวแปรลง
+
 
   return {
     // State

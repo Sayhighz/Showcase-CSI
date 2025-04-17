@@ -135,6 +135,7 @@ export const isStudent = (req, res, next) => {
  */
 export const isResourceOwner = async (req, res, next) => {
   try {
+    // console.log(req.user)
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -143,7 +144,7 @@ export const isResourceOwner = async (req, res, next) => {
       });
     }
     
-    const resourceId = req.params.projectId || req.params.userId;
+    const resourceId = req.params.projectId || req.params.user_id;
     
     if (!resourceId) {
       return res.status(400).json({
@@ -159,9 +160,9 @@ export const isResourceOwner = async (req, res, next) => {
     }
     
     // ตรวจสอบว่าเป็น userId หรือไม่
-    if (req.params.userId) {
+    if (req.params.user_id) {
       // ถ้าเป็น userId ต้องเป็นของตัวเองเท่านั้น
-      if (req.user.id != req.params.userId) {
+      if (req.user.id != req.params.user_id) {
         return forbiddenResponse(res, 'Access denied. You can only access your own resources');
       }
       return next();
@@ -174,7 +175,7 @@ export const isResourceOwner = async (req, res, next) => {
         SELECT user_id FROM project_groups WHERE project_id = ?
       `, [resourceId]);
       
-      const isOwner = owners.some(owner => owner.user_id == req.user.id);
+      const isOwner = owners.some(owner => owner.user_id == req.userid);
       
       if (!isOwner) {
         return forbiddenResponse(res, 'Access denied. You are not the owner of this resource');

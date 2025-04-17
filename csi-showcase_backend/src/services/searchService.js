@@ -13,8 +13,8 @@ import { getPaginationInfo } from '../constants/pagination.js';
 export const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
   try {
     // กำหนดค่าเริ่มต้นสำหรับการแบ่งหน้า
-    const page = pagination.page || 1;
-    const limit = pagination.limit || 10;
+    const page = parseInt(pagination.page) || 1;
+    const limit = parseInt(pagination.limit) || 10;
     const offset = (page - 1) * limit;
     
     // สร้าง query พื้นฐาน
@@ -26,61 +26,58 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
       WHERE p.status = 'approved' AND p.visibility = 1
     `;
     
-    const queryParams = [];
+    // เตรียมข้อมูลสำหรับการค้นหา
+    const searchPattern = keyword ? `%${keyword}%` : '';
     
     // เพิ่มเงื่อนไขการค้นหา
-    if (keyword) {
-      query += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ? OR u.full_name LIKE ?)`;
-      const searchPattern = `%${keyword}%`;
-      queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    if (keyword && keyword.trim() !== '') {
+      query += ` AND (p.title LIKE '%${keyword}%' OR p.description LIKE '%${keyword}%' 
+                 OR p.tags LIKE '%${keyword}%' OR u.full_name LIKE '%${keyword}%')`;
     }
     
     // เพิ่มเงื่อนไขการกรอง
     if (filters.type) {
-      query += ` AND p.type = ?`;
-      queryParams.push(filters.type);
+      query += ` AND p.type = '${filters.type}'`;
     }
     
     if (filters.year) {
-      query += ` AND p.year = ?`;
-      queryParams.push(filters.year);
+      query += ` AND p.year = ${filters.year}`;
     }
     
     if (filters.studyYear) {
-      query += ` AND p.study_year = ?`;
-      queryParams.push(filters.studyYear);
+      query += ` AND p.study_year = ${filters.studyYear}`;
     }
     
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
+    // คัดลอก query สำหรับนับจำนวนรายการ
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
-    const [countResult] = await pool.execute(countQuery, queryParams);
+    
+    // ดึงข้อมูลจำนวนทั้งหมด
+    const [countResult] = await pool.query(countQuery);
     const totalItems = countResult[0].total;
     
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY 
-      CASE 
-        WHEN p.title LIKE ? THEN 1
-        WHEN p.tags LIKE ? THEN 2
-        WHEN p.description LIKE ? THEN 3
-        WHEN u.full_name LIKE ? THEN 4
-        ELSE 5
-      END,
-      p.views_count DESC,
-      p.created_at DESC
-      LIMIT ? OFFSET ?`;
-    
-    // เพิ่ม parameters สำหรับการจัดลำดับความเกี่ยวข้อง
-    if (keyword) {
-      const searchPattern = `%${keyword}%`;
-      queryParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    // สร้าง ORDER BY clause
+    if (keyword && keyword.trim() !== '') {
+      query += ` ORDER BY 
+        CASE 
+          WHEN p.title LIKE '%${keyword}%' THEN 1
+          WHEN p.tags LIKE '%${keyword}%' THEN 2
+          WHEN p.description LIKE '%${keyword}%' THEN 3
+          WHEN u.full_name LIKE '%${keyword}%' THEN 4
+          ELSE 5
+        END,
+        p.views_count DESC,
+        p.created_at DESC`;
     } else {
-      queryParams.push('', '', '', '');
+      query += ` ORDER BY p.views_count DESC, p.created_at DESC`;
     }
     
-    queryParams.push(limit, offset);
+    // เพิ่ม LIMIT และ OFFSET
+    query += ` LIMIT ${limit} OFFSET ${offset}`;
+    
+    console.log('Final query:', query);
     
     // ดึงข้อมูลโครงการ
-    const [projects] = await pool.execute(query, queryParams);
+    const [projects] = await pool.query(query);
     
     // จัดรูปแบบข้อมูลสำหรับการส่งกลับ
     const formattedProjects = projects.map(project => ({
@@ -99,8 +96,8 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
     // ข้อมูลการแบ่งหน้า
     const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
-    // บันทึกคำค้นหาลงในฐานข้อมูลถ้ามีคำค้นหา
-    if (keyword) {
+    // บันทึกคำค้นหา
+    if (keyword && keyword.trim() !== '') {
       try {
         await pool.execute(`
           INSERT INTO search_logs (keyword, user_id, search_count)

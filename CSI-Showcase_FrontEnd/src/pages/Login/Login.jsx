@@ -1,85 +1,97 @@
 import React, { useState } from "react";
-import { Form, Input, Button, Card, Modal, message, Spin } from "antd";
-import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
-import { axiosLogin } from "../../lib/axios";
-import { setAuthCookie } from "../../lib/cookie";
-import { useAuth } from "../../context/AuthContext";
-import { jwtDecode } from "jwt-decode";
+import { Form, Input, Button, Card, Modal, Spin, Typography, Divider } from "antd";
+import { UserOutlined, LockOutlined, LoginOutlined, MailOutlined } from '@ant-design/icons';
+import { useNavigate } from "react-router-dom";
+
+// นำเข้า hooks จากโปรเจค
+import useAuth from "../../hooks/useAuth";
+import useNotification from "../../hooks/useNotification";
+
+// นำเข้า constants จากโปรเจค
+import { HOME } from "../../constants/routes";
+
+// นำเข้ารูปโลโก้
 import Logo from '../../assets/Logo_CSI_Color.png';
 
+const { Title, Paragraph, Text } = Typography;
+
 const Login = () => {
-  const { setAuthData } = useAuth();
+  // ใช้ hooks จากโปรเจค
+  const { login, isAuthLoading } = useAuth();
+  const { showSuccess, showError } = useNotification();
+  const navigate = useNavigate();
+  
+  // state สำหรับ Modal
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isRegisterModalVisible, setIsRegisterModalVisible] = useState(false);
   const [form] = Form.useForm();
+  const [registerForm] = Form.useForm();
 
   // Modal handlers
-  const showModal = () => setIsModalVisible(true);
-  const handleOk = () => setIsModalVisible(false);
-  const handleCancel = () => setIsModalVisible(false);
+  const showForgotPasswordModal = () => setIsModalVisible(true);
+  const showRegisterModal = () => setIsRegisterModalVisible(true);
+  
+  const handleModalCancel = () => setIsModalVisible(false);
+  const handleRegisterModalCancel = () => setIsRegisterModalVisible(false);
 
+  // ฟังก์ชันสำหรับการเข้าสู่ระบบ
   const onFinish = async (values) => {
     try {
-      setLoading(true);
       const { username, password } = values;
-
-      // เรียกใช้ฟังก์ชัน login จาก axios
-      const response = await axiosLogin(username, password);
-
-      if (response.token) {
-        // ถอดรหัส token เพื่อดึงข้อมูลผู้ใช้
-        const decoded = jwtDecode(response.token);
-        
-        // เก็บ token ใน cookies
-        setAuthCookie(response.token);
-        
-        // อัปเดตข้อมูลผู้ใช้ใน context
-        setAuthData({
-          username: decoded.username,
-          role: decoded.role,
-          token: response.token,
-          userId: decoded.id // ต้องตรงกับ payload ที่ถูกสร้างในฝั่ง server
-        });
-
-        message.success({
-          content: "เข้าสู่ระบบสำเร็จ!",
-          icon: <LoginOutlined style={{ color: '#52c41a' }} />
-        });
-        
-        // redirect ไปยังหน้าหลัก
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 1000);
-      }
-    } catch (error) {
-      console.error("Login error:", error);
       
-      // แสดงข้อผิดพลาดผ่าน Ant Design message
+      // เรียกใช้ฟังก์ชัน login จาก useAuth hook
+      await login(username, password);
+      
+      // แสดงข้อความเมื่อเข้าสู่ระบบสำเร็จ
+      showSuccess('เข้าสู่ระบบสำเร็จ กำลังนำทางไปยังหน้าหลัก...');
+      
+      // นำทางไปยังหน้าหลัก
+      setTimeout(() => {
+        navigate(HOME);
+      }, 1000);
+      
+    } catch (error) {
+      // จัดการข้อผิดพลาด
       if (error.status === 401) {
-        message.error("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        showError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
       } else if (error.message) {
-        message.error(`ข้อผิดพลาด: ${error.message}`);
+        showError(`ข้อผิดพลาด: ${error.message}`);
       } else {
-        message.error('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+        showError('เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
       }
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  // ฟังก์ชันสำหรับการขอรีเซ็ตรหัสผ่าน
+  const handleForgotPassword = async (values) => {
+    try {
+      // ปิด Modal
+      setIsModalVisible(false);
+      
+      // แสดงข้อความสำเร็จ
+      showSuccess('ส่งลิงก์สำหรับรีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว');
+    } catch (error) {
+      showError('เกิดข้อผิดพลาดในการขอรีเซ็ตรหัสผ่าน');
     }
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-white">
       {/* Left Section - Logo & Text */}
       <div className="w-1/2 flex flex-col justify-center items-center bg-white p-10">
         <div className="max-w-lg text-center">
-          <img src={Logo} alt="Logo" className="w-96 mx-auto mb-8 transition-all hover:scale-105 duration-300" />
-          <h1 className="text-2xl font-semibold text-gray-800 mb-2">CSI Showcase</h1>
-          <p className="text-xl text-gray-700 mb-6">
+          <img 
+            src={Logo} 
+            alt="CSI Showcase Logo" 
+            className="w-96 mx-auto mb-8 transition-all hover:scale-105 duration-300" 
+          />
+          <Title level={2} className="text-gray-800 mb-2">CSI Showcase</Title>
+          <Paragraph className="text-xl text-gray-700 mb-6">
             คลังเก็บผลงานนักศึกษาคณะเทคโนโลยีสารสนเทศ
-          </p>
-          <p className="text-lg text-gray-600">
+          </Paragraph>
+          <Paragraph className="text-lg text-gray-600">
             สาขาวิชาการคอมพิวเตอร์และนวัตกรรมพัฒนาซอฟต์แวร์
-          </p>
+          </Paragraph>
         </div>
       </div>
 
@@ -90,11 +102,11 @@ const Login = () => {
           bordered={false}
         >
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
-            <p className="text-gray-600">กรอกข้อมูลเพื่อเข้าใช้งานระบบ</p>
+            <Title level={2} className="text-gray-800">เข้าสู่ระบบ</Title>
+            <Text className="text-gray-600">กรอกข้อมูลเพื่อเข้าใช้งานระบบ</Text>
           </div>
           
-          <Spin spinning={loading} tip="กำลังเข้าสู่ระบบ...">
+          <Spin spinning={isAuthLoading} tip="กำลังเข้าสู่ระบบ...">
             <Form 
               form={form}
               layout="vertical" 
@@ -110,7 +122,7 @@ const Login = () => {
               > 
                 <Input 
                   prefix={<UserOutlined className="site-form-item-icon" />} 
-                  placeholder="username" 
+                  placeholder="ชื่อผู้ใช้" 
                   size="large" 
                   className="rounded-md"
                 />
@@ -146,10 +158,11 @@ const Login = () => {
           </Spin>
           
           {/* Additional Buttons */}
-          <div className="text-center mt-4 border-t pt-4">
+          <Divider className="my-2" />
+          <div className="text-center mt-4">
             <Button 
               type="link" 
-              onClick={showModal} 
+              onClick={showForgotPasswordModal} 
               className="text-gray-600 hover:text-purple-700"
             >
               ลืมรหัสผ่าน?
@@ -157,7 +170,7 @@ const Login = () => {
             <span className="mx-2 text-gray-400">|</span>
             <Button 
               type="link" 
-              onClick={showModal} 
+              onClick={showRegisterModal} 
               className="text-gray-600 hover:text-purple-700"
             >
               ยังไม่มีบัญชี?
@@ -166,22 +179,68 @@ const Login = () => {
         </Card>
       </div>
 
-      {/* Modal */}
+      {/* Forgot Password Modal */}
+      <Modal 
+        title={<div className="text-center text-lg">ลืมรหัสผ่าน</div>}
+        open={isModalVisible} 
+        onCancel={handleModalCancel} 
+        centered
+        footer={null}
+      >
+        <Form
+          layout="vertical"
+          onFinish={handleForgotPassword}
+        >
+          <div className="py-4">
+            <Paragraph className="text-base text-center mb-4">
+              กรุณากรอกอีเมลของคุณเพื่อรับลิงก์สำหรับรีเซ็ตรหัสผ่าน
+            </Paragraph>
+            
+            <Form.Item 
+              name="email" 
+              rules={[
+                { required: true, message: 'กรุณากรอกอีเมล' },
+                { type: 'email', message: 'รูปแบบอีเมลไม่ถูกต้อง' }
+              ]}
+            >
+              <Input 
+                prefix={<MailOutlined />} 
+                placeholder="อีเมล" 
+                size="large" 
+              />
+            </Form.Item>
+            
+            <div className="flex justify-end gap-2 mt-4">
+              <Button onClick={handleModalCancel}>
+                ยกเลิก
+              </Button>
+              <Button type="primary" htmlType="submit" className="bg-purple-700 hover:bg-purple-800">
+                ส่งคำขอ
+              </Button>
+            </div>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Register Modal */}
       <Modal 
         title={<div className="text-center text-lg">แจ้งเตือน</div>}
-        open={isModalVisible} 
-        onOk={handleOk} 
-        onCancel={handleCancel} 
+        open={isRegisterModalVisible} 
+        onCancel={handleRegisterModalCancel} 
         centered
         footer={[ 
-          <Button key="ok" type="primary" onClick={handleOk} className="bg-purple-700 hover:bg-purple-800">
+          <Button key="ok" type="primary" onClick={handleRegisterModalCancel} className="bg-purple-700 hover:bg-purple-800">
             ตกลง
           </Button>,
         ]}
       >
         <div className="py-4 text-center">
-          <p className="text-base">กรุณาติดต่อเจ้าหน้าที่หรือผู้ดูแลระบบเพื่อขอรับความช่วยเหลือ</p>
-          <p className="mt-2 text-gray-500">อีเมล: admin@csi-showcase.com</p>
+          <Paragraph className="text-base">
+            กรุณาติดต่อเจ้าหน้าที่หรือผู้ดูแลระบบเพื่อขอบัญชีผู้ใช้สำหรับเข้าใช้งานระบบ
+          </Paragraph>
+          <Paragraph className="mt-2 text-gray-500">
+            อีเมล: admin@csi-showcase.com
+          </Paragraph>
         </div>
       </Modal>
     </div>

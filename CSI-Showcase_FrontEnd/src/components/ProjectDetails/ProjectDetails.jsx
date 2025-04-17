@@ -1,91 +1,335 @@
 import React from 'react';
+import { Tag, Avatar, Tooltip, Space, Divider, Badge, Card } from 'antd';
+import { BookOutlined, TeamOutlined, TrophyOutlined, CalendarOutlined, EyeOutlined, UserOutlined, 
+         DownloadOutlined, LinkOutlined, HeartOutlined, FilePdfOutlined } from '@ant-design/icons';
 import ImageSlider from '../ImageSlider/ImageSlider';
+import { formatThaiDate } from '../../utils/dateUtils';
+import { getProjectTypeInfo } from '../../constants/projectTypes';
 
+/**
+ * ProjectDetails component แสดงรายละเอียดของโปรเจค
+ * ด้วยการออกแบบที่เรียบง่ายแต่สวยงาม
+ * 
+ * @param {Object} props - Props ของ component
+ * @param {Object} props.project - ข้อมูลโปรเจค
+ * @returns {JSX.Element} ProjectDetails component
+ */
 const ProjectDetails = ({ project }) => {
-  // Collect all images (including images from other sections like coursework, competition, etc.)
-  const allImages = [
-    ...(project.images || []), // From the images array (if available)
-    project.coursework?.courseworkImage, // From coursework (if available)
-    project.competition?.competitionPoster, // From competition (if available)
-  ].filter(Boolean); // Remove any undefined or null values
+  if (!project) return null;
+  console.log(project)
 
-  // Format date to display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return new Date(date).toLocaleDateString('th-TH', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+  // Get project type information
+  const projectTypeInfo = getProjectTypeInfo(project.type);
+
+  // Prepare files for display
+  const imageFiles = project?.files?.filter(file => file.type === 'image') || [];
+  const pdfFiles = project?.files?.filter(file => file.type === 'pdf') || [];
+  
+  // Format coursework info if available
+  const courseInfo = project.coursework ? {
+    courseCode: project.coursework.course_code,
+    courseName: project.coursework.course_name,
+    instructor: project.coursework.instructor
+  } : null;
+
+  // Format contributors
+  const contributors = project.contributors || [];
+  
+  // Get status color
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'approved':
+        return '#52c41a';
+      case 'pending':
+        return '#faad14';
+      default:
+        return '#d9d9d9';
+    }
   };
-
+  
+  // Get status text
+  const getStatusText = (status) => {
+    switch(status) {
+      case 'approved':
+        return 'อนุมัติแล้ว';
+      case 'pending':
+        return 'รออนุมัติ';
+      default:
+        return 'ไม่อนุมัติ';
+    }
+  };
+  
   return (
-    <div className="max-w-4xl w-full mt-8 relative">
-      {/* Space-themed decorative elements */}
-      <div className="absolute -top-10 -left-10 w-20 h-20 rounded-full bg-[#90278E]/10 blur-xl z-0"></div>
-      <div className="absolute -bottom-10 -right-10 w-24 h-24 rounded-full bg-[#90278E]/10 blur-xl z-0"></div>
-      
-      {/* ✅ Image Slider for Images & Video */}
-      <div className="relative z-10">
+    <div className="w-full relative">
+      {/* Project Status Badge - ย้ายไปทางบนมุมขวา */}
+      <div className="absolute top-0 right-0 z-20">
+        <Badge
+          color={getStatusColor(project.status)}
+          text={
+            <span className="text-sm font-medium">
+              {getStatusText(project.status)}
+            </span>
+          }
+        />
+      </div>
+
+      {/* Title Header - สวยงามและดึงดูดความสนใจ */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-[#0D0221] mb-2">
+          {project.title}
+        </h1>
+        
+        <div className="flex flex-wrap items-center gap-3 text-gray-500 text-sm">
+          {/* โค้ดผสมระหว่าง Ant Design และ Tailwind */}
+          <div className="flex items-center">
+            <CalendarOutlined className="mr-1 text-[#90278E]" />
+            <span>{formatThaiDate(project.createdAt, true)}</span>
+          </div>
+          
+          <span className="text-gray-300">•</span>
+          
+          <div className="flex items-center">
+            <EyeOutlined className="mr-1 text-[#90278E]" />
+            <span>{project.viewsCount || 0} ครั้ง</span>
+          </div>
+          
+          <span className="text-gray-300">•</span>
+          
+          {/* Project Type - แสดงอย่างชัดเจน */}
+          {projectTypeInfo && (
+            <Tag color={projectTypeInfo.color} icon={
+              project.type === 'academic' ? <BookOutlined /> : 
+              project.type === 'coursework' ? <TeamOutlined /> : 
+              <TrophyOutlined />
+            }>
+              {projectTypeInfo.label}
+            </Tag>
+          )}
+        </div>
+      </div>
+
+      {/* Image Slider - ปรับขนาดให้เหมาะสม */}
+      <div className="mb-8">
         <ImageSlider 
-          images={allImages}  // Send all images to ImageSlider
-          video={project.coursework?.courseworkVideo || project.video || null}  // Pass video if available
-          pdfFile={project.pdfFiles && project.pdfFiles.length > 0 ? project.pdfFiles[0] : null} 
+          images={imageFiles.map(file => file.path)}
+          video={project.coursework?.video_file_id || null}
+          pdfFile={pdfFiles.length > 0 ? pdfFiles[0] : null}
           title={project.title} 
         />
       </div>
 
-      {/* ✅ Date & Title with space theme */}
-      <div className="mt-10 text-center">
-        <p className="text-[#D4B2D8] mb-2">{formatDate(project.projectCreatedAt)}</p>
-        <h2 className="text-3xl font-bold text-[#90278E] mb-1 relative inline-block">
-          {project.title}
-          <span className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#90278E] to-transparent"></span>
-        </h2>
-      </div>
+      {/* Content Section - จัดเป็น Layout สองคอลัมน์เมื่อหน้าจอใหญ่พอ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content - ⅔ ของหน้าจอในหน้าจอใหญ่ */}
+        <div className="lg:col-span-2">
+          {/* Project Description Card - ตกแต่งให้น่าอ่าน */}
+          <Card 
+            className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
+            title={
+              <div className="flex items-center text-[#90278E]">
+                <BookOutlined className="mr-2" />
+                <span>รายละเอียดโปรเจค</span>
+              </div>
+            }
+            bordered={false}
+          >
+            <div className="prose prose-sm max-w-none text-gray-700">
+              <p className="leading-relaxed whitespace-pre-line">{project.description}</p>
+            </div>
+          </Card>
 
-      {/* ✅ Project Description */}
-      <div className="mt-6 p-6 bg-[#0D0221]/5 rounded-lg border border-[#90278E]/20 relative backdrop-blur-sm">
-        <p className="text-gray-700 leading-relaxed">{project.description}</p>
-        
-        {/* Small space-themed decoration */}
-        <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#90278E]"></div>
-        <div className="absolute -bottom-2 -left-2 w-4 h-4 rounded-full bg-[#FF5E8C]"></div>
-      </div>
+          {/* Course Information Card - เฉพาะเมื่อมีข้อมูล */}
+          {courseInfo && (
+            <Card 
+              className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
+              title={
+                <div className="flex items-center text-[#90278E]">
+                  <TeamOutlined className="mr-2" />
+                  <span>ข้อมูลรายวิชา</span>
+                </div>
+              }
+              bordered={false}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex">
+                    <span className="font-medium w-32">รหัสวิชา:</span>
+                    <span>{courseInfo.courseCode}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="font-medium w-32">ชื่อวิชา:</span>
+                    <span>{courseInfo.courseName}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="font-medium w-32">อาจารย์ผู้สอน:</span>
+                    <span>{courseInfo.instructor}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex">
+                    <span className="font-medium w-32">ชั้นปี:</span>
+                    <span>{project.studyYear}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="font-medium w-32">ภาคการศึกษา:</span>
+                    <span>{project.semester}/{project.year}</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
 
-      {/* ✅ Project Level */}
-      <div className="mt-4 flex justify-center">
-        <div className="px-6 py-2 bg-[#0D0221] text-white rounded-full inline-flex items-center">
-          <span className="w-3 h-3 rounded-full bg-[#90278E] mr-2"></span>
-          ระดับ: {project.level}
+          {/* PDF Files Card - แสดงเฉพาะเมื่อมีไฟล์ */}
+          {pdfFiles.length > 0 && (
+            <Card 
+              className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
+              title={
+                <div className="flex items-center text-[#90278E]">
+                  <DownloadOutlined className="mr-2" />
+                  <span>เอกสารดาวน์โหลด</span>
+                </div>
+              }
+              bordered={false}
+            >
+              <ul className="space-y-2">
+                {pdfFiles.map((pdf, index) => (
+                  <li key={index} className="flex items-center">
+                    <FilePdfOutlined className="text-[#FF5E8C] mr-2" />
+                    <a 
+                      href={pdf.path} 
+                      download={pdf.name}
+                      className="text-[#90278E] hover:text-[#FF5E8C] transition-colors"
+                    >
+                      {pdf.name}
+                    </a>
+                    <span className="text-xs text-gray-400 ml-2">
+                      {pdf.size && `(${Math.round(pdf.size / 1024)} KB)`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
+
+        {/* Sidebar - ⅓ ของหน้าจอในหน้าจอใหญ่ */}
+        <div className="lg:col-span-1">
+          {/* Author and Contributors Card */}
+          <Card 
+            className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
+            title={
+              <div className="flex items-center text-[#90278E]">
+                <UserOutlined className="mr-2" />
+                <span>ผู้จัดทำ</span>
+              </div>
+            }
+            bordered={false}
+          >
+            {/* Main Author */}
+            {project.author && (
+              <div className="mb-4 pb-4 border-b border-gray-100">
+                <p className="font-semibold mb-2 text-gray-500">ผู้จัดทำหลัก:</p>
+                <div className="flex items-center">
+                  <Avatar 
+                    src={`http://localhost:4000/${project.author.image}`} 
+                    size="large"
+                    className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C]"
+                  >
+                    {project.author.fullName?.charAt(0) || project.author.username?.charAt(0) || '?'}
+                  </Avatar>
+                  <div className="ml-3">
+                    <p className="font-medium">{project.author.fullName}</p>
+                    <p className="text-gray-500 text-sm">@{project.author.username}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Contributors */}
+            {contributors.length > 0 && (
+              <div>
+                <p className="font-semibold mb-2 text-gray-500">ผู้ร่วมจัดทำ:</p>
+                <div className="space-y-3">
+                  {contributors.map((contributor, index) => (
+                    <div key={index} className="flex items-center">
+                      <Avatar 
+                        src={`http://localhost:4000/${contributor?.image}`} 
+                        size="small"
+                        className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C]"
+                      >
+                        {contributor.full_name?.charAt(0) || contributor.username?.charAt(0) || '?'}
+                      </Avatar>
+                      <span className="ml-2">{contributor.full_name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* ถ้าไม่มีผู้ร่วมจัดทำ */}
+            {contributors.length === 0 && project.author && (
+              <div className="text-gray-500 text-sm italic">
+                ไม่มีผู้ร่วมจัดทำเพิ่มเติม
+              </div>
+            )}
+          </Card>
+          
+          {/* Project Stats Card */}
+          <Card 
+            className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
+            title={
+              <div className="flex items-center text-[#90278E]">
+                <TrophyOutlined className="mr-2" />
+                <span>สถิติโปรเจค</span>
+              </div>
+            }
+            bordered={false}
+          >
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">ยอดเข้าชม:</span>
+                <span className="font-medium">{project.viewsCount || 0}</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">สร้างเมื่อ:</span>
+                <span className="font-medium">{formatThaiDate(project.createdAt)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">ปรับปรุงล่าสุด:</span>
+                <span className="font-medium">{formatThaiDate(project.updatedAt || project.createdAt)}</span>
+              </div>
+            </div>
+          </Card>
+          
+          {/* Tags Card - เป็นส่วนเสริมที่มีประโยชน์สำหรับ SEO */}
+          {project.tags && project.tags.length > 0 && (
+            <Card 
+              className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
+              title={
+                <div className="flex items-center text-[#90278E]">
+                  <span className="mr-2">#</span>
+                  <span>แท็ก</span>
+                </div>
+              }
+              bordered={false}
+            >
+              <div className="flex flex-wrap gap-2">
+                {project.tags.map((tag, index) => (
+                  <Tag 
+                    key={index}
+                    className="px-2 py-1 rounded-md cursor-pointer"
+                    color={index % 2 === 0 ? '#90278E' : '#FF5E8C'}
+                  >
+                    #{tag}
+                  </Tag>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
-
-      {/* ✅ PDF Files */}
-      {project.pdfFiles && project.pdfFiles.length > 0 && (
-        <div className="mt-8 p-6 bg-[#0D0221]/5 rounded-lg border border-[#90278E]/20">
-          <h4 className="text-lg font-semibold text-[#90278E] flex items-center space-x-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-            </svg>
-            <span>เอกสารที่เกี่ยวข้อง</span>
-          </h4>
-          <ul className="mt-3 space-y-3">
-            {project.pdfFiles.map((pdf, index) => (
-              <li key={index} className="flex">
-                <a 
-                  href={pdf.url} 
-                  download 
-                  className="text-[#90278E] hover:text-[#FF5E8C] flex items-center transition-all hover:translate-x-1"
-                >
-                  <span className="w-2 h-2 bg-[#90278E] rounded-full mr-2"></span>
-                  <span className="underline underline-offset-2">ดาวน์โหลด: {pdf.name}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 };

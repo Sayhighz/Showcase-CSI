@@ -35,11 +35,28 @@ const Banner = () => {
   const textControls = useAnimation();
   
   useEffect(() => {
+    // Initialize text animation with default values on mount
+    textControls.start({ y: 0, opacity: 1 });
+    
     const handleScroll = () => {
-      setScrollY(window.scrollY);
-      // Only animate the text based on scroll, not the stars or comets
-      textControls.start({ y: -window.scrollY * 0.3, opacity: 1 - window.scrollY / 500 });
+      const currentScrollY = window.scrollY;
+      setScrollY(currentScrollY);
+      
+      // Only animate the text based on scroll when actually scrolling
+      if (currentScrollY > 0) {
+        textControls.start({ 
+          y: -currentScrollY * 0.3, 
+          opacity: Math.max(0, 1 - currentScrollY / 500),
+          transition: { duration: 0.1 } // Smoother transition
+        });
+      } else {
+        // Reset to initial position when at the top
+        textControls.start({ y: 0, opacity: 1 });
+      }
     };
+    
+    // Set initial values
+    handleScroll();
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -50,6 +67,7 @@ const Banner = () => {
       {/* Animated Background Elements */}
       <motion.div 
         className="absolute inset-0 bg-[url('https://gw.alipayobjects.com/zos/rmsportal/TVYTbAXWheQpRcWDaDMu.svg')] bg-repeat opacity-10"
+        initial={{ backgroundPosition: '0% 0%' }}
         animate={{ 
           backgroundPosition: ['0% 0%', '100% 100%'],
         }}
@@ -61,11 +79,12 @@ const Banner = () => {
         }}
       />
       
-      {/* Rocket and Stars */}
+      {/* Rocket and Stars - Added initial state */}
       <motion.img 
         src={RocketIcon} 
         alt="Rocket" 
         className="absolute top-1/4 left-40 w-48 md:w-64 opacity-90 z-10"
+        initial={{ y: 0, rotate: 0, filter: "drop-shadow(0 0 8px rgba(255,255,255,0.3))" }}
         animate={{ 
           y: [-20, 20, -20], 
           rotate: [0, 10, -10, 0],
@@ -78,6 +97,7 @@ const Banner = () => {
         src={StarsIcon} 
         alt="Earth" 
         className="absolute bottom-1/4 right-40 w-48 md:w-64 opacity-90 z-10"
+        initial={{ rotate: 0, filter: "drop-shadow(0 0 8px rgba(255,192,255,0.5))" }}
         animate={{ 
           rotate: 360,
           filter: ["drop-shadow(0 0 8px rgba(255,192,255,0.5))", "drop-shadow(0 0 16px rgba(255,192,255,0.8))", "drop-shadow(0 0 8px rgba(255,192,255,0.5))"]
@@ -102,6 +122,7 @@ const Banner = () => {
               opacity: star.opacity,
               boxShadow: `0 0 ${parseInt(star.size) * 2}px rgba(255, 255, 255, ${star.opacity})` 
             }}
+            initial={{ opacity: star.opacity * 0.7, scale: 1 }}
             animate={{ 
               opacity: [star.opacity * 0.7, star.opacity, star.opacity * 0.7],
               scale: [1, 1.2, 1] 
@@ -132,6 +153,7 @@ const Banner = () => {
               boxShadow: '0 0 20px 5px rgba(255, 200, 255, 0.8)',
               zIndex: 5
             }}
+            initial={{ x: '0%', y: '0%', opacity: comet.opacity }}
             animate={{
               x: ['0%', '120%'],
               y: ['0%', '120%'],
@@ -160,18 +182,18 @@ const Banner = () => {
         ))}
       </div>
 
-      {/* Main Text with Antd Components */}
+      {/* Main Text with Antd Components - Fix animation issues */}
       <motion.div 
         className="z-20 flex flex-col items-center py-8 px-12 rounded-xl" 
-        initial={{ opacity: 0, y: 50 }}
+        initial={{ opacity: 1, y: 0 }}
         animate={textControls}
-        transition={{ duration: 1 }}
+        transition={{ duration: 0.3 }}
       >
         <Space direction="vertical" size="large" className="text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
+            transition={{ duration: 0.8 }}
           >
             <Title level={1} style={{ color: 'white', marginBottom: 0, fontSize: '3.5rem', textShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
               Explore Projects
@@ -182,9 +204,9 @@ const Banner = () => {
           </motion.div>
           
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
+            transition={{ duration: 0.8 }}
           >
             <Text style={{ color: '#FFE6FF', fontSize: '1.5rem', display: 'block', marginBottom: '1.5rem' }}>
               ค้นหาโปรเจคสุดเจ๋งจากนักศึกษา CSI
@@ -192,18 +214,18 @@ const Banner = () => {
           </motion.div>
           
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
+            transition={{ duration: 0.5 }}
             className="w-full"
           >
             <SearchBar />
           </motion.div>
           
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 0.5 }}
+            transition={{ duration: 0.5 }}
           >
             <Text italic style={{ color: '#F8CDFF', fontSize: '1rem' }}>
               ค้นพบไอเดียใหม่ และผลงานที่น่าสนใจ
@@ -215,6 +237,7 @@ const Banner = () => {
       {/* Scroll Indicator */}
       <motion.div 
         className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20 cursor-pointer"
+        initial={{ y: 0 }}
         animate={{ y: [0, 10, 0] }}
         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
         onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
