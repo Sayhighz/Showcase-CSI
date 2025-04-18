@@ -15,7 +15,7 @@ const PrivateProjectRoute = ({ children }) => {
   const [accessChecked, setAccessChecked] = useState(false);
 
   // ดึง project id จาก params
-  const projectId = params.id;
+  const projectId = params.id || params.projectId
 
   // เพิ่มตัวแปร state เพื่อป้องกันการทำงานซ้ำซ้อน
   const [fetchAttempted, setFetchAttempted] = useState(false);
@@ -33,7 +33,7 @@ const PrivateProjectRoute = ({ children }) => {
       }
 
       try {
-        console.log("Fetching project details for ID:", projectId);
+        // console.log("Fetching project details for ID:", projectId);
         setFetchAttempted(true); // ทำเครื่องหมายว่าได้พยายาม fetch แล้ว
         
         const projectData = await getProjectDetails(projectId);
@@ -75,13 +75,13 @@ const PrivateProjectRoute = ({ children }) => {
   // ตรวจสอบการเข้าถึง (เมื่อมีข้อมูลโครงการแล้ว)
   // ถ้าโปรเจคเป็นสาธารณะ อนุญาตให้เข้าถึงได้ทันที
   if (project.visibility === 1) {
-    console.log("Project is public - granting access");
+    // console.log("Project is public - granting access");
     return children;
   }
 
   // ถ้าไม่ได้เข้าสู่ระบบ ไม่อนุญาตให้เข้าถึง
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // ตรวจสอบว่าเป็นเจ้าของโปรเจคหรือไม่

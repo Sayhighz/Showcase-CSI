@@ -119,6 +119,24 @@ export const uploadFile = async (endpoint, formData, config = {}) => {
   }
 };
 
+export const updateFile = async (endpoint, formData, config = {}) => {
+  try {
+    // กำหนดค่า headers สำหรับการอัปโหลดไฟล์
+    const uploadConfig = {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      ...config,
+    };
+    
+    const response = await axiosInstance.put(endpoint, formData, uploadConfig);
+    return response;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
 /**
  * จัดการข้อผิดพลาดจาก API
  * @param {Object} error - ข้อผิดพลาดที่เกิดขึ้น
@@ -164,6 +182,7 @@ export default {
   del,
   patch,
   uploadFile,
+  updateFile,
   handleApiError,
   buildUrl,
 };

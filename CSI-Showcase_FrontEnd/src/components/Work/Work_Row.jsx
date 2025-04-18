@@ -10,13 +10,12 @@ import {
   TrophyOutlined,
   TeamOutlined,
   ClockCircleOutlined,
-  LikeOutlined,
   EyeOutlined,
   ArrowRightOutlined,
   UserOutlined,
   CalendarOutlined
 } from "@ant-design/icons";
-import { Card, Button, Skeleton, Tag, Tooltip, Avatar, Badge, Space, Empty } from "antd";
+import { Card, Button, Skeleton, Tag, Avatar, Badge, Space, Empty } from "antd";
 
 const Work_Row = ({
   title,
@@ -46,7 +45,7 @@ const Work_Row = ({
     localStorage.setItem("currentPage", currentPage);
   }, [currentPage]);
 
-  // เพิ่ม loading effect เมื่อเปลี่ยนหน้า
+  // Add loading effect when changing pages
   const handlePageChange = (page) => {
     setLoading(true);
     setTimeout(() => {
@@ -135,9 +134,6 @@ const Work_Row = ({
     }
   };
 
-  // ตรวจสอบว่ามีข้อมูลหรือไม่
-  // console.log("Items in Work_Row:", safeItems);
-
   // สร้างระดับของตัวอักษรในหัวข้อ
   const headingGradient = {
     background: "linear-gradient(135deg, #90278E 0%, #B252B0 100%)",
@@ -147,13 +143,13 @@ const Work_Row = ({
   };
 
   return (
-    <div className="work-section mt-12 relative">
+    <div className="work-section py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative">
       {/* ตกแต่งพื้นหลังด้วย blob */}
       <div 
         className="absolute -z-10 top-0 right-0 opacity-10 blur-3xl" 
         style={{
-          width: "600px",
-          height: "600px",
+          width: "40%",
+          height: "40%",
           background: "radial-gradient(circle, rgba(144,39,142,0.3) 0%, rgba(144,39,142,0) 70%)",
           borderRadius: "50%",
           transform: "translate(20%, -30%)"
@@ -164,14 +160,15 @@ const Work_Row = ({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
+        className={`text-${side || "left"} max-w-3xl mx-auto lg:mx-0`}
       >
         <h1
-          className={`text-3xl font-bold text-${side || "left"} mb-2`}
+          className={`text-2xl sm:text-3xl font-bold mb-3`}
           style={headingGradient}
         >
           {title}
         </h1>
-        <p className={`text-[#424242] mb-8 text-${side || "left"} max-w-3xl`}>
+        <p className="text-gray-600 mb-8 text-base sm:text-lg">
           {description || ""}
         </p>
       </motion.div>
@@ -179,7 +176,7 @@ const Work_Row = ({
       {/* Show a message if no items are available */}
       {safeItems.length === 0 ? (
         <motion.div 
-          className="text-center p-12 bg-gradient-to-b from-gray-50 to-white rounded-xl shadow-sm border border-gray-100"
+          className="text-center p-8 sm:p-12 bg-gradient-to-b from-gray-50 to-white rounded-xl shadow-sm border border-gray-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -195,7 +192,7 @@ const Work_Row = ({
         <AnimatePresence mode="wait">
           <motion.div
             key={currentPage}
-            className="flex flex-col space-y-8"
+            className="grid grid-cols-1 gap-8"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -207,15 +204,12 @@ const Work_Row = ({
                 <Card 
                   key={index} 
                   className="w-full shadow-sm rounded-xl overflow-hidden border-0 bg-white"
-                  style={{ 
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.05)" 
-                  }}
                 >
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="w-full md:w-1/3">
-                      <Skeleton.Image active style={{ width: '100%', height: 220, borderRadius: '8px' }} />
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="w-full lg:w-2/5">
+                      <Skeleton.Image active style={{ width: '100%', height: '100%', minHeight: '220px', borderRadius: '8px' }} />
                     </div>
-                    <div className="w-full md:w-2/3">
+                    <div className="w-full lg:w-3/5">
                       <Skeleton active title={{ width: '60%' }} paragraph={{ rows: 4, width: ['90%', '80%', '70%', '60%'] }} />
                     </div>
                   </div>
@@ -240,9 +234,9 @@ const Work_Row = ({
                         : "0 4px 20px rgba(0, 0, 0, 0.05)" 
                     }}
                   >
-                    <div className="flex flex-col md:flex-row">
+                    <div className="flex flex-col lg:flex-row">
                       {/* Project Image Section with Hover Effect */}
-                      <div className="relative w-full md:w-1/3 h-64 md:h-auto overflow-hidden">
+                      <div className="relative w-full lg:w-2/5 h-60 sm:h-72 lg:h-auto overflow-hidden">
                         <motion.img
                           src={`http://localhost:4000/${item.image}`}
                           alt={item.title}
@@ -274,7 +268,7 @@ const Work_Row = ({
                         
                         {/* Hover Overlay - Enhanced with animation */}
                         <motion.div 
-                          className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-6"
+                          className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4 sm:p-6"
                           initial={{ opacity: 0 }}
                           animate={{ 
                             opacity: activeHover === index ? 1 : 0,
@@ -284,7 +278,7 @@ const Work_Row = ({
                         >
                           <div className="text-white">
                             <motion.h3 
-                              className="text-xl font-semibold mb-2"
+                              className="text-lg sm:text-xl font-semibold mb-2"
                               initial={{ y: 20 }}
                               animate={{ y: activeHover === index ? 0 : 20 }}
                               transition={{ duration: 0.4 }}
@@ -297,13 +291,9 @@ const Work_Row = ({
                               animate={{ y: activeHover === index ? 0 : 20 }}
                               transition={{ duration: 0.4, delay: 0.1 }}
                             >
-                              <span className="flex items-center">
+                              <span className="flex items-center text-sm sm:text-base">
                                 <EyeOutlined className="mr-2" /> 
-                                {Math.floor(Math.random() * 500) + 50} เข้าชม
-                              </span>
-                              <span className="flex items-center">
-                                <LikeOutlined className="mr-2" /> 
-                                {Math.floor(Math.random() * 100) + 10} ถูกใจ
+                                {item.viewsCount} เข้าชม
                               </span>
                             </motion.div>
                           </div>
@@ -311,15 +301,15 @@ const Work_Row = ({
                       </div>
                       
                       {/* Project Details Section - Enhanced */}
-                      <div className="w-full md:w-2/3 p-8">
+                      <div className="w-full lg:w-3/5 p-5 sm:p-6 lg:p-8">
                         <div className="flex flex-col h-full">
-                          <div className="flex justify-between items-start mb-4">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
                             <div>
                               <Link
                                 to={item.projectLink}
                                 className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300"
                               >
-                                <h2 className="text-2xl font-semibold mb-3">{item.title}</h2>
+                                <h2 className="text-xl sm:text-2xl font-semibold mb-3">{item.title}</h2>
                               </Link>
                               
                               {/* Tags and Metadata - Enhanced */}
@@ -327,14 +317,14 @@ const Work_Row = ({
                                 <Tag
                                   icon={getCategoryIcon(item.category)}
                                   color={getTagColor(item.category)}
-                                  className="px-3 py-1 rounded-full border-0 font-medium text-sm"
+                                  className="px-2 sm:px-3 py-1 rounded-full border-0 font-medium text-xs sm:text-sm"
                                 >
                                   {getTypeLabel(item.category)}
                                 </Tag>
                                 
                                 <Tag 
                                   color="default" 
-                                  className="px-3 py-1 rounded-full text-sm"
+                                  className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm"
                                 >
                                   ระดับ: {item.level}
                                 </Tag>
@@ -342,7 +332,7 @@ const Work_Row = ({
                                 <Tag 
                                   icon={<ClockCircleOutlined />} 
                                   color="default"
-                                  className="px-3 py-1 rounded-full text-sm"
+                                  className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm"
                                 >
                                   ปี {item.year}
                                 </Tag>
@@ -351,13 +341,13 @@ const Work_Row = ({
                             
                             {/* Action Buttons for Admin - Enhanced */}
                             {showActions && (
-                              <Space>
+                              <Space className="mt-2 sm:mt-0">
                                 <Button
                                   onClick={() => onEdit(item)}
                                   icon={<EditOutlined />}
                                   type="primary"
                                   size="middle"
-                                  className="bg-blue-500 hover:bg-blue-600 rounded-full"
+                                  className="bg-blue-500 hover:bg-blue-600 rounded-full text-xs sm:text-sm"
                                 >
                                   แก้ไข
                                 </Button>
@@ -367,7 +357,7 @@ const Work_Row = ({
                                   type="primary"
                                   danger
                                   size="middle"
-                                  className="rounded-full"
+                                  className="rounded-full text-xs sm:text-sm"
                                 >
                                   ลบ
                                 </Button>
@@ -376,15 +366,14 @@ const Work_Row = ({
                           </div>
                           
                           {/* Project Description - Enhanced */}
-                          <p className="text-gray-600 text-base mb-6 flex-grow leading-relaxed">
+                          <p className="text-gray-600 text-sm sm:text-base mb-6 flex-grow leading-relaxed line-clamp-3 sm:line-clamp-4">
                             {item.description || "รายละเอียดโครงการจะแสดงที่นี่ เพื่อให้ผู้ชมเข้าใจเกี่ยวกับโครงการนี้มากขึ้น"}
                           </p>
                           
                           {/* Footer with Avatar and View More Button - Enhanced */}
-                          <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-100">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-auto pt-4 border-t border-gray-100">
                             <div className="flex items-center">
                               <Avatar 
-                                src={item.studentImage || null} 
                                 size="large"
                                 className="border-2 border-white shadow-sm"
                                 icon={!item.studentImage && <UserOutlined />}
@@ -392,7 +381,7 @@ const Work_Row = ({
                                 {!item.studentImage && item.student ? item.student.charAt(0) : null}
                               </Avatar>
                               <div className="ml-3">
-                                <p className="text-base font-medium text-gray-800 m-0">
+                                <p className="text-sm sm:text-base font-medium text-gray-800 m-0">
                                   {item.student || "ชื่อนักศึกษา"}
                                 </p>
                                 <p className="text-xs text-gray-500 m-0">
@@ -409,7 +398,7 @@ const Work_Row = ({
                                 <Button 
                                   type="primary" 
                                   className="rounded-full px-4 bg-gradient-to-r from-[#90278E] to-[#B252B0] hover:from-[#B252B0] hover:to-[#90278E] border-0 shadow-md"
-                                  size="large"
+                                  size="middle"
                                 >
                                   ดูเพิ่มเติม <ArrowRightOutlined className="ml-1" />
                                 </Button>
@@ -427,30 +416,30 @@ const Work_Row = ({
         </AnimatePresence>
       )}
 
-      {/* Pagination Controls - Enhanced */}
+      {/* Pagination Controls - Improved for mobile */}
       {safeItems.length > 0 && totalPages > 1 && (
         <motion.div 
-          className="flex justify-center items-center mt-10 mb-8 space-x-3"
+          className="flex justify-center items-center mt-10 mb-4 space-x-2 sm:space-x-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <motion.button
             onClick={prevPage}
-            className="w-12 h-12 flex items-center justify-center border border-gray-200 rounded-full text-gray-700 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white shadow-sm"
+            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-gray-200 rounded-full text-gray-700 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white shadow-sm"
             whileHover={{ scale: 1.1, boxShadow: "0 5px 15px rgba(0,0,0,0.1)" }}
             whileTap={{ scale: 0.9 }}
             disabled={loading}
           >
-            <LeftOutlined style={{ fontSize: '16px' }} />
+            <LeftOutlined style={{ fontSize: '14px' }} />
           </motion.button>
 
-          <div className="flex space-x-2">
+          <div className="flex space-x-1 sm:space-x-2">
             {Array.from({ length: totalPages }).map((_, index) => (
               <motion.button
                 key={index}
                 onClick={() => goToPage(index)}
-                className={`w-12 h-12 flex items-center justify-center border rounded-full transition-all ${
+                className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border rounded-full transition-all ${
                   currentPage === index 
                     ? 'bg-gradient-to-r from-[#90278E] to-[#B252B0] text-white border-[#90278E] shadow-md' 
                     : 'text-gray-700 border-gray-200 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white'
@@ -469,12 +458,12 @@ const Work_Row = ({
 
           <motion.button
             onClick={nextPage}
-            className="w-12 h-12 flex items-center justify-center border border-gray-200 rounded-full text-gray-700 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white shadow-sm"
+            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-gray-200 rounded-full text-gray-700 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white shadow-sm"
             whileHover={{ scale: 1.1, boxShadow: "0 5px 15px rgba(0,0,0,0.1)" }}
             whileTap={{ scale: 0.9 }}
             disabled={loading}
           >
-            <RightOutlined style={{ fontSize: '16px' }} />
+            <RightOutlined style={{ fontSize: '14px' }} />
           </motion.button>
         </motion.div>
       )}

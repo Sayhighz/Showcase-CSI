@@ -33,7 +33,6 @@ const Navbar = () => {
   const [visible, setVisible] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [hasNotifications, setHasNotifications] = useState(Math.random() > 0.5); // สุ่มว่ามีการแจ้งเตือนหรือไม่
 
   // Handle logout
   const handleLogout = () => {
@@ -352,19 +351,6 @@ const Navbar = () => {
                   </motion.div>
                 )}
               </div>
-
-              {/* Notification Icon (for authenticated users) */}
-              {isAuthenticated && (
-                <Tooltip title="การแจ้งเตือน">
-                  <Badge dot={hasNotifications} offset={[-2, 3]}>
-                    <Button 
-                      type="text" 
-                      icon={<BellOutlined className="text-white text-lg" />} 
-                      className="flex items-center justify-center"
-                    />
-                  </Badge>
-                </Tooltip>
-              )}
 
               {/* User Profile / Login Button */}
               {isAuthenticated ? (

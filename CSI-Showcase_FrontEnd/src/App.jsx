@@ -81,7 +81,7 @@ const App = () => {
           } />
 
           {/* Edit Project Route - ต้องตรวจสอบทั้งการเข้าสู่ระบบและสิทธิ์ในการแก้ไขโปรเจค */}
-          <Route path="/edit/project/:id" element={
+          <Route path="/edit/project/:projectId" element={
             <ProtectedRoute>
               <MasterLayout>
                 <PrivateProjectRoute>
@@ -90,24 +90,7 @@ const App = () => {
               </MasterLayout>
             </ProtectedRoute>
           } />
-
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <MasterLayout><Dashboard /></MasterLayout>
-            </ProtectedRoute>
-          } />
-
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <MasterLayout><Settings /></MasterLayout>
-            </ProtectedRoute>
-          } />
-
-          <Route path="/user/edit" element={
-            <ProtectedRoute>
-              <MasterLayout><Settings /></MasterLayout>
-            </ProtectedRoute>
-          } />
+          
         </Routes>
       </AuthProvider>
     </Router>

@@ -64,13 +64,13 @@ const Home = () => {
     try {
       // โหลดโปรเจคล่าสุด
       setLoadingLatest(true);
-      const latestData = await fetchLatestProjects(); // ขอข้อมูล 9 รายการ
+      const latestData = await fetchLatestProjects(9); // ขอข้อมูล 9 รายการ
       
       // ใช้ข้อมูลที่ได้จากการเรียก API โดยตรง
       const filteredLatestProjects = selectedCategory !== 'all' 
         ? latestData?.filter(project => project.category === selectedCategory) || []
         : latestData || [];
-        console.log(latestData)
+        // console.log(latestData)
         
       setLatestProjects(filteredLatestProjects);
       setLoadingLatest(false);
@@ -78,7 +78,7 @@ const Home = () => {
       // โหลดโปรเจคยอดนิยม
       setLoadingTop(true);
       const topData = await fetchTopProjects();
-      console.log(topData)
+      // console.log(topData)
       
       // ใช้ข้อมูลที่ได้จากการเรียก API โดยตรง
       const filteredTopProjects = selectedCategory !== 'all' 

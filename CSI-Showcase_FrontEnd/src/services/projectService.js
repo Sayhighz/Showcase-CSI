@@ -2,7 +2,7 @@
  * Service สำหรับการจัดการข้อมูลโปรเจค
  * ให้บริการฟังก์ชันเกี่ยวกับการดึงข้อมูล, สร้าง, แก้ไข, ลบโปรเจค เป็นต้น
  */
-import { get, post, put, del, uploadFile } from './apiService';
+import { get, post, put, del, uploadFile, updateFile } from './apiService';
 import { API_ENDPOINTS } from '../constants/apiEndpoints';
 import { message } from 'antd';
 
@@ -207,7 +207,7 @@ export const updateProject = async (projectId, projectData, files) => {
       });
     }
     
-    const response = await uploadFile(API_ENDPOINTS.PROJECT.UPDATE(projectId), formData);
+    const response = await updateFile(API_ENDPOINTS.PROJECT.UPDATE(projectId), formData);
     
     if (response && response.success) {
       message.success('อัปเดตโปรเจคสำเร็จ');
