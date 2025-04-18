@@ -3,6 +3,7 @@ import '@ant-design/v5-patch-for-react-19';
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PrivateProjectRoute from "./components/PrivateProjectRoute";
 import MasterLayout from "./layouts/MasterLayout";
 
 // Import pages
@@ -11,7 +12,7 @@ import Home from "./pages/Home/Home";
 import AllProject from "./pages/Projects/AllProject";
 import MyProject from "./pages/Projects/MyProject";
 import ProjectInfo from "./pages/Projects/ProjectInfo";
-import CourseWork from "./pages/Upload/UploadWork";
+import CourseWork from "./pages/Upload/UploadProject";
 import EditProject from "./pages/Projects/EditProject";
 
 // Import new pages
@@ -19,7 +20,6 @@ import Profile from "./pages/User/Profile";
 import Settings from "./pages/User/Settings";
 import Dashboard from "./pages/User/Dashboard";
 import ProjectByType from "./pages/Project/ProjectByType";
-// จากการตรวจสอบที่พบว่า ProjectGallery มีทั้งคอมโพเนนต์และหน้าเพจ
 import ProjectGalleryPage from "./pages/Project/ProjectGallery";
 import SearchResults from "./pages/Search/SearchResults";
 import AdvancedSearch from "./pages/Search/AdvancedSearch";
@@ -33,10 +33,26 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<MasterLayout><Home /></MasterLayout>} />
           <Route path="/projects/all" element={<MasterLayout><AllProject /></MasterLayout>} />
-          <Route path="/projects/:projectId" element={<MasterLayout><ProjectInfo /></MasterLayout>} />
+          
+          {/* Project Detail Route - จะตรวจสอบสิทธิ์ในการเข้าถึงโปรเจคส่วนตัว */}
+          <Route path="/projects/:projectId" element={
+            <MasterLayout>
+              <PrivateProjectRoute>
+                <ProjectInfo />
+              </PrivateProjectRoute>
+            </MasterLayout>
+          } />
+          
           <Route path="/projects/type/:type" element={<MasterLayout><ProjectByType /></MasterLayout>} />
-          {/* เปลี่ยนจาก ProjectGallery เป็น ProjectGalleryPage เพื่อให้ชัดเจนว่าเป็นหน้าเพจไม่ใช่คอมโพเนนต์ */}
-          <Route path="/projects/gallery/:projectId" element={<MasterLayout><ProjectGalleryPage /></MasterLayout>} />
+          
+          {/* Project Gallery Route - ใช้ PrivateProjectRoute เพื่อตรวจสอบสิทธิ์การเข้าถึงแกลเลอรี่ของโปรเจคส่วนตัว */}
+          <Route path="/projects/gallery/:projectId" element={
+            <MasterLayout>
+              <PrivateProjectRoute>
+                <ProjectGalleryPage />
+              </PrivateProjectRoute>
+            </MasterLayout>
+          } />
           
           {/* Search Routes */}
           <Route path="/search" element={<MasterLayout><SearchResults /></MasterLayout>} />
@@ -64,9 +80,14 @@ const App = () => {
             </ProtectedRoute>
           } />
 
+          {/* Edit Project Route - ต้องตรวจสอบทั้งการเข้าสู่ระบบและสิทธิ์ในการแก้ไขโปรเจค */}
           <Route path="/edit/project/:id" element={
             <ProtectedRoute>
-              <MasterLayout><EditProject /></MasterLayout>
+              <MasterLayout>
+                <PrivateProjectRoute>
+                  <EditProject />
+                </PrivateProjectRoute>
+              </MasterLayout>
             </ProtectedRoute>
           } />
 

@@ -9,7 +9,7 @@ import {
   getProjectDetails, 
   uploadProject,
   searchProjects,
-  updateProject,
+  updateProjectWithFiles,
   deleteProject,
   reviewProject,
   getPendingProjects,
@@ -26,8 +26,94 @@ import {
 } from '../../controllers/user/projectController.js';
 import { authenticateToken, isAdmin, isResourceOwner } from '../../middleware/authMiddleware.js';
 import { API_ROUTES } from '../../constants/routes.js';
+import storageService from '../../services/storageService.js';
+import { optionalAuthenticateToken } from '../../middleware/optionalAuthenticateToken.js';
 
 const router = express.Router();
+
+const projectUploader = (req, res, next) => {
+  // สร้าง multer uploader ที่รองรับหลายประเภทไฟล์
+  const upload = storageService.createUploader('images', { maxSize: 10 * 1024 * 1024 });
+  
+  // กำหนดฟิลด์ไฟล์ที่จะรับ
+  const uploadFields = upload.fields([
+    { name: 'coverImage', maxCount: 1 },
+    { name: 'courseworkPoster', maxCount: 1 },
+    { name: 'courseworkVideo', maxCount: 1 },
+    { name: 'paperFile', maxCount: 1 },
+    { name: 'competitionPoster', maxCount: 1 }
+  ]);
+  
+  // ใช้ middleware
+  uploadFields(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: `File upload error: ${err.message}`
+      });
+    }
+    next();
+  });
+};
+
+const projectUpdateUploader = (req, res, next) => {
+  // สร้าง multer uploader ที่รองรับหลายประเภทไฟล์
+  const upload = storageService.createUploader('images', { maxSize: 10 * 1024 * 1024 });
+  
+  // กำหนดฟิลด์ไฟล์ที่จะรับ - เพิ่มฟิลด์ที่อาจต้องการสำหรับการอัปเดต
+  const uploadFields = upload.fields([
+    { name: 'coverImage', maxCount: 1 },
+    { name: 'posterImage', maxCount: 1 },
+    { name: 'courseworkPoster', maxCount: 1 },
+    { name: 'courseworkImage', maxCount: 5 },
+    { name: 'courseworkVideo', maxCount: 1 },
+    { name: 'competitionPoster', maxCount: 1 },
+    { name: 'paperFile', maxCount: 1 },
+    { name: 'additionalFiles', maxCount: 5 }
+  ]);
+  
+  // ใช้ middleware
+  uploadFields(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: `File upload error: ${err.message}`
+      });
+    }
+    next();
+  });
+};
+
+router.post(
+  '/user/:user_id', // ใช้ path ตรงๆ แทน API_ROUTES
+  authenticateToken, 
+  isResourceOwner,
+  projectUploader, // เพิ่ม middleware สำหรับการอัปโหลดไฟล์
+  uploadProject
+);
+
+// อัปโหลดไฟล์สำหรับโครงการ
+router.post(
+  '/:projectId/files', // ใช้ path ตรงๆ แทน API_ROUTES
+  authenticateToken,
+  (req, res, next) => {
+    // สร้าง uploader สำหรับไฟล์เดียว
+    const upload = storageService.createUploader('images', { maxSize: 10 * 1024 * 1024 });
+    upload.single('file')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: `File upload error: ${err.message}`
+        });
+      }
+      next();
+    });
+  },
+  uploadProjectFile
+);
 
 // ดึงข้อมูลโครงการทั้งหมดที่ได้รับการอนุมัติแล้ว
 router.get(API_ROUTES.PROJECT.GET_ALL, getAllProjects);
@@ -42,7 +128,7 @@ router.get(API_ROUTES.PROJECT.LATEST, getLatestProjects);
 router.get(API_ROUTES.PROJECT.MY_PROJECTS, authenticateToken, isResourceOwner, getMyProjects);
 
 // ดึงข้อมูลรายละเอียดโครงการตาม project_id
-router.get(API_ROUTES.PROJECT.GET_BY_ID, getProjectDetails);
+router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDetails);
 
 // ค้นหาโครงการตามเงื่อนไขต่าง ๆ
 router.get(API_ROUTES.PROJECT.SEARCH, searchProjects);
@@ -57,21 +143,12 @@ router.get(API_ROUTES.PROJECT.YEARS, getProjectYears);
 router.get(API_ROUTES.PROJECT.STUDY_YEARS, getStudyYears);
 
 // อัปโหลดโครงการใหม่ - ต้องแก้ไขเพราะไม่มี upload export ออกมา
-// router.post(
-//   API_ROUTES.PROJECT.UPLOAD, 
-//   authenticateToken, 
-//   isResourceOwner, 
-//   upload.fields([
-//     { name: 'coverImage', maxCount: 1 },
-//     { name: 'posterImage', maxCount: 1 },
-//     { name: 'courseworkPoster', maxCount: 1 },
-//     { name: 'courseworkImage', maxCount: 1 },
-//     { name: 'courseworkVideo', maxCount: 1 },
-//     { name: 'competitionPoster', maxCount: 1 },
-//     { name: 'pdfFiles', maxCount: 3 }
-//   ]), 
-//   uploadProject
-// );
+router.post(
+  API_ROUTES.PROJECT.UPLOAD, 
+  authenticateToken, 
+  isResourceOwner, 
+  uploadProject
+);
 
 // ใช้ route อย่างง่ายไปก่อน ไม่ใช้ multer upload
 router.post(
@@ -114,8 +191,9 @@ router.post(
 router.put(
   API_ROUTES.PROJECT.UPDATE, 
   authenticateToken, 
-  isResourceOwner, 
-  updateProject
+  isResourceOwner,
+  projectUpdateUploader,
+  updateProjectWithFiles
 );
 
 // ลบโครงการ

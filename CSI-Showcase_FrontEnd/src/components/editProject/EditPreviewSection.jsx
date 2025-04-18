@@ -1,6 +1,6 @@
 import React from 'react';
-import { Avatar } from 'antd';
-import { FileTextOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Badge } from 'antd';
+import { FileTextOutlined, UserOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 /**
  * Helper utility for converting video URLs to embed URLs
@@ -22,9 +22,7 @@ const getEmbedUrl = (url) => {
   }
   
   // TikTok
-  if (url.includes('tiktok.com')) {
-    return url;
-  }
+  if (url.includes('tiktok.com')) return url;
   
   // Facebook
   if (url.includes('facebook.com')) {
@@ -35,14 +33,14 @@ const getEmbedUrl = (url) => {
 };
 
 /**
- * คอมโพเนนต์สำหรับแสดงตัวอย่างโปรเจค
+ * คอมโพเนนต์สำหรับแสดงตัวอย่างโปรเจคที่กำลังแก้ไข
  * 
  * @param {Object} props - คุณสมบัติของคอมโพเนนต์
  * @param {Object} props.projectData - ข้อมูลโปรเจค
  * @param {Object} props.previewUrls - URLs สำหรับแสดงตัวอย่าง
  * @param {Array} props.selectedContributors - ผู้ร่วมโปรเจคที่เลือกแล้ว
  */
-const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
+const EditPreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
   // Helper function to get display images
   const getDisplayImages = () => {
     const images = [];
@@ -63,8 +61,18 @@ const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
     return images;
   };
   
+  // Helper function to get project type display
+  const getProjectTypeDisplay = () => {
+    switch(projectData.category) {
+      case 'academic': return 'บทความวิชาการ';
+      case 'competition': return 'การแข่งขัน';
+      case 'coursework': return 'งานในชั้นเรียน';
+      default: return projectData.category;
+    }
+  };
+  
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col sticky top-20">
       <div className="text-center mb-4">
         <h3 className="text-xl font-bold text-[#90278E] relative inline-block">
           ตัวอย่างผลงาน
@@ -106,6 +114,30 @@ const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
                backdropFilter: 'blur(5px)',
                border: '1px solid rgba(144, 39, 142, 0.3)',
              }}>
+          
+          {/* Project Status Badge */}
+          <div className="absolute top-2 right-2 z-20">
+            <Badge 
+              count={projectData.visibility === 1 ? 'สาธารณะ' : 'ส่วนตัว'} 
+              style={{ 
+                backgroundColor: projectData.visibility === 1 ? '#52c41a' : '#722ed1',
+                fontSize: '0.7rem',
+                padding: '0 8px'
+              }} 
+            />
+          </div>
+          
+          {/* Project Type Badge */}
+          <div className="absolute top-2 left-2 z-20">
+            <Badge 
+              count={getProjectTypeDisplay()} 
+              style={{ 
+                backgroundColor: '#90278E',
+                fontSize: '0.7rem',
+                padding: '0 8px'
+              }} 
+            />
+          </div>
           
           {/* Image Preview Section */}
           {getDisplayImages().length > 0 && (
@@ -150,7 +182,7 @@ const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
             </p>
           </div>
           
-          <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm mb-4">
+          <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm mb-4 max-h-40 overflow-y-auto">
             <p className="text-white/90">
               {projectData.description || "รายละเอียดผลงานจะแสดงที่นี่"}
             </p>
@@ -180,7 +212,7 @@ const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
           {previewUrls.pdfFiles && previewUrls.pdfFiles.length > 0 && (
             <div className="mt-4">
               <h4 className="text-white font-semibold mb-2">เอกสาร PDF:</h4>
-              <ul className="space-y-2">
+              <ul className="space-y-2 max-h-40 overflow-y-auto">
                 {previewUrls.pdfFiles.map((pdf, index) => (
                   <li key={index} className="bg-white/10 px-3 py-2 rounded flex items-center">
                     <FileTextOutlined className="text-[#FF5E8C] mr-2" />
@@ -188,6 +220,40 @@ const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          
+          {/* Category-specific info preview */}
+          {projectData.category === 'academic' && (
+            <div className="mt-4 bg-white/5 p-3 rounded-lg">
+              <h4 className="text-white font-semibold mb-2">ข้อมูลบทความวิชาการ:</h4>
+              <div className="space-y-1 text-xs text-white/80">
+                <p>ปีที่เผยแพร่: {projectData.publishedYear || '-'}</p>
+                <p>ผู้เขียน: {projectData.authors || '-'}</p>
+                <p>ตีพิมพ์ที่: {projectData.publicationVenue || '-'}</p>
+              </div>
+            </div>
+          )}
+          
+          {projectData.category === 'competition' && (
+            <div className="mt-4 bg-white/5 p-3 rounded-lg">
+              <h4 className="text-white font-semibold mb-2">ข้อมูลการแข่งขัน:</h4>
+              <div className="space-y-1 text-xs text-white/80">
+                <p>ชื่อการแข่งขัน: {projectData.competitionName || '-'}</p>
+                <p>ปีที่แข่งขัน: {projectData.competitionYear || '-'}</p>
+                <p>ผลงานที่ได้รับ: {projectData.achievement || '-'}</p>
+              </div>
+            </div>
+          )}
+          
+          {projectData.category === 'coursework' && (
+            <div className="mt-4 bg-white/5 p-3 rounded-lg">
+              <h4 className="text-white font-semibold mb-2">ข้อมูลงานในชั้นเรียน:</h4>
+              <div className="space-y-1 text-xs text-white/80">
+                <p>รหัสวิชา: {projectData.courseCode || '-'}</p>
+                <p>ชื่อวิชา: {projectData.courseName || '-'}</p>
+                <p>อาจารย์ผู้สอน: {projectData.instructor || '-'}</p>
+              </div>
             </div>
           )}
         </div>
@@ -209,4 +275,4 @@ const PreviewSection = ({ projectData, previewUrls, selectedContributors }) => {
   );
 };
 
-export default PreviewSection;
+export default EditPreviewSection;

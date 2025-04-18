@@ -1,9 +1,9 @@
 import React from 'react';
-import { AutoComplete, Avatar, Tag } from 'antd';
-import { PlusOutlined, UserOutlined } from '@ant-design/icons';
+import { AutoComplete, Avatar, Tag, Tooltip } from 'antd';
+import { PlusOutlined, UserOutlined, DeleteOutlined } from '@ant-design/icons';
 
 /**
- * คอมโพเนนต์สำหรับจัดการผู้ร่วมโปรเจค
+ * คอมโพเนนต์สำหรับแก้ไขผู้ร่วมโปรเจค
  * 
  * @param {Object} props - คุณสมบัติของคอมโพเนนต์
  * @param {string} props.searchKeyword - คำค้นหาปัจจุบัน
@@ -14,7 +14,7 @@ import { PlusOutlined, UserOutlined } from '@ant-design/icons';
  * @param {Function} props.handleSelectContributor - ฟังก์ชันจัดการการเลือกผู้ร่วมโปรเจค
  * @param {Function} props.handleRemoveContributor - ฟังก์ชันจัดการการลบผู้ร่วมโปรเจค
  */
-const ContributorSection = ({ 
+const EditContributorSection = ({ 
   searchKeyword, 
   searchResults, 
   selectedContributors, 
@@ -52,7 +52,7 @@ const ContributorSection = ({
       </div>
       
       <h3 className="text-xl font-bold text-[#90278E] relative inline-block">
-        เพิ่มผู้จัดทำ
+        แก้ไขผู้จัดทำ
         <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-[#90278E] via-[#FF5E8C] to-transparent"></span>
       </h3>
       
@@ -105,31 +105,15 @@ const ContributorSection = ({
             className="relative group"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-[#90278E] to-[#0D0221] rounded-full opacity-50 blur group-hover:opacity-70 transition-all duration-300"></div>
-            <Tag
-              closable
-              onClose={() => handleRemoveContributor(contributor.userId)}
+            <div
+              className="relative bg-[rgba(13,2,33,0.7)] border-2 border-[rgba(144,39,142,0.7)] text-white flex flex-col items-center justify-center rounded-full p-2 w-32 h-32 transition-all duration-300 group-hover:border-[#FF5E8C] group-hover:scale-105"
               style={{
-                background: 'rgba(13, 2, 33, 0.7)',
-                border: '2px solid rgba(144, 39, 142, 0.7)',
-                color: 'white', 
-                display: 'flex', 
-                alignItems: 'center', 
-                borderRadius: '50%', 
-                padding: '10px', 
-                justifyContent: 'center', 
-                width: '140px', 
-                height: '140px',
-                flexDirection: 'column',
-                textAlign: 'center',
-                position: 'relative',
                 boxShadow: '0 0 15px rgba(144, 39, 142, 0.3)',
-                transition: 'all 0.3s ease',
               }}
-              className="group-hover:border-[#FF5E8C] group-hover:scale-105"
             >
               <div className="p-1 bg-gradient-to-b from-[#90278E] to-[#FF5E8C] rounded-full mb-3">
                 <Avatar 
-                  size={50} 
+                  size={40} 
                   icon={<UserOutlined />} 
                   src={contributor.image}
                   style={{ 
@@ -138,12 +122,24 @@ const ContributorSection = ({
                   }} 
                 />
               </div>
-              <div className="text-white font-medium">{contributor.fullName}</div>
+              <div className="text-white font-medium text-sm text-center px-1 truncate w-full">
+                {contributor.fullName}
+              </div>
+              
+              {/* Delete button with tooltip */}
+              <Tooltip title="ลบผู้ร่วมงาน">
+                <button
+                  className="absolute -top-1 -right-1 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-red-600"
+                  onClick={() => handleRemoveContributor(contributor.userId)}
+                >
+                  <DeleteOutlined className="text-white text-xs" />
+                </button>
+              </Tooltip>
               
               {/* Orbit animation effect */}
               <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#90278E]/30 border-r-[#90278E]/30 animate-spin" 
                    style={{ animationDuration: '10s' }}></div>
-            </Tag>
+            </div>
           </div>
         ))}
         
@@ -155,8 +151,17 @@ const ContributorSection = ({
           </div>
         )}
       </div>
+      
+      <div className="mt-6 p-4 bg-white/20 rounded-lg border border-[#90278E]/20">
+        <h4 className="text-[#90278E] font-bold mb-2">คำแนะนำ</h4>
+        <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
+          <li>ค้นหาชื่อนักศึกษาเพื่อเพิ่มผู้ร่วมงาน</li>
+          <li>หากไม่พบรายชื่อนักศึกษา อาจเป็นเพราะนักศึกษายังไม่ได้ลงทะเบียนใช้งานระบบ</li>
+          <li>แนะนำให้นักศึกษาที่ต้องการเพิ่มเป็นผู้ร่วมงาน สมัครใช้งานระบบก่อน</li>
+        </ul>
+      </div>
     </div>
   );
 };
 
-export default ContributorSection;
+export default EditContributorSection;

@@ -120,6 +120,7 @@ export const getProjectDetails = async (projectId) => {
 export const uploadProject = async (userId, projectData, files) => {
   try {
     // สร้าง FormData สำหรับการส่งข้อมูลและไฟล์
+    console.log(userId,projectData,files)
     const formData = new FormData();
     
     // เพิ่มข้อมูลของโปรเจคลงใน FormData
@@ -149,6 +150,7 @@ export const uploadProject = async (userId, projectData, files) => {
         }
       });
     }
+    console.log(formData)
     
     const response = await uploadFile(API_ENDPOINTS.PROJECT.UPLOAD(userId), formData);
     

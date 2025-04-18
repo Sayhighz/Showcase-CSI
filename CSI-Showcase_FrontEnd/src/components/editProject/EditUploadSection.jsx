@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input, Select, DatePicker, Upload, Button } from 'antd';
+import { Input, Select, DatePicker, Upload, Button, Tag, Tooltip } from 'antd';
 import { 
   FileTextOutlined, 
   VideoCameraOutlined, 
@@ -10,9 +10,13 @@ import {
   CloudUploadOutlined,
   FileImageOutlined,
   UploadOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  CheckCircleOutlined,
+  PlusOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
-import { PROJECT_TYPE, PROJECT_TYPE_DISPLAY, PROJECT_TYPE_ICON } from '../../constants/projectTypes';
+import { PROJECT_TYPE } from '../../constants/projectTypes';
+import moment from 'moment';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -41,39 +45,9 @@ const generateStarBackground = () => {
 };
 
 /**
- * Get icon based on file type
- * @param {File} file - The file object
- * @param {string} type - Type of the file ('image', 'videoFile', 'videoLink')
- * @returns {JSX.Element} - Icon element
+ * คอมโพเนนต์สำหรับแก้ไขไฟล์และข้อมูลโปรเจค
  */
-const getIcon = (file, type) => {
-  if (!file) {
-    if (type === 'videoFile' || type === 'videoLink') {
-      return <VideoCameraOutlined className="text-[#FF5E8C] text-5xl mb-2" />;
-    }
-    return <CloudUploadOutlined className="text-[#90278E] text-5xl mb-2" />;
-  }
-  if (type === 'videoFile' || type === 'videoLink') {
-    return <VideoCameraOutlined className="text-green-400 text-5xl mb-2" />;
-  }
-  return <FileImageOutlined className="text-blue-400 text-5xl mb-2" />;
-};
-
-/**
- * คอมโพเนนต์สำหรับอัปโหลดไฟล์และข้อมูลโปรเจค
- * 
- * @param {Object} props - คุณสมบัติของคอมโพเนนต์
- * @param {Object} props.projectData - ข้อมูลโปรเจค
- * @param {Function} props.handleInputChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล input
- * @param {Function} props.handleFileChange - ฟังก์ชันจัดการการเปลี่ยนแปลงไฟล์
- * @param {Function} props.handlePdfFileChange - ฟังก์ชันจัดการการเปลี่ยนแปลงไฟล์ PDF
- * @param {Function} props.handleRemovePdf - ฟังก์ชันจัดการการลบไฟล์ PDF
- * @param {Function} props.handleDateChange - ฟังก์ชันจัดการการเปลี่ยนแปลงวันที่
- * @param {Function} props.handleSelectChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล select
- * @param {Object} props.projectTypes - ประเภทของโปรเจค (จาก constants)
- * @param {Object} props.allowedFileTypes - ประเภทไฟล์ที่อนุญาต
- */
-const UploadSection = ({ 
+const EditUploadSection = ({ 
   projectData, 
   handleInputChange, 
   handleFileChange, 
@@ -88,7 +62,18 @@ const UploadSection = ({
     document: ['application/pdf']
   }
 }) => {
-  if (!projectData.category) return null;
+  // Helper function to display file name from URL
+  const getFileNameFromUrl = (url) => {
+    if (!url) return '';
+    try {
+      // Extract file name from URL
+      const fileName = url.split('/').pop().split('?')[0];
+      // Decode URI components
+      return decodeURIComponent(fileName);
+    } catch (error) {
+      return 'ไฟล์เดิม';
+    }
+  };
 
   return (
     <div className="space-y-6 p-6 rounded-lg relative"
@@ -108,118 +93,125 @@ const UploadSection = ({
       </h3>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* Study Year Input */}
-        <div className="w-full relative">
-          <h4 className="font-semibold text-[#90278E] mb-2 flex items-center">
-            <CalendarOutlined className="mr-2" />
-            ปีการศึกษา
-          </h4>
-          <Input 
-            type="number"
-            value={projectData.study_year || ''} 
-            onChange={(e) => handleInputChange(e, 'study_year')}
-            placeholder="กรอกปีการศึกษา"
-            className="rounded-full border-[#90278E]/30 hover:border-[#90278E] focus:border-[#90278E] transition-all"
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.8)', 
-              boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)'
-            }}
-          />
-        </div>
-
-        {/* Semester Input */}
-        <div className="w-full relative">
-          <h4 className="font-semibold text-[#90278E] mb-2 flex items-center">
-            <CalendarOutlined className="mr-2" />
-            ภาคการศึกษา
-          </h4>
-          <Select
-            value={projectData.semester}
-            onChange={(value) => handleSelectChange(value, 'semester')}
-            className="w-full rounded-full hover:border-[#90278E] focus:border-[#90278E] transition-all"
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.8)', 
-              boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)'
-            }}
-          >
-            <Option value="1">ภาคเรียนที่ 1</Option>
-            <Option value="2">ภาคเรียนที่ 2</Option>
-            <Option value="3">ภาคฤดูร้อน</Option>
-          </Select>
-        </div>
-
         {/* Cover Image Upload - Always shown for all categories */}
-        <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer w-full h-44 group transition-all duration-300 overflow-hidden"
-               style={{ 
-                 background: 'rgba(13, 2, 33, 0.05)',
-               }}>
-          <input 
-            type="file" 
-            className="hidden" 
-            onChange={(e) => handleFileChange(e, 'coverImage')} 
-            accept={allowedFileTypes.image.join(',')} 
-          />
+        <div className="relative">
+          <h4 className="font-semibold text-[#90278E] mb-2 flex items-center">
+            <FileImageOutlined className="mr-2" />
+            ภาพหน้าปก
+            {projectData.existingFiles.coverImage && (
+              <Tag color="success" className="ml-2 flex items-center">
+                <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม
+              </Tag>
+            )}
+          </h4>
           
-          {/* Star background */}
-          {generateStarBackground()}
-          
-          {/* Upload icon and text */}
-          <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
-            {getIcon(projectData.coverImage, 'image')}
-            <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
-              {projectData.coverImage ? projectData.coverImage.name : 'อัปโหลดภาพหน้าปก'}
-            </span>
-            
-            {/* Small glowing dot */}
-            <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF5E8C] opacity-70 group-hover:opacity-100 group-hover:animate-ping"></div>
-          </div>
-          
-          {/* Decorative planet */}
-          <div className="absolute -bottom-6 -right-6 w-16 h-16 rounded-full bg-gradient-to-br from-[#90278E]/20 to-[#0D0221]/20 blur-md opacity-40 group-hover:opacity-70 transition-opacity"></div>
-        </label>
-        
-        {/* Second upload slot that changes based on category */}
-        {projectData.category === projectTypes.COURSEWORK ? (
-          // For coursework, show video upload instead of poster
           <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer w-full h-44 group transition-all duration-300 overflow-hidden"
-                 style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
+                 style={{ 
+                   background: 'rgba(13, 2, 33, 0.05)',
+                 }}>
             <input 
               type="file" 
               className="hidden" 
-              onChange={(e) => handleFileChange(e, 'courseworkVideo')} 
-              accept={allowedFileTypes.video.join(',')} 
+              onChange={(e) => handleFileChange(e, 'coverImage')} 
+              accept={allowedFileTypes.image.join(',')} 
             />
+            
+            {/* Star background */}
             {generateStarBackground()}
-            <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
-              {getIcon(projectData.courseworkVideo, 'videoFile')}
-              <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
-                {projectData.courseworkVideo ? projectData.courseworkVideo.name : 'อัปโหลดวีดีโอการเรียน'}
-              </span>
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF5E8C] opacity-70 group-hover:opacity-100 group-hover:animate-ping"></div>
-            </div>
-            <div className="absolute -bottom-6 -left-6 w-16 h-16 rounded-full bg-gradient-to-br from-[#90278E]/20 to-[#0D0221]/20 blur-md opacity-40 group-hover:opacity-70 transition-opacity"></div>
+            
+            {/* Display existing image thumbnail if available */}
+            {projectData.existingFiles.coverImage && !projectData.coverImage && (
+              <div className="w-full h-full relative flex flex-col items-center justify-center">
+                <div className="w-24 h-24 mb-2 rounded overflow-hidden border-2 border-[#90278E]/30">
+                  <img 
+                    src={projectData.existingFiles.coverImage} 
+                    alt="Cover" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors text-sm">
+                  คลิกเพื่อเปลี่ยนภาพหน้าปก
+                </span>
+              </div>
+            )}
+            
+            {/* Upload icon and text for new file selection */}
+            {(!projectData.existingFiles.coverImage || projectData.coverImage) && (
+              <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
+                <FileImageOutlined className="text-[#90278E] text-5xl mb-2" />
+                <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                  {projectData.coverImage ? projectData.coverImage.name : 'อัปโหลดภาพหน้าปก'}
+                </span>
+                
+                {/* Small glowing dot */}
+                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF5E8C] opacity-70 group-hover:opacity-100 group-hover:animate-ping"></div>
+              </div>
+            )}
+            
+            {/* Decorative planet */}
+            <div className="absolute -bottom-6 -right-6 w-16 h-16 rounded-full bg-gradient-to-br from-[#90278E]/20 to-[#0D0221]/20 blur-md opacity-40 group-hover:opacity-70 transition-opacity"></div>
           </label>
-        ) : (
-          // For other categories, show poster upload
+        </div>
+        
+        {/* Poster Image Upload */}
+        <div className="relative">
+          <h4 className="font-semibold text-[#90278E] mb-2 flex items-center">
+            <FileImageOutlined className="mr-2" />
+            ภาพ Poster
+            {projectData.existingFiles.posterImage && (
+              <Tag color="success" className="ml-2 flex items-center">
+                <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม
+              </Tag>
+            )}
+          </h4>
+          
           <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer w-full h-44 group transition-all duration-300 overflow-hidden"
-                 style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
+                 style={{ 
+                   background: 'rgba(13, 2, 33, 0.05)',
+                 }}>
             <input 
               type="file" 
               className="hidden" 
               onChange={(e) => handleFileChange(e, 'posterImage')} 
               accept={allowedFileTypes.image.join(',')} 
             />
+            
+            {/* Star background */}
             {generateStarBackground()}
-            <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
-              {getIcon(projectData.posterImage, 'image')}
-              <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
-                {projectData.posterImage ? projectData.posterImage.name : 'อัปโหลดภาพ Poster'}
-              </span>
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF5E8C] opacity-70 group-hover:opacity-100 group-hover:animate-ping"></div>
-            </div>
+            
+            {/* Display existing image thumbnail if available */}
+            {projectData.existingFiles.posterImage && !projectData.posterImage && (
+              <div className="w-full h-full relative flex flex-col items-center justify-center">
+                <div className="w-24 h-24 mb-2 rounded overflow-hidden border-2 border-[#90278E]/30">
+                  <img 
+                    src={projectData.existingFiles.posterImage} 
+                    alt="Poster" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors text-sm">
+                  คลิกเพื่อเปลี่ยนภาพ Poster
+                </span>
+              </div>
+            )}
+            
+            {/* Upload icon and text for new file selection */}
+            {(!projectData.existingFiles.posterImage || projectData.posterImage) && (
+              <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
+                <FileImageOutlined className="text-[#90278E] text-5xl mb-2" />
+                <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                  {projectData.posterImage ? projectData.posterImage.name : 'อัปโหลดภาพ Poster'}
+                </span>
+                
+                {/* Small glowing dot */}
+                <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#FF5E8C] opacity-70 group-hover:opacity-100 group-hover:animate-ping"></div>
+              </div>
+            )}
+            
+            {/* Decorative planet */}
             <div className="absolute -bottom-6 -left-6 w-16 h-16 rounded-full bg-gradient-to-br from-[#90278E]/20 to-[#0D0221]/20 blur-md opacity-40 group-hover:opacity-70 transition-opacity"></div>
           </label>
-        )}
+        </div>
         
         {/* Video Link Input - Always shown for all categories */}
         <div className="relative col-span-2 border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center w-full h-44 group transition-all duration-300 overflow-hidden"
@@ -255,6 +247,11 @@ const UploadSection = ({
           <h4 className="font-semibold text-[#90278E] mb-2 flex items-center">
             <FileTextOutlined className="mr-2" />
             เอกสาร PDF
+            {projectData.existingFiles.pdfFiles && projectData.existingFiles.pdfFiles.length > 0 && (
+              <Tag color="success" className="ml-2 flex items-center">
+                <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม {projectData.existingFiles.pdfFiles.length} ไฟล์
+              </Tag>
+            )}
           </h4>
           
           <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer w-full h-32 group transition-all duration-300 overflow-hidden"
@@ -275,29 +272,68 @@ const UploadSection = ({
             <div className="relative z-10 flex flex-col items-center transform group-hover:scale-110 transition-transform duration-300">
               <FileTextOutlined className="text-[#90278E] text-4xl mb-2" />
               <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
-                เพิ่มไฟล์ PDF
+                เพิ่มไฟล์ PDF ใหม่
               </span>
             </div>
           </label>
           
-          {/* Display uploaded PDFs */}
+          {/* Display existing PDFs */}
+          {(projectData.existingFiles.pdfFiles && projectData.existingFiles.pdfFiles.length > 0) && (
+            <div className="mt-4 space-y-3">
+              <h5 className="font-medium text-[#90278E]">เอกสารที่มีอยู่เดิม</h5>
+              {projectData.existingFiles.pdfFiles.map((pdf, index) => (
+                <div 
+                  key={`existing-${index}`} 
+                  className="flex items-center justify-between bg-white/70 p-3 rounded-lg border border-[#90278E]/20 group hover:border-[#90278E] transition-all"
+                >
+                  <div className="flex items-center">
+                    <FileTextOutlined className="text-[#90278E] text-xl mr-3" />
+                    <span>{pdf.name || getFileNameFromUrl(pdf.url)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Tooltip title="ดูตัวอย่าง">
+                      <Button
+                        type="link"
+                        icon={<EyeOutlined />}
+                        href={pdf.url}
+                        target="_blank"
+                        className="opacity-50 group-hover:opacity-100 transition-opacity"
+                      />
+                    </Tooltip>
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemovePdf(index, true)} 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ลบ
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Display newly added PDFs */}
           {projectData.pdfFiles && projectData.pdfFiles.length > 0 && (
             <div className="mt-4 space-y-3">
-              <h5 className="font-medium text-[#90278E]">เอกสารที่อัปโหลด</h5>
+              <h5 className="font-medium text-[#90278E]">เอกสารที่เพิ่มใหม่</h5>
               {projectData.pdfFiles.map((pdf, index) => (
                 <div 
-                  key={index} 
+                  key={`new-${index}`} 
                   className="flex items-center justify-between bg-white/70 p-3 rounded-lg border border-[#90278E]/20 group hover:border-[#90278E] transition-all"
                 >
                   <div className="flex items-center">
                     <FileTextOutlined className="text-[#90278E] text-xl mr-3" />
                     <span>{pdf.name}</span>
+                    <Tag color="processing" className="ml-2">ใหม่</Tag>
                   </div>
                   <Button
                     type="text"
                     danger
                     icon={<DeleteOutlined />}
-                    onClick={() => handleRemovePdf(index)} 
+                    onClick={() => handleRemovePdf(index, false)} 
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     ลบ
@@ -306,25 +342,7 @@ const UploadSection = ({
               ))}
             </div>
           )}
-
-          {/* Tags Input */}
-          <div className="mt-6 w-full">
-            <h4 className="font-semibold text-[#90278E] mb-2 flex items-center">
-              <FileTextOutlined className="mr-2" />
-              แท็ก (Tags)
-            </h4>
-            <Input 
-              value={projectData.tags || ''} 
-              onChange={(e) => handleInputChange(e, 'tags')}
-              placeholder="ใส่แท็กคั่นด้วยเครื่องหมายจุลภาค เช่น ai, web, learning"
-              className="rounded-lg border-[#90278E]/30 hover:border-[#90278E] focus:border-[#90278E] transition-all"
-              style={{ 
-                background: 'rgba(255, 255, 255, 0.8)', 
-                boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)'
-              }}
-            />
-          </div>
-
+          
           {/* Academic Paper Fields (Only shown for academic projects) */}
           {projectData.category === projectTypes.ACADEMIC && (
             <div className="col-span-2 bg-white/40 rounded-lg p-5 space-y-4 relative overflow-hidden mt-6" 
@@ -340,7 +358,7 @@ const UploadSection = ({
                   <h4 className="font-semibold text-[#90278E]/80 mb-2">วันที่เผยแพร่</h4>
                   <DatePicker
                     className="w-full rounded-lg border-[#90278E]/30 hover:border-[#90278E] focus:border-[#90278E] transition-all"
-                    value={projectData.publicationDate}
+                    value={projectData.publicationDate ? moment(projectData.publicationDate) : null}
                     onChange={(date) => handleDateChange(date, 'publicationDate')}
                     placeholder="เลือกวันที่เผยแพร่"
                     style={{ 
@@ -451,7 +469,7 @@ const UploadSection = ({
                 </div>
               </div>
               
-              {/* เพิ่มฟิลด์ตาม API */}
+              {/* Competition specific fields */}
               <div className="w-full">
                 <h4 className="font-semibold text-[#90278E]/80 mb-2">ระดับการแข่งขัน</h4>
                 <Select
@@ -498,6 +516,50 @@ const UploadSection = ({
                   }}
                 />
               </div>
+
+              {/* Competition Poster */}
+              {projectData.existingFiles.competitionPoster && (
+                <div className="w-full mt-4">
+                  <h4 className="font-semibold text-[#90278E]/80 mb-2 flex items-center">
+                    <FileImageOutlined className="mr-2" />
+                    โปสเตอร์การแข่งขัน
+                    <Tag color="success" className="ml-2 flex items-center">
+                      <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม
+                    </Tag>
+                  </h4>
+                  
+                  <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-40 group transition-all duration-300 overflow-hidden"
+                         style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
+                    <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'competitionPoster')} accept={allowedFileTypes.image.join(',')} />
+                    
+                    {/* Display existing image */}
+                    {!projectData.competitionPoster && (
+                      <div className="w-full h-full relative flex flex-col items-center justify-center">
+                        <div className="w-20 h-20 mb-2 rounded overflow-hidden border-2 border-[#90278E]/30">
+                          <img 
+                            src={projectData.existingFiles.competitionPoster} 
+                            alt="Competition Poster" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="text-[#90278E] font-medium text-center group-hover:text-[#FF5E8C] transition-colors text-sm">
+                          คลิกเพื่อเปลี่ยนโปสเตอร์การแข่งขัน
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Display upload icon for new file */}
+                    {projectData.competitionPoster && (
+                      <div className="flex flex-col items-center">
+                        <FileImageOutlined className="text-[#90278E] text-3xl mb-2" />
+                        <span className="text-[#90278E] text-sm font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                          {projectData.competitionPoster.name}
+                        </span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -552,32 +614,136 @@ const UploadSection = ({
                 />
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                {/* Replaced 3 columns with 2 since video is now in the main section */}
-                <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-40 group transition-all duration-300 overflow-hidden"
-                       style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
-                  <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkPoster')} accept={allowedFileTypes.image.join(',')} />
-                  {generateStarBackground()}
-                  <div className="relative z-10 flex flex-col items-center">
-                    {getIcon(projectData.courseworkPoster, 'image')}
-                    <span className="text-[#90278E] text-sm font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
-                      {projectData.courseworkPoster ? projectData.courseworkPoster.name : 'อัปโหลด Poster การเรียน'}
-                    </span>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                {/* Coursework Poster */}
+                {projectData.existingFiles.courseworkPoster && (
+                  <div className="w-full">
+                    <h4 className="font-semibold text-[#90278E]/80 mb-2 flex items-center">
+                      <FileImageOutlined className="mr-2" />
+                      โปสเตอร์การเรียน
+                      <Tag color="success" className="ml-2 flex items-center">
+                        <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม
+                      </Tag>
+                    </h4>
+                    
+                    <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-32 group transition-all duration-300 overflow-hidden"
+                           style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
+                      <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkPoster')} accept={allowedFileTypes.image.join(',')} />
+                      
+                      {/* Display existing poster */}
+                      {!projectData.courseworkPoster && (
+                        <div className="w-full h-full relative flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 mb-2 rounded overflow-hidden border-2 border-[#90278E]/30">
+                            <img 
+                              src={projectData.existingFiles.courseworkPoster} 
+                              alt="Coursework Poster" 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="text-[#90278E] text-xs font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                            คลิกเพื่อเปลี่ยนโปสเตอร์
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Display upload icon for new file */}
+                      {projectData.courseworkPoster && (
+                        <div className="flex flex-col items-center">
+                          <FileImageOutlined className="text-[#90278E] text-3xl mb-1" />
+                          <span className="text-[#90278E] text-xs font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                            {projectData.courseworkPoster.name}
+                          </span>
+                        </div>
+                      )}
+                    </label>
                   </div>
-                </label>
+                )}
                 
-                <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-40 group transition-all duration-300 overflow-hidden"
-                       style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
-                  <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkImage')} accept={allowedFileTypes.image.join(',')} />
-                  {generateStarBackground()}
-                  <div className="relative z-10 flex flex-col items-center">
-                    {getIcon(projectData.courseworkImage, 'image')}
-                    <span className="text-[#90278E] text-sm font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
-                      {projectData.courseworkImage ? projectData.courseworkImage.name : 'อัปโหลดภาพการเรียน'}
-                    </span>
+                {/* Coursework Image */}
+                {projectData.existingFiles.courseworkImage && (
+                  <div className="w-full">
+                    <h4 className="font-semibold text-[#90278E]/80 mb-2 flex items-center">
+                      <FileImageOutlined className="mr-2" />
+                      ภาพการเรียน
+                      <Tag color="success" className="ml-2 flex items-center">
+                        <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม
+                      </Tag>
+                    </h4>
+                    
+                    <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-32 group transition-all duration-300 overflow-hidden"
+                           style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
+                      <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkImage')} accept={allowedFileTypes.image.join(',')} />
+                      
+                      {/* Display existing image */}
+                      {!projectData.courseworkImage && (
+                        <div className="w-full h-full relative flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 mb-2 rounded overflow-hidden border-2 border-[#90278E]/30">
+                            <img 
+                              src={projectData.existingFiles.courseworkImage} 
+                              alt="Coursework Image" 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="text-[#90278E] text-xs font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                            คลิกเพื่อเปลี่ยนภาพ
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Display upload icon for new file */}
+                      {projectData.courseworkImage && (
+                        <div className="flex flex-col items-center">
+                          <FileImageOutlined className="text-[#90278E] text-3xl mb-1" />
+                          <span className="text-[#90278E] text-xs font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                            {projectData.courseworkImage.name}
+                          </span>
+                        </div>
+                      )}
+                    </label>
                   </div>
-                </label>
+                )}
               </div>
+              
+              {/* Coursework Video */}
+              {projectData.existingFiles.courseworkVideo && (
+                <div className="w-full mt-4">
+                  <h4 className="font-semibold text-[#90278E]/80 mb-2 flex items-center">
+                    <VideoCameraOutlined className="mr-2" />
+                    วิดีโอการเรียน
+                    <Tag color="success" className="ml-2 flex items-center">
+                      <CheckCircleOutlined className="mr-1" /> มีไฟล์เดิม
+                    </Tag>
+                  </h4>
+                  
+                  <label className="relative border-2 border-dashed border-[#90278E]/30 hover:border-[#90278E] rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer w-full h-32 group transition-all duration-300 overflow-hidden"
+                         style={{ background: 'rgba(13, 2, 33, 0.05)' }}>
+                    <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'courseworkVideo')} accept={allowedFileTypes.video.join(',')} />
+                    
+                    {/* Display existing video info */}
+                    {!projectData.courseworkVideo && (
+                      <div className="flex flex-col items-center">
+                        <VideoCameraOutlined className="text-[#90278E] text-3xl mb-2" />
+                        <span className="text-[#90278E] text-sm font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                          คลิกเพื่อเปลี่ยนวิดีโอการเรียน
+                        </span>
+                        <span className="text-gray-500 text-xs mt-1">
+                          {getFileNameFromUrl(projectData.existingFiles.courseworkVideo)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Display upload icon for new file */}
+                    {projectData.courseworkVideo && (
+                      <div className="flex flex-col items-center">
+                        <VideoCameraOutlined className="text-[#90278E] text-3xl mb-1" />
+                        <span className="text-[#90278E] text-sm font-medium text-center group-hover:text-[#FF5E8C] transition-colors">
+                          {projectData.courseworkVideo.name}
+                        </span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -586,4 +752,4 @@ const UploadSection = ({
   );
 };
 
-export default UploadSection;
+export default EditUploadSection;

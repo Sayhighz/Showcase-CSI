@@ -5,13 +5,13 @@ import { FileTextOutlined, EyeOutlined, EyeInvisibleOutlined, EditOutlined } fro
 const { TextArea } = Input;
 
 /**
- * คอมโพเนนต์แบบฟอร์มสำหรับกรอกรายละเอียดโปรเจค
+ * คอมโพเนนต์แบบฟอร์มสำหรับแก้ไขรายละเอียดโปรเจค
  * 
  * @param {Object} props - คุณสมบัติของคอมโพเนนต์
  * @param {Object} props.projectData - ข้อมูลโปรเจค
  * @param {Function} props.handleInputChange - ฟังก์ชันจัดการการเปลี่ยนแปลงข้อมูล input
  */
-const ProjectDetailsForm = ({ projectData, handleInputChange }) => {
+const EditProjectDetailsForm = ({ projectData, handleInputChange }) => {
   return (
     <div className="space-y-6 p-6 rounded-lg relative"
          style={{
@@ -41,7 +41,7 @@ const ProjectDetailsForm = ({ projectData, handleInputChange }) => {
       </div>
       
       <h3 className="text-xl font-bold text-[#90278E] relative inline-block z-10">
-        รายละเอียดผลงาน
+        แก้ไขรายละเอียดผลงาน
         <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-[#90278E] via-[#FF5E8C] to-transparent"></span>
       </h3>
       
@@ -100,6 +100,80 @@ const ProjectDetailsForm = ({ projectData, handleInputChange }) => {
             {projectData.description ? projectData.description.length : 0} ตัวอักษร
           </div>
         </div>
+      </div>
+      
+      {/* Year and Semester */}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="w-full relative z-10">
+          <label className="block text-[#90278E] font-semibold mb-2 flex items-center">
+            <FileTextOutlined className="mr-2" />
+            ปีการศึกษา
+          </label>
+          
+          <Input
+            type="number"
+            value={projectData.study_year || ''}
+            onChange={(e) => handleInputChange(e, 'study_year')}
+            placeholder="ระบุปีการศึกษา"
+            className="rounded-lg border-[#90278E]/30 hover:border-[#90278E] focus:border-[#90278E] transition-all"
+            style={{ 
+              background: 'rgba(255, 255, 255, 0.8)', 
+              boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)'
+            }}
+          />
+        </div>
+        
+        <div className="w-full relative z-10">
+          <label className="block text-[#90278E] font-semibold mb-2 flex items-center">
+            <FileTextOutlined className="mr-2" />
+            ภาคการศึกษา
+          </label>
+          
+          <Radio.Group 
+            value={projectData.semester} 
+            onChange={(e) => handleInputChange(e, 'semester')}
+            className="w-full flex space-x-3"
+          >
+            <Radio.Button 
+              value="1"
+              className={`flex-1 text-center ${projectData.semester === '1' ? 'bg-[#90278E] text-white border-[#90278E]' : ''}`}
+            >
+              ภาคเรียนที่ 1
+            </Radio.Button>
+            <Radio.Button 
+              value="2"
+              className={`flex-1 text-center ${projectData.semester === '2' ? 'bg-[#90278E] text-white border-[#90278E]' : ''}`}
+            >
+              ภาคเรียนที่ 2
+            </Radio.Button>
+            <Radio.Button 
+              value="3" 
+              className={`flex-1 text-center ${projectData.semester === '3' ? 'bg-[#90278E] text-white border-[#90278E]' : ''}`}
+            >
+              ภาคฤดูร้อน
+            </Radio.Button>
+          </Radio.Group>
+        </div>
+      </div>
+      
+      {/* Tags Input */}
+      <div className="relative z-10">
+        <label className="block text-[#90278E] font-semibold mb-2 flex items-center">
+          <FileTextOutlined className="mr-2" />
+          แท็ก (Tags)
+        </label>
+        
+        <Input
+          value={projectData.tags || ''}
+          onChange={(e) => handleInputChange(e, 'tags')}
+          placeholder="ใส่แท็กคั่นด้วยเครื่องหมายจุลภาค เช่น ai, web, learning"
+          className="rounded-lg border-[#90278E]/30 hover:border-[#90278E] focus:border-[#90278E] transition-all"
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.8)', 
+            boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)'
+          }}
+        />
+        <p className="text-xs text-gray-500 mt-1 ml-1">แท็กจะช่วยให้ผู้อื่นค้นหาผลงานของคุณได้ง่ายขึ้น</p>
       </div>
       
       {/* Project Visibility Radio Group */}
@@ -171,4 +245,4 @@ const ProjectDetailsForm = ({ projectData, handleInputChange }) => {
   );
 };
 
-export default ProjectDetailsForm;
+export default EditProjectDetailsForm;

@@ -1,24 +1,34 @@
 // controllers/user/projectController.js
-import pool, { beginTransaction, commitTransaction, rollbackTransaction } from "../../config/database.js";
+import pool, {
+  beginTransaction,
+  commitTransaction,
+  rollbackTransaction,
+} from "../../config/database.js";
 import logger from "../../config/logger.js";
-import { 
-  successResponse, 
-  errorResponse, 
-  handleServerError, 
-  notFoundResponse, 
+import {
+  successResponse,
+  errorResponse,
+  handleServerError,
+  notFoundResponse,
   forbiddenResponse,
-  validationErrorResponse 
+  validationErrorResponse,
 } from "../../utils/responseFormatter.js";
-import { 
-  PROJECT_STATUSES, 
-  PROJECT_TYPES, 
+import {
+  PROJECT_STATUSES,
+  PROJECT_TYPES,
   COMPETITION_LEVELS,
   SEMESTERS,
   isValidStatus,
-  isValidType 
+  isValidType,
 } from "../../constants/projectStatuses.js";
-import { getPaginationInfo, getPaginationParams } from "../../constants/pagination.js";
-import { ERROR_MESSAGES, getErrorMessage } from "../../constants/errorMessages.js";
+import {
+  getPaginationInfo,
+  getPaginationParams,
+} from "../../constants/pagination.js";
+import {
+  ERROR_MESSAGES,
+  getErrorMessage,
+} from "../../constants/errorMessages.js";
 import { STATUS_CODES } from "../../constants/statusCodes.js";
 import storageService from "../../services/storageService.js";
 import projectService from "../../services/projectService.js";
@@ -32,9 +42,15 @@ import { formatToISODate } from "../../utils/dateHelper.js";
 import { slugify, truncateText } from "../../utils/stringHelper.js";
 
 // Create uploader instances for different file types
-const imageUploader = storageService.createUploader('images', { maxSize: 5 * 1024 * 1024 });
-const documentUploader = storageService.createUploader('documents', { maxSize: 20 * 1024 * 1024 });
-const videoUploader = storageService.createUploader('videos', { maxSize: 50 * 1024 * 1024 });
+const imageUploader = storageService.createUploader("images", {
+  maxSize: 5 * 1024 * 1024,
+});
+const documentUploader = storageService.createUploader("documents", {
+  maxSize: 20 * 1024 * 1024,
+});
+const videoUploader = storageService.createUploader("videos", {
+  maxSize: 50 * 1024 * 1024,
+});
 
 /**
  * ดึงข้อมูลโครงการทั้งหมดที่ได้รับการอนุมัติแล้ว
@@ -45,21 +61,21 @@ export const getAllProjects = async (req, res) => {
   try {
     // Get pagination parameters from request
     const pagination = getPaginationParams(req);
-    
+
     // Get filters from request
     const filters = {
       type: req.query.category || null,
       year: req.query.year || null,
       studyYear: req.query.level || null,
       onlyVisible: true,
-      status: PROJECT_STATUSES.APPROVED
+      status: PROJECT_STATUSES.APPROVED,
     };
-    
+
     // Get projects from service
     const result = await projectService.getAllProjects(filters, pagination);
-    
+
     // Format projects for response
-    const formattedProjects = result.projects.map(project => ({
+    const formattedProjects = result.projects.map((project) => ({
       id: project.project_id,
       title: project.title,
       description: truncateText(project.description, 200),
@@ -72,12 +88,12 @@ export const getAllProjects = async (req, res) => {
       projectLink: `/projects/${project.project_id}`,
       viewsCount: project.views_count || 0,
     }));
-    
+
     return res.json(
       successResponse(
         {
           projects: formattedProjects,
-          pagination: result.pagination
+          pagination: result.pagination,
         },
         "Projects retrieved successfully"
       )
@@ -98,15 +114,15 @@ export const getTop9Projects = async (req, res) => {
     // Set filters for top projects
     const filters = {
       onlyVisible: true,
-      status: PROJECT_STATUSES.APPROVED
+      status: PROJECT_STATUSES.APPROVED,
     };
-    
+
     // Set pagination for top 9 projects
     const pagination = {
       page: 1,
-      limit: 9
+      limit: 9,
     };
-    
+
     // Get projects sorted by views
     const query = `
       SELECT p.*, u.username, u.full_name,
@@ -119,11 +135,14 @@ export const getTop9Projects = async (req, res) => {
       ORDER BY views_count DESC, p.created_at DESC
       LIMIT ?
     `;
-    
-    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit.toString()]);
-    
+
+    const [projects] = await pool.execute(query, [
+      PROJECT_STATUSES.APPROVED,
+      pagination.limit.toString(),
+    ]);
+
     // Format projects for response
-    const formattedProjects = projects.map(project => ({
+    const formattedProjects = projects.map((project) => ({
       id: project.project_id,
       title: project.title,
       description: truncateText(project.description, 150),
@@ -136,12 +155,9 @@ export const getTop9Projects = async (req, res) => {
       projectLink: `/projects/${project.project_id}`,
       viewsCount: project.views_count || 0,
     }));
-    
+
     return res.json(
-      successResponse(
-        formattedProjects,
-        "Top projects retrieved successfully"
-      )
+      successResponse(formattedProjects, "Top projects retrieved successfully")
     );
   } catch (error) {
     logger.error("Error getting top projects:", error);
@@ -157,19 +173,19 @@ export const getTop9Projects = async (req, res) => {
 export const getLatestProjects = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 9;
-    
+
     // Set filters for latest projects
     const filters = {
       onlyVisible: true,
-      status: PROJECT_STATUSES.APPROVED
+      status: PROJECT_STATUSES.APPROVED,
     };
-    
+
     // Set pagination
     const pagination = {
       page: 1,
-      limit: limit
+      limit: limit,
     };
-    
+
     // Get projects ordered by creation date
     const query = `
       SELECT p.*, u.username, u.full_name,
@@ -180,11 +196,14 @@ export const getLatestProjects = async (req, res) => {
       ORDER BY p.created_at DESC
       LIMIT ?
     `;
-    
-    const [projects] = await pool.execute(query, [PROJECT_STATUSES.APPROVED, pagination.limit.toString()]);
-    
+
+    const [projects] = await pool.execute(query, [
+      PROJECT_STATUSES.APPROVED,
+      pagination.limit.toString(),
+    ]);
+
     // Format projects for response
-    const formattedProjects = projects.map(project => ({
+    const formattedProjects = projects.map((project) => ({
       id: project.project_id,
       title: project.title,
       description: truncateText(project.description, 150),
@@ -195,9 +214,9 @@ export const getLatestProjects = async (req, res) => {
       student: project.full_name,
       studentId: project.user_id,
       projectLink: `/projects/${project.project_id}`,
-      createdAt: project.created_at
+      createdAt: project.created_at,
     }));
-    
+
     return res.json(
       successResponse(
         formattedProjects,
@@ -219,25 +238,25 @@ export const getMyProjects = async (req, res) => {
   try {
     const userId = req.params.user_id;
     // console.log(userId)
-    
+
     // Check if user has permission to view these projects
     if (req.user.id != userId && req.user.role !== "admin") {
       return forbiddenResponse(res, "You can only view your own projects");
     }
-    
+
     // Set filters for user's projects
     const filters = {
-      userId: userId
+      userId: userId,
     };
-    
+
     // Get pagination parameters
     const pagination = getPaginationParams(req);
-    
+
     // Get user's projects
     const result = await projectService.getAllProjects(filters, pagination);
-    
+
     // Format projects for response
-    const formattedProjects = result.projects.map(project => ({
+    const formattedProjects = result.projects.map((project) => ({
       id: project.project_id,
       title: project.title,
       description: truncateText(project.description, 150),
@@ -248,20 +267,23 @@ export const getMyProjects = async (req, res) => {
       image: project.image || null,
       projectLink: `/projects/${project.project_id}`,
       createdAt: project.created_at,
-      updatedAt: project.updated_at
+      updatedAt: project.updated_at,
     }));
-    
+
     return res.json(
       successResponse(
         {
           projects: formattedProjects,
-          pagination: result.pagination
+          pagination: result.pagination,
         },
         "My projects retrieved successfully"
       )
     );
   } catch (error) {
-    logger.error(`Error getting projects for user ${req.params.user_id}:`, error);
+    logger.error(
+      `Error getting projects for user ${req.params.user_id}:`,
+      error
+    );
     return handleServerError(res, error);
   }
 };
@@ -275,45 +297,56 @@ export const getProjectDetails = async (req, res) => {
   try {
     const projectId = req.params.projectId;
     const viewerId = req.user ? req.user.id : null;
-    
+
     // Options for getting project details
     const options = {
       includeReviews: req.user && req.user.role === "admin",
       recordView: !req.user || req.user.id != projectId,
-      viewerId: viewerId
+      viewerId: viewerId,
     };
-    
     // Get project from service
     const project = await projectService.getProjectById(projectId, options);
     
     if (!project) {
       return notFoundResponse(res, "Project not found");
     }
-    
     // Check if user can access the project
-    if (project.visibility === 0 && 
-        (!req.user || (req.user.id != project.user_id && req.user.role !== "admin"))) {
-      return forbiddenResponse(res, "You do not have permission to view this project");
+    console.log(req.user)
+    if (
+      (project.visibility === 0 || project.status === "pending") &&
+      (!req.user ||
+        (req.user.id != project.user_id && req.user.role !== "admin"))
+    ) {
+      return forbiddenResponse(
+        res,
+        "You do not have permission to view this project"
+      );
     }
-    
+
     // If the viewer is not the owner, record the view
     if (!req.user || req.user.id != project.user_id) {
       // Increment view count
-      await pool.execute(`
+      await pool.execute(
+        `
         UPDATE projects
         SET views_count = views_count + 1
         WHERE project_id = ?
-      `, [projectId]);
-      
+      `,
+        [projectId]
+      );
+
       // Record visitor view
       if (!req.user) {
-        await pool.execute(`
+        await pool.execute(
+          `
           INSERT INTO visitor_views (project_id, ip_address, user_agent)
           VALUES (?, ?, ?)
-        `, [projectId, req.ip, req.headers["user-agent"] || 'Unknown']);
+        `,
+          [projectId, req.ip, req.headers["user-agent"] || "Unknown"]
+        );
       }
     }
-    
+
     // Format project for response
     const formattedProject = {
       projectId: project.project_id,
@@ -329,40 +362,46 @@ export const getProjectDetails = async (req, res) => {
         id: project.user_id,
         username: project.username,
         fullName: project.full_name,
-        image : project.user_image,
-        email: req.user && (req.user.id == project.user_id || req.user.role === "admin") ? project.email : undefined
+        image: project.user_image,
+        email:
+          req.user &&
+          (req.user.id == project.user_id || req.user.role === "admin")
+            ? project.email
+            : undefined,
       },
       contributors: project.contributors || [],
-      files: project.files ? project.files.map(file => ({
-        id: file.file_id,
-        type: file.file_type,
-        path: file.file_path,
-        name: file.file_name,
-        size: file.file_size
-      })) : [],
+      files: project.files
+        ? project.files.map((file) => ({
+            id: file.file_id,
+            type: file.file_type,
+            path: file.file_path,
+            name: file.file_name,
+            size: file.file_size,
+          }))
+        : [],
       viewsCount: project.views_count || 0,
       createdAt: project.created_at,
-      updatedAt: project.updated_at
+      updatedAt: project.updated_at,
     };
-    
+
     // Add type-specific data
     if (project.academic) {
       formattedProject.academic = project.academic;
     }
-    
+
     if (project.competition) {
       formattedProject.competition = project.competition;
     }
-    
+
     if (project.coursework) {
       formattedProject.coursework = project.coursework;
     }
-    
+
     // Add reviews for admin
     if (options.includeReviews && project.reviews) {
       formattedProject.reviews = project.reviews;
     }
-    
+
     return res.json(
       successResponse(
         formattedProject,
@@ -370,7 +409,10 @@ export const getProjectDetails = async (req, res) => {
       )
     );
   } catch (error) {
-    logger.error(`Error getting project details for project ${req.params.projectId}:`, error);
+    logger.error(
+      `Error getting project details for project ${req.params.projectId}:`,
+      error
+    );
     return handleServerError(res, error);
   }
 };
@@ -383,26 +425,27 @@ export const getProjectDetails = async (req, res) => {
 export const searchProjects = async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
-    
+
     // Create filters object
     const filters = {
       type: req.query.type || null,
       year: req.query.year || null,
       studyYear: req.query.study_year || null,
-      userId: req.user ? req.user.id : null
+      userId: req.user ? req.user.id : null,
     };
-    
+
     // Get pagination parameters
     const pagination = getPaginationParams(req);
-    
+
     // Search projects using search service
-    const result = await searchService.searchProjects(keyword, filters, pagination);
-    
+    const result = await searchService.searchProjects(
+      keyword,
+      filters,
+      pagination
+    );
+
     return res.json(
-      successResponse(
-        result,
-        "Search results retrieved successfully"
-      )
+      successResponse(result, "Search results retrieved successfully")
     );
   } catch (error) {
     logger.error("Error searching projects:", error);
@@ -417,18 +460,18 @@ export const searchProjects = async (req, res) => {
  */
 export const uploadProject = async (req, res) => {
   const connection = await pool.getConnection();
-  
+
   try {
     const userId = req.params.user_id;
-    
+
     // Check if user has permission to upload
     if (req.user.id != userId && req.user.role !== "admin") {
       return forbiddenResponse(res, "You can only upload your own projects");
     }
-    
+
     // Start transaction
     await connection.beginTransaction();
-    
+
     // Extract and validate project data
     const {
       title,
@@ -440,32 +483,26 @@ export const uploadProject = async (req, res) => {
       visibility = 1,
       tags = "",
     } = req.body;
-    
+
     // Validate required fields
     if (!title || !description || !type || !study_year || !year || !semester) {
-      return validationErrorResponse(
-        res,
-        "Missing required fields",
-        {
-          title: !title ? "Title is required" : null,
-          description: !description ? "Description is required" : null,
-          type: !type ? "Type is required" : null,
-          study_year: !study_year ? "Study year is required" : null,
-          year: !year ? "Year is required" : null,
-          semester: !semester ? "Semester is required" : null
-        }
-      );
+      return validationErrorResponse(res, "Missing required fields", {
+        title: !title ? "Title is required" : null,
+        description: !description ? "Description is required" : null,
+        type: !type ? "Type is required" : null,
+        study_year: !study_year ? "Study year is required" : null,
+        year: !year ? "Year is required" : null,
+        semester: !semester ? "Semester is required" : null,
+      });
     }
-    
+
     // Validate type
     if (!isValidType(type)) {
-      return validationErrorResponse(
-        res,
-        "Invalid project type",
-        { type: `Type must be one of: ${Object.values(PROJECT_TYPES).join(', ')}` }
-      );
+      return validationErrorResponse(res, "Invalid project type", {
+        type: `Type must be one of: ${Object.values(PROJECT_TYPES).join(", ")}`,
+      });
     }
-    
+
     // Prepare project data
     const projectData = {
       user_id: userId,
@@ -477,9 +514,9 @@ export const uploadProject = async (req, res) => {
       semester,
       visibility,
       tags: sanitizeHTML(tags),
-      contributors: req.body.contributors || []
+      contributors: req.body.contributors || [],
     };
-    
+
     // Add type-specific data
     if (type === PROJECT_TYPES.ACADEMIC) {
       Object.assign(projectData, {
@@ -487,7 +524,7 @@ export const uploadProject = async (req, res) => {
         publication_date: req.body.publication_date || null,
         published_year: req.body.published_year || year,
         authors: sanitizeHTML(req.body.authors || ""),
-        publication_venue: sanitizeHTML(req.body.publication_venue || "")
+        publication_venue: sanitizeHTML(req.body.publication_venue || ""),
       });
     } else if (type === PROJECT_TYPES.COMPETITION) {
       Object.assign(projectData, {
@@ -495,22 +532,25 @@ export const uploadProject = async (req, res) => {
         competition_year: req.body.competition_year || year,
         competition_level: req.body.competition_level || "university",
         achievement: sanitizeHTML(req.body.achievement || ""),
-        team_members: sanitizeHTML(req.body.team_members || "")
+        team_members: sanitizeHTML(req.body.team_members || ""),
       });
     } else if (type === PROJECT_TYPES.COURSEWORK) {
       Object.assign(projectData, {
         course_code: sanitizeHTML(req.body.course_code || ""),
         course_name: sanitizeHTML(req.body.course_name || ""),
-        instructor: sanitizeHTML(req.body.instructor || "")
+        instructor: sanitizeHTML(req.body.instructor || ""),
       });
     }
-    
+
     // Create project using service
-    const project = await projectService.createProject(projectData, req.files || {});
-    
+    const project = await projectService.createProject(
+      projectData,
+      req.files || {}
+    );
+
     // Commit transaction
     await connection.commit();
-    
+
     // Notify admins of new project
     await notificationService.notifyAdminsNewProject(
       project.project_id,
@@ -518,13 +558,14 @@ export const uploadProject = async (req, res) => {
       req.user.fullName,
       type
     );
-    
+
     return res.status(STATUS_CODES.CREATED).json(
       successResponse(
         {
           projectId: project.project_id,
           title: project.title,
-          message: "Project submitted successfully. Please wait for admin approval."
+          message:
+            "Project submitted successfully. Please wait for admin approval.",
         },
         "Project created successfully"
       )
@@ -541,11 +582,11 @@ export const uploadProject = async (req, res) => {
 };
 
 /**
- * อัปเดตข้อมูลโครงการ
+ * อัปเดตข้อมูลโครงการพร้อมรองรับการอัปโหลดไฟล์
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const updateProject = async (req, res) => {
+export const updateProjectWithFiles = async (req, res) => {
   const connection = await pool.getConnection();
   
   try {
@@ -702,64 +743,71 @@ export const updateProject = async (req, res) => {
   }
 };
 
+
 /**
  * Helper function to update academic paper data
  */
-async function updateAcademicData(connection, projectId, updateData, defaultYear) {
+async function updateAcademicData(
+  connection,
+  projectId,
+  updateData,
+  defaultYear
+) {
   // Check if academic paper exists
   const [academic] = await connection.execute(
     `SELECT * FROM academic_papers WHERE project_id = ?`,
     [projectId]
   );
-  
+
   if (academic.length > 0) {
     // Update existing record
     const updateFields = [];
     const updateParams = [];
-    
+
     if (updateData.publication_date !== undefined) {
       updateFields.push("publication_date = ?");
       updateParams.push(updateData.publication_date);
     }
-    
+
     if (updateData.published_year !== undefined) {
       updateFields.push("published_year = ?");
       updateParams.push(updateData.published_year);
     }
-    
+
     if (updateData.abstract !== undefined) {
       updateFields.push("abstract = ?");
       updateParams.push(sanitizeHTML(updateData.abstract));
     }
-    
+
     if (updateData.authors !== undefined) {
       updateFields.push("authors = ?");
       updateParams.push(sanitizeHTML(updateData.authors));
     }
-    
+
     if (updateData.publication_venue !== undefined) {
       updateFields.push("publication_venue = ?");
       updateParams.push(sanitizeHTML(updateData.publication_venue));
     }
-    
+
     // Update timestamp
     updateFields.push("last_updated = NOW()");
-    
+
     // Add project ID to parameters
     updateParams.push(projectId);
-    
+
     if (updateFields.length > 0) {
       const updateQuery = `
         UPDATE academic_papers
         SET ${updateFields.join(", ")}
         WHERE project_id = ?
       `;
-      
+
       await connection.execute(updateQuery, updateParams);
     }
   } else {
     // Insert new record
-    await connection.execute(`
+    await connection.execute(
+      `
       INSERT INTO academic_papers (
         project_id, 
         publication_date, 
@@ -768,72 +816,80 @@ async function updateAcademicData(connection, projectId, updateData, defaultYear
         authors, 
         publication_venue
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      projectId,
-      updateData.publication_date || null,
-      updateData.published_year || defaultYear,
-      sanitizeHTML(updateData.abstract || ""),
-      sanitizeHTML(updateData.authors || ""),
-      sanitizeHTML(updateData.publication_venue || "")
-    ]);
+    `,
+      [
+        projectId,
+        updateData.publication_date || null,
+        updateData.published_year || defaultYear,
+        sanitizeHTML(updateData.abstract || ""),
+        sanitizeHTML(updateData.authors || ""),
+        sanitizeHTML(updateData.publication_venue || ""),
+      ]
+    );
   }
 }
 
 /**
  * Helper function to update competition data
  */
-async function updateCompetitionData(connection, projectId, updateData, defaultYear) {
+async function updateCompetitionData(
+  connection,
+  projectId,
+  updateData,
+  defaultYear
+) {
   // Check if competition exists
   const [competition] = await connection.execute(
     `SELECT * FROM competitions WHERE project_id = ?`,
     [projectId]
   );
-  
+
   if (competition.length > 0) {
     // Update existing record
     const updateFields = [];
     const updateParams = [];
-    
+
     if (updateData.competition_name !== undefined) {
       updateFields.push("competition_name = ?");
       updateParams.push(sanitizeHTML(updateData.competition_name));
     }
-    
+
     if (updateData.competition_year !== undefined) {
       updateFields.push("competition_year = ?");
       updateParams.push(updateData.competition_year);
     }
-    
+
     if (updateData.competition_level !== undefined) {
       updateFields.push("competition_level = ?");
       updateParams.push(updateData.competition_level);
     }
-    
+
     if (updateData.achievement !== undefined) {
       updateFields.push("achievement = ?");
       updateParams.push(sanitizeHTML(updateData.achievement));
     }
-    
+
     if (updateData.team_members !== undefined) {
       updateFields.push("team_members = ?");
       updateParams.push(sanitizeHTML(updateData.team_members));
     }
-    
+
     // Add project ID to parameters
     updateParams.push(projectId);
-    
+
     if (updateFields.length > 0) {
       const updateQuery = `
         UPDATE competitions
         SET ${updateFields.join(", ")}
         WHERE project_id = ?
       `;
-      
+
       await connection.execute(updateQuery, updateParams);
     }
   } else {
     // Insert new record
-    await connection.execute(`
+    await connection.execute(
+      `
       INSERT INTO competitions (
         project_id, 
         competition_name, 
@@ -842,14 +898,16 @@ async function updateCompetitionData(connection, projectId, updateData, defaultY
         achievement, 
         team_members
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      projectId,
-      sanitizeHTML(updateData.competition_name || ""),
-      updateData.competition_year || defaultYear,
-      updateData.competition_level || "university",
-      sanitizeHTML(updateData.achievement || ""),
-      sanitizeHTML(updateData.team_members || "")
-    ]);
+    `,
+      [
+        projectId,
+        sanitizeHTML(updateData.competition_name || ""),
+        updateData.competition_year || defaultYear,
+        updateData.competition_level || "university",
+        sanitizeHTML(updateData.achievement || ""),
+        sanitizeHTML(updateData.team_members || ""),
+      ]
+    );
   }
 }
 
@@ -862,54 +920,57 @@ async function updateCourseworkData(connection, projectId, updateData) {
     `SELECT * FROM courseworks WHERE project_id = ?`,
     [projectId]
   );
-  
+
   if (coursework.length > 0) {
     // Update existing record
     const updateFields = [];
     const updateParams = [];
-    
+
     if (updateData.course_code !== undefined) {
       updateFields.push("course_code = ?");
       updateParams.push(sanitizeHTML(updateData.course_code));
     }
-    
+
     if (updateData.course_name !== undefined) {
       updateFields.push("course_name = ?");
       updateParams.push(sanitizeHTML(updateData.course_name));
     }
-    
+
     if (updateData.instructor !== undefined) {
       updateFields.push("instructor = ?");
       updateParams.push(sanitizeHTML(updateData.instructor));
     }
-    
+
     // Add project ID to parameters
     updateParams.push(projectId);
-    
+
     if (updateFields.length > 0) {
       const updateQuery = `
         UPDATE courseworks
         SET ${updateFields.join(", ")}
         WHERE project_id = ?
       `;
-      
+
       await connection.execute(updateQuery, updateParams);
     }
   } else {
     // Insert new record
-    await connection.execute(`
+    await connection.execute(
+      `
       INSERT INTO courseworks (
         project_id, 
         course_code, 
         course_name, 
         instructor
       ) VALUES (?, ?, ?, ?)
-    `, [
-      projectId,
-      sanitizeHTML(updateData.course_code || ""),
-      sanitizeHTML(updateData.course_name || ""),
-      sanitizeHTML(updateData.instructor || "")
-    ]);
+    `,
+      [
+        projectId,
+        sanitizeHTML(updateData.course_code || ""),
+        sanitizeHTML(updateData.course_name || ""),
+        sanitizeHTML(updateData.instructor || ""),
+      ]
+    );
   }
 }
 
@@ -923,39 +984,39 @@ async function updateCourseworkData(connection, projectId, updateData) {
  */
 export const deleteProject = async (req, res) => {
   const connection = await pool.getConnection();
-  
+
   try {
     const projectId = req.params.projectId;
-    
+
     // Get project to check ownership
     const [projects] = await pool.execute(
       `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
-    
+
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-    
+
     const project = projects[0];
-    
+
     // Check if user has permission to delete
     if (req.user.id != project.user_id && req.user.role !== "admin") {
       return forbiddenResponse(res, "You can only delete your own projects");
     }
-    
+
     // Get files to delete after database transaction
     const [files] = await pool.execute(
       `SELECT file_path FROM project_files WHERE project_id = ?`,
       [projectId]
     );
-    
+
     // Start transaction
     await connection.beginTransaction();
-    
+
     try {
       // Delete related records in order to avoid foreign key constraints
-      
+
       // Delete type-specific data first
       if (project.type === PROJECT_TYPES.ACADEMIC) {
         await connection.execute(
@@ -973,63 +1034,57 @@ export const deleteProject = async (req, res) => {
           [projectId]
         );
       }
-      
+
       // Delete project groups
       await connection.execute(
         `DELETE FROM project_groups WHERE project_id = ?`,
         [projectId]
       );
-      
+
       // Delete visitor views
       await connection.execute(
         `DELETE FROM visitor_views WHERE project_id = ?`,
         [projectId]
       );
-      
+
       // Delete company views
       await connection.execute(
         `DELETE FROM company_views WHERE project_id = ?`,
         [projectId]
       );
-      
+
       // Delete project reviews
       await connection.execute(
         `DELETE FROM project_reviews WHERE project_id = ?`,
         [projectId]
       );
-      
+
       // Delete project images
       await connection.execute(
         `DELETE FROM project_images WHERE project_id = ?`,
         [projectId]
       );
-      
+
       // Delete project files
       await connection.execute(
         `DELETE FROM project_files WHERE project_id = ?`,
         [projectId]
       );
-      
+
       // Delete project
-      await connection.execute(
-        `DELETE FROM projects WHERE project_id = ?`,
-        [projectId]
-      );
-      
+      await connection.execute(`DELETE FROM projects WHERE project_id = ?`, [
+        projectId,
+      ]);
+
       // Commit transaction
       await connection.commit();
-      
+
       // Delete physical files
       for (const file of files) {
         await storageService.deleteFile(file.file_path);
       }
-      
-      return res.json(
-        successResponse(
-          null,
-          "Project deleted successfully"
-        )
-      );
+
+      return res.json(successResponse(null, "Project deleted successfully"));
     } catch (error) {
       // Rollback on error
       await connection.rollback();
@@ -1051,32 +1106,35 @@ export const deleteProject = async (req, res) => {
 export const uploadProjectFile = async (req, res) => {
   try {
     const projectId = req.params.projectId;
-    
+
     // Get project to check ownership
     const [projects] = await pool.execute(
       `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
-    
+
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-    
+
     const project = projects[0];
-    
+
     // Check if user has permission to upload
     if (req.user.id != project.user_id && req.user.role !== "admin") {
-      return forbiddenResponse(res, "You can only upload files to your own projects");
+      return forbiddenResponse(
+        res,
+        "You can only upload files to your own projects"
+      );
     }
-    
+
     // Check if file was uploaded
     if (!req.file) {
       return validationErrorResponse(res, "No file uploaded");
     }
-    
+
     const file = req.file;
     let fileType = "other";
-    
+
     // Determine file type
     if (file.mimetype.startsWith("image/")) {
       fileType = "image";
@@ -1085,27 +1143,27 @@ export const uploadProjectFile = async (req, res) => {
     } else if (file.mimetype === "application/pdf") {
       fileType = "pdf";
     }
-    
+
     // Save file
-    const [result] = await pool.execute(`
+    const [result] = await pool.execute(
+      `
       INSERT INTO project_files (
         project_id, file_type, file_path, file_name, file_size
       ) VALUES (?, ?, ?, ?, ?)
-    `, [
-      projectId,
-      fileType,
-      file.path,
-      file.originalname,
-      file.size
-    ]);
-    
+    `,
+      [projectId, fileType, file.path, file.originalname, file.size]
+    );
+
     const fileId = result.insertId;
-    
+
     // Set status back to pending for admin review
-    await pool.execute(`
+    await pool.execute(
+      `
       UPDATE projects SET status = ? WHERE project_id = ?
-    `, [PROJECT_STATUSES.PENDING, projectId]);
-    
+    `,
+      [PROJECT_STATUSES.PENDING, projectId]
+    );
+
     return res.status(STATUS_CODES.CREATED).json(
       successResponse(
         {
@@ -1113,7 +1171,7 @@ export const uploadProjectFile = async (req, res) => {
           fileName: file.originalname,
           filePath: file.path,
           fileSize: file.size,
-          fileType
+          fileType,
         },
         "File uploaded successfully"
       )
@@ -1123,8 +1181,11 @@ export const uploadProjectFile = async (req, res) => {
     if (req.file) {
       await storageService.deleteFile(req.file.path);
     }
-    
-    logger.error(`Error uploading file to project ${req.params.projectId}:`, error);
+
+    logger.error(
+      `Error uploading file to project ${req.params.projectId}:`,
+      error
+    );
     return handleServerError(res, error);
   }
 };
@@ -1138,19 +1199,15 @@ export const recordCompanyView = async (req, res) => {
   try {
     const projectId = req.params.projectId;
     const { company_name, contact_email } = req.body;
-    
+
     // Validate required fields
     if (!company_name || !contact_email) {
-      return validationErrorResponse(
-        res,
-        "Missing required fields",
-        {
-          company_name: !company_name ? "Company name is required" : null,
-          contact_email: !contact_email ? "Contact email is required" : null
-        }
-      );
+      return validationErrorResponse(res, "Missing required fields", {
+        company_name: !company_name ? "Company name is required" : null,
+        contact_email: !contact_email ? "Contact email is required" : null,
+      });
     }
-    
+
     // Get project
     const [projects] = await pool.execute(
       `SELECT p.*, u.user_id FROM projects p
@@ -1158,29 +1215,34 @@ export const recordCompanyView = async (req, res) => {
        WHERE p.project_id = ? AND p.status = ? AND p.visibility = 1`,
       [projectId, PROJECT_STATUSES.APPROVED]
     );
-    
+
     if (projects.length === 0) {
-      return notFoundResponse(res, "Project not found or not publicly accessible");
+      return notFoundResponse(
+        res,
+        "Project not found or not publicly accessible"
+      );
     }
-    
+
     const project = projects[0];
-    
+
     // Record company view
-    await pool.execute(`
+    await pool.execute(
+      `
       INSERT INTO company_views (
         company_name, contact_email, project_id
       ) VALUES (?, ?, ?)
-    `, [
-      sanitizeHTML(company_name),
-      sanitizeHTML(contact_email),
-      projectId
-    ]);
-    
+    `,
+      [sanitizeHTML(company_name), sanitizeHTML(contact_email), projectId]
+    );
+
     // Update view count
-    await pool.execute(`
+    await pool.execute(
+      `
       UPDATE projects SET views_count = views_count + 1 WHERE project_id = ?
-    `, [projectId]);
-    
+    `,
+      [projectId]
+    );
+
     // Notify project owner
     await notificationService.notifyCompanyView(
       project.user_id,
@@ -1189,15 +1251,15 @@ export const recordCompanyView = async (req, res) => {
       company_name,
       contact_email
     );
-    
+
     return res.json(
-      successResponse(
-        null,
-        "Company view recorded successfully"
-      )
+      successResponse(null, "Company view recorded successfully")
     );
   } catch (error) {
-    logger.error(`Error recording company view for project ${req.params.projectId}:`, error);
+    logger.error(
+      `Error recording company view for project ${req.params.projectId}:`,
+      error
+    );
     return handleServerError(res, error);
   }
 };
@@ -1210,41 +1272,46 @@ export const recordCompanyView = async (req, res) => {
 export const recordVisitorView = async (req, res) => {
   try {
     const projectId = req.params.projectId;
-    
+
     // Get project
     const [projects] = await pool.execute(
       `SELECT * FROM projects WHERE project_id = ? AND status = ? AND visibility = 1`,
       [projectId, PROJECT_STATUSES.APPROVED]
     );
-    
+
     if (projects.length === 0) {
-      return notFoundResponse(res, "Project not found or not publicly accessible");
+      return notFoundResponse(
+        res,
+        "Project not found or not publicly accessible"
+      );
     }
-    
+
     // Record visitor view
-    await pool.execute(`
+    await pool.execute(
+      `
       INSERT INTO visitor_views (
         project_id, ip_address, user_agent
       ) VALUES (?, ?, ?)
-    `, [
-      projectId,
-      req.ip,
-      req.headers["user-agent"] || "Unknown"
-    ]);
-    
+    `,
+      [projectId, req.ip, req.headers["user-agent"] || "Unknown"]
+    );
+
     // Update view count
-    await pool.execute(`
+    await pool.execute(
+      `
       UPDATE projects SET views_count = views_count + 1 WHERE project_id = ?
-    `, [projectId]);
-    
+    `,
+      [projectId]
+    );
+
     return res.json(
-      successResponse(
-        null,
-        "Visitor view recorded successfully"
-      )
+      successResponse(null, "Visitor view recorded successfully")
     );
   } catch (error) {
-    logger.error(`Error recording visitor view for project ${req.params.projectId}:`, error);
+    logger.error(
+      `Error recording visitor view for project ${req.params.projectId}:`,
+      error
+    );
     return handleServerError(res, error);
   }
 };
@@ -1257,18 +1324,18 @@ export const recordVisitorView = async (req, res) => {
 export const getProjectTypes = async (req, res) => {
   try {
     // Get project types from constants
-    const projectTypes = Object.values(PROJECT_TYPES).map(type => ({
+    const projectTypes = Object.values(PROJECT_TYPES).map((type) => ({
       value: type,
-      label: type === PROJECT_TYPES.COURSEWORK ? "ผลงานการเรียน" :
-             type === PROJECT_TYPES.ACADEMIC ? "บทความวิชาการ" : 
-             "การแข่งขัน"
+      label:
+        type === PROJECT_TYPES.COURSEWORK
+          ? "ผลงานการเรียน"
+          : type === PROJECT_TYPES.ACADEMIC
+          ? "บทความวิชาการ"
+          : "การแข่งขัน",
     }));
-    
+
     return res.json(
-      successResponse(
-        projectTypes,
-        "Project types retrieved successfully"
-      )
+      successResponse(projectTypes, "Project types retrieved successfully")
     );
   } catch (error) {
     logger.error("Error getting project types:", error);
@@ -1283,15 +1350,18 @@ export const getProjectTypes = async (req, res) => {
  */
 export const getProjectYears = async (req, res) => {
   try {
-    const [years] = await pool.execute(`
+    const [years] = await pool.execute(
+      `
       SELECT DISTINCT year FROM projects 
       WHERE status = ? 
       ORDER BY year DESC
-    `, [PROJECT_STATUSES.APPROVED]);
-    
+    `,
+      [PROJECT_STATUSES.APPROVED]
+    );
+
     return res.json(
       successResponse(
-        years.map(y => y.year),
+        years.map((y) => y.year),
         "Project years retrieved successfully"
       )
     );
@@ -1308,15 +1378,18 @@ export const getProjectYears = async (req, res) => {
  */
 export const getStudyYears = async (req, res) => {
   try {
-    const [years] = await pool.execute(`
+    const [years] = await pool.execute(
+      `
       SELECT DISTINCT study_year FROM projects 
       WHERE status = ? 
       ORDER BY study_year
-    `, [PROJECT_STATUSES.APPROVED]);
-    
+    `,
+      [PROJECT_STATUSES.APPROVED]
+    );
+
     return res.json(
       successResponse(
-        years.map(y => y.study_year),
+        years.map((y) => y.study_year),
         "Study years retrieved successfully"
       )
     );
@@ -1337,20 +1410,20 @@ export const getPendingProjects = async (req, res) => {
     if (req.user.role !== "admin") {
       return forbiddenResponse(res, "Only admin can access pending projects");
     }
-    
+
     // Get pagination parameters
     const pagination = getPaginationParams(req);
-    
+
     // Set filters for pending projects
     const filters = {
-      status: PROJECT_STATUSES.PENDING
+      status: PROJECT_STATUSES.PENDING,
     };
-    
+
     // Get pending projects
     const result = await projectService.getAllProjects(filters, pagination);
-    
+
     // Format projects for response
-    const formattedProjects = result.projects.map(project => ({
+    const formattedProjects = result.projects.map((project) => ({
       id: project.project_id,
       title: project.title,
       description: truncateText(project.description, 150),
@@ -1362,14 +1435,14 @@ export const getPendingProjects = async (req, res) => {
       studentId: project.user_id,
       projectLink: `/projects/${project.project_id}`,
       createdAt: project.created_at,
-      updatedAt: project.updated_at
+      updatedAt: project.updated_at,
     }));
-    
+
     return res.json(
       successResponse(
         {
           projects: formattedProjects,
-          pagination: result.pagination
+          pagination: result.pagination,
         },
         "Pending projects retrieved successfully"
       )
@@ -1391,58 +1464,64 @@ export const reviewProject = async (req, res) => {
     if (req.user.role !== "admin") {
       return forbiddenResponse(res, "Only admin can review projects");
     }
-    
+
     const projectId = req.params.projectId;
     const { status, comment } = req.body;
-    
+
     // Validate status
-    if (!status || !isValidStatus(status) || status === PROJECT_STATUSES.PENDING) {
-      return validationErrorResponse(
-        res,
-        "Invalid status",
-        { status: `Status must be either "${PROJECT_STATUSES.APPROVED}" or "${PROJECT_STATUSES.REJECTED}"` }
-      );
+    if (
+      !status ||
+      !isValidStatus(status) ||
+      status === PROJECT_STATUSES.PENDING
+    ) {
+      return validationErrorResponse(res, "Invalid status", {
+        status: `Status must be either "${PROJECT_STATUSES.APPROVED}" or "${PROJECT_STATUSES.REJECTED}"`,
+      });
     }
-    
+
     // Get project
-    const [projects] = await pool.execute(`
+    const [projects] = await pool.execute(
+      `
       SELECT p.*, u.email, u.username, u.full_name
       FROM projects p
       JOIN users u ON p.user_id = u.user_id
       WHERE p.project_id = ?
-    `, [projectId]);
-    
+    `,
+      [projectId]
+    );
+
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-    
+
     const project = projects[0];
-    
+
     // Start transaction
     const connection = await pool.getConnection();
     await connection.beginTransaction();
-    
+
     try {
       // Update project status
-      await connection.execute(`
+      await connection.execute(
+        `
         UPDATE projects SET status = ? WHERE project_id = ?
-      `, [status, projectId]);
-      
+      `,
+        [status, projectId]
+      );
+
       // Record review
-      await connection.execute(`
+      await connection.execute(
+        `
         INSERT INTO project_reviews (
           project_id, admin_id, status, review_comment
         ) VALUES (?, ?, ?, ?)
-      `, [
-        projectId,
-        req.user.id,
-        status,
-        comment || null
-      ]);
-      
+      `,
+        [projectId, req.user.id, status, comment || null]
+      );
+
       // Commit transaction
       await connection.commit();
-      
+
       // Notify project owner
       await notificationService.notifyProjectReview(
         project.user_id,
@@ -1451,7 +1530,7 @@ export const reviewProject = async (req, res) => {
         status,
         comment
       );
-      
+
       return res.json(
         successResponse(
           {
@@ -1459,9 +1538,11 @@ export const reviewProject = async (req, res) => {
             status,
             title: project.title,
             studentName: project.full_name,
-            studentEmail: project.email
+            studentEmail: project.email,
           },
-          `Project ${status === PROJECT_STATUSES.APPROVED ? 'approved' : 'rejected'} successfully`
+          `Project ${
+            status === PROJECT_STATUSES.APPROVED ? "approved" : "rejected"
+          } successfully`
         )
       );
     } catch (error) {
@@ -1487,22 +1568,22 @@ export const getProjectStats = async (req, res) => {
     if (req.user.role !== "admin") {
       return forbiddenResponse(res, "Only admin can access project statistics");
     }
-    
+
     // Get total projects count
     const [totalProjects] = await pool.execute(`
       SELECT COUNT(*) as count FROM projects
     `);
-    
+
     // Get projects by type
     const [projectsByType] = await pool.execute(`
       SELECT type, COUNT(*) as count FROM projects GROUP BY type
     `);
-    
+
     // Get projects by status
     const [projectsByStatus] = await pool.execute(`
       SELECT status, COUNT(*) as count FROM projects GROUP BY status
     `);
-    
+
     // Get projects by month (last 12 months)
     const [projectsByMonth] = await pool.execute(`
       SELECT 
@@ -1513,44 +1594,53 @@ export const getProjectStats = async (req, res) => {
       GROUP BY month 
       ORDER BY month
     `);
-    
+
     // Get top viewed projects
-    const [topViewedProjects] = await pool.execute(`
+    const [topViewedProjects] = await pool.execute(
+      `
       SELECT p.project_id, p.title, p.views_count, p.type, u.username, u.full_name
       FROM projects p
       JOIN users u ON p.user_id = u.user_id
       WHERE p.status = ?
       ORDER BY p.views_count DESC
       LIMIT 10
-    `, [PROJECT_STATUSES.APPROVED]);
-    
+    `,
+      [PROJECT_STATUSES.APPROVED]
+    );
+
     return res.json(
       successResponse(
         {
           total: totalProjects[0].count,
-          byType: projectsByType.map(item => ({
+          byType: projectsByType.map((item) => ({
             type: item.type,
             count: item.count,
-            label: item.type === PROJECT_TYPES.COURSEWORK ? "ผลงานการเรียน" :
-                   item.type === PROJECT_TYPES.ACADEMIC ? "บทความวิชาการ" : 
-                   "การแข่งขัน"
+            label:
+              item.type === PROJECT_TYPES.COURSEWORK
+                ? "ผลงานการเรียน"
+                : item.type === PROJECT_TYPES.ACADEMIC
+                ? "บทความวิชาการ"
+                : "การแข่งขัน",
           })),
-          byStatus: projectsByStatus.map(item => ({
+          byStatus: projectsByStatus.map((item) => ({
             status: item.status,
             count: item.count,
-            label: item.status === PROJECT_STATUSES.PENDING ? "รอการอนุมัติ" :
-                   item.status === PROJECT_STATUSES.APPROVED ? "อนุมัติแล้ว" : 
-                   "ถูกปฏิเสธ"
+            label:
+              item.status === PROJECT_STATUSES.PENDING
+                ? "รอการอนุมัติ"
+                : item.status === PROJECT_STATUSES.APPROVED
+                ? "อนุมัติแล้ว"
+                : "ถูกปฏิเสธ",
           })),
           byMonth: projectsByMonth,
-          topViewed: topViewedProjects.map(project => ({
+          topViewed: topViewedProjects.map((project) => ({
             id: project.project_id,
             title: project.title,
             views: project.views_count,
             type: project.type,
             author: project.full_name,
-            username: project.username
-          }))
+            username: project.username,
+          })),
         },
         "Project statistics retrieved successfully"
       )
@@ -1566,11 +1656,13 @@ export const getProjectStats = async (req, res) => {
  */
 async function handleProjectFiles(connection, projectId, projectType, files) {
   for (const fieldName in files) {
-    const fileList = Array.isArray(files[fieldName]) ? files[fieldName] : [files[fieldName]];
-    
+    const fileList = Array.isArray(files[fieldName])
+      ? files[fieldName]
+      : [files[fieldName]];
+
     for (const file of fileList) {
       let fileType = "other";
-      
+
       // Determine file type
       if (file.mimetype.startsWith("image/")) {
         fileType = "image";
@@ -1579,66 +1671,81 @@ async function handleProjectFiles(connection, projectId, projectType, files) {
       } else if (file.mimetype === "application/pdf") {
         fileType = "pdf";
       }
-      
+
       // Insert file record
-      const [fileResult] = await connection.execute(`
+      const [fileResult] = await connection.execute(
+        `
         INSERT INTO project_files (
           project_id, file_type, file_path, file_name, file_size
         ) VALUES (?, ?, ?, ?, ?)
-      `, [
-        projectId, 
-        fileType, 
-        file.path, 
-        file.originalname, 
-        file.size
-      ]);
-      
+      `,
+        [projectId, fileType, file.path, file.originalname, file.size]
+      );
+
       const fileId = fileResult.insertId;
-      
+
       // Handle special file types
       if (fieldName === "coverImage" && fileType === "image") {
-        await connection.execute(`
+        await connection.execute(
+          `
           UPDATE projects 
           SET cover_image_id = ? 
           WHERE project_id = ?
-        `, [fileId, projectId]);
+        `,
+          [fileId, projectId]
+        );
       }
-      
+
       if (projectType === PROJECT_TYPES.ACADEMIC) {
         if (fieldName === "paper_file" && fileType === "pdf") {
-          await connection.execute(`
+          await connection.execute(
+            `
             UPDATE academic_papers 
             SET paper_file_id = ? 
             WHERE project_id = ?
-          `, [fileId, projectId]);
+          `,
+            [fileId, projectId]
+          );
         } else if (fieldName === "cover_image" && fileType === "image") {
-          await connection.execute(`
+          await connection.execute(
+            `
             UPDATE academic_papers 
             SET cover_image_id = ? 
             WHERE project_id = ?
-          `, [fileId, projectId]);
+          `,
+            [fileId, projectId]
+          );
         }
       } else if (projectType === PROJECT_TYPES.COMPETITION) {
         if (fieldName === "poster_file" && fileType === "image") {
-          await connection.execute(`
+          await connection.execute(
+            `
             UPDATE competitions 
             SET poster_file_id = ? 
             WHERE project_id = ?
-          `, [fileId, projectId]);
+          `,
+            [fileId, projectId]
+          );
         }
       } else if (projectType === PROJECT_TYPES.COURSEWORK) {
         if (fieldName === "coursework_poster" && fileType === "image") {
-          await connection.execute(`
+          await connection.execute(
+            `
             UPDATE courseworks 
             SET poster_file_id = ? 
             WHERE project_id = ?
-          `, [fileId, projectId]);
+          `,
+            [fileId, projectId]
+          );
         } else if (fieldName === "coursework_video" && fileType === "video") {
-          await connection.execute(`
+          await connection.execute(
+            `
             UPDATE courseworks 
             SET video_file_id = ? 
             WHERE project_id = ?
-          `, [fileId, projectId]);
+          `,
+            [fileId, projectId]
+          );
         }
       }
     }

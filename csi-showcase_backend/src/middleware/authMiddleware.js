@@ -172,10 +172,11 @@ export const isResourceOwner = async (req, res, next) => {
     if (req.params.projectId) {
       // ตรวจสอบว่าผู้ใช้เป็นเจ้าของโครงการหรือไม่
       const [owners] = await pool.execute(`
-        SELECT user_id FROM project_groups WHERE project_id = ?
+        SELECT user_id FROM projects WHERE project_id = ?
       `, [resourceId]);
       
-      const isOwner = owners.some(owner => owner.user_id == req.userid);
+      const isOwner = owners.length > 0 && owners[0].user_id == req.user.id;
+      // console.log(req.userid)
       
       if (!isOwner) {
         return forbiddenResponse(res, 'Access denied. You are not the owner of this resource');

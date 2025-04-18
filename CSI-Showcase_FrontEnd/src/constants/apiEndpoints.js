@@ -54,7 +54,7 @@ export const API_ENDPOINTS = {
     TYPES: `${API_BASE_URL}/projects/types`,
     YEARS: `${API_BASE_URL}/projects/years`,
     STUDY_YEARS: `${API_BASE_URL}/projects/study-years`,
-    UPLOAD: (userId) => `${API_BASE_URL}/projects/upload/${userId}`,
+    UPLOAD: (userId) => `${API_BASE_URL}/projects/user/${userId}`,
     UPLOAD_FILE: (projectId) => `${API_BASE_URL}/projects/upload-file/${projectId}`,
     UPLOAD_STATUS: (sessionId) => `${API_BASE_URL}/projects/upload-status/${sessionId}`,
     CANCEL_UPLOAD: (sessionId) => `${API_BASE_URL}/projects/cancel-upload/${sessionId}`,
