@@ -31,7 +31,7 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
     if (window.innerWidth < 640) return 1;
     if (window.innerWidth < 768) return 2;
     if (window.innerWidth < 1024) return 3;
-    return 3;
+    return 4;
   };
   
   const [itemsPerPage, setItemsPerPage] = useState(getItemsPerPage());

@@ -1,0 +1,139 @@
+# search.yaml - เส้นทางสำหรับการค้นหาโครงการและผู้ใช้
+paths:
+  /api/search/projects:
+    get:
+      tags:
+        - Search
+      summary: Search projects
+      description: Search for projects based on keywords and filters
+      operationId: searchProjects
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: Search term
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [coursework, academic, competition]
+          description: Project type filter
+        - name: year
+          in: query
+          schema:
+            type: integer
+          description: Academic year filter
+        - name: study_year
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2, 3, 4]
+          description: Student year level filter
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          projects:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Project'
+                          pagination:
+                            $ref: '#/components/schemas/PaginationInfo'
+
+  /api/search/users:
+    get:
+      tags:
+        - Search
+      summary: Search users
+      description: Search for users based on keywords
+      operationId: searchStudents
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search term
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Maximum number of results to return
+        - name: requireAuth
+          in: query
+          schema:
+            type: string
+            enum: ['true', 'false']
+            default: 'true'
+          description: Whether authentication is required to search users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: integer
+                              example: 1
+                            username:
+                              type: string
+                              example: john_doe
+                            full_name:
+                              type: string
+                              example: John Doe
+                            email:
+                              type: string
+                              example: john@example.com
+                            image:
+                              type: string
+                              nullable: true
+                              example: uploads/profiles/profile-abc123.jpg
+        '400':
+          description: Please provide a search keyword
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required to search for students
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

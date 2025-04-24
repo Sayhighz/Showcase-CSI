@@ -25,7 +25,6 @@ export const optionalAuthenticateToken = async (req, res, next) => {
       // ไม่พบผู้ใช้ แต่ไม่บล็อก ให้ผ่านไปได้เลย
       return next();
     }
-    console.log(users)
     
     // เก็บข้อมูลผู้ใช้ไว้ใน req object
     req.user = {

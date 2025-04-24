@@ -3,6 +3,7 @@ import { createApp, startServer } from './config/app.js';
 import { initEnv } from './config/env.js';
 import logger from './config/logger.js';
 import pool from './config/database.js';
+import swaggerDocs from './config/swagger.js';
 import authRoutes from './routes/user/authRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
 import projectRoutes from './routes/user/projectRoutes.js';
@@ -36,6 +37,9 @@ app.use(API_ROUTES.ADMIN.STATISTICS.BASE, statisticsRoutes);
 app.use(API_ROUTES.ADMIN.LOGS.BASE, logsRoutes);
 app.use(API_ROUTES.UPLOAD.BASE, uploadRoutes);
 
+// เพิ่ม Swagger Documentation
+swaggerDocs(app);
+
 // จัดการเส้นทางที่ไม่มีอยู่
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -51,6 +55,10 @@ pool.query('SELECT 1')
     // เริ่มต้นเซิร์ฟเวอร์
     const PORT = process.env.PORT || 5000;
     const server = startServer(app, PORT);
+
+    // บันทึกข้อมูลการเริ่มเซิร์ฟเวอร์
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
 
     // จัดการการปิดแอปพลิเคชันอย่างสง่างาม
     process.on('SIGTERM', gracefulShutdown(server));

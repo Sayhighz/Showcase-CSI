@@ -338,6 +338,7 @@ export const getProjectTypes = async () => {
 export const getProjectYears = async () => {
   try {
     const response = await get(API_ENDPOINTS.PROJECT.YEARS);
+    console.log(response)
     
     if (response && response.success) {
       return response.data;

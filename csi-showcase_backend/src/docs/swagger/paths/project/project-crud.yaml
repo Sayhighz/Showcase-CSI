@@ -1,0 +1,603 @@
+# project-crud.yaml - เส้นทางสำหรับการจัดการโครงการพื้นฐาน
+paths:
+  /api/projects:
+    get:
+      tags:
+        - Projects
+      summary: Get all projects
+      description: Get a list of all approved projects with pagination
+      operationId: getAllProjects
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [coursework, academic, competition]
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: level
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2, 3, 4]
+      responses:
+        '200':
+          description: Projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          projects:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Project'
+                          pagination:
+                            $ref: '#/components/schemas/PaginationInfo'
+
+  /api/projects/top:
+    get:
+      tags:
+        - Projects
+      summary: Get top projects
+      description: Get the top 9 most viewed projects
+      operationId: getTopProjects
+      responses:
+        '200':
+          description: Top projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Project'
+                        maxItems: 9
+
+  /api/projects/latest:
+    get:
+      tags:
+        - Projects
+      summary: Get latest projects
+      description: Get the latest uploaded projects
+      operationId: getLatestProjects
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 9
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: Latest projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Project'
+
+  /api/projects/user/{userId}:
+    get:
+      tags:
+        - Projects
+      summary: Get user's projects
+      description: Get projects uploaded by a specific user
+      operationId: getMyProjects
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          projects:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Project'
+                          pagination:
+                            $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - You can only view your own projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Projects
+      summary: Upload new project
+      description: Create a new project with files
+      operationId: uploadProject
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: Machine Learning Image Recognition
+                description:
+                  type: string
+                  example: A detailed description of the project and its goals.
+                type:
+                  type: string
+                  enum: [coursework, academic, competition]
+                  example: coursework
+                study_year:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                  example: 3
+                year:
+                  type: integer
+                  example: 2023
+                semester:
+                  type: integer
+                  enum: [1, 2, 3]
+                  example: 1
+                visibility:
+                  type: integer
+                  enum: [0, 1]
+                  default: 1
+                  example: 1
+                tags:
+                  type: string
+                  example: "machine learning, image recognition, ai"
+                contributors:
+                  type: string
+                  example: "[{\"user_id\": 2, \"username\": \"jane_doe\"}]"
+                coverImage:
+                  type: string
+                  format: binary
+                  description: Main project image
+                courseworkPoster:
+                  type: string
+                  format: binary
+                  description: Only for coursework projects
+                courseworkVideo:
+                  type: string
+                  format: binary
+                  description: Only for coursework projects
+                paperFile:
+                  type: string
+                  format: binary
+                  description: Only for academic projects
+                competitionPoster:
+                  type: string
+                  format: binary
+                  description: Only for competition projects
+                abstract:
+                  type: string
+                  description: Required for academic papers
+                publication_date:
+                  type: string
+                  format: date
+                  description: Required for academic papers
+                authors:
+                  type: string
+                  description: Required for academic papers
+                publication_venue:
+                  type: string
+                  description: Required for academic papers
+                competition_name:
+                  type: string
+                  description: Required for competitions
+                competition_level:
+                  type: string
+                  description: Required for competitions
+                  enum: [university, regional, national, international]
+                achievement:
+                  type: string
+                  description: Required for competitions
+                course_code:
+                  type: string
+                  description: Required for coursework
+                course_name:
+                  type: string
+                  description: Required for coursework
+                instructor:
+                  type: string
+                  description: Required for coursework
+              required:
+                - title
+                - description
+                - type
+                - study_year
+                - year
+                - semester
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          projectId:
+                            type: integer
+                            example: 1
+                          title:
+                            type: string
+                            example: Machine Learning Image Recognition
+                          message:
+                            type: string
+                            example: Project submitted successfully. Please wait for admin approval.
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - You can only upload projects to your own account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get project details
+      description: Get detailed information about a specific project
+      operationId: getProjectDetails
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Project details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ProjectDetails'
+        '403':
+          description: Forbidden - You do not have permission to view this project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Projects
+      summary: Update project
+      description: Update an existing project
+      operationId: updateProjectWithFiles
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                study_year:
+                  type: integer
+                  minimum: 1
+                  maximum: 4
+                year:
+                  type: integer
+                semester:
+                  type: integer
+                  enum: [1, 2, 3]
+                visibility:
+                  type: integer
+                  enum: [0, 1]
+                tags:
+                  type: string
+                contributors:
+                  type: string
+                coverImage:
+                  type: string
+                  format: binary
+                abstract:
+                  type: string
+                publication_date:
+                  type: string
+                  format: date
+                authors:
+                  type: string
+                publication_venue:
+                  type: string
+                competition_name:
+                  type: string
+                competition_level:
+                  type: string
+                  enum: [university, regional, national, international]
+                achievement:
+                  type: string
+                course_code:
+                  type: string
+                course_name:
+                  type: string
+                instructor:
+                  type: string
+                courseworkPoster:
+                  type: string
+                  format: binary
+                courseworkVideo:
+                  type: string
+                  format: binary
+                paperFile:
+                  type: string
+                  format: binary
+                competitionPoster:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          projectId:
+                            type: integer
+                            example: 1
+                          message:
+                            type: string
+                            example: Project updated successfully. Please wait for admin approval.
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - You can only update your own projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Projects
+      summary: Delete project
+      description: Delete an existing project
+      operationId: deleteProject
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - You can only delete your own projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/projects/types:
+    get:
+      tags:
+        - Projects
+      summary: Get project types
+      description: Get a list of all project types
+      operationId: getProjectTypes
+      responses:
+        '200':
+          description: Project types retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            value:
+                              type: string
+                              example: coursework
+                            label:
+                              type: string
+                              example: ผลงานการเรียน
+
+  /api/projects/years:
+    get:
+      tags:
+        - Projects
+      summary: Get project years
+      description: Get a list of all academic years with projects
+      operationId: getProjectYears
+      responses:
+        '200':
+          description: Project years retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: integer
+                        example: [2023, 2022, 2021, 2020]
+
+  /api/projects/study-years:
+    get:
+      tags:
+        - Projects
+      summary: Get study years
+      description: Get a list of all student year levels with projects
+      operationId: getStudyYears
+      responses:
+        '200':
+          description: Study years retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: integer
+                        example: [1, 2, 3, 4]

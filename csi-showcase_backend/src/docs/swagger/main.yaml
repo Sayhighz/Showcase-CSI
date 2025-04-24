@@ -1,0 +1,43 @@
+openapi: 3.0.0
+info:
+  title: CSI Showcase API
+  description: API documentation for CSI Showcase - Student Project Showcase Platform
+  version: 1.0.0
+  contact:
+    name: CSI Admin Team
+    email: admin@csi-showcase.example.com
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: https://api.csi-showcase.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Operations about user authentication
+  - name: Users
+    description: Operations about users
+  - name: Projects
+    description: Operations about projects
+  - name: Search
+    description: Search operations
+  - name: Upload
+    description: File upload operations
+  - name: Admin Authentication
+    description: Admin authentication operations
+  - name: Admin Users
+    description: Admin operations about users
+  - name: Admin Projects
+    description: Admin operations about projects
+  - name: Admin Statistics
+    description: Admin statistical operations
+  - name: Admin Logs
+    description: Admin log operations
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

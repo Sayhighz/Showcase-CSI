@@ -40,6 +40,8 @@ const MyProject = () => {
   const [filters, setFilters] = useState({
     type: 'all',
     year: 'all',
+    studyYear: 'all',  // เพิ่มตัวกรองชั้นปี
+    keyword: '',  
   });
   
   // สำหรับเก็บข้อมูลโปรเจคที่ได้จาก API

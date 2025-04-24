@@ -1,0 +1,94 @@
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: john_doe
+        password:
+          type: string
+          format: password
+          example: SecurePassword123
+      required:
+        - username
+        - password
+
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: john_doe
+        password:
+          type: string
+          format: password
+          example: SecurePassword123
+        fullName:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+      required:
+        - username
+        - password
+        - fullName
+        - email
+
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: john@example.com
+      required:
+        - email
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        newPassword:
+          type: string
+          format: password
+          example: NewSecurePassword123
+        confirmPassword:
+          type: string
+          format: password
+          example: NewSecurePassword123
+      required:
+        - token
+        - newPassword
+        - confirmPassword
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          example: SecurePassword123
+        newPassword:
+          type: string
+          format: password
+          example: NewSecurePassword123
+      required:
+        - currentPassword
+        - newPassword
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          example: John William Doe
+        email:
+          type: string
+          format: email
+          example: john.new@example.com
+      minProperties: 1

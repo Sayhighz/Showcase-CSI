@@ -1,0 +1,176 @@
+components:
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        title:
+          type: string
+          example: Machine Learning Image Recognition
+        description:
+          type: string
+          example: A project that uses machine learning to recognize images.
+        category:
+          type: string
+          enum: [coursework, academic, competition]
+          example: coursework
+        level:
+          type: string
+          example: ปี 3
+        year:
+          type: integer
+          example: 2023
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          example: approved
+        image:
+          type: string
+          nullable: true
+          example: uploads/images/project-xyz789.jpg
+        student:
+          type: string
+          example: John Doe
+        studentId:
+          type: integer
+          format: int64
+          example: 1
+        projectLink:
+          type: string
+          example: /projects/1
+        viewsCount:
+          type: integer
+          example: 42
+        createdAt:
+          type: string
+          format: date-time
+
+    ProjectDetails:
+      type: object
+      properties:
+        projectId:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Machine Learning Image Recognition
+        description:
+          type: string
+          example: A detailed description of the project and its goals.
+        type:
+          type: string
+          example: coursework
+        studyYear:
+          type: integer
+          example: 3
+        year:
+          type: integer
+          example: 2023
+        semester:
+          type: integer
+          example: 1
+        visibility:
+          type: integer
+          example: 1
+        status:
+          type: string
+          example: approved
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 1
+            username:
+              type: string
+              example: john_doe
+            fullName:
+              type: string
+              example: John Doe
+            image:
+              type: string
+              nullable: true
+              example: uploads/profiles/profile-abc123.jpg
+        contributors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectContributor'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectFile'
+        viewsCount:
+          type: integer
+          example: 42
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProjectFile:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          example: image
+        path:
+          type: string
+          example: uploads/images/project-xyz789.jpg
+        name:
+          type: string
+          example: project-poster.jpg
+        size:
+          type: integer
+          example: 1048576
+
+    ProjectContributor:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 2
+        username:
+          type: string
+          example: jane_doe
+        full_name:
+          type: string
+          example: Jane Doe
+        image:
+          type: string
+          nullable: true
+
+    ProjectStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        approved:
+          type: integer
+          example: 80
+        pending:
+          type: integer
+          example: 15
+        rejected:
+          type: integer
+          example: 5
+        byType:
+          type: object
+          properties:
+            coursework:
+              type: integer
+              example: 50
+            academic:
+              type: integer
+              example: 30
+            competition:
+              type: integer
+              example: 20

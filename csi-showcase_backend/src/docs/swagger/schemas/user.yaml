@@ -1,0 +1,91 @@
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: john_doe
+        fullName:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        role:
+          type: string
+          enum: [student, admin]
+          example: student
+        image:
+          type: string
+          nullable: true
+          example: uploads/profiles/profile-abc123.jpg
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - fullName
+        - email
+        - role
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        username:
+          type: string
+          example: john_doe
+        fullName:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        role:
+          type: string
+          enum: [student, admin]
+          example: student
+        image:
+          type: string
+          nullable: true
+          example: uploads/profiles/profile-abc123.jpg
+        createdAt:
+          type: string
+          format: date-time
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+      required:
+        - id
+        - username
+        - fullName
+        - email
+        - role
+
+    UserStats:
+      type: object
+      properties:
+        totalProjects:
+          type: integer
+          example: 10
+        approvedProjects:
+          type: integer
+          example: 8
+        pendingProjects:
+          type: integer
+          example: 2
+        rejectedProjects:
+          type: integer
+          example: 0

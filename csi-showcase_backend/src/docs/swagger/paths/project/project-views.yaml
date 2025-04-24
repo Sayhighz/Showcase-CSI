@@ -1,0 +1,80 @@
+# project-views.yaml - เส้นทางสำหรับการบันทึกการเข้าชมโครงการ
+paths:
+  /api/projects/{projectId}/visitor-view:
+    post:
+      tags:
+        - Projects
+      summary: Record visitor view
+      description: Record a project view from a visitor
+      operationId: recordVisitorView
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Visitor view recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Project not found or not publicly accessible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/projects/{projectId}/company-view:
+    post:
+      tags:
+        - Projects
+      summary: Record company view
+      description: Record a project view from a company
+      operationId: recordCompanyView
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_name:
+                  type: string
+                  example: Tech Solutions Inc.
+                contact_email:
+                  type: string
+                  format: email
+                  example: contact@techsolutions.example.com
+              required:
+                - company_name
+                - contact_email
+      responses:
+        '200':
+          description: Company view recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found or not publicly accessible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

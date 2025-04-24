@@ -1,0 +1,82 @@
+# project-files.yaml - เส้นทางสำหรับการจัดการไฟล์ในโครงการ
+paths:
+  /api/projects/{projectId}/files:
+    post:
+      tags:
+        - Projects
+      summary: Upload project file
+      description: Upload a file for a specific project
+      operationId: uploadProjectFile
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          fileId:
+                            type: integer
+                            example: 10
+                          fileName:
+                            type: string
+                            example: project-diagram.jpg
+                          filePath:
+                            type: string
+                            example: uploads/images/project-xyz789.jpg
+                          fileSize:
+                            type: integer
+                            example: 1048576
+                          fileType:
+                            type: string
+                            example: image
+        '400':
+          description: Invalid input or file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - You can only upload files to your own projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
