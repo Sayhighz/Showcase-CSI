@@ -69,6 +69,7 @@ export const getAllProjects = async (req, res) => {
       studyYear: req.query.level || null,
       onlyVisible: true,
       status: PROJECT_STATUSES.APPROVED,
+      search: req.query.keyword || null, // Add keyword search parameter
     };
 
     // Get projects from service

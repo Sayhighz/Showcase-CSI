@@ -14,6 +14,7 @@ import {
   ArrowRightOutlined,
   UserOutlined
 } from '@ant-design/icons';
+import { API_ENDPOINTS } from '../../constants';
 
 const Work_Col = ({ title, items = [], side = 'center', description }) => {
   const [currentPage, setCurrentPage] = useState(0);
@@ -262,7 +263,7 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                       style={{ height: imageHeight }}
                     >
                       <motion.img 
-                        src={`http://localhost:4000/${item.image}`} 
+                        src={`${API_ENDPOINTS.BASE}/${item.image}`} 
                         alt={item.title} 
                         className="w-full h-full object-cover"
                         animate={{ 

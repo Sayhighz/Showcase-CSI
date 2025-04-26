@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Empty } from 'antd';
+import { Select, Empty, Pagination } from 'antd';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FilterOutlined, RocketOutlined, TeamOutlined, CalendarOutlined } from '@ant-design/icons';
 
@@ -8,7 +8,6 @@ import { useProject } from '../../hooks';
 import { PROJECT_TYPES } from '../../constants/projectTypes';
 
 // นำเข้า components ของโปรเจค
-import SearchBar from '../../components/SearchBar/SearchBar';
 import Work_Row from '../../components/Work/Work_Row';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ProjectFilter from '../../components/Project/ProjectFilter';
@@ -25,7 +24,7 @@ const AllProject = () => {
     fetchAllProjects, 
     projectTypes, 
     projectYears, 
-    studyYears,
+    level,
     filters,
     updateFilters,
     pagination,
@@ -34,10 +33,12 @@ const AllProject = () => {
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-  // ใช้ useEffect เรียกฟังก์ชันจาก hook
+
+  // ใช้ useEffect เรียกฟังก์ชันจาก hook เมื่อโหลดคอมโพเนนต์ครั้งแรก
   useEffect(() => {
+    // เรียกดึงข้อมูลโปรเจคเมื่อโหลดครั้งแรก
     fetchAllProjects();
-  }, [fetchAllProjects, filters, pagination.current]);
+  }, []);
 
   // สลับการแสดงแผงตัวกรอง
   const toggleFilters = () => {
@@ -57,6 +58,11 @@ const AllProject = () => {
   // จัดการการเปลี่ยนแปลงตัวกรอง
   const handleFilterChange = (values) => {
     updateFilters(values);
+  };
+  
+  // จัดการการเปลี่ยนแปลงหน้า
+  const handlePageChange = (page, pageSize) => {
+    changePage(page, pageSize);
   };
 
   return (
@@ -119,7 +125,7 @@ const AllProject = () => {
         transition={{ duration: 0.7, delay: 0.2 }}
         className="w-full max-w-2xl mb-12"
       >
-        <SearchBar />
+        {/* <SearchBar onSearch={handleSearch} defaultValue={filters.keyword || ''} /> */}
       </motion.div>
       
       <motion.div
@@ -141,7 +147,7 @@ const AllProject = () => {
           <ProjectFilter
             projectTypes={projectTypes.length > 0 ? projectTypes : PROJECT_TYPES}
             projectYears={projectYears}
-            studyYears={studyYears}
+            level={level}
             initialValues={filters}
             onFilterChange={handleFilterChange}
             onSearch={handleFilterChange}
@@ -208,9 +214,26 @@ const AllProject = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.7, delay: 1 }}
-          className="mt-8 text-center text-gray-500"
+          className="mt-8 w-full max-w-6xl"
         >
-          แสดงผลงานทั้งหมด {projects.length} ชิ้น จากทั้งหมด {pagination.total} ชิ้น
+          <div className="flex flex-col items-center">
+            <div className="mb-4 text-gray-500">
+              แสดงผลงานลำดับที่ {(pagination.current - 1) * pagination.pageSize + 1}-
+              {Math.min(pagination.current * pagination.pageSize, pagination.total)} จากทั้งหมด {pagination.total} ชิ้น
+            </div>
+            
+            {/* เพิ่ม Pagination component */}
+            <Pagination
+              current={pagination.current}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onChange={handlePageChange}
+              showSizeChanger
+              pageSizeOptions={['10', '20', '50']}
+              showTotal={(total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`}
+              className="my-4"
+            />
+          </div>
         </motion.div>
       )}
     </div>

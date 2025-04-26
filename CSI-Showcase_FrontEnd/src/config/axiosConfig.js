@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuthCookie } from '../lib/cookie';
 
 // Get API URL from environment variables (set in .env)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = import.meta.env.VITE_API_URL || '';
 const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '';
 
 // Create axios instance with default configuration

@@ -16,6 +16,7 @@ import {
   CalendarOutlined
 } from "@ant-design/icons";
 import { Card, Button, Skeleton, Tag, Avatar, Badge, Space, Empty } from "antd";
+import { API_ENDPOINTS } from "../../constants";
 
 const Work_Row = ({
   title,
@@ -39,6 +40,7 @@ const Work_Row = ({
     if (savedPage) {
       setCurrentPage(Number(savedPage));
     }
+    console.log(items)
   }, []);
 
   useEffect(() => {
@@ -238,7 +240,7 @@ const Work_Row = ({
                       {/* Project Image Section with Hover Effect */}
                       <div className="relative w-full lg:w-2/5 h-60 sm:h-72 lg:h-auto overflow-hidden">
                         <motion.img
-                          src={`http://localhost:4000/${item.image}`}
+                          src={`${API_ENDPOINTS.BASE}/${item.image}`}
                           alt={item.title}
                           className="w-full h-full object-cover"
                           animate={{ 

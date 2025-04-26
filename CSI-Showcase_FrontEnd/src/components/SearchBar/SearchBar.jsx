@@ -13,7 +13,8 @@ import {
 } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearch } from '../../hooks';
-import { colors } from '../../config/themeConfig'; 
+import { colors } from '../../config/themeConfig';
+import { API_ENDPOINTS } from '../../constants';
 
 /**
  * SearchBar component สำหรับการค้นหาโปรเจค
@@ -167,7 +168,7 @@ const SearchBar = () => {
           >
             <div className="relative mr-3">
               <Avatar 
-                src={'http://localhost:4000/'+(project.coverImage || project.image)} 
+                src={API_ENDPOINTS.BASE+(project.coverImage || project.image)} 
                 size={50} 
                 shape="square"
                 className="shadow-md rounded-lg"

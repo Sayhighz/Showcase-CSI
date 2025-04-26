@@ -1,3 +1,4 @@
+
 /**
  * API endpoints สำหรับการเรียกใช้งาน API ของ CSI Showcase
  * 
@@ -6,14 +7,17 @@
  */
 
 // Base API URL (ปกติจะดึงจาก environment variable)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = URL + '/api';
+// console.log("asdasd",API_BASE_URL)
 
 /**
  * เส้นทาง API ทั้งหมดในระบบ
  */
 export const API_ENDPOINTS = {
   // เส้นทางหลัก
-  BASE: API_BASE_URL,
+  BASE: URL,
+  
   
   // การยืนยันตัวตนสำหรับผู้ใช้ทั่วไป
   AUTH: {

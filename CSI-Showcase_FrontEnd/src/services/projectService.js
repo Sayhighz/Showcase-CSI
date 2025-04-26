@@ -11,19 +11,62 @@ import { message } from 'antd';
  * @param {Object} params - พารามิเตอร์สำหรับการค้นหา
  * @param {number} params.page - หน้าที่ต้องการ
  * @param {number} params.limit - จำนวนผลลัพธ์ต่อหน้า
- * @param {string} params.category - ประเภทของโปรเจค
- * @param {string} params.year - ปีของโปรเจค
- * @param {string} params.level - ชั้นปีของผู้สร้างโปรเจค
+ * @param {string} params.category - ประเภทของโปรเจค (coursework, academic, competition)
+ * @param {number} params.year - ปีของโปรเจค
+ * @param {number} params.level - ชั้นปีของผู้สร้างโปรเจค (ปี 1, ปี 2, ปี 3, ปี 4)
  * @returns {Promise} - รายการโปรเจค
  */
 export const getAllProjects = async (params = {}) => {
   try {
-    const response = await get(API_ENDPOINTS.PROJECT.GET_ALL, params);
+    // ตรวจสอบและแปลงค่าตัวเลขให้เป็น number
+    if (params.page) params.page = Number(params.page);
+    if (params.limit) params.limit = Number(params.limit);
+    if (params.year) params.year = Number(params.year);
+    if (params.level) params.level = Number(params.level);
+    
+    // แปลง type เป็น category (เนื่องจาก API ใช้ชื่อพารามิเตอร์ category)
+    if (params.type !== undefined && params.category === undefined) {
+      params.category = params.type;
+      delete params.type;
+    }
+    
+    // แปลง studyYear เป็น level (เนื่องจาก API ใช้ชื่อพารามิเตอร์ level)
+    if (params.studyYear !== undefined && params.level === undefined) {
+      params.level = params.studyYear;
+      delete params.studyYear;
+    }
+    
+    // แปลง search เป็น keyword (ถ้ามีการส่ง search แต่ไม่มี keyword)
+    if (params.search !== undefined && params.keyword === undefined) {
+      params.keyword = params.search;
+      delete params.search;
+    }
+    
+    console.log('API params before filtering:', params);
+    
+    // กรองพารามิเตอร์ที่เป็น null, undefined หรือ empty string ออก
+    const filteredParams = Object.fromEntries(
+      Object.entries(params).filter(([_, value]) => 
+        value !== null && value !== undefined && value !== ''
+      )
+    );
+    
+    console.log('API params after filtering (sent to API):', filteredParams);
+    
+    const response = await get(API_ENDPOINTS.PROJECT.GET_ALL, filteredParams);
     
     if (response && response.success) {
-      return response.data;
+      return {
+        projects: response.data.projects || [],
+        pagination: response.data.pagination || {
+          current: params.page || 1,
+          pageSize: params.limit || 10,
+          totalItems: 0,
+          totalPages: 0
+        }
+      };
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลโปรเจคได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจค:', error);
@@ -40,9 +83,9 @@ export const getTopProjects = async () => {
     const response = await get(API_ENDPOINTS.PROJECT.TOP);
     
     if (response && response.success) {
-      return response.data;
+      return response.data || [];
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลโปรเจคยอดนิยมได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลโปรเจคยอดนิยมได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคยอดนิยม:', error);
@@ -57,12 +100,12 @@ export const getTopProjects = async () => {
  */
 export const getLatestProjects = async (limit = 9) => {
   try {
-    const response = await get(API_ENDPOINTS.PROJECT.LATEST, { limit });
+    const response = await get(API_ENDPOINTS.PROJECT.LATEST, { limit: Number(limit) });
     
     if (response && response.success) {
-      return response.data;
+      return response.data || [];
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลโปรเจคล่าสุดได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลโปรเจคล่าสุดได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคล่าสุด:', error);
@@ -80,9 +123,9 @@ export const getMyProjects = async (userId) => {
     const response = await get(API_ENDPOINTS.PROJECT.MY_PROJECTS(userId));
     
     if (response && response.success) {
-      return response.data;
+      return response.data || [];
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลโปรเจคของคุณได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลโปรเจคของคุณได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคของคุณ:', error);
@@ -102,7 +145,7 @@ export const getProjectDetails = async (projectId) => {
     if (response && response.success) {
       return response.data;
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลรายละเอียดของโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลรายละเอียดของโปรเจคได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียดของโปรเจค:', error);
@@ -120,7 +163,6 @@ export const getProjectDetails = async (projectId) => {
 export const uploadProject = async (userId, projectData, files) => {
   try {
     // สร้าง FormData สำหรับการส่งข้อมูลและไฟล์
-    console.log(userId,projectData,files)
     const formData = new FormData();
     
     // เพิ่มข้อมูลของโปรเจคลงใน FormData
@@ -133,6 +175,15 @@ export const uploadProject = async (userId, projectData, files) => {
         formData.append(key, projectData[key]);
       }
     });
+    
+    // แปลงชื่อฟิลด์ถ้าจำเป็น
+    if (projectData.type && !projectData.category) {
+      formData.append('category', projectData.type);
+    }
+    
+    if (projectData.studyYear && !projectData.level) {
+      formData.append('level', projectData.studyYear);
+    }
     
     // เพิ่มไฟล์ลงใน FormData
     if (files) {
@@ -150,7 +201,6 @@ export const uploadProject = async (userId, projectData, files) => {
         }
       });
     }
-    console.log(formData)
     
     const response = await uploadFile(API_ENDPOINTS.PROJECT.UPLOAD(userId), formData);
     
@@ -158,7 +208,7 @@ export const uploadProject = async (userId, projectData, files) => {
       message.success('อัปโหลดโปรเจคสำเร็จ');
       return response.data;
     } else {
-      throw new Error('ไม่สามารถอัปโหลดโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถอัปโหลดโปรเจคได้');
     }
   } catch (error) {
     message.error(error.message || 'เกิดข้อผิดพลาดในการอัปโหลดโปรเจค');
@@ -190,6 +240,15 @@ export const updateProject = async (projectId, projectData, files) => {
       }
     });
     
+    // แปลงชื่อฟิลด์ถ้าจำเป็น
+    if (projectData.type && !projectData.category) {
+      formData.append('category', projectData.type);
+    }
+    
+    if (projectData.studyYear && !projectData.level) {
+      formData.append('level', projectData.studyYear);
+    }
+    
     // เพิ่มไฟล์ลงใน FormData
     if (files) {
       Object.keys(files).forEach(key => {
@@ -213,7 +272,7 @@ export const updateProject = async (projectId, projectData, files) => {
       message.success('อัปเดตโปรเจคสำเร็จ');
       return response.data;
     } else {
-      throw new Error('ไม่สามารถอัปเดตโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถอัปเดตโปรเจคได้');
     }
   } catch (error) {
     message.error(error.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค');
@@ -235,7 +294,7 @@ export const deleteProject = async (projectId) => {
       message.success('ลบโปรเจคสำเร็จ');
       return response.data;
     } else {
-      throw new Error('ไม่สามารถลบโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถลบโปรเจคได้');
     }
   } catch (error) {
     message.error(error.message || 'เกิดข้อผิดพลาดในการลบโปรเจค');
@@ -248,21 +307,58 @@ export const deleteProject = async (projectId) => {
  * ค้นหาโปรเจค
  * @param {Object} params - พารามิเตอร์สำหรับการค้นหา
  * @param {string} params.keyword - คำค้นหา
- * @param {string} params.type - ประเภทของโปรเจค
- * @param {string} params.year - ปีของโปรเจค
- * @param {string} params.studyYear - ชั้นปีของผู้สร้างโปรเจค
+ * @param {string} params.category - ประเภทของโปรเจค
+ * @param {number} params.year - ปีของโปรเจค
+ * @param {number} params.level - ชั้นปีของผู้สร้างโปรเจค
  * @param {number} params.page - หน้าที่ต้องการ
  * @param {number} params.limit - จำนวนผลลัพธ์ต่อหน้า
  * @returns {Promise} - ผลลัพธ์จากการค้นหาโปรเจค
  */
 export const searchProjects = async (params = {}) => {
   try {
-    const response = await get(API_ENDPOINTS.PROJECT.SEARCH, params);
+    // ตรวจสอบและแปลงค่าตัวเลขให้เป็น number
+    if (params.page) params.page = Number(params.page);
+    if (params.limit) params.limit = Number(params.limit);
+    if (params.year) params.year = Number(params.year);
+    if (params.level) params.level = Number(params.level);
+    
+    // แปลง type เป็น category
+    if (params.type !== undefined && params.category === undefined) {
+      params.category = params.type;
+      delete params.type;
+    }
+    
+    // แปลง studyYear เป็น level
+    if (params.studyYear !== undefined && params.level === undefined) {
+      params.level = params.studyYear;
+      delete params.studyYear;
+    }
+    
+    console.log('Search params before filtering:', params);
+    
+    // กรองพารามิเตอร์ที่เป็น null, undefined หรือ empty string ออก
+    const filteredParams = Object.fromEntries(
+      Object.entries(params).filter(([_, value]) => 
+        value !== null && value !== undefined && value !== ''
+      )
+    );
+    
+    console.log('Search params after filtering (sent to API):', filteredParams);
+    
+    const response = await get(API_ENDPOINTS.PROJECT.SEARCH, filteredParams);
     
     if (response && response.success) {
-      return response.data;
+      return {
+        projects: response.data.projects || [],
+        pagination: response.data.pagination || {
+          current: params.page || 1,
+          pageSize: params.limit || 10,
+          totalItems: 0,
+          totalPages: 0
+        }
+      };
     } else {
-      throw new Error('ไม่สามารถค้นหาโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถค้นหาโปรเจคได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการค้นหาโปรเจค:', error);
@@ -287,7 +383,7 @@ export const uploadProjectFile = async (projectId, file) => {
       message.success('อัปโหลดไฟล์สำเร็จ');
       return response.data;
     } else {
-      throw new Error('ไม่สามารถอัปโหลดไฟล์ได้');
+      throw new Error(response?.message || 'ไม่สามารถอัปโหลดไฟล์ได้');
     }
   } catch (error) {
     message.error(error.message || 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์');
@@ -321,9 +417,9 @@ export const getProjectTypes = async () => {
     const response = await get(API_ENDPOINTS.PROJECT.TYPES);
     
     if (response && response.success) {
-      return response.data;
+      return response.data || [];
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลประเภทของโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลประเภทของโปรเจคได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลประเภทของโปรเจค:', error);
@@ -338,12 +434,11 @@ export const getProjectTypes = async () => {
 export const getProjectYears = async () => {
   try {
     const response = await get(API_ENDPOINTS.PROJECT.YEARS);
-    console.log(response)
     
     if (response && response.success) {
-      return response.data;
+      return response.data || [];
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลปีของโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลปีของโปรเจคได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลปีของโปรเจค:', error);
@@ -360,9 +455,9 @@ export const getStudyYears = async () => {
     const response = await get(API_ENDPOINTS.PROJECT.STUDY_YEARS);
     
     if (response && response.success) {
-      return response.data;
+      return response.data || [];
     } else {
-      throw new Error('ไม่สามารถดึงข้อมูลชั้นปีของผู้สร้างโปรเจคได้');
+      throw new Error(response?.message || 'ไม่สามารถดึงข้อมูลชั้นปีของผู้สร้างโปรเจคได้');
     }
   } catch (error) {
     console.error('เกิดข้อผิดพลาดในการดึงข้อมูลชั้นปีของผู้สร้างโปรเจค:', error);

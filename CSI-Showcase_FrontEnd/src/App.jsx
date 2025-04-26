@@ -15,15 +15,6 @@ import ProjectInfo from "./pages/Projects/ProjectInfo";
 import CourseWork from "./pages/Upload/UploadProject";
 import EditProject from "./pages/Projects/EditProject";
 
-// Import new pages
-import Profile from "./pages/User/Profile";
-import Settings from "./pages/User/Settings";
-import Dashboard from "./pages/User/Dashboard";
-import ProjectByType from "./pages/Project/ProjectByType";
-import ProjectGalleryPage from "./pages/Project/ProjectGallery";
-import SearchResults from "./pages/Search/SearchResults";
-import AdvancedSearch from "./pages/Search/AdvancedSearch";
-
 const App = () => {
   return (
     <Router>
@@ -41,30 +32,6 @@ const App = () => {
                 <ProjectInfo />
               </PrivateProjectRoute>
             </MasterLayout>
-          } />
-          
-          <Route path="/projects/type/:type" element={<MasterLayout><ProjectByType /></MasterLayout>} />
-          
-          {/* Project Gallery Route - ใช้ PrivateProjectRoute เพื่อตรวจสอบสิทธิ์การเข้าถึงแกลเลอรี่ของโปรเจคส่วนตัว */}
-          <Route path="/projects/gallery/:projectId" element={
-            <MasterLayout>
-              <PrivateProjectRoute>
-                <ProjectGalleryPage />
-              </PrivateProjectRoute>
-            </MasterLayout>
-          } />
-          
-          {/* Search Routes */}
-          <Route path="/search" element={<MasterLayout><SearchResults /></MasterLayout>} />
-          <Route path="/search/advanced" element={<MasterLayout><AdvancedSearch /></MasterLayout>} />
-          <Route path="/search/tag/:tag" element={<MasterLayout><SearchResults /></MasterLayout>} />
-
-          {/* User Profile Routes */}
-          <Route path="/user/:id" element={<MasterLayout><Profile /></MasterLayout>} />
-          <Route path="/user/me" element={
-            <ProtectedRoute>
-              <MasterLayout><Profile /></MasterLayout>
-            </ProtectedRoute>
           } />
 
           {/* Protected Routes (Require Authentication) */}

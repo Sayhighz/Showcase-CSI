@@ -5,6 +5,8 @@ import { BookOutlined, TeamOutlined, TrophyOutlined, CalendarOutlined, EyeOutlin
 import ImageSlider from '../ImageSlider/ImageSlider';
 import { formatThaiDate } from '../../utils/dateUtils';
 import { getProjectTypeInfo } from '../../constants/projectTypes';
+import { API_ENDPOINTS } from '../../constants';
+
 
 /**
  * ProjectDetails component แสดงรายละเอียดของโปรเจค
@@ -231,7 +233,7 @@ const ProjectDetails = ({ project }) => {
                 <p className="font-semibold mb-2 text-gray-500">ผู้จัดทำหลัก:</p>
                 <div className="flex items-center">
                   <Avatar 
-                    src={`http://localhost:4000/${project.author.image}`} 
+                    src={`${API_ENDPOINTS.BASE}/${project.author.image}`} 
                     size="large"
                     className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C]"
                   >
@@ -253,7 +255,7 @@ const ProjectDetails = ({ project }) => {
                   {contributors.map((contributor, index) => (
                     <div key={index} className="flex items-center">
                       <Avatar 
-                        src={`http://localhost:4000/${contributor?.image}`} 
+                        src={`${API_ENDPOINTS.BASE}/${contributor?.image}`} 
                         size="small"
                         className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C]"
                       >

@@ -35,7 +35,8 @@ export const createApp = (options = {}) => {
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
-    'https://yourdomain.com' // เพิ่ม domain จริงที่คุณต้องการอนุญาต
+    'https://yourdomain.com',
+    '*'
   ];
   
   app.use(cors({
