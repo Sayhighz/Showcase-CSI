@@ -3,7 +3,6 @@ import { createApp, startServer } from './config/app.js';
 import { initEnv } from './config/env.js';
 import logger from './config/logger.js';
 import pool from './config/database.js';
-import swaggerDocs from './config/swagger.js';
 import authRoutes from './routes/user/authRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
 import projectRoutes from './routes/user/projectRoutes.js';
@@ -37,8 +36,6 @@ app.use(API_ROUTES.ADMIN.STATISTICS.BASE, statisticsRoutes);
 app.use(API_ROUTES.ADMIN.LOGS.BASE, logsRoutes);
 app.use(API_ROUTES.UPLOAD.BASE, uploadRoutes);
 
-// เพิ่ม Swagger Documentation
-swaggerDocs(app);
 
 // จัดการเส้นทางที่ไม่มีอยู่
 app.use('*', (req, res) => {
