@@ -3,6 +3,7 @@ import { createApp, startServer } from './config/app.js';
 import { initEnv } from './config/env.js';
 import logger from './config/logger.js';
 import pool from './config/database.js';
+import { setupSwagger } from './config/swagger.js'; // เพิ่มการนำเข้า Swagger
 import authRoutes from './routes/user/authRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
 import projectRoutes from './routes/user/projectRoutes.js';
@@ -15,6 +16,9 @@ import logsRoutes from './routes/admin/logsRoutes.js';
 import uploadRoutes from './routes/common/uploadRoutes.js';
 import { API_ROUTES } from './constants/routes.js';
 
+
+
+
 // เริ่มต้นตรวจสอบและตั้งค่าตัวแปรสภาพแวดล้อม
 if (!initEnv()) {
   logger.error('Failed to initialize environment variables. Exiting...');
@@ -23,6 +27,9 @@ if (!initEnv()) {
 
 // สร้าง Express application
 const app = createApp();
+
+// กำหนดการใช้งาน Swagger
+setupSwagger(app);
 
 // กำหนดเส้นทาง API
 app.use(API_ROUTES.AUTH.BASE, authRoutes);
