@@ -10,12 +10,14 @@ import {
   uploadProject,
   updateProjectWithFiles,
   deleteProject,
-  uploadProjectFile,
 } from '../../controllers/user/projectController.js';
-import { authenticateToken, isAdmin, isResourceOwner } from '../../middleware/authMiddleware.js';
+import { authenticateToken, isResourceOwner } from '../../middleware/authMiddleware.js';
 import { API_ROUTES } from '../../constants/routes.js';
-import storageService from '../../services/storageService.js';
 import { optionalAuthenticateToken } from '../../middleware/optionalAuthenticateToken.js';
+import { 
+  projectUploadMiddleware, 
+  projectUpdateMiddleware, 
+} from '../../middleware/projectUploadMiddleware.js';
 
 const router = express.Router();
 
@@ -56,9 +58,6 @@ const router = express.Router();
  *           type: integer
  *           default: 1
  *           description: Project visibility (0=hidden, 1=visible)
- *         tags:
- *           type: string
- *           description: Project tags separated by commas
  *         contributors:
  *           type: array
  *           items:
@@ -170,61 +169,6 @@ const router = express.Router();
  *       bearerFormat: JWT
  */
 
-const projectUploader = (req, res, next) => {
-  // สร้าง multer uploader ที่รองรับหลายประเภทไฟล์
-  const upload = storageService.createUploader('images', { maxSize: 10 * 1024 * 1024 });
-  
-  // กำหนดฟิลด์ไฟล์ที่จะรับ
-  const uploadFields = upload.fields([
-    { name: 'coverImage', maxCount: 1 },
-    { name: 'courseworkPoster', maxCount: 1 },
-    { name: 'courseworkVideo', maxCount: 1 },
-    { name: 'paperFile', maxCount: 1 },
-    { name: 'competitionPoster', maxCount: 1 }
-  ]);
-  
-  // ใช้ middleware
-  uploadFields(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: `File upload error: ${err.message}`
-      });
-    }
-    next();
-  });
-};
-
-const projectUpdateUploader = (req, res, next) => {
-  // สร้าง multer uploader ที่รองรับหลายประเภทไฟล์
-  const upload = storageService.createUploader('images', { maxSize: 10 * 1024 * 1024 });
-  
-  // กำหนดฟิลด์ไฟล์ที่จะรับ - เพิ่มฟิลด์ที่อาจต้องการสำหรับการอัปเดต
-  const uploadFields = upload.fields([
-    { name: 'coverImage', maxCount: 1 },
-    { name: 'posterImage', maxCount: 1 },
-    { name: 'courseworkPoster', maxCount: 1 },
-    { name: 'courseworkImage', maxCount: 5 },
-    { name: 'courseworkVideo', maxCount: 1 },
-    { name: 'competitionPoster', maxCount: 1 },
-    { name: 'paperFile', maxCount: 1 },
-    { name: 'additionalFiles', maxCount: 5 }
-  ]);
-  
-  // ใช้ middleware
-  uploadFields(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: `File upload error: ${err.message}`
-      });
-    }
-    next();
-  });
-};
-
 /**
  * @swagger
  * /api/projects/user/{user_id}:
@@ -256,48 +200,68 @@ const projectUpdateUploader = (req, res, next) => {
  *             properties:
  *               title:
  *                 type: string
+ *                 description: Project title
  *               description:
  *                 type: string
+ *                 description: Project description
  *               type:
  *                 type: string
  *                 enum: [coursework, competition, academic]
+ *                 description: Type of project
  *               study_year:
  *                 type: integer
+ *                 description: Year of study (1-4)
  *               year:
  *                 type: integer
+ *                 description: Academic year of the project
  *               semester:
- *                 type: integer
+ *                 type: string
+ *                 enum: ["1", "2", "3"]
+ *                 description: Semester (1, 2, or summer)
  *               visibility:
  *                 type: integer
  *                 default: 1
- *               tags:
- *                 type: string
+ *                 description: Project visibility (0=hidden, 1=visible)
  *               contributors:
  *                 type: string
  *                 format: json
- *               coverImage:
- *                 type: string
- *                 format: binary
+ *                 description: JSON string of contributors (array of {user_id, role})
  *               courseworkPoster:
  *                 type: string
  *                 format: binary
- *               courseworkVideo:
- *                 type: string
- *               paperFile:
+ *                 description: Poster image for coursework (stored as 'poster' in courseworks table)
+ *               courseworkImage:
  *                 type: string
  *                 format: binary
+ *                 description: Additional image for coursework (stored as 'image' in courseworks table)
+ *               courseworkVideo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Video file for coursework (stored as 'clip_video' in courseworks table)
+ *               clip_video:
+ *                 type: string
+ *                 description: Video URL for coursework (stored as 'clip_video' in courseworks table)
  *               competitionPoster:
  *                 type: string
  *                 format: binary
+ *                 description: Poster image for competition (stored as 'poster' in competitions table)
+ *               paperFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: Academic paper file in PDF format (stored as 'paper_file' in academic_papers table)
  *               competition_name:
  *                 type: string
+ *                 description: Name of the competition (for competition type projects)
  *               competition_year:
  *                 type: integer
+ *                 description: Year of the competition (for competition type projects)
  *               publication_date:
  *                 type: string
  *                 format: date
+ *                 description: Publication date (for academic type projects)
  *               published_year:
  *                 type: integer
+ *                 description: Published year (for academic type projects)
  *     responses:
  *       201:
  *         description: Project created successfully
@@ -322,7 +286,7 @@ const projectUpdateUploader = (req, res, next) => {
  *                     message:
  *                       type: string
  *       400:
- *         description: Bad request, missing required fields
+ *         description: Bad request, missing required fields or invalid file format
  *       401:
  *         description: Unauthorized
  *       403:
@@ -334,99 +298,13 @@ router.post(
   '/user/:user_id', // ใช้ path ตรงๆ แทน API_ROUTES
   authenticateToken, 
   isResourceOwner,
-  projectUploader, // เพิ่ม middleware สำหรับการอัปโหลดไฟล์
+  projectUploadMiddleware, // ใช้ middleware ที่แยกออกมา
   uploadProject
 );
 
 /**
  * @swagger
- * /api/projects/{projectId}/files:
- *   post:
- *     summary: Upload a file to an existing project
- *     tags: [Projects]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: projectId
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID of the project
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - file
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: File to upload
- *     responses:
- *       201:
- *         description: File uploaded successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 statusCode:
- *                   type: integer
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     fileId:
- *                       type: integer
- *                     fileName:
- *                       type: string
- *                     filePath:
- *                       type: string
- *                     fileSize:
- *                       type: integer
- *                     fileType:
- *                       type: string
- *       400:
- *         description: No file uploaded or invalid file
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden, not project owner
- *       404:
- *         description: Project not found
- *       500:
- *         description: Server error
- */
-router.post(
-  '/:projectId/files',
-  authenticateToken,
-  (req, res, next) => {
-    // สร้าง uploader สำหรับไฟล์เดียว
-    const upload = storageService.createUploader('images', { maxSize: 10 * 1024 * 1024 });
-    upload.single('file')(req, res, (err) => {
-      if (err) {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: `File upload error: ${err.message}`
-        });
-      }
-      next();
-    });
-  },
-  uploadProjectFile
-);
-
-/**
- * @swagger
- * /api/projects:
+ * /api/projects/all:
  *   get:
  *     summary: Get all approved projects
  *     tags: [Projects]
@@ -675,7 +553,7 @@ router.get(API_ROUTES.PROJECT.MY_PROJECTS, authenticateToken, isResourceOwner, g
 
 /**
  * @swagger
- * /api/projects/{projectId}:
+ * /api/projects/project/{projectId}:
  *   get:
  *     summary: Get details of a specific project
  *     tags: [Projects]
@@ -716,7 +594,7 @@ router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDe
 
 /**
  * @swagger
- * /api/projects/{projectId}:
+ * /api/projects/update/{projectId}:
  *   put:
  *     summary: Update an existing project
  *     tags: [Projects]
@@ -738,59 +616,82 @@ router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDe
  *             properties:
  *               title:
  *                 type: string
+ *                 description: Updated project title
  *               description:
  *                 type: string
+ *                 description: Updated project description
  *               study_year:
  *                 type: integer
+ *                 description: Updated study year
  *               year:
  *                 type: integer
+ *                 description: Updated academic year
  *               semester:
- *                 type: integer
+ *                 type: string
+ *                 enum: ["1", "2", "3"]
+ *                 description: Updated semester
  *               visibility:
  *                 type: integer
- *               tags:
- *                 type: string
+ *                 enum: [0, 1]
+ *                 description: Updated visibility (0=hidden, 1=visible)
  *               contributors:
  *                 type: string
  *                 format: json
- *               coverImage:
- *                 type: string
- *                 format: binary
- *               posterImage:
- *                 type: string
- *                 format: binary
- *               courseworkPoster:
- *                 type: string
- *                 format: binary
- *               courseworkImage:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *               courseworkVideo:
- *                 type: string
- *               clip_video:
- *                 type: string
- *               competitionPoster:
- *                 type: string
- *                 format: binary
+ *                 description: Updated list of contributors in JSON format (e.g. [{"user_id":2,"role":"contributor"}])
+ *               # Academic Paper specific fields
  *               paperFile:
  *                 type: string
  *                 format: binary
+ *                 description: Updated academic paper file (PDF only, max 15MB) - for academic projects only
+ *               publication_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Updated publication date for academic papers (YYYY-MM-DD)
+ *               published_year:
+ *                 type: integer
+ *                 description: Updated published year for academic papers
+ *               # Competition specific fields
+ *               competitionPoster:
+ *                 type: string
+ *                 format: binary
+ *                 description: Updated poster for competition (JPEG, PNG, GIF, WebP only) - for competition projects only
+ *               competition_name:
+ *                 type: string
+ *                 description: Updated competition name
+ *               competition_year:
+ *                 type: integer
+ *                 description: Updated competition year
+ *               # Coursework specific fields
+ *               courseworkPoster:
+ *                 type: string
+ *                 format: binary
+ *                 description: Updated poster for coursework (JPEG, PNG, GIF, WebP only) - for coursework projects only
+ *               courseworkImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Updated image for coursework (JPEG, PNG, GIF, WebP only) - for coursework projects only
+ *               courseworkVideo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Updated video file for coursework (MP4, WebM, QuickTime only, max 15MB) - for coursework projects only
+ *               clip_video:
+ *                 type: string
+ *                 description: Updated video URL for coursework (YouTube, TikTok, or Facebook URL)
+ *               # Alternative names for fields (still supported)
+ *               coverImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Generic cover image (will be stored as 'poster' based on project type)
+ *               posterImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Alternative name for cover image
  *               additionalFiles:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
- *               competition_name:
- *                 type: string
- *               competition_year:
- *                 type: integer
- *               publication_date:
- *                 type: string
- *                 format: date
- *               published_year:
- *                 type: integer
+ *                 description: Additional files to attach to the project (currently not supported)
  *     responses:
  *       200:
  *         description: Project updated successfully
@@ -801,23 +702,39 @@ router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDe
  *               properties:
  *                 success: 
  *                   type: boolean
- *                 statusCode:
- *                   type: integer
+ *                   example: true
  *                 message:
  *                   type: string
+ *                   example: "Project updated successfully"
  *                 data:
  *                   type: object
  *                   properties:
  *                     projectId:
  *                       type: integer
+ *                       example: 123
  *                     message:
  *                       type: string
+ *                       example: "Project updated successfully. Please wait for admin approval."
  *       400:
  *         description: Invalid request data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "File upload error: Only PDF files are allowed for academic papers"
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - Missing or invalid token
  *       403:
- *         description: Forbidden, not project owner
+ *         description: Forbidden - Not project owner
  *       404:
  *         description: Project not found
  *       500:
@@ -826,14 +743,14 @@ router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDe
 router.put(
   API_ROUTES.PROJECT.UPDATE, 
   authenticateToken, 
-  isResourceOwner,
-  projectUpdateUploader,
+  // isResourceOwner,
+  projectUpdateMiddleware, // ใช้ middleware สำหรับการอัปเดต
   updateProjectWithFiles
 );
 
 /**
  * @swagger
- * /api/projects/{projectId}:
+ * /api/projects/delete/{projectId}:
  *   delete:
  *     summary: Delete a project
  *     tags: [Projects]
@@ -872,7 +789,7 @@ router.put(
 router.delete(
   API_ROUTES.PROJECT.DELETE, 
   authenticateToken, 
-  isResourceOwner, 
+  // isResourceOwner, 
   deleteProject
 );
 

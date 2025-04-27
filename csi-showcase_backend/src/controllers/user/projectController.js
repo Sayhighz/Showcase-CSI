@@ -18,7 +18,6 @@ import { getPaginationParams } from "../../constants/pagination.js";
 import { STATUS_CODES } from "../../constants/statusCodes.js";
 import storageService from "../../services/storageService.js";
 import projectService from "../../services/projectService.js";
-import searchService from "../../services/searchService.js";
 import notificationService from "../../services/notificationService.js";
 import { sanitizeHTML } from "../../utils/validationHelper.js";
 import { truncateText } from "../../utils/stringHelper.js";
@@ -348,13 +347,6 @@ export const getProjectDetails = async (req, res) => {
             : undefined,
       },
       contributors: project.contributors || [],
-      files: project.files.map((file) => ({
-        type: file.file_type,
-        path: file.file_path,
-        name: file.file_name,
-        size: file.file_size,
-        uploadDate: file.upload_date,
-      })) || [],
       viewsCount: project.views_count || 0,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
@@ -395,15 +387,16 @@ export const uploadProject = async (req, res) => {
   try {
     const userId = req.params.user_id;
 
-    // Check if user has permission to upload
+    // ตรวจสอบสิทธิ์ในการอัปโหลด
     if (req.user.id != userId && req.user.role !== "admin") {
       return forbiddenResponse(res, "You can only upload your own projects");
     }
 
-    // Start transaction
+    // เริ่มต้น transaction
     await connection.beginTransaction();
+    console.log("Transaction started");
 
-    // Extract and validate project data
+    // ดึงและตรวจสอบข้อมูลโครงการ
     const {
       title,
       description,
@@ -412,9 +405,19 @@ export const uploadProject = async (req, res) => {
       year,
       semester,
       visibility = 1,
+      clip_video, // รับ URL ของวิดีโอจาก form input (ถ้ามี)
+      competition_name,
+      competition_year,
+      publication_date,
+      published_year
     } = req.body;
 
-    // Validate required fields
+    // แสดง log สำหรับการดีบัก
+    console.log("Request body:", req.body);
+    console.log("Files from middleware:", req.files);
+    console.log("Project files:", req.project?.files);
+
+    // ตรวจสอบข้อมูลที่จำเป็น
     if (!title || !description || !type || !study_year || !year || !semester) {
       return validationErrorResponse(res, "Missing required fields", {
         title: !title ? "Title is required" : null,
@@ -426,14 +429,14 @@ export const uploadProject = async (req, res) => {
       });
     }
 
-    // Validate type
+    // ตรวจสอบประเภทโครงการ
     if (!isValidType(type)) {
       return validationErrorResponse(res, "Invalid project type", {
         type: `Type must be one of: ${Object.values(PROJECT_TYPES).join(", ")}`,
       });
     }
 
-    // Prepare project data
+    // เตรียมข้อมูลโครงการ
     const projectData = {
       user_id: userId,
       title: sanitizeHTML(title),
@@ -443,49 +446,123 @@ export const uploadProject = async (req, res) => {
       year,
       semester,
       visibility,
+      admin_id: null,
+      competition_name: sanitizeHTML(competition_name || ""),
+      competition_year: competition_year || year,
+      publication_date: publication_date || new Date(),
+      published_year: published_year || year,
       contributors: req.body.contributors || [],
     };
 
-    // Add type-specific data
-    if (type === PROJECT_TYPES.ACADEMIC) {
-      // ปรับให้ตรงกับโครงสร้างตาราง academic_papers ใหม่
-      Object.assign(projectData, {
-        publication_date: req.body.publication_date || null,
-        published_year: req.body.published_year || year,
-      });
-    } else if (type === PROJECT_TYPES.COMPETITION) {
-      // ปรับให้ตรงกับโครงสร้างตาราง competitions ใหม่
-      Object.assign(projectData, {
-        competition_name: sanitizeHTML(req.body.competition_name || ""),
-        competition_year: req.body.competition_year || year,
-        poster: req.body.poster || null,
-      });
-    } else if (type === PROJECT_TYPES.COURSEWORK) {
-      // ปรับให้ตรงกับโครงสร้างตาราง courseworks ใหม่
-      const videoUrl = req.body.clip_video
-        ? sanitizeHTML(req.body.clip_video)
-        : null;
-      // ตรวจสอบว่า URL เป็นของ YouTube, TikTok หรือ Facebook
-      const isValidVideoUrl = videoUrl
-        ? /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com|facebook\.com|fb\.watch)/.test(
-            videoUrl
-          )
-        : true;
+    // จัดการกับไฟล์ที่อัปโหลด
+    let posterPath = null;
+    let clipVideoPath = clip_video || null; // ใช้ URL ที่รับจาก form ถ้ามี
+    let imagePath = null;
+    let paperFilePath = null;
 
-      Object.assign(projectData, {
-        poster: req.body.poster || null,
-        clip_video: isValidVideoUrl ? videoUrl : null,
-        image: req.body.image || null,
-      });
+    // ----------------------------------------
+    // ตรวจสอบการอัปโหลดไฟล์จากหลายแหล่งที่เป็นไปได้
+    // ----------------------------------------
+    
+    // 1. ตรวจสอบจาก req.files โดยตรง (ที่มาจาก multer)
+    if (req.files) {
+      console.log("Checking files from multer directly");
+      if (req.files.paperFile) {
+        paperFilePath = req.files.paperFile[0].path;
+        console.log("Found paperFile in req.files:", paperFilePath);
+      }
+      if (req.files.courseworkPoster) {
+        posterPath = req.files.courseworkPoster[0].path;
+        console.log("Found courseworkPoster in req.files:", posterPath);
+      }
+      if (req.files.competitionPoster) {
+        posterPath = req.files.competitionPoster[0].path;
+        console.log("Found competitionPoster in req.files:", posterPath);
+      }
+      if (req.files.courseworkImage) {
+        imagePath = req.files.courseworkImage[0].path;
+        console.log("Found courseworkImage in req.files:", imagePath);
+      }
+      if (req.files.courseworkVideo) {
+        clipVideoPath = req.files.courseworkVideo[0].path;
+        console.log("Found courseworkVideo in req.files:", clipVideoPath);
+      }
     }
+    
+    // 2. ตรวจสอบจาก req.project.files (ที่เตรียมโดย middleware)
+    if (req.project && req.project.files) {
+      console.log("Processing files from middleware");
+      
+      // รูปปกทั่วไป (coverImage)
+      if (req.project.files.coverImage) {
+        posterPath = req.project.files.coverImage.path;
+        console.log("Using coverImage:", posterPath);
+      }
+      
+      // ตรวจสอบไฟล์เฉพาะประเภทโครงการ
+      if (type === PROJECT_TYPES.COURSEWORK) {
+        // สำหรับประเภท coursework
+        if (req.project.files.courseworkPoster && !posterPath) {
+          posterPath = req.project.files.courseworkPoster.path;
+          console.log("Using courseworkPoster:", posterPath);
+        }
+        if (req.project.files.courseworkImage && !imagePath) {
+          imagePath = req.project.files.courseworkImage.path;
+          console.log("Using courseworkImage:", imagePath);
+        }
+        if (req.project.files.courseworkVideo && !clipVideoPath) {
+          clipVideoPath = req.project.files.courseworkVideo.path;
+          console.log("Using courseworkVideo file:", clipVideoPath);
+        }
+      } 
+      else if (type === PROJECT_TYPES.COMPETITION) {
+        // สำหรับประเภท competition
+        if (req.project.files.competitionPoster && !posterPath) {
+          posterPath = req.project.files.competitionPoster.path;
+          console.log("Using competitionPoster:", posterPath);
+        }
+      }
+      else if (type === PROJECT_TYPES.ACADEMIC) {
+        // สำหรับประเภท academic
+        if (req.project.files.paperFile && !paperFilePath) {
+          paperFilePath = req.project.files.paperFile.path;
+          console.log("Using paperFile from middleware:", paperFilePath);
+        }
+      }
+    }
+    
+    // 3. ตรวจสอบถ้ามีการอัปโหลดไฟล์แต่ไม่ได้จัดการด้วย middleware พิเศษ
+    if (req.file) {
+      console.log("Found single uploaded file:", req.file);
+      
+      // ตรวจสอบประเภทไฟล์จาก mimetype
+      if (req.file.mimetype === 'application/pdf' && type === PROJECT_TYPES.ACADEMIC) {
+        paperFilePath = req.file.path;
+        console.log("Using PDF from req.file:", paperFilePath);
+      } else if (req.file.mimetype.startsWith('image/')) {
+        posterPath = req.file.path;
+        console.log("Using image from req.file:", posterPath);
+      } else if (req.file.mimetype.startsWith('video/')) {
+        clipVideoPath = req.file.path;
+        console.log("Using video from req.file:", clipVideoPath);
+      }
+    }
+    
+    console.log("Final files prepared for database:", {
+      type,
+      posterPath,
+      clipVideoPath,
+      imagePath,
+      paperFilePath
+    });
 
     // สร้างโครงการในฐานข้อมูล
     const [projectResult] = await connection.execute(
       `
       INSERT INTO projects (
         user_id, title, description, type, study_year, year, 
-        semester, visibility, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        semester, visibility, status, admin_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       [
         projectData.user_id,
@@ -497,17 +574,27 @@ export const uploadProject = async (req, res) => {
         projectData.semester,
         projectData.visibility,
         PROJECT_STATUSES.PENDING,
+        projectData.admin_id,
       ]
     );
 
     const projectId = projectResult.insertId;
+    console.log("Created project with ID:", projectId);
 
     // เพิ่มข้อมูลผู้ร่วมงาน (contributors) ถ้ามี
-    if (
-      Array.isArray(projectData.contributors) &&
-      projectData.contributors.length > 0
-    ) {
-      for (const contributor of projectData.contributors) {
+    let contributors = projectData.contributors;
+    if (typeof contributors === 'string') {
+      try {
+        contributors = JSON.parse(contributors);
+      } catch (e) {
+        console.error("Failed to parse contributors JSON:", e);
+        contributors = [];
+      }
+    }
+
+    if (Array.isArray(contributors) && contributors.length > 0) {
+      console.log("Adding contributors:", contributors);
+      for (const contributor of contributors) {
         await connection.execute(
           `
           INSERT INTO project_groups (project_id, user_id, role) 
@@ -520,19 +607,22 @@ export const uploadProject = async (req, res) => {
 
     // เพิ่มข้อมูลเฉพาะตามประเภทโครงการ
     if (projectData.type === PROJECT_TYPES.ACADEMIC) {
+      console.log("Inserting academic paper data");
       await connection.execute(
         `
         INSERT INTO academic_papers (
-          project_id, publication_date, published_year
-        ) VALUES (?, ?, ?)
+          project_id, publication_date, published_year, paper_file
+        ) VALUES (?, ?, ?, ?)
       `,
         [
           projectId,
-          projectData.publication_date || null,
-          projectData.published_year || projectData.year,
+          projectData.publication_date,
+          projectData.published_year,
+          paperFilePath, // ใช้ path ของไฟล์ PDF ที่พบ
         ]
       );
     } else if (projectData.type === PROJECT_TYPES.COMPETITION) {
+      console.log("Inserting competition data");
       await connection.execute(
         `
         INSERT INTO competitions (
@@ -541,12 +631,20 @@ export const uploadProject = async (req, res) => {
       `,
         [
           projectId,
-          projectData.competition_name || "",
-          projectData.competition_year || projectData.year,
-          projectData.poster || null,
+          projectData.competition_name,
+          projectData.competition_year,
+          posterPath, // ใช้ path จากไฟล์ที่อัปโหลด
         ]
       );
     } else if (projectData.type === PROJECT_TYPES.COURSEWORK) {
+      console.log("Inserting coursework data");
+      console.log("Data to insert:", {
+        projectId,
+        posterPath,
+        clipVideoPath,
+        imagePath
+      });
+      
       await connection.execute(
         `
         INSERT INTO courseworks (
@@ -555,23 +653,30 @@ export const uploadProject = async (req, res) => {
       `,
         [
           projectId,
-          projectData.poster || null,
-          projectData.clip_video || null,
-          projectData.image || null,
+          posterPath, // ใช้ path จากไฟล์ที่อัปโหลด
+          clipVideoPath, // ใช้ path จากไฟล์ที่อัปโหลดหรือ URL ที่รับมา
+          imagePath, // ใช้ path จากไฟล์ที่อัปโหลด
         ]
       );
     }
 
     // Commit transaction
     await connection.commit();
+    console.log("Transaction committed successfully");
 
-    // Notify admins of new project
-    await notificationService.notifyAdminsNewProject(
-      projectId,
-      projectData.title,
-      req.user.fullName,
-      projectData.type
-    );
+    // แจ้งเตือนผู้ดูแลระบบเกี่ยวกับโครงการใหม่
+    try {
+      await notificationService.notifyAdminsNewProject(
+        projectId,
+        projectData.title,
+        req.user.fullName,
+        projectData.type
+      );
+    } catch (notifyError) {
+      // ไม่ให้การแจ้งเตือนล้มเหลวทำให้การสร้างโครงการล้มเหลว
+      console.error("Error sending admin notification:", notifyError);
+      logger.error("Notification error:", notifyError);
+    }
 
     return res.status(STATUS_CODES.CREATED).json(
       successResponse(
@@ -585,12 +690,13 @@ export const uploadProject = async (req, res) => {
       )
     );
   } catch (error) {
-    // Rollback transaction on error
+    // Rollback transaction เมื่อเกิดข้อผิดพลาด
     await connection.rollback();
+    console.error("Transaction error:", error);
     logger.error("Error uploading project:", error);
     return handleServerError(res, error);
   } finally {
-    // Release connection
+    // คืน connection
     connection.release();
   }
 };
@@ -600,13 +706,20 @@ export const uploadProject = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+/**
+ * อัปเดตข้อมูลโครงการพร้อมรองรับการอัปโหลดไฟล์
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+import fs from 'fs'; // เพิ่มการนำเข้า fs module
+
 export const updateProjectWithFiles = async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
     const projectId = req.params.projectId;
 
-    // Get project to check ownership
+    // ดึงข้อมูลโครงการเพื่อตรวจสอบความเป็นเจ้าของ
     const [projects] = await pool.execute(
       `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
@@ -618,18 +731,25 @@ export const updateProjectWithFiles = async (req, res) => {
 
     const project = projects[0];
 
-    // Check if user has permission to update
-    if (req.user.id != project.user_id && req.user.role !== "admin") {
-      return forbiddenResponse(res, "You can only update your own projects");
-    }
+    // ตรวจสอบสิทธิ์ในการแก้ไข
+    // if (req.user.id != project.user_id && req.user.role !== "admin") {
+    //   return forbiddenResponse(res, "You can only update your own projects");
+    // }
 
-    // Start transaction
+    // แสดง log ข้อมูลที่ได้รับ
+    console.log("Update request for project:", projectId);
+    console.log("Request body:", req.body);
+    console.log("Files:", req.files);
+    console.log("Project file:", req.file);
+    console.log("Project update files:", req.projectUpdate?.files);
+
+    // เริ่มต้น transaction
     await connection.beginTransaction();
 
-    // Extract update data
+    // ดึงข้อมูลที่จะอัปเดต
     const updateData = req.body;
 
-    // Create update query with only provided fields
+    // สร้าง query สำหรับอัปเดตเฉพาะฟิลด์ที่มี
     let updateFields = [];
     let updateParams = [];
 
@@ -663,17 +783,17 @@ export const updateProjectWithFiles = async (req, res) => {
       updateParams.push(updateData.visibility);
     }
 
-    // Set status back to pending for admin review
+    // เปลี่ยนสถานะกลับเป็น pending เพื่อรอการตรวจสอบจากผู้ดูแล
     updateFields.push("status = ?");
     updateParams.push(PROJECT_STATUSES.PENDING);
 
-    // Update timestamp
+    // อัปเดตเวลาการแก้ไข
     updateFields.push("updated_at = NOW()");
 
-    // Add project ID to parameters
+    // เพิ่ม project ID เข้าไปใน parameters
     updateParams.push(projectId);
 
-    // Update project
+    // อัปเดตข้อมูลโครงการหลัก
     if (updateFields.length > 0) {
       const updateQuery = `
         UPDATE projects 
@@ -682,84 +802,345 @@ export const updateProjectWithFiles = async (req, res) => {
       `;
 
       await connection.execute(updateQuery, updateParams);
+      console.log("Updated main project data");
     }
 
-    // Update contributors if provided
-    if (updateData.contributors !== undefined) {
-      // Delete existing contributors
-      await connection.execute(
-        `DELETE FROM project_groups WHERE project_id = ?`,
+    // -----------------------------------------------
+    // จัดการกับไฟล์ที่อัปโหลด
+    // -----------------------------------------------
+    
+    // ดึงข้อมูลไฟล์เดิมก่อนการอัปเดต
+    let oldFiles = {};
+    
+    if (project.type === PROJECT_TYPES.ACADEMIC) {
+      const [academicData] = await connection.execute(
+        `SELECT paper_file FROM academic_papers WHERE project_id = ?`,
         [projectId]
       );
-
-      // Add new contributors
-      const contributors =
-        typeof updateData.contributors === "string"
-          ? JSON.parse(updateData.contributors)
-          : updateData.contributors;
-
-      if (Array.isArray(contributors) && contributors.length > 0) {
-        for (const contributor of contributors) {
-          await connection.execute(
-            `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
-            [projectId, contributor.user_id, contributor.role || "contributor"]
-          );
+      if (academicData.length > 0) {
+        oldFiles.paperFile = academicData[0].paper_file;
+      }
+    } else if (project.type === PROJECT_TYPES.COMPETITION) {
+      const [competitionData] = await connection.execute(
+        `SELECT poster FROM competitions WHERE project_id = ?`,
+        [projectId]
+      );
+      if (competitionData.length > 0) {
+        oldFiles.competitionPoster = competitionData[0].poster;
+      }
+    } else if (project.type === PROJECT_TYPES.COURSEWORK) {
+      const [courseworkData] = await connection.execute(
+        `SELECT poster, clip_video, image FROM courseworks WHERE project_id = ?`,
+        [projectId]
+      );
+      if (courseworkData.length > 0) {
+        oldFiles.courseworkPoster = courseworkData[0].poster;
+        oldFiles.clipVideoPath = courseworkData[0].clip_video;
+        oldFiles.courseworkImage = courseworkData[0].image;
+      }
+    }
+    
+    console.log("Old files before update:", oldFiles);
+    
+    // ประกาศตัวแปรสำหรับเก็บ path ของไฟล์ใหม่
+    let paperFilePath = null;
+    let posterPath = null;
+    let clipVideoPath = null;
+    let imagePath = null;
+    
+    // 1. ตรวจสอบไฟล์จาก req.files (จาก multer โดยตรง)
+    if (req.files) {
+      console.log("Checking files from multer directly");
+      
+      // ตรวจสอบไฟล์ PDF สำหรับ academic
+      if (req.files.paperFile) {
+        paperFilePath = req.files.paperFile[0].path;
+        console.log("Found paperFile in req.files:", paperFilePath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.paperFile) {
+          try {
+            fs.unlinkSync(oldFiles.paperFile);
+            console.log("Deleted old paperFile:", oldFiles.paperFile);
+          } catch (err) {
+            console.error("Error deleting old paperFile:", err);
+          }
+        }
+      }
+      
+      // ตรวจสอบไฟล์โปสเตอร์
+      if (req.files.courseworkPoster) {
+        posterPath = req.files.courseworkPoster[0].path;
+        console.log("Found courseworkPoster in req.files:", posterPath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.courseworkPoster) {
+          try {
+            fs.unlinkSync(oldFiles.courseworkPoster);
+            console.log("Deleted old courseworkPoster:", oldFiles.courseworkPoster);
+          } catch (err) {
+            console.error("Error deleting old courseworkPoster:", err);
+          }
+        }
+      }
+      
+      if (req.files.competitionPoster) {
+        posterPath = req.files.competitionPoster[0].path;
+        console.log("Found competitionPoster in req.files:", posterPath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.competitionPoster) {
+          try {
+            fs.unlinkSync(oldFiles.competitionPoster);
+            console.log("Deleted old competitionPoster:", oldFiles.competitionPoster);
+          } catch (err) {
+            console.error("Error deleting old competitionPoster:", err);
+          }
+        }
+      }
+      
+      // ตรวจสอบไฟล์ภาพประกอบ
+      if (req.files.courseworkImage) {
+        imagePath = req.files.courseworkImage[0].path;
+        console.log("Found courseworkImage in req.files:", imagePath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.courseworkImage) {
+          try {
+            fs.unlinkSync(oldFiles.courseworkImage);
+            console.log("Deleted old courseworkImage:", oldFiles.courseworkImage);
+          } catch (err) {
+            console.error("Error deleting old courseworkImage:", err);
+          }
+        }
+      }
+      
+      // ตรวจสอบไฟล์วิดีโอ
+      if (req.files.courseworkVideo) {
+        clipVideoPath = req.files.courseworkVideo[0].path;
+        console.log("Found courseworkVideo in req.files:", clipVideoPath);
+        
+        // ลบไฟล์เดิมถ้ามี (เฉพาะถ้าเป็นไฟล์ ไม่ใช่ URL)
+        if (oldFiles.clipVideoPath && oldFiles.clipVideoPath.startsWith('uploads/')) {
+          try {
+            fs.unlinkSync(oldFiles.clipVideoPath);
+            console.log("Deleted old courseworkVideo file:", oldFiles.clipVideoPath);
+          } catch (err) {
+            console.error("Error deleting old courseworkVideo file:", err);
+          }
         }
       }
     }
+    
+    // 2. ตรวจสอบจาก req.projectUpdate.files (จาก middleware ของเรา)
+    if (req.projectUpdate && req.projectUpdate.files) {
+      console.log("Checking files from custom middleware");
+      
+      // ไฟล์ PDF สำหรับ academic
+      if (req.projectUpdate.files.paperFile && !paperFilePath) {
+        paperFilePath = req.projectUpdate.files.paperFile.path;
+        console.log("Using paperFile from middleware:", paperFilePath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.paperFile) {
+          try {
+            fs.unlinkSync(oldFiles.paperFile);
+            console.log("Deleted old paperFile:", oldFiles.paperFile);
+          } catch (err) {
+            console.error("Error deleting old paperFile:", err);
+          }
+        }
+      }
+      
+      // ไฟล์โปสเตอร์
+      if (req.projectUpdate.files.courseworkPoster && !posterPath) {
+        posterPath = req.projectUpdate.files.courseworkPoster.path;
+        console.log("Using courseworkPoster from middleware:", posterPath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.courseworkPoster) {
+          try {
+            fs.unlinkSync(oldFiles.courseworkPoster);
+            console.log("Deleted old courseworkPoster:", oldFiles.courseworkPoster);
+          } catch (err) {
+            console.error("Error deleting old courseworkPoster:", err);
+          }
+        }
+      }
+      
+      if (req.projectUpdate.files.competitionPoster && !posterPath) {
+        posterPath = req.projectUpdate.files.competitionPoster.path;
+        console.log("Using competitionPoster from middleware:", posterPath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.competitionPoster) {
+          try {
+            fs.unlinkSync(oldFiles.competitionPoster);
+            console.log("Deleted old competitionPoster:", oldFiles.competitionPoster);
+          } catch (err) {
+            console.error("Error deleting old competitionPoster:", err);
+          }
+        }
+      }
+      
+      // ไฟล์ภาพประกอบ
+      if (req.projectUpdate.files.courseworkImage && !imagePath) {
+        imagePath = req.projectUpdate.files.courseworkImage.path;
+        console.log("Using courseworkImage from middleware:", imagePath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.courseworkImage) {
+          try {
+            fs.unlinkSync(oldFiles.courseworkImage);
+            console.log("Deleted old courseworkImage:", oldFiles.courseworkImage);
+          } catch (err) {
+            console.error("Error deleting old courseworkImage:", err);
+          }
+        }
+      }
+      
+      // ไฟล์วิดีโอ
+      if (req.projectUpdate.files.courseworkVideo && !clipVideoPath) {
+        clipVideoPath = req.projectUpdate.files.courseworkVideo.path;
+        console.log("Using courseworkVideo from middleware:", clipVideoPath);
+        
+        // ลบไฟล์เดิมถ้ามี (เฉพาะถ้าเป็นไฟล์ ไม่ใช่ URL)
+        if (oldFiles.clipVideoPath && oldFiles.clipVideoPath.startsWith('uploads/')) {
+          try {
+            fs.unlinkSync(oldFiles.clipVideoPath);
+            console.log("Deleted old courseworkVideo file:", oldFiles.clipVideoPath);
+          } catch (err) {
+            console.error("Error deleting old courseworkVideo file:", err);
+          }
+        }
+      }
+    }
+    
+    // 3. ตรวจสอบจาก req.file (กรณีอัปโหลดไฟล์เดียว)
+    if (req.file) {
+      console.log("Found single uploaded file:", req.file);
+      
+      // ตรวจสอบประเภทไฟล์และโปรเจกต์
+      if (req.file.mimetype === 'application/pdf' && project.type === PROJECT_TYPES.ACADEMIC) {
+        paperFilePath = req.file.path;
+        console.log("Using PDF from req.file:", paperFilePath);
+        
+        // ลบไฟล์เดิมถ้ามี
+        if (oldFiles.paperFile) {
+          try {
+            fs.unlinkSync(oldFiles.paperFile);
+            console.log("Deleted old paperFile:", oldFiles.paperFile);
+          } catch (err) {
+            console.error("Error deleting old paperFile:", err);
+          }
+        }
+      } else if (req.file.mimetype.startsWith('image/')) {
+        // กำหนดโปสเตอร์ตามประเภทโปรเจกต์
+        posterPath = req.file.path;
+        console.log("Using image from req.file:", posterPath);
+        
+        // ลบไฟล์เดิมที่เกี่ยวข้อง
+        if (project.type === PROJECT_TYPES.COURSEWORK && oldFiles.courseworkPoster) {
+          try {
+            fs.unlinkSync(oldFiles.courseworkPoster);
+            console.log("Deleted old courseworkPoster:", oldFiles.courseworkPoster);
+          } catch (err) {
+            console.error("Error deleting old courseworkPoster:", err);
+          }
+        } else if (project.type === PROJECT_TYPES.COMPETITION && oldFiles.competitionPoster) {
+          try {
+            fs.unlinkSync(oldFiles.competitionPoster);
+            console.log("Deleted old competitionPoster:", oldFiles.competitionPoster);
+          } catch (err) {
+            console.error("Error deleting old competitionPoster:", err);
+          }
+        }
+      } else if (req.file.mimetype.startsWith('video/')) {
+        clipVideoPath = req.file.path;
+        console.log("Using video from req.file:", clipVideoPath);
+        
+        // ลบไฟล์เดิมถ้ามี (เฉพาะถ้าเป็นไฟล์ ไม่ใช่ URL)
+        if (oldFiles.clipVideoPath && oldFiles.clipVideoPath.startsWith('uploads/')) {
+          try {
+            fs.unlinkSync(oldFiles.clipVideoPath);
+            console.log("Deleted old courseworkVideo file:", oldFiles.clipVideoPath);
+          } catch (err) {
+            console.error("Error deleting old courseworkVideo file:", err);
+          }
+        }
+      }
+    }
+    
+    // 4. ตรวจสอบ URL วิดีโอจาก form input (สำหรับ coursework)
+    if (updateData.clip_video !== undefined && project.type === PROJECT_TYPES.COURSEWORK) {
+      clipVideoPath = updateData.clip_video || null;
+      console.log("Using clip_video from form input:", clipVideoPath);
+    }
+    
+    console.log("Final files to update:", {
+      projectType: project.type,
+      posterPath,
+      clipVideoPath,
+      imagePath,
+      paperFilePath
+    });
 
-    // Update type-specific data
-    if (project.type === PROJECT_TYPES.ACADEMIC) {
-      // ใช้ฟังก์ชันที่ปรับปรุงแล้ว
-      await updateAcademicData(connection, projectId, updateData, project.year);
-    } else if (project.type === PROJECT_TYPES.COMPETITION) {
-      // ใช้ฟังก์ชันที่ปรับปรุงแล้ว
-      await updateCompetitionData(
-        connection,
-        projectId,
-        updateData,
-        project.year
-      );
-    } else if (project.type === PROJECT_TYPES.COURSEWORK) {
-      // ใช้ฟังก์ชันที่ปรับปรุงแล้ว
-      await updateCourseworkData(connection, projectId, updateData);
+    // Update contributors if provided
+    if (updateData.contributors !== undefined && updateData.contributors !== '') {
+      try {
+        // Delete existing contributors
+        await connection.execute(
+          `DELETE FROM project_groups WHERE project_id = ?`,
+          [projectId]
+        );
+        console.log("Deleted existing contributors");
+
+        // Add new contributors only if contributors is not empty
+        if (updateData.contributors.trim()) {
+          const contributors = JSON.parse(updateData.contributors);
+          
+          if (Array.isArray(contributors) && contributors.length > 0) {
+            console.log("Adding new contributors:", contributors);
+            for (const contributor of contributors) {
+              await connection.execute(
+                `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
+                [projectId, contributor.user_id, contributor.role || "contributor"]
+              );
+            }
+          }
+        }
+      } catch (parseError) {
+        console.error("Error parsing contributors JSON:", parseError);
+        // ไม่ให้การแปลง JSON ผิดพลาดทำให้การอัปเดตทั้งหมดล้มเหลว
+        // เราจะดำเนินการต่อโดยไม่อัปเดต contributors
+      }
     }
 
-
-    // ตรวจสอบและอัปเดต clip_video URL สำหรับ coursework
-    if (
-      project.type === PROJECT_TYPES.COURSEWORK &&
-      updateData.clip_video !== undefined
-    ) {
-      const videoUrl = sanitizeHTML(updateData.clip_video);
-      // ตรวจสอบว่าเป็น URL ของ YouTube, TikTok หรือ Facebook
-      const isValidVideoUrl =
-        /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com|facebook\.com|fb\.watch)/.test(
-          videoUrl
-        );
-
-      if (isValidVideoUrl || videoUrl === "") {
-        await connection.execute(
-          `UPDATE courseworks SET clip_video = ? WHERE project_id = ?`,
-          [videoUrl, projectId]
-        );
-      } else {
-        logger.warn(
-          `Invalid video URL format for project ${projectId}: ${videoUrl}`
-        );
-      }
+    // อัปเดตข้อมูลตามประเภทโปรเจกต์
+    if (project.type === PROJECT_TYPES.ACADEMIC) {
+      await updateAcademicDataWithFiles(connection, projectId, updateData, project.year, paperFilePath);
+    } else if (project.type === PROJECT_TYPES.COMPETITION) {
+      await updateCompetitionDataWithFiles(connection, projectId, updateData, project.year, posterPath);
+    } else if (project.type === PROJECT_TYPES.COURSEWORK) {
+      await updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagePath);
     }
 
     // Commit transaction
     await connection.commit();
+    console.log("Transaction committed successfully");
 
     // Notify admins of updated project
-    await notificationService.notifyAdminsNewProject(
-      projectId,
-      project.title,
-      req.user.fullName,
-      project.type
-    );
+    try {
+      await notificationService.notifyAdminsNewProject(
+        projectId,
+        project.title,
+        req.user.fullName,
+        project.type
+      );
+    } catch (notifyError) {
+      // ไม่ให้การแจ้งเตือนล้มเหลวทำให้การอัปเดตล้มเหลว
+      console.error("Error sending admin notification:", notifyError);
+    }
 
     return res.json(
       successResponse(
@@ -774,6 +1155,7 @@ export const updateProjectWithFiles = async (req, res) => {
   } catch (error) {
     // Rollback transaction on error
     await connection.rollback();
+    console.error("Transaction error:", error);
     logger.error(`Error updating project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   } finally {
@@ -783,113 +1165,19 @@ export const updateProjectWithFiles = async (req, res) => {
 };
 
 /**
- * Helper function to update coursework data
+ * อัปเดตข้อมูลบทความวิชาการพร้อมไฟล์
  */
-/**
- * Helper function to update coursework data
- */
-async function updateCourseworkData(connection, projectId, updateData) {
-  // Check if coursework exists
-  const [coursework] = await connection.execute(
-    `SELECT * FROM courseworks WHERE project_id = ?`,
-    [projectId]
-  );
-
-  if (coursework.length > 0) {
-    // Update existing record
-    const updateFields = [];
-    const updateParams = [];
-
-    if (updateData.poster !== undefined) {
-      updateFields.push("poster = ?");
-      updateParams.push(updateData.poster);
-    }
-
-    if (updateData.clip_video !== undefined) {
-      // ตรวจสอบว่า clip_video เป็น URL ที่ถูกต้องหรือไม่
-      const videoUrl = sanitizeHTML(updateData.clip_video);
-      // สามารถเพิ่มการตรวจสอบว่าเป็น URL ของ YouTube, TikTok หรือ Facebook ด้วย regex
-      const isValidVideoUrl =
-        /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com|facebook\.com|fb\.watch)/.test(
-          videoUrl
-        );
-
-      if (isValidVideoUrl || videoUrl === "") {
-        updateFields.push("clip_video = ?");
-        updateParams.push(videoUrl);
-      } else {
-        logger.warn(
-          `Invalid video URL format for project ${projectId}: ${videoUrl}`
-        );
-        // ถ้าไม่ใช่ URL ที่ถูกต้อง อาจเลือกที่จะไม่อัปเดตหรือใส่ค่าว่าง
-      }
-    }
-
-    if (updateData.image !== undefined) {
-      updateFields.push("image = ?");
-      updateParams.push(updateData.image);
-    }
-
-    // Add project ID to parameters
-    updateParams.push(projectId);
-
-    if (updateFields.length > 0) {
-      const updateQuery = `
-        UPDATE courseworks
-        SET ${updateFields.join(", ")}
-        WHERE project_id = ?
-      `;
-
-      await connection.execute(updateQuery, updateParams);
-    }
-  } else {
-    // Insert new record
-    const videoUrl = updateData.clip_video
-      ? sanitizeHTML(updateData.clip_video)
-      : null;
-    // ตรวจสอบ URL ถ้าจำเป็น
-    const isValidVideoUrl = videoUrl
-      ? /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com|facebook\.com|fb\.watch)/.test(
-          videoUrl
-        )
-      : true;
-
-    await connection.execute(
-      `
-      INSERT INTO courseworks (
-        project_id, 
-        poster,
-        clip_video,
-        image
-      ) VALUES (?, ?, ?, ?)
-    `,
-      [
-        projectId,
-        updateData.poster || null,
-        isValidVideoUrl ? videoUrl : null,
-        updateData.image || null,
-      ]
-    );
-  }
-}
-
-/**
- * Helper function to update academic paper data
- */
-async function updateAcademicData(
-  connection,
-  projectId,
-  updateData,
-  defaultYear
-) {
-  // Check if academic paper exists
+async function updateAcademicDataWithFiles(connection, projectId, updateData, defaultYear, paperFilePath) {
+  console.log("Updating academic data with files");
+  
+  // ตรวจสอบว่ามีข้อมูลในตารางหรือไม่
   const [academic] = await connection.execute(
     `SELECT * FROM academic_papers WHERE project_id = ?`,
     [projectId]
   );
 
   if (academic.length > 0) {
-    // Update existing record
+    // อัปเดตข้อมูลที่มีอยู่แล้ว
     const updateFields = [];
     const updateParams = [];
 
@@ -902,11 +1190,17 @@ async function updateAcademicData(
       updateFields.push("published_year = ?");
       updateParams.push(updateData.published_year);
     }
+    
+    // อัปเดตไฟล์เอกสารถ้ามี
+    if (paperFilePath !== null) {
+      updateFields.push("paper_file = ?");
+      updateParams.push(paperFilePath);
+    }
 
-    // Update timestamp
+    // อัปเดตเวลา
     updateFields.push("last_updated = NOW()");
 
-    // Add project ID to parameters
+    // เพิ่ม project ID
     updateParams.push(projectId);
 
     if (updateFields.length > 0) {
@@ -917,43 +1211,44 @@ async function updateAcademicData(
       `;
 
       await connection.execute(updateQuery, updateParams);
+      console.log("Updated existing academic paper record");
     }
   } else {
-    // Insert new record
+    // สร้างข้อมูลใหม่
     await connection.execute(
       `
       INSERT INTO academic_papers (
         project_id, 
         publication_date, 
-        published_year
-      ) VALUES (?, ?, ?)
+        published_year,
+        paper_file
+      ) VALUES (?, ?, ?, ?)
     `,
       [
         projectId,
         updateData.publication_date || null,
         updateData.published_year || defaultYear,
+        paperFilePath,
       ]
     );
+    console.log("Created new academic paper record");
   }
 }
 
 /**
- * Helper function to update competition data
+ * อัปเดตข้อมูลการแข่งขันพร้อมไฟล์
  */
-async function updateCompetitionData(
-  connection,
-  projectId,
-  updateData,
-  defaultYear
-) {
-  // Check if competition exists
+async function updateCompetitionDataWithFiles(connection, projectId, updateData, defaultYear, posterPath) {
+  console.log("Updating competition data with files");
+  
+  // ตรวจสอบว่ามีข้อมูลในตารางหรือไม่
   const [competition] = await connection.execute(
     `SELECT * FROM competitions WHERE project_id = ?`,
     [projectId]
   );
 
   if (competition.length > 0) {
-    // Update existing record
+    // อัปเดตข้อมูลที่มีอยู่แล้ว
     const updateFields = [];
     const updateParams = [];
 
@@ -966,14 +1261,14 @@ async function updateCompetitionData(
       updateFields.push("competition_year = ?");
       updateParams.push(updateData.competition_year);
     }
-
-    // ต้องเพิ่ม poster ถ้ามีการอัปเดต
-    if (updateData.poster !== undefined) {
+    
+    // อัปเดตโปสเตอร์ถ้ามี
+    if (posterPath !== null) {
       updateFields.push("poster = ?");
-      updateParams.push(updateData.poster);
+      updateParams.push(posterPath);
     }
 
-    // Add project ID to parameters
+    // เพิ่ม project ID
     updateParams.push(projectId);
 
     if (updateFields.length > 0) {
@@ -984,9 +1279,10 @@ async function updateCompetitionData(
       `;
 
       await connection.execute(updateQuery, updateParams);
+      console.log("Updated existing competition record");
     }
   } else {
-    // Insert new record
+    // สร้างข้อมูลใหม่
     await connection.execute(
       `
       INSERT INTO competitions (
@@ -1000,15 +1296,99 @@ async function updateCompetitionData(
         projectId,
         sanitizeHTML(updateData.competition_name || ""),
         updateData.competition_year || defaultYear,
-        updateData.poster || null,
+        posterPath,
       ]
     );
+    console.log("Created new competition record");
   }
 }
 
 /**
- * Helper function to handle project file uploads
+ * อัปเดตข้อมูลผลงานการเรียนพร้อมไฟล์
  */
+async function updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagePath) {
+  console.log("Updating coursework data with files");
+  
+  // ตรวจสอบว่ามีข้อมูลในตารางหรือไม่
+  const [coursework] = await connection.execute(
+    `SELECT * FROM courseworks WHERE project_id = ?`,
+    [projectId]
+  );
+
+  if (coursework.length > 0) {
+    // อัปเดตข้อมูลที่มีอยู่แล้ว
+    const updateFields = [];
+    const updateParams = [];
+    
+    // อัปเดตโปสเตอร์ถ้ามี
+    if (posterPath !== null) {
+      updateFields.push("poster = ?");
+      updateParams.push(posterPath);
+    }
+    
+    // อัปเดตวิดีโอถ้ามี
+    if (clipVideoPath !== null) {
+      // ถ้าเป็น URL ต้องตรวจสอบว่าเป็นรูปแบบที่ถูกต้อง
+      if (typeof clipVideoPath === 'string' && !clipVideoPath.startsWith('uploads/')) {
+        const videoUrl = sanitizeHTML(clipVideoPath);
+        // ตรวจสอบว่าเป็น URL ของ YouTube, TikTok หรือ Facebook
+        const isValidVideoUrl = 
+          /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|tiktok\.com|facebook\.com|fb\.watch)/.test(videoUrl);
+          
+        if (isValidVideoUrl || videoUrl === "") {
+          updateFields.push("clip_video = ?");
+          updateParams.push(videoUrl);
+        } else {
+          console.warn(`Invalid video URL format: ${videoUrl}`);
+        }
+      } else {
+        // ถ้าเป็นไฟล์ ให้ใส่ path ลงไปได้เลย
+        updateFields.push("clip_video = ?");
+        updateParams.push(clipVideoPath);
+      }
+    }
+    
+    // อัปเดตรูปภาพถ้ามี
+    if (imagePath !== null) {
+      updateFields.push("image = ?");
+      updateParams.push(imagePath);
+    }
+
+    // เพิ่ม project ID
+    updateParams.push(projectId);
+
+    if (updateFields.length > 0) {
+      const updateQuery = `
+        UPDATE courseworks
+        SET ${updateFields.join(", ")}
+        WHERE project_id = ?
+      `;
+
+      await connection.execute(updateQuery, updateParams);
+      console.log("Updated existing coursework record:", { updateFields, updateParams });
+    }
+  } else {
+    // สร้างข้อมูลใหม่
+    await connection.execute(
+      `
+      INSERT INTO courseworks (
+        project_id,
+        poster,
+        clip_video,
+        image
+      ) VALUES (?, ?, ?, ?)
+    `,
+      [
+        projectId,
+        posterPath,
+        clipVideoPath,
+        imagePath,
+      ]
+    );
+    console.log("Created new coursework record");
+  }
+}
+
 /**
  * ลบโครงการ
  * @param {Object} req - Express request object
@@ -1020,8 +1400,8 @@ export const deleteProject = async (req, res) => {
   try {
     const projectId = req.params.projectId;
 
-    // Get project to check ownership
-    const [projects] = await pool.execute(
+    // ดึงข้อมูลโครงการเพื่อตรวจสอบความเป็นเจ้าของและประเภทโครงการ
+    const [projects] = await connection.execute(
       `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
@@ -1032,184 +1412,170 @@ export const deleteProject = async (req, res) => {
 
     const project = projects[0];
 
-    // Check if user has permission to delete
+    // ตรวจสอบสิทธิ์ในการลบ
     if (req.user.id != project.user_id && req.user.role !== "admin") {
       return forbiddenResponse(res, "You can only delete your own projects");
     }
 
-    // Start transaction
+    // เตรียมรายการไฟล์ที่จะลบ
+    let filesToDelete = [];
+
+    // ดึงข้อมูลไฟล์ตามประเภทโครงการ
+    if (project.type === PROJECT_TYPES.ACADEMIC) {
+      const [academicData] = await connection.execute(
+        `SELECT paper_file FROM academic_papers WHERE project_id = ?`,
+        [projectId]
+      );
+      if (academicData.length > 0 && academicData[0].paper_file) {
+        filesToDelete.push(academicData[0].paper_file);
+      }
+    } else if (project.type === PROJECT_TYPES.COMPETITION) {
+      const [competitionData] = await connection.execute(
+        `SELECT poster FROM competitions WHERE project_id = ?`,
+        [projectId]
+      );
+      if (competitionData.length > 0 && competitionData[0].poster) {
+        filesToDelete.push(competitionData[0].poster);
+      }
+    } else if (project.type === PROJECT_TYPES.COURSEWORK) {
+      const [courseworkData] = await connection.execute(
+        `SELECT poster, clip_video, image FROM courseworks WHERE project_id = ?`,
+        [projectId]
+      );
+      if (courseworkData.length > 0) {
+        if (courseworkData[0].poster) filesToDelete.push(courseworkData[0].poster);
+        // ตรวจสอบว่า clip_video เป็นไฟล์ในระบบ (ไม่ใช่ URL ภายนอก)
+        if (courseworkData[0].clip_video && courseworkData[0].clip_video.startsWith('uploads/')) {
+          filesToDelete.push(courseworkData[0].clip_video);
+        }
+        if (courseworkData[0].image) filesToDelete.push(courseworkData[0].image);
+      }
+    }
+
+    console.log("Files to delete:", filesToDelete);
+
+    // เริ่มต้น transaction
     await connection.beginTransaction();
 
     try {
-      // Delete related records in order to avoid foreign key constraints
+      // ลบข้อมูลที่เกี่ยวข้องตามลำดับเพื่อหลีกเลี่ยงปัญหา foreign key constraints
 
-      // Delete type-specific data first
+      // 1. ลบข้อมูลเฉพาะประเภทก่อน
       if (project.type === PROJECT_TYPES.ACADEMIC) {
         await connection.execute(
           `DELETE FROM academic_papers WHERE project_id = ?`,
           [projectId]
         );
+        console.log("Deleted academic paper data");
       } else if (project.type === PROJECT_TYPES.COMPETITION) {
         await connection.execute(
           `DELETE FROM competitions WHERE project_id = ?`,
           [projectId]
         );
+        console.log("Deleted competition data");
       } else if (project.type === PROJECT_TYPES.COURSEWORK) {
         await connection.execute(
           `DELETE FROM courseworks WHERE project_id = ?`,
           [projectId]
         );
+        console.log("Deleted coursework data");
       }
 
-      // Delete project groups
-      await connection.execute(
+      // 2. ลบข้อมูลกลุ่มโครงการ (ผู้ร่วมงาน)
+      const [projectGroupResult] = await connection.execute(
         `DELETE FROM project_groups WHERE project_id = ?`,
         [projectId]
       );
+      console.log(`Deleted ${projectGroupResult.affectedRows} project group records`);
 
-      // Delete visitor views
-      await connection.execute(
+      // 3. ลบข้อมูลการเข้าชม
+      const [viewsResult] = await connection.execute(
         `DELETE FROM visitor_views WHERE project_id = ?`,
         [projectId]
       );
+      console.log(`Deleted ${viewsResult.affectedRows} visitor view records`);
 
-      // Delete project reviews
-      await connection.execute(
+      // 4. ลบข้อมูลการตรวจสอบ
+      const [reviewsResult] = await connection.execute(
         `DELETE FROM project_reviews WHERE project_id = ?`,
         [projectId]
       );
+      console.log(`Deleted ${reviewsResult.affectedRows} project review records`);
 
-      // Delete project
-      await connection.execute(`DELETE FROM projects WHERE project_id = ?`, [
-        projectId,
-      ]);
+      // 5. ลบข้อมูลการแจ้งเตือนที่เกี่ยวข้อง (ถ้ามี)
+      try {
+        const [notificationsResult] = await connection.execute(
+          `DELETE FROM notifications WHERE JSON_EXTRACT(data, '$.projectId') = ?`,
+          [projectId]
+        );
+        console.log(`Deleted ${notificationsResult.affectedRows} related notifications`);
+      } catch (notifError) {
+        // ข้ามถ้ามีปัญหาในการลบการแจ้งเตือน
+        console.warn("Could not delete related notifications:", notifError.message);
+      }
+
+      // 6. ลบข้อมูล upload sessions ที่เกี่ยวข้อง (ถ้ามี)
+      try {
+        const [sessionsResult] = await connection.execute(
+          `DELETE FROM upload_sessions WHERE project_id = ?`,
+          [projectId]
+        );
+        console.log(`Deleted ${sessionsResult.affectedRows} upload session records`);
+      } catch (sessError) {
+        // ข้ามถ้ามีปัญหาในการลบข้อมูล upload sessions
+        console.warn("Could not delete related upload sessions:", sessError.message);
+      }
+
+      // 7. ลบข้อมูลโครงการหลัก
+      await connection.execute(
+        `DELETE FROM projects WHERE project_id = ?`,
+        [projectId]
+      );
+      console.log("Deleted main project record");
 
       // Commit transaction
       await connection.commit();
+      console.log("Transaction committed successfully");
 
-      // Delete physical files
-      for (const file of files) {
-        await storageService.deleteFile(file.file_path);
+      // ลบไฟล์กายภาพหลังจาก transaction สำเร็จ
+      const deletedFiles = [];
+      for (const filePath of filesToDelete) {
+        try {
+          if (filePath && filePath.startsWith('uploads/')) {
+            const result = await fs.promises.unlink(filePath).then(() => {
+              deletedFiles.push(filePath);
+              return true;
+            }).catch(err => {
+              console.error(`Error deleting file ${filePath}:`, err);
+              return false;
+            });
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ${filePath}:`, fileError);
+        }
       }
+      console.log(`Deleted ${deletedFiles.length} physical files`);
 
-      return res.json(successResponse(null, "Project deleted successfully"));
-    } catch (error) {
-      // Rollback on error
+      return res.json(
+        successResponse(
+          {
+            projectId,
+            deletedFiles
+          },
+          "Project deleted successfully"
+        )
+      );
+    } catch (trxError) {
+      // Rollback ในกรณีที่เกิดข้อผิดพลาดระหว่าง transaction
       await connection.rollback();
-      throw error;
+      console.error("Transaction error during delete:", trxError);
+      throw trxError;
     }
   } catch (error) {
+    console.error("Delete project error:", error);
     logger.error(`Error deleting project ${req.params.projectId}:`, error);
     return handleServerError(res, error);
   } finally {
     connection.release();
-  }
-};
-
-/**
- * อัปโหลดไฟล์สำหรับโครงการ
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-export const uploadProjectFile = async (req, res) => {
-  try {
-    const projectId = req.params.projectId;
-
-    // Get project to check ownership
-    const [projects] = await pool.execute(
-      `SELECT * FROM projects WHERE project_id = ?`,
-      [projectId]
-    );
-
-    if (projects.length === 0) {
-      return notFoundResponse(res, "Project not found");
-    }
-
-    const project = projects[0];
-
-    // Check if user has permission to upload
-    if (req.user.id != project.user_id && req.user.role !== "admin") {
-      return forbiddenResponse(
-        res,
-        "You can only upload files to your own projects"
-      );
-    }
-
-    // Check if file was uploaded
-    if (!req.file) {
-      return validationErrorResponse(res, "No file uploaded");
-    }
-
-    const file = req.file;
-    let fileType = "other";
-
-    // Determine file type
-    if (file.mimetype.startsWith("image/")) {
-      fileType = "image";
-    } else if (file.mimetype.startsWith("video/")) {
-      fileType = "video";
-    } else if (file.mimetype === "application/pdf") {
-      fileType = "pdf";
-    }
-
-    // ตรวจสอบประเภทโครงการและบันทึกไฟล์ตามประเภท
-    if (project.type === PROJECT_TYPES.COURSEWORK) {
-      // อัปเดตตาราง courseworks ตามประเภทไฟล์
-      if (fileType === "image") {
-        await pool.execute(
-          `UPDATE courseworks SET image = ? WHERE project_id = ?`,
-          [file.path, projectId]
-        );
-      } else if (file.originalname.toLowerCase().includes("poster")) {
-        await pool.execute(
-          `UPDATE courseworks SET poster = ? WHERE project_id = ?`,
-          [file.path, projectId]
-        );
-      }
-      // ไม่ต้องอัปเดต clip_video เพราะมักจะเป็น URL ไม่ใช่ไฟล์ที่อัปโหลด
-    } 
-    else if (project.type === PROJECT_TYPES.COMPETITION) {
-      // สำหรับโครงการประเภทแข่งขัน มักจะมีเฉพาะ poster
-      if (fileType === "image" || file.originalname.toLowerCase().includes("poster")) {
-        await pool.execute(
-          `UPDATE competitions SET poster = ? WHERE project_id = ?`,
-          [file.path, projectId]
-        );
-      }
-    } 
-    else if (project.type === PROJECT_TYPES.ACADEMIC) {
-      // โครงการวิชาการไม่มีฟิลด์เก็บไฟล์โดยตรง
-      // อาจจะต้องเพิ่มฟิลด์ใหม่ในตาราง academic_papers หากต้องการเก็บไฟล์
-    }
-
-    // Set status back to pending for admin review
-    await pool.execute(
-      `UPDATE projects SET status = ? WHERE project_id = ?`,
-      [PROJECT_STATUSES.PENDING, projectId]
-    );
-
-    return res.status(STATUS_CODES.CREATED).json(
-      successResponse(
-        {
-          fileName: file.originalname,
-          filePath: file.path,
-          fileSize: file.size,
-          fileType,
-          message: "File uploaded and associated with project successfully"
-        },
-        "File uploaded successfully"
-      )
-    );
-  } catch (error) {
-    // Delete uploaded file if an error occurs
-    if (req.file) {
-      await storageService.deleteFile(req.file.path);
-    }
-
-    logger.error(
-      `Error uploading file to project ${req.params.projectId}:`,
-      error
-    );
-    return handleServerError(res, error);
   }
 };

@@ -1,7 +1,6 @@
 // services/projectService.js
 import pool from '../config/database.js';
 import logger from '../config/logger.js';
-import storageService from './storageService.js';
 import notificationService from './notificationService.js';
 import { PROJECT_STATUSES, PROJECT_TYPES } from '../constants/projectStatuses.js';
 import { isValidStatus, isValidType } from '../constants/projectStatuses.js';
@@ -139,7 +138,7 @@ export const getProjectById = async (projectId, options = {}) => {
       
       if (project.type === PROJECT_TYPES.ACADEMIC) {
         const [academic] = await pool.execute(`
-          SELECT publication_date, published_year, last_updated 
+          SELECT publication_date, published_year, paper_file, last_updated 
           FROM academic_papers WHERE project_id = ?
         `, [projectId]);
         

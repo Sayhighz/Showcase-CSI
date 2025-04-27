@@ -161,7 +161,7 @@ export const isResourceOwner = async (req, res, next) => {
     
     // ตรวจสอบว่าเป็น userId หรือไม่
     if (req.params.user_id) {
-      // ถ้าเป็น userId ต้องเป็นของตัวเองเท่านั้น
+    
       if (req.user.id != req.params.user_id) {
         return forbiddenResponse(res, 'Access denied. You can only access your own resources');
       }
