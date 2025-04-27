@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Empty, Pagination } from 'antd';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FilterOutlined, RocketOutlined, TeamOutlined, CalendarOutlined } from '@ant-design/icons';
+import { Select, Empty } from 'antd';
+import { motion } from 'framer-motion';
 
 // นำเข้า hooks ที่มีอยู่
 import { useProject } from '../../hooks';
@@ -222,17 +221,6 @@ const AllProject = () => {
               {Math.min(pagination.current * pagination.pageSize, pagination.total)} จากทั้งหมด {pagination.total} ชิ้น
             </div>
             
-            {/* เพิ่ม Pagination component */}
-            <Pagination
-              current={pagination.current}
-              pageSize={pagination.pageSize}
-              total={pagination.total}
-              onChange={handlePageChange}
-              showSizeChanger
-              pageSizeOptions={['10', '20', '50']}
-              showTotal={(total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`}
-              className="my-4"
-            />
           </div>
         </motion.div>
       )}

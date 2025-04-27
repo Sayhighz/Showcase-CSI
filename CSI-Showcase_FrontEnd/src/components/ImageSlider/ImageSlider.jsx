@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FilePdfOutlined, PlayCircleOutlined, FileImageOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Tooltip, Button } from 'antd';
+import { API_ENDPOINTS } from '../../constants/apiEndpoints';
 
 /**
  * ImageSlider component สำหรับแสดงรูปภาพ, วิดีโอ และไฟล์ PDF
@@ -279,7 +280,7 @@ const ImageSlider = ({ images = [], video, pdfFile, title }) => {
               ) : (
                 <div className="relative w-full h-full flex items-center justify-center p-3">
                   <img
-                    src={image.startsWith('http') ? image : `http://localhost:4000/${image}`}
+                    src={image.startsWith('http') ? image : `${API_ENDPOINTS.BASE}${image}`}
                     alt={`${title} - ภาพที่ ${index + 1}`}
                     className={`max-w-full max-h-full object-contain rounded-md z-10 transition-all duration-700 ease-in-out ${
                       index === currentIndex ? 'scale-100' : 'scale-95'

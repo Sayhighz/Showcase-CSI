@@ -168,7 +168,7 @@ const SearchBar = () => {
           >
             <div className="relative mr-3">
               <Avatar 
-                src={API_ENDPOINTS.BASE+(project.coverImage || project.image)} 
+                src={API_ENDPOINTS.BASE+'/'+(project.coverImage || project.image)} 
                 size={50} 
                 shape="square"
                 className="shadow-md rounded-lg"

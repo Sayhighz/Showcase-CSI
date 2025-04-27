@@ -5,7 +5,6 @@ import logger from './config/logger.js';
 import pool from './config/database.js';
 import { setupSwagger } from './config/swagger.js'; // เพิ่มการนำเข้า Swagger
 import authRoutes from './routes/user/authRoutes.js';
-import userRoutes from './routes/user/userRoutes.js';
 import projectRoutes from './routes/user/projectRoutes.js';
 import searchRoutes from './routes/user/searchRoutes.js';
 import adminAuthRoutes from './routes/admin/adminAuthRoutes.js';
@@ -33,7 +32,6 @@ setupSwagger(app);
 
 // กำหนดเส้นทาง API
 app.use(API_ROUTES.AUTH.BASE, authRoutes);
-app.use(API_ROUTES.USER.BASE, userRoutes);
 app.use(API_ROUTES.PROJECT.BASE, projectRoutes);
 app.use(API_ROUTES.SEARCH.BASE, searchRoutes);
 app.use(API_ROUTES.ADMIN.AUTH.BASE, adminAuthRoutes);

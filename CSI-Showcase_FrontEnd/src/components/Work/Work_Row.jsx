@@ -206,10 +206,11 @@ const Work_Row = ({
                 <Card 
                   key={index} 
                   className="w-full shadow-sm rounded-xl overflow-hidden border-0 bg-white"
+                  style={{ height: "400px" }} // Fixed card height for skeleton
                 >
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    <div className="w-full lg:w-2/5">
-                      <Skeleton.Image active style={{ width: '100%', height: '100%', minHeight: '220px', borderRadius: '8px' }} />
+                  <div className="flex flex-col lg:flex-row gap-6 h-full">
+                    <div className="w-full lg:w-2/5 h-full">
+                      <Skeleton.Image active style={{ width: '100%', height: '240px', borderRadius: '8px' }} />
                     </div>
                     <div className="w-full lg:w-3/5">
                       <Skeleton active title={{ width: '60%' }} paragraph={{ rows: 4, width: ['90%', '80%', '70%', '60%'] }} />
@@ -233,24 +234,37 @@ const Work_Row = ({
                     style={{ 
                       boxShadow: activeHover === index 
                         ? "0 10px 30px rgba(144, 39, 142, 0.15)" 
-                        : "0 4px 20px rgba(0, 0, 0, 0.05)" 
+                        : "0 4px 20px rgba(0, 0, 0, 0.05)",
+                      height: "260px" // Fixed card height
                     }}
                   >
-                    <div className="flex flex-col lg:flex-row">
-                      {/* Project Image Section with Hover Effect */}
-                      <div className="relative w-full lg:w-2/5 h-60 sm:h-72 lg:h-auto overflow-hidden">
-                        <motion.img
-                          src={`${API_ENDPOINTS.BASE}/${item.image}`}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                          animate={{ 
-                            scale: activeHover === index ? 1.08 : 1
-                          }}
-                          transition={{ duration: 0.5 }}
-                          style={{
-                            filter: activeHover === index ? "brightness(1.05)" : "brightness(1)"
-                          }}
-                        />
+                    <div className="flex flex-col lg:flex-row h-full">
+                      {/* Project Image Section with Fixed Height and Aspect Ratio */}
+                      <div className="relative w-full lg:w-2/5 h-48 sm:h-60 lg:h-full overflow-hidden" style={{ minHeight: "240px" }}>
+                        <div className="absolute inset-0">
+                          <motion.div
+                            className="w-full h-full"
+                            animate={{ 
+                              scale: activeHover === index ? 1.08 : 1
+                            }}
+                            transition={{ duration: 0.5 }}
+                            style={{
+                              position: "relative",
+                              width: "100%",
+                              height: "100%",
+                              overflow: "hidden"
+                            }}
+                          >
+                            <img
+                              src={`${API_ENDPOINTS.BASE}/${item.image}`}
+                              alt={item.title}
+                              className="w-full h-full object-cover"
+                              style={{
+                                filter: activeHover === index ? "brightness(1.05)" : "brightness(1)"
+                              }}
+                            />
+                          </motion.div>
+                        </div>
                         
                         {/* Year Badge - Enhanced */}
                         <Badge 
@@ -302,8 +316,8 @@ const Work_Row = ({
                         </motion.div>
                       </div>
                       
-                      {/* Project Details Section - Enhanced */}
-                      <div className="w-full lg:w-3/5 p-5 sm:p-6 lg:p-8">
+                      {/* Project Details Section - Enhanced with fixed height */}
+                      <div className="w-full lg:w-3/5 p-5 sm:p-6 lg:p-8 flex flex-col h-full">
                         <div className="flex flex-col h-full">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
                             <div>
@@ -311,7 +325,7 @@ const Work_Row = ({
                                 to={item.projectLink}
                                 className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300"
                               >
-                                <h2 className="text-xl sm:text-2xl font-semibold mb-3">{item.title}</h2>
+                                <h2 className="text-xl sm:text-2xl font-semibold mb-3 line-clamp-1">{item.title}</h2>
                               </Link>
                               
                               {/* Tags and Metadata - Enhanced */}
@@ -367,18 +381,21 @@ const Work_Row = ({
                             )}
                           </div>
                           
-                          {/* Project Description - Enhanced */}
-                          <p className="text-gray-600 text-sm sm:text-base mb-6 flex-grow leading-relaxed line-clamp-3 sm:line-clamp-4">
-                            {item.description || "รายละเอียดโครงการจะแสดงที่นี่ เพื่อให้ผู้ชมเข้าใจเกี่ยวกับโครงการนี้มากขึ้น"}
-                          </p>
+                          {/* Project Description - Fixed height with overflow */}
+                          <div className="flex-grow overflow-hidden" style={{ maxHeight: "120px" }}>
+                            <p className="text-gray-600 text-sm sm:text-base leading-relaxed line-clamp-3 sm:line-clamp-4">
+                              {item.description || "รายละเอียดโครงการจะแสดงที่นี่ เพื่อให้ผู้ชมเข้าใจเกี่ยวกับโครงการนี้มากขึ้น"}
+                            </p>
+                          </div>
                           
-                          {/* Footer with Avatar and View More Button - Enhanced */}
+                          {/* Footer with Avatar and View More Button - Fixed position at bottom */}
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-auto pt-4 border-t border-gray-100">
                             <div className="flex items-center">
                               <Avatar 
                                 size="large"
                                 className="border-2 border-white shadow-sm"
                                 icon={!item.studentImage && <UserOutlined />}
+                                src={item.studentImage ? `${API_ENDPOINTS.BASE}/${item.studentImage}` : null}
                               >
                                 {!item.studentImage && item.student ? item.student.charAt(0) : null}
                               </Avatar>
@@ -387,7 +404,7 @@ const Work_Row = ({
                                   {item.student || "ชื่อนักศึกษา"}
                                 </p>
                                 <p className="text-xs text-gray-500 m-0">
-                                  ผู้สร้างผลงาน
+                                  อัพโหลดโดย
                                 </p>
                               </div>
                             </div>

@@ -22,7 +22,11 @@ export const getAllProjects = async (filters = {}, pagination = {}) => {
       // สร้าง query พื้นฐาน
       let baseQuery = `
         SELECT p.*, u.username, u.full_name, u.image as user_image,
-               (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image
+          CASE 
+            WHEN p.type = 'coursework' THEN (SELECT c.poster FROM courseworks c WHERE c.project_id = p.project_id)
+            WHEN p.type = 'competition' THEN (SELECT c.poster FROM competitions c WHERE c.project_id = p.project_id)
+            WHEN p.type = 'academic' THEN NULL
+          END as image
         FROM projects p
         JOIN users u ON p.user_id = u.user_id
         WHERE 1=1
@@ -61,9 +65,9 @@ export const getAllProjects = async (filters = {}, pagination = {}) => {
       }
       
       if (filters.search) {
-        baseQuery += ` AND (p.title LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)`;
+        baseQuery += ` AND (p.title LIKE ? OR p.description LIKE ?)`;
         const searchPattern = `%${filters.search}%`;
-        queryParams.push(searchPattern, searchPattern, searchPattern);
+        queryParams.push(searchPattern, searchPattern);
       }
       
       // ตรวจสอบการเข้าถึง สำหรับผู้ใช้ที่ไม่ใช่ผู้ดูแลระบบ
@@ -121,12 +125,6 @@ export const getProjectById = async (projectId, options = {}) => {
       
       const project = projects[0];
       
-      // ดึงข้อมูลไฟล์ที่เกี่ยวข้อง
-      const [files] = await pool.execute(`
-        SELECT * FROM project_files
-        WHERE project_id = ?
-      `, [projectId]);
-      
       // ดึงข้อมูลสมาชิกในกลุ่ม
       const [contributors] = await pool.execute(`
         SELECT u.user_id, u.username, u.full_name, u.email, u.image
@@ -137,10 +135,12 @@ export const getProjectById = async (projectId, options = {}) => {
       
       // ดึงข้อมูลเพิ่มเติมตามประเภทของโครงการ
       let additionalData = {};
+      let files = [];
       
       if (project.type === PROJECT_TYPES.ACADEMIC) {
         const [academic] = await pool.execute(`
-          SELECT * FROM academic_papers WHERE project_id = ?
+          SELECT publication_date, published_year, last_updated 
+          FROM academic_papers WHERE project_id = ?
         `, [projectId]);
         
         if (academic.length > 0) {
@@ -148,19 +148,65 @@ export const getProjectById = async (projectId, options = {}) => {
         }
       } else if (project.type === PROJECT_TYPES.COMPETITION) {
         const [competition] = await pool.execute(`
-          SELECT * FROM competitions WHERE project_id = ?
+          SELECT competition_name, competition_year, poster
+          FROM competitions WHERE project_id = ?
         `, [projectId]);
         
         if (competition.length > 0) {
           additionalData.competition = competition[0];
+          
+          // เพิ่มไฟล์โปสเตอร์เข้าไปในรายการไฟล์
+          if (competition[0].poster) {
+            files.push({
+              file_type: 'image',
+              file_path: competition[0].poster,
+              file_name: competition[0].poster.split('/').pop(),
+              file_size: 0, // ไม่มีข้อมูลขนาดไฟล์
+              upload_date: null
+            });
+          }
         }
       } else if (project.type === PROJECT_TYPES.COURSEWORK) {
         const [coursework] = await pool.execute(`
-          SELECT * FROM courseworks WHERE project_id = ?
+          SELECT poster, clip_video, image
+          FROM courseworks WHERE project_id = ?
         `, [projectId]);
         
         if (coursework.length > 0) {
           additionalData.coursework = coursework[0];
+          
+          // เพิ่มไฟล์โปสเตอร์เข้าไปในรายการไฟล์
+          if (coursework[0].poster) {
+            files.push({
+              file_type: 'image',
+              file_path: coursework[0].poster,
+              file_name: coursework[0].poster.split('/').pop(),
+              file_size: 0,
+              upload_date: null
+            });
+          }
+          
+          // เพิ่มไฟล์วิดีโอเข้าไปในรายการไฟล์
+          if (coursework[0].clip_video) {
+            files.push({
+              file_type: 'video',
+              file_path: coursework[0].clip_video,
+              file_name: coursework[0].clip_video.split('/').pop(),
+              file_size: 0,
+              upload_date: null
+            });
+          }
+          
+          // เพิ่มไฟล์รูปภาพเข้าไปในรายการไฟล์
+          if (coursework[0].image) {
+            files.push({
+              file_type: 'image',
+              file_path: coursework[0].image,
+              file_name: coursework[0].image.split('/').pop(),
+              file_size: 0,
+              upload_date: null
+            });
+          }
         }
       }
       
@@ -227,8 +273,8 @@ export const createProject = async (projectData, files = {}) => {
     const [result] = await connection.execute(`
       INSERT INTO projects (
         user_id, title, description, type, study_year, year, semester, 
-        visibility, status, tags
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        visibility, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       projectData.user_id,
       projectData.title,
@@ -238,8 +284,7 @@ export const createProject = async (projectData, files = {}) => {
       projectData.year,
       projectData.semester,
       projectData.visibility || 1,
-      PROJECT_STATUSES.PENDING,
-      projectData.tags || ''
+      PROJECT_STATUSES.PENDING
     ]);
     
     const projectId = result.insertId;
@@ -254,118 +299,61 @@ export const createProject = async (projectData, files = {}) => {
       }
     }
     
-    // เพิ่มข้อมูลเฉพาะประเภท
-    if (projectData.type === PROJECT_TYPES.ACADEMIC) {
-      await connection.execute(`
-        INSERT INTO academic_papers (
-          project_id, publication_date, published_year, abstract, authors, publication_venue
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        projectId,
-        projectData.publication_date || null,
-        projectData.published_year || projectData.year,
-        projectData.abstract || '',
-        projectData.authors || '',
-        projectData.publication_venue || ''
-      ]);
-    } else if (projectData.type === PROJECT_TYPES.COMPETITION) {
-      await connection.execute(`
-        INSERT INTO competitions (
-          project_id, competition_name, competition_year, competition_level, achievement, team_members
-        ) VALUES (?, ?, ?, ?, ?, ?)
-      `, [
-        projectId,
-        projectData.competition_name || '',
-        projectData.competition_year || projectData.year,
-        projectData.competition_level || 'university',
-        projectData.achievement || '',
-        projectData.team_members || ''
-      ]);
-    } else if (projectData.type === PROJECT_TYPES.COURSEWORK) {
-      await connection.execute(`
-        INSERT INTO courseworks (
-          project_id, course_code, course_name, instructor
-        ) VALUES (?, ?, ?, ?)
-      `, [
-        projectId,
-        projectData.course_code || '',
-        projectData.course_name || '',
-        projectData.instructor || ''
-      ]);
-    }
-    
     // จัดการกับไฟล์ที่อัปโหลด
+    let posterPath = null;
+    let clipVideoPath = null;
+    let imagePath = null;
+    
     if (files && Object.keys(files).length > 0) {
       for (const fieldName in files) {
         const fileList = Array.isArray(files[fieldName]) ? files[fieldName] : [files[fieldName]];
         
         for (const file of fileList) {
-          let fileType = 'other';
-          
-          // กำหนดประเภทไฟล์
-          if (file.mimetype.startsWith('image/')) {
-            fileType = 'image';
-          } else if (file.mimetype.startsWith('video/')) {
-            fileType = 'video';
-          } else if (file.mimetype === 'application/pdf') {
-            fileType = 'pdf';
-          }
-          
-          // บันทึกข้อมูลไฟล์
-          const [fileResult] = await connection.execute(`
-            INSERT INTO project_files (
-              project_id, file_type, file_path, file_name, file_size
-            ) VALUES (?, ?, ?, ?, ?)
-          `, [
-            projectId,
-            fileType,
-            file.path,
-            file.originalname,
-            file.size
-          ]);
-          
           // จัดการกับไฟล์เฉพาะประเภท
-          if (fileType === 'image' && fieldName === 'coverImage') {
-            await connection.execute(`
-              UPDATE projects
-              SET cover_image_id = ?
-              WHERE project_id = ?
-            `, [fileResult.insertId, projectId]);
-          }
-          
-          if (projectData.type === PROJECT_TYPES.ACADEMIC && fieldName === 'paperFile' && fileType === 'pdf') {
-            await connection.execute(`
-              UPDATE academic_papers
-              SET paper_file_id = ?
-              WHERE project_id = ?
-            `, [fileResult.insertId, projectId]);
-          }
-          
-          if (projectData.type === PROJECT_TYPES.COMPETITION && fieldName === 'posterFile' && fileType === 'image') {
-            await connection.execute(`
-              UPDATE competitions
-              SET poster_file_id = ?
-              WHERE project_id = ?
-            `, [fileResult.insertId, projectId]);
-          }
-          
-          if (projectData.type === PROJECT_TYPES.COURSEWORK) {
-            if (fieldName === 'courseworkPoster' && fileType === 'image') {
-              await connection.execute(`
-                UPDATE courseworks
-                SET poster_file_id = ?
-                WHERE project_id = ?
-              `, [fileResult.insertId, projectId]);
-            } else if (fieldName === 'courseworkVideo' && fileType === 'video') {
-              await connection.execute(`
-                UPDATE courseworks
-                SET video_file_id = ?
-                WHERE project_id = ?
-              `, [fileResult.insertId, projectId]);
-            }
+          if (fieldName === 'coverImage' || fieldName === 'posterImage') {
+            posterPath = file.path;
+          } else if (fieldName === 'clipVideo' || fieldName === 'video') {
+            clipVideoPath = file.path;
+          } else if (fieldName === 'image') {
+            imagePath = file.path;
           }
         }
       }
+    }
+    
+    // เพิ่มข้อมูลเฉพาะประเภท
+    if (projectData.type === PROJECT_TYPES.ACADEMIC) {
+      await connection.execute(`
+        INSERT INTO academic_papers (
+          project_id, publication_date, published_year
+        ) VALUES (?, ?, ?)
+      `, [
+        projectId,
+        projectData.publication_date || null,
+        projectData.published_year || projectData.year
+      ]);
+    } else if (projectData.type === PROJECT_TYPES.COMPETITION) {
+      await connection.execute(`
+        INSERT INTO competitions (
+          project_id, competition_name, competition_year, poster
+        ) VALUES (?, ?, ?, ?)
+      `, [
+        projectId,
+        projectData.competition_name || '',
+        projectData.competition_year || projectData.year,
+        posterPath
+      ]);
+    } else if (projectData.type === PROJECT_TYPES.COURSEWORK) {
+      await connection.execute(`
+        INSERT INTO courseworks (
+          project_id, poster, clip_video, image
+        ) VALUES (?, ?, ?, ?)
+      `, [
+        projectId,
+        posterPath,
+        clipVideoPath,
+        imagePath
+      ]);
     }
     
     // Commit transaction

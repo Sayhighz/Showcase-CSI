@@ -1,13 +1,55 @@
 // src/config/swagger.js
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from '../docs/swagger/index.js';
+import swaggerJSDoc from 'swagger-jsdoc';
+
+// Swagger Base Definition
+const swaggerDef = {
+  openapi: '3.0.0',
+  info: {
+    title: 'CSI Showcase API Documentation',
+    version: '1.0.0',
+    description: 'API documentation for CSI Showcase project.',
+  },
+  servers: [
+    {
+      url: 'http://localhost:4000',
+      description: 'Local server',
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT'
+      }
+    }
+  },
+  security: [
+    {
+      bearerAuth: []
+    }
+  ]
+};
+
+// Swagger JSDoc Options
+const options = {
+  swaggerDefinition: swaggerDef,
+  apis: [
+    './src/routes/admin/**/*.js',
+    './src/routes/user/**/*.js',
+    './src/routes/common/**/*.js'
+  ],
+};
+
+// Generate Swagger Spec
+const swaggerSpec = swaggerJSDoc(options);
 
 /**
  * Configure Swagger middleware for Express app
  * @param {Express.Application} app - Express application
  */
 export const setupSwagger = (app) => {
-  // Swagger UI options
   const swaggerUiOptions = {
     explorer: true,
     swaggerOptions: {
@@ -17,17 +59,14 @@ export const setupSwagger = (app) => {
     customSiteTitle: "CSI Showcase API Documentation"
   };
 
-  // Serve Swagger docs
   app.use('/api-docs', swaggerUi.serve);
   app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
-  // Serve Swagger JSON
   app.get('/api-docs.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(swaggerSpec);
   });
 
-  // Log that Swagger is available
   console.log('Swagger API documentation available at /api-docs');
 };
 

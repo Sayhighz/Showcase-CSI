@@ -33,9 +33,6 @@ export const createApp = (options = {}) => {
   
   // กำหนดค่า CORS ที่อนุญาตหลาย origins
   const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://yourdomain.com',
     '*'
   ];
   
@@ -47,12 +44,14 @@ export const createApp = (options = {}) => {
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS policy'));
+        callback(null, true);
+        // callback(new Error('Not allowed by CORS policy'));
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'secret_key', 'admin_secret_key'],
     credentials: true
+    
   }));
   
   app.use(compression()); // บีบอัดข้อมูลเพื่อลดขนาดการส่งข้อมูล

@@ -133,7 +133,7 @@ const ProjectDetails = ({ project }) => {
                 <span>รายละเอียดโปรเจค</span>
               </div>
             }
-            bordered={false}
+            variant={false}
           >
             <div className="prose prose-sm max-w-none text-gray-700">
               <p className="leading-relaxed whitespace-pre-line">{project.description}</p>
@@ -150,7 +150,7 @@ const ProjectDetails = ({ project }) => {
                   <span>ข้อมูลรายวิชา</span>
                 </div>
               }
-              bordered={false}
+              variant={false}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -191,7 +191,7 @@ const ProjectDetails = ({ project }) => {
                   <span>เอกสารดาวน์โหลด</span>
                 </div>
               }
-              bordered={false}
+              variant={false}
             >
               <ul className="space-y-2">
                 {pdfFiles.map((pdf, index) => (

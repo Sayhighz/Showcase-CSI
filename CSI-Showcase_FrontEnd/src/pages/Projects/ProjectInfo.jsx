@@ -10,9 +10,7 @@ import { PROJECT } from '../../constants/routes';
 // นำเข้า components ที่ใช้งาน
 import ProjectDetails from '../../components/ProjectDetails/ProjectDetails';
 import RelatedProjects from '../../components/RelatedProjects/RelatedProjects';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
-import ProjectStats from '../../components/Project/ProjectStats';
 
 const { Title } = Typography;
 
