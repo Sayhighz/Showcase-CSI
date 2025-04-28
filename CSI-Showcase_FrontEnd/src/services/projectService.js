@@ -173,29 +173,33 @@ export const uploadProject = async (userId, projectData, files) => {
       throw new Error('ไม่มี ID ผู้ใช้');
     }
     
-    // สร้าง FormData สำหรับการส่งข้อมูลและไฟล์
+    // สร้าง FormData
     const formData = new FormData();
     
-    // เพิ่มข้อมูลของโปรเจคลงใน FormData
+    // เพิ่มข้อมูลโปรเจค
     Object.keys(projectData).forEach(key => {
-      // ถ้าเป็น Object หรือ Array ให้แปลงเป็น JSON string
-      if (typeof projectData[key] === 'object' && projectData[key] !== null && !(projectData[key] instanceof File)) {
-        formData.append(key, JSON.stringify(projectData[key]));
-      } else if (projectData[key] !== null && projectData[key] !== undefined) {
-        // ไม่เพิ่มค่า null หรือ undefined
-        formData.append(key, projectData[key]);
+      if (projectData[key] !== null && projectData[key] !== undefined && projectData[key] !== '') {
+        // แปลง array หรือ object เป็น JSON string
+        if (typeof projectData[key] === 'object' && !(projectData[key] instanceof File)) {
+          formData.append(key, JSON.stringify(projectData[key]));
+        } else {
+          formData.append(key, projectData[key]);
+        }
       }
     });
     
-    // จัดการไฟล์ตามประเภทโปรเจค
-    console.log("dddddd",files);
+    // ตรวจสอบและเพิ่มไฟล์
     if (files) {
-      if (files.coverImage) {
-        formData.append('coverImage', files.coverImage);
+      // ตรวจสอบประเภทและจัดการไฟล์ตามชนิด
+      const projectType = projectData.type;
+      
+      // ไฟล์สำหรับ Academic
+      if (projectType === 'academic' && files.paperFile) {
+        formData.append('paperFile', files.paperFile);
       }
       
       // ไฟล์สำหรับ Coursework
-      if (projectData.type === 'coursework') {
+      if (projectType === 'coursework') {
         if (files.courseworkPoster) {
           formData.append('courseworkPoster', files.courseworkPoster);
         }
@@ -206,35 +210,20 @@ export const uploadProject = async (userId, projectData, files) => {
           formData.append('courseworkVideo', files.courseworkVideo);
         }
       }
-      // ไฟล์สำหรับ Academic
-      else if (projectData.type === 'academic') {
-        if (files.paperFile) {
-          formData.append('paperFile', files.paperFile);
-          console.log("asdasd",files.paperFile);
-        }
-      }
+      
       // ไฟล์สำหรับ Competition
-      else if (projectData.type === 'competition') {
-        if (files.competitionPoster) {
-          formData.append('competitionPoster', files.competitionPoster);
-        }
-      }
-      
-      // ไฟล์เพิ่มเติมอื่นๆ
-      if (files.documents && files.documents.length > 0) {
-        files.documents.forEach(doc => {
-          formData.append('documents', doc);
-        });
-      }
-      
-      if (files.images && files.images.length > 0) {
-        files.images.forEach(img => {
-          formData.append('images', img);
-        });
+      if (projectType === 'competition' && files.competitionPoster) {
+        formData.append('competitionPoster', files.competitionPoster);
       }
     }
-    console.log("formData",formData);
     
+    // ตรวจสอบการสร้าง FormData
+    console.log("FormData entries:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+    }
+    
+    // ส่งข้อมูลไปยัง API
     const response = await uploadFile(API_ENDPOINTS.PROJECT.UPLOAD(userId), formData);
     
     if (response && response.success) {
@@ -268,60 +257,94 @@ export const updateProject = async (projectId, projectData, files) => {
     
     // เพิ่มข้อมูลของโปรเจคลงใน FormData
     Object.keys(projectData).forEach(key => {
-      // ถ้าเป็น Object หรือ Array ให้แปลงเป็น JSON string
+      // ข้ามค่า null, undefined และ empty string
+      if (projectData[key] === null || projectData[key] === undefined || projectData[key] === '') {
+        return;
+      }
+      
+      // ถ้าเป็น Object หรือ Array ให้แปลงเป็น JSON string (ยกเว้น File objects)
       if (typeof projectData[key] === 'object' && projectData[key] !== null && !(projectData[key] instanceof File)) {
         formData.append(key, JSON.stringify(projectData[key]));
-      } else if (projectData[key] !== null && projectData[key] !== undefined) {
-        // ไม่เพิ่มค่า null หรือ undefined
+      } else {
         formData.append(key, projectData[key]);
       }
     });
     
     // จัดการไฟล์ตามประเภทโปรเจค
     if (files) {
-      if (files.coverImage) {
-        formData.append('coverImage', files.coverImage);
+      const projectType = projectData.type;
+      
+      // ไฟล์สำหรับ Academic
+      if (projectType === 'academic') {
+        if (files.paperFile) {
+          // ตรวจสอบว่าเป็น File object จริงๆ (originFileObj จาก Ant Design Upload)
+          if (files.paperFile.originFileObj) {
+            formData.append('paperFile', files.paperFile.originFileObj);
+          } else if (files.paperFile instanceof File) {
+            formData.append('paperFile', files.paperFile);
+          }
+        }
       }
       
       // ไฟล์สำหรับ Coursework
-      if (projectData.type === 'coursework') {
+      else if (projectType === 'coursework') {
         if (files.courseworkPoster) {
-          formData.append('courseworkPoster', files.courseworkPoster);
+          if (files.courseworkPoster.originFileObj) {
+            formData.append('courseworkPoster', files.courseworkPoster.originFileObj);
+          } else if (files.courseworkPoster instanceof File) {
+            formData.append('courseworkPoster', files.courseworkPoster);
+          }
         }
+        
         if (files.courseworkImage) {
-          formData.append('courseworkImage', files.courseworkImage);
+          if (files.courseworkImage.originFileObj) {
+            formData.append('courseworkImage', files.courseworkImage.originFileObj);
+          } else if (files.courseworkImage instanceof File) {
+            formData.append('courseworkImage', files.courseworkImage);
+          }
         }
+        
         if (files.courseworkVideo) {
-          formData.append('courseworkVideo', files.courseworkVideo);
+          if (files.courseworkVideo.originFileObj) {
+            formData.append('courseworkVideo', files.courseworkVideo.originFileObj);
+          } else if (files.courseworkVideo instanceof File) {
+            formData.append('courseworkVideo', files.courseworkVideo);
+          }
         }
       }
-      // ไฟล์สำหรับ Academic
-      else if (projectData.type === 'academic') {
-        if (files.paperFile) {
-          formData.append('paperFile', files.paperFile);
-        }
-      }
+      
       // ไฟล์สำหรับ Competition
-      else if (projectData.type === 'competition') {
+      else if (projectType === 'competition') {
         if (files.competitionPoster) {
-          formData.append('competitionPoster', files.competitionPoster);
+          if (files.competitionPoster.originFileObj) {
+            formData.append('competitionPoster', files.competitionPoster.originFileObj);
+          } else if (files.competitionPoster instanceof File) {
+            formData.append('competitionPoster', files.competitionPoster);
+          }
         }
       }
       
-      // ไฟล์เพิ่มเติมอื่นๆ
-      if (files.documents && files.documents.length > 0) {
-        files.documents.forEach(doc => {
-          formData.append('documents', doc);
-        });
-      }
-      
-      if (files.images && files.images.length > 0) {
-        files.images.forEach(img => {
-          formData.append('images', img);
-        });
-      }
+      // จัดการกับ arrays ของไฟล์ (ถ้ามี)
+      ['documents', 'images'].forEach(fieldName => {
+        if (files[fieldName] && Array.isArray(files[fieldName]) && files[fieldName].length > 0) {
+          files[fieldName].forEach(file => {
+            if (file.originFileObj) {
+              formData.append(fieldName, file.originFileObj);
+            } else if (file instanceof File) {
+              formData.append(fieldName, file);
+            }
+          });
+        }
+      });
     }
     
+    // แสดง log เพื่อตรวจสอบ FormData
+    console.log("FormData entries for update:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+    }
+    
+    // ส่งข้อมูลไปยัง API
     const response = await updateFile(API_ENDPOINTS.PROJECT.UPDATE(projectId), formData);
     
     if (response && response.success) {

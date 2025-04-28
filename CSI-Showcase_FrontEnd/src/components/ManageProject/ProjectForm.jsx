@@ -299,89 +299,43 @@ const ProjectForm = ({
     try {
       setConfirmLoading(true);
       
-      // ทดสอบการสร้าง FormData อย่างง่าย
-      const testFormData = new FormData();
-      testFormData.append('test', 'value');
-      console.log("Test FormData:", testFormData);
-      console.log("Test FormData has entries:", [...testFormData.entries()].length > 0);
-      
-      // สร้าง FormData จริงสำหรับส่งข้อมูล
-      const formData = new FormData();
-      
-      // ใช้วิธีการแบบ manual แทนการใช้ loop
+      // รวบรวมข้อมูลจากฟอร์ม
       const values = form.getFieldsValue(true);
       
-      formData.append('title', values.title || '');
-      formData.append('description', values.description || '');
-      formData.append('type', projectType || '');
-      formData.append('study_year', String(values.study_year || ''));
-      formData.append('year', String(values.year || ''));
-      formData.append('semester', values.semester || '');
-      formData.append('visibility', String(values.visibility || 1));
+      // สร้างไฟล์สำหรับส่ง
+      const files = {};
       
+      // จัดการไฟล์ตามประเภทโปรเจค
       if (projectType === PROJECT_TYPE.ACADEMIC) {
-        formData.append('published_year', String(values.published_year || ''));
-        if (values.publication_date) {
-          const dateStr = dayjs.isDayjs(values.publication_date) ? 
-            values.publication_date.format('YYYY-MM-DD') : values.publication_date;
-          formData.append('publication_date', dateStr);
+        if (fileList.paperFile.length > 0 && fileList.paperFile[0].originFileObj) {
+          files.paperFile = fileList.paperFile[0].originFileObj;
+        }
+      } else if (projectType === PROJECT_TYPE.COURSEWORK) {
+        if (fileList.courseworkPoster.length > 0 && fileList.courseworkPoster[0].originFileObj) {
+          files.courseworkPoster = fileList.courseworkPoster[0].originFileObj;
         }
         
-        if (fileList.paperFile.length > 0) {
-          const fileObj = fileList.paperFile[0];
-          if (fileObj.originFileObj) {
-            console.log("Adding originFileObj:", fileObj.originFileObj);
-            formData.append('paperFile', fileObj.originFileObj);
-          } else if (fileObj instanceof File || fileObj instanceof Blob) {
-            console.log("Adding file directly:", fileObj);
-            formData.append('paperFile', fileObj);
-          } else if (fileObj.originalFile) {
-            console.log("Adding originalFile:", fileObj.originalFile);
-            formData.append('paperFile', fileObj.originalFile);
-          }
+        if (fileList.courseworkImage.length > 0) {
+          files.courseworkImage = fileList.courseworkImage.find(file => file.originFileObj)?.originFileObj;
+        }
+        
+        if (fileList.courseworkVideo.length > 0 && fileList.courseworkVideo[0].originFileObj) {
+          files.courseworkVideo = fileList.courseworkVideo[0].originFileObj;
+        }
+      } else if (projectType === PROJECT_TYPE.COMPETITION) {
+        if (fileList.competitionPoster.length > 0 && fileList.competitionPoster[0].originFileObj) {
+          files.competitionPoster = fileList.competitionPoster[0].originFileObj;
         }
       }
       
-      // ตรวจสอบ FormData อีกครั้ง
-      console.log("FormData entries count:", [...formData.entries()].length);
-      
-      if ([...formData.entries()].length === 0) {
-        console.error("FormData is still empty after adding fields");
-        message.error("ไม่สามารถสร้างข้อมูลสำหรับส่งได้ โปรดลองอีกครั้ง");
-        setConfirmLoading(false);
-        return;
+      // เตรียมข้อมูลในรูปแบบที่ถูกต้อง
+      // แปลง dayjs object เป็น string
+      if (values.publication_date && dayjs.isDayjs(values.publication_date)) {
+        values.publication_date = values.publication_date.format('YYYY-MM-DD');
       }
       
-      // ส่งข้อมูลแบบใช้ object ธรรมดาแทน FormData
-      const plainDataObject = {
-        title: values.title,
-        description: values.description,
-        type: projectType,
-        study_year: values.study_year,
-        year: values.year,
-        semester: values.semester,
-        visibility: values.visibility
-      };
-      
-      if (projectType === PROJECT_TYPE.ACADEMIC) {
-        plainDataObject.published_year = values.published_year;
-        if (values.publication_date) {
-          plainDataObject.publication_date = dayjs.isDayjs(values.publication_date) ? 
-            values.publication_date.format('YYYY-MM-DD') : values.publication_date;
-        }
-        // สำหรับไฟล์จะต้องจัดการในฝั่ง onSubmit โดยเพิ่มเข้า FormData
-      }
-      
-      console.log("Calling onSubmit with plain object:", plainDataObject);
-      
-      // ส่งทั้ง plain object และ file objects แยกกัน
-      const fileObjects = {};
-      if (fileList.paperFile.length > 0) {
-        fileObjects.paperFile = fileList.paperFile[0];
-      }
-      
-      // ส่งไปที่ onSubmit พร้อมไฟล์แยก
-      onSubmit({ data: plainDataObject, files: fileObjects });
+      // เรียกใช้ callback onSubmit ส่งข้อมูลและไฟล์
+      onSubmit({ data: values, files });
       
       setConfirmLoading(false);
     } catch (error) {

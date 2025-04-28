@@ -37,65 +37,33 @@ const UploadProject = () => {
   // จัดการการส่งฟอร์ม
   // UploadProject.jsx
 
-// UploadProject.jsx
-
-// UploadProject.jsx
-
-// UploadProject.jsx
-
-const handleSubmit = async (formInput) => {
-  try {
-    setError(null);
-
-    const formData = new FormData();
-
-    // เติมข้อมูล text จาก formInput.data
-    if (formInput.data) {
-      Object.entries(formInput.data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value);
-        }
-      });
-    }
-
-    // เติมไฟล์จาก formInput.files (ดึงเฉพาะ originFileObj)
-    if (formInput.files) {
-      Object.entries(formInput.files).forEach(([key, fileEntry]) => {
-        if (fileEntry && fileEntry.originFileObj instanceof File) {
-          formData.append(key, fileEntry.originFileObj);
-        }
-      });
-    }
-
-    // เพิ่มประเภทโปรเจคถ้าไม่มี
-    if (!formData.get('type')) {
-      formData.append('type', activeTab);
-    }
-
-    // แสดงข้อมูล FormData ใน console แบบอ่านง่าย (เฉพาะตอน dev)
-      console.log('FormData Preview:');
-      for (const [key, value] of formData.entries()) {
-        console.log(`${key}:`, value);
+  const handleSubmit = async (formInput) => {
+    try {
+      setError(null);
+      
+      // ตรวจสอบความถูกต้องของข้อมูล
+      if (!formInput.data || !formInput.data.title) {
+        throw new Error('ข้อมูลโปรเจคไม่ถูกต้อง');
       }
-
-    // ตรวจสอบผู้ใช้งาน
-    if (!user || !user.id) {
-      throw new Error('ไม่มีข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่');
+      
+      if (!user || !user.id) {
+        throw new Error('ไม่มีข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่');
+      }
+      
+      console.log('Data to send:', formInput.data);
+      console.log('Files to upload:', formInput.files);
+      
+      // เรียกใช้ API ผ่าน service
+      const response = await createProject(user.id, formInput.data, formInput.files);
+      
+      if (response && response.projectId) {
+        navigate(PROJECT.VIEW(response.projectId));
+      }
+    } catch (err) {
+      console.error('เกิดข้อผิดพลาดในการอัปโหลดโปรเจค:', err);
+      setError(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดโปรเจค');
     }
-
-    console.log(formData)
-    // เรียก API สร้างโปรเจค
-    const response = await createProject(user.id, formInput.data, formInput.files);
-
-    if (response && response.projectId) {
-      navigate(PROJECT.VIEW(response.projectId));
-    }
-
-  } catch (err) {
-    console.error('เกิดข้อผิดพลาดในการอัปโหลดโปรเจค:', err);
-    setError(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดโปรเจค');
-  }
-};
+  };
 
 
   if (!user) {

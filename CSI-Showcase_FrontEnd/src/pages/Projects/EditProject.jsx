@@ -110,27 +110,39 @@ const EditProject = () => {
   }, [project, user, projectId, navigate]);
 
   // จัดการการส่งฟอร์ม
-  const handleSubmit = async (formData) => {
-    try {
-      setError(null);
-      
-      // ตรวจสอบว่าแบบฟอร์มถูกต้อง
-      if (!projectId) {
-        throw new Error('ไม่พบข้อมูล ID ของโปรเจค');
-      }
-      
-      // เรียกใช้ API อัปเดตโปรเจค
-      const response = await updateProject(projectId, formData);
-      
-      if (response) {
-        // นำทางไปยังหน้ารายละเอียดโปรเจค
-        navigate(PROJECT.VIEW(projectId));
-      }
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการแก้ไขโปรเจค:', err);
-      setError(err.message || 'เกิดข้อผิดพลาดในการแก้ไขโปรเจค');
+  // จัดการการส่งฟอร์ม
+const handleSubmit = async (formData) => {
+  try {
+    setError(null);
+    
+    if (!projectId) {
+      throw new Error('ไม่พบข้อมูล ID ของโปรเจค');
     }
-  };
+    
+    // ตรวจสอบและจัดการข้อมูลไฟล์
+    const { data, files } = formData;
+    
+    // ตรวจสอบความถูกต้องของข้อมูล
+    if (!data || !data.title) {
+      throw new Error('กรุณากรอกชื่อโปรเจค');
+    }
+    
+    // แสดงข้อมูลที่จะส่ง
+    console.log('Project data to update:', data);
+    console.log('Files to update:', files);
+    
+    // เรียกใช้ API อัปเดตโปรเจค
+    const response = await updateProject(projectId, data, files);
+    
+    if (response) {
+      // นำทางไปยังหน้ารายละเอียดโปรเจค
+      navigate(PROJECT.VIEW(projectId));
+    }
+  } catch (err) {
+    console.error('เกิดข้อผิดพลาดในการแก้ไขโปรเจค:', err);
+    setError(err.message || 'เกิดข้อผิดพลาดในการแก้ไขโปรเจค');
+  }
+};
 
   // แสดงกล่องยืนยันการลบโปรเจค
   const showDeleteConfirm = () => {
