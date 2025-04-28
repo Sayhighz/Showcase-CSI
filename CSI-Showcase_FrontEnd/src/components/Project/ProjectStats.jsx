@@ -1,10 +1,46 @@
 import React from 'react';
 import { Card, Statistic, Row, Col, Typography, Tooltip } from 'antd';
 import { EyeOutlined, LikeOutlined, MessageOutlined, UserOutlined, CalendarOutlined, TagOutlined } from '@ant-design/icons';
-import { formatCompactNumber } from '../../utils/formatUtils';
-import { formatDate } from '../../utils/dateUtils';
 
 const { Title } = Typography;
+
+/**
+ * ฟังก์ชันสำหรับจัดรูปแบบตัวเลขให้อ่านง่าย
+ * @param {number} value - ค่าตัวเลขที่ต้องการจัดรูปแบบ
+ * @returns {string} - ค่าที่จัดรูปแบบแล้ว
+ */
+const formatCompactNumber = (value) => {
+  if (!value && value !== 0) return '-';
+  
+  if (value < 1000) return value.toString();
+  
+  if (value < 1000000) {
+    return (value / 1000).toFixed(1) + 'K';
+  }
+  
+  return (value / 1000000).toFixed(1) + 'M';
+};
+
+/**
+ * ฟังก์ชันสำหรับจัดรูปแบบวันที่
+ * @param {string|Date} date - วันที่ที่ต้องการจัดรูปแบบ
+ * @returns {string} - วันที่ที่จัดรูปแบบแล้ว
+ */
+const formatDate = (date) => {
+  if (!date) return null;
+  
+  try {
+    const dateObj = new Date(date);
+    return dateObj.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return String(date);
+  }
+};
 
 /**
  * ProjectStats component ใช้สำหรับแสดงข้อมูลสถิติของโปรเจค
@@ -111,7 +147,7 @@ const ProjectStats = ({
           <Tooltip title="จำนวนแท็ก">
             <Statistic
               title="แท็ก"
-              value={tags.length}
+              value={Array.isArray(tags) ? tags.length : 0}
               formatter={(value) => formatCompactNumber(value)}
               prefix={<TagOutlined style={{ fontSize: iconSize }} />}
               loading={loading}

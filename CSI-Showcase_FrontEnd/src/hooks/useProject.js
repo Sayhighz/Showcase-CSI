@@ -16,15 +16,12 @@ import {
   uploadProject,
   updateProject,
   deleteProject,
-  searchProjects,
-  getProjectTypes,
-  getProjectYears,
-  getStudyYears,
-  recordVisitorView
+  searchProjects
 } from '../services/projectService';
 
-// นำเข้า routes
+// นำเข้า constants และ utilities
 import { PROJECT } from '../constants/routes';
+import { PROJECT_TYPE } from '../constants/projectTypes';
 
 /**
  * Custom hook สำหรับจัดการข้อมูลโปรเจค
@@ -34,9 +31,9 @@ import { PROJECT } from '../constants/routes';
 const useProject = (projectId = null) => {
   // State สำหรับการกรองตาม API documentation
   const [filters, setFilters] = useState({
-    category: null,         // แทน 'type' เดิม (coursework, academic, competition)
+    category: null,         // ประเภทโปรเจค (coursework, academic, competition)
     year: null,             // ปีการศึกษา
-    level: null,            // แทน 'studyYear' เดิม
+    level: null,            // ชั้นปีของผู้สร้างโปรเจค
     keyword: '',            // คำค้นหา
   });
   
@@ -49,9 +46,15 @@ const useProject = (projectId = null) => {
     current: 1,
     pageSize: 10
   });
-  const [projectTypes, setProjectTypes] = useState([]);
+  
+  // State สำหรับเก็บข้อมูลตัวกรอง
+  const [projectTypes, setProjectTypes] = useState([
+    { value: PROJECT_TYPE.ACADEMIC, label: 'บทความวิชาการ' },
+    { value: PROJECT_TYPE.COURSEWORK, label: 'งานในชั้นเรียน' },
+    { value: PROJECT_TYPE.COMPETITION, label: 'การแข่งขัน' }
+  ]);
   const [projectYears, setProjectYears] = useState([]);
-  const [studyYears, setStudyYears] = useState([]);
+  const [studyYears, setStudyYears] = useState([1, 2, 3, 4]);
   
   const navigate = useNavigate();
 
@@ -76,11 +79,6 @@ const useProject = (projectId = null) => {
       
       if (response) {
         setProject(response);
-        
-        // บันทึกการเข้าชมโปรเจค
-        recordVisitorView(projectIdToFetch).catch(err => {
-          console.error('เกิดข้อผิดพลาดในการบันทึกการเข้าชมโปรเจค:', err);
-        });
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียดของโปรเจค');
@@ -89,33 +87,6 @@ const useProject = (projectId = null) => {
       setIsLoading(false);
     }
   }, [projectId]);
-
-  /**
-   * ดึงข้อมูลตัวกรองสำหรับโปรเจค (ประเภท, ปี, ชั้นปี)
-   */
-  const fetchFilterOptions = useCallback(async () => {
-    try {
-      // ดึงข้อมูลประเภทโปรเจค
-      const typesResponse = await getProjectTypes();
-      if (typesResponse) {
-        setProjectTypes(typesResponse);
-      }
-      
-      // ดึงข้อมูลปีของโปรเจค
-      const yearsResponse = await getProjectYears();
-      if (yearsResponse) {
-        setProjectYears(yearsResponse);
-      }
-      
-      // ดึงข้อมูลชั้นปีของผู้สร้างโปรเจค
-      const studyYearsResponse = await getStudyYears();
-      if (studyYearsResponse) {
-        setStudyYears(studyYearsResponse);
-      }
-    } catch (err) {
-      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลตัวกรอง:', err);
-    }
-  }, []);
 
   /**
    * ดึงข้อมูลโปรเจคทั้งหมด
@@ -128,34 +99,20 @@ const useProject = (projectId = null) => {
     setError(null);
     
     try {
-      // สร้าง queryParams โดยรวมค่าจาก pagination
+      // สร้าง queryParams โดยรวมค่าจาก pagination และ filters
       const queryParams = {
         page: pagination.current,
         limit: pagination.pageSize,
+        ...filters,
         ...params
       };
       
-      // เพิ่มค่าจาก filters ที่ไม่เป็น null หรือ empty string
-      Object.entries(filters).forEach(([key, value]) => {
-        // ข้าม key ที่มีใน params แล้ว เพื่อไม่ให้เขียนทับ
-        if (!(key in params) && value !== null && value !== undefined && value !== '') {
-          queryParams[key] = value;
+      // กรองค่า null และ undefined ออก
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === null || queryParams[key] === undefined || queryParams[key] === '') {
+          delete queryParams[key];
         }
       });
-      
-      // หากมี type ใน filters หรือ params แต่ไม่มี category 
-      // ให้เพิ่ม category และเอา type ออก (เนื่องจาก API ใช้ category)
-      if ((queryParams.type || filters.type) && !queryParams.category) {
-        queryParams.category = queryParams.type || filters.type;
-        delete queryParams.type;
-      }
-      
-      // หากมี studyYear ใน filters หรือ params แต่ไม่มี level
-      // ให้เพิ่ม level และเอา studyYear ออก (เนื่องจาก API ใช้ level)
-      if ((queryParams.studyYear || filters.studyYear) && !queryParams.level) {
-        queryParams.level = queryParams.studyYear || filters.studyYear;
-        delete queryParams.studyYear;
-      }
       
       console.log('🚀 ส่ง request ไปยัง API ด้วยพารามิเตอร์:', queryParams);
       
@@ -165,8 +122,8 @@ const useProject = (projectId = null) => {
         console.log('✅ ได้รับข้อมูลจาก API:', response);
         setProjects(response.projects || []);
         setPagination({
-          current: parseInt(response.pagination?.current || pagination.current),
-          pageSize: parseInt(response.pagination?.pageSize || pagination.pageSize),
+          current: parseInt(response.pagination?.page || pagination.current),
+          pageSize: parseInt(response.pagination?.limit || pagination.pageSize),
           total: parseInt(response.pagination?.totalItems || 0)
         });
       }
@@ -189,14 +146,13 @@ const useProject = (projectId = null) => {
       const response = await getTopProjects();
       
       if (response) {
-        setProjects(response);
         return response;
       }
-      return null;
+      return [];
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคยอดนิยม');
       console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคยอดนิยม:', err);
-      return null;
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -214,14 +170,13 @@ const useProject = (projectId = null) => {
       const response = await getLatestProjects(limit);
       
       if (response) {
-        setProjects(response);
         return response;
       }
-      return null;
+      return [];
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคล่าสุด');
       console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคล่าสุด:', err);
-      return null;
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -230,8 +185,9 @@ const useProject = (projectId = null) => {
   /**
    * ดึงข้อมูลโปรเจคของผู้ใช้
    * @param {string} userId - ID ของผู้ใช้
+   * @param {Object} params - พารามิเตอร์การค้นหา (pagination)
    */
-  const fetchMyProjects = useCallback(async (userId) => {
+  const fetchMyProjects = useCallback(async (userId, params = {}) => {
     if (!userId) {
       setError('ไม่มีข้อมูลผู้ใช้');
       return;
@@ -241,10 +197,22 @@ const useProject = (projectId = null) => {
     setError(null);
     
     try {
-      const response = await getMyProjects(userId);
+      // สร้าง queryParams จาก pagination
+      const queryParams = {
+        page: pagination.current,
+        limit: pagination.pageSize,
+        ...params
+      };
+      
+      const response = await getMyProjects(userId, queryParams);
       
       if (response) {
-        setProjects(response || []);
+        setProjects(response.projects || []);
+        setPagination({
+          current: parseInt(response.pagination?.page || pagination.current),
+          pageSize: parseInt(response.pagination?.limit || pagination.pageSize),
+          total: parseInt(response.pagination?.totalItems || 0)
+        });
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคของคุณ');
@@ -252,7 +220,7 @@ const useProject = (projectId = null) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [pagination.current, pagination.pageSize]);
 
   /**
    * ค้นหาโปรเจค
@@ -264,29 +232,18 @@ const useProject = (projectId = null) => {
     setError(null);
     
     try {
-      // แปลง type เป็น category ถ้าจำเป็น
-      if (searchParams.type && !searchParams.category) {
-        searchParams.category = searchParams.type;
-        delete searchParams.type;
-      }
-      
-      // แปลง studyYear เป็น level ถ้าจำเป็น
-      if (searchParams.studyYear && !searchParams.level) {
-        searchParams.level = searchParams.studyYear;
-        delete searchParams.studyYear;
-      }
-      
-      // สร้าง queryParams โดยรวมค่าจาก pagination
+      // สร้าง queryParams โดยรวมค่าจาก pagination, filters และ searchParams
       const queryParams = {
         page: pagination.current,
         limit: pagination.pageSize,
+        ...filters,
         ...searchParams
       };
       
-      // เพิ่มค่าจาก filters ที่ไม่มีใน searchParams
-      Object.entries(filters).forEach(([key, value]) => {
-        if (!(key in searchParams) && value !== null && value !== undefined && value !== '') {
-          queryParams[key] = value;
+      // กรองค่า null และ undefined ออก
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === null || queryParams[key] === undefined || queryParams[key] === '') {
+          delete queryParams[key];
         }
       });
       
@@ -298,36 +255,18 @@ const useProject = (projectId = null) => {
         console.log('✅ ผลการค้นหา:', response);
         setProjects(response.projects || []);
         setPagination({
-          current: parseInt(response.pagination?.current || pagination.current),
-          pageSize: parseInt(response.pagination?.pageSize || pagination.pageSize),
+          current: parseInt(response.pagination?.page || pagination.current),
+          pageSize: parseInt(response.pagination?.limit || pagination.pageSize),
           total: parseInt(response.pagination?.totalItems || 0)
         });
         
-        // อัปเดต filters ด้วย searchParams ที่ได้จัดรูปแบบแล้ว
-        const newFilters = { ...filters };
-        
-        // จัดการกับการแปลงชื่อพารามิเตอร์
-        if ('category' in searchParams) {
-          newFilters.category = searchParams.category;
-        } else if ('type' in searchParams) {
-          newFilters.category = searchParams.type;
+        // อัปเดต filters ด้วย searchParams
+        if (Object.keys(searchParams).length > 0) {
+          setFilters(prev => ({
+            ...prev,
+            ...searchParams
+          }));
         }
-        
-        if ('level' in searchParams) {
-          newFilters.level = searchParams.level;
-        } else if ('studyYear' in searchParams) {
-          newFilters.level = searchParams.studyYear;
-        }
-        
-        if ('year' in searchParams) {
-          newFilters.year = searchParams.year;
-        }
-        
-        if ('keyword' in searchParams) {
-          newFilters.keyword = searchParams.keyword;
-        }
-        
-        setFilters(newFilters);
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการค้นหาโปรเจค');
@@ -344,42 +283,17 @@ const useProject = (projectId = null) => {
   const updateFilters = useCallback((newFilters) => {
     console.log('🔄 อัปเดตตัวกรอง - ปัจจุบัน:', filters, 'ใหม่:', newFilters);
     
-    // สร้างชุดตัวกรองใหม่
-    const updatedFilters = { ...filters };
-    
-    // จัดการกับ type/category และ studyYear/level
-    if ('type' in newFilters) {
-      updatedFilters.category = newFilters.type;
-    } else if ('category' in newFilters) {
-      updatedFilters.category = newFilters.category;
-    }
-    
-    if ('studyYear' in newFilters) {
-      updatedFilters.level = newFilters.studyYear;
-    } else if ('level' in newFilters) {
-      updatedFilters.level = newFilters.level;
-    }
-    
-    // อัปเดต year และ keyword (ถ้ามี)
-    if ('year' in newFilters) {
-      updatedFilters.year = newFilters.year;
-    }
-    
-    if ('keyword' in newFilters) {
-      updatedFilters.keyword = newFilters.keyword;
-    }
-    
-    console.log('🔄 ตัวกรองหลังอัปเดต:', updatedFilters);
-    
-    // อัปเดต state filters
-    setFilters(updatedFilters);
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters
+    }));
     
     // รีเซ็ต pagination เป็นหน้าแรก
     setPagination(prev => ({
       ...prev,
       current: 1
     }));
-  }, [filters]);
+  }, []);
 
   /**
    * เปลี่ยนหน้าของการแสดงผลโปรเจค
@@ -401,7 +315,7 @@ const useProject = (projectId = null) => {
    * สร้างโปรเจคใหม่
    * @param {string} userId - ID ของผู้ใช้
    * @param {Object} projectData - ข้อมูลของโปรเจค
-   * @param {File[]} files - ไฟล์ที่ต้องการอัปโหลด
+   * @param {Object} files - ไฟล์ที่ต้องการอัปโหลด
    * @returns {Promise} - ผลลัพธ์จากการสร้างโปรเจค
    */
   const createProject = useCallback(async (userId, projectData, files) => {
@@ -438,7 +352,7 @@ const useProject = (projectId = null) => {
    * อัปเดตข้อมูลโปรเจค
    * @param {string} id - ID ของโปรเจค
    * @param {Object} projectData - ข้อมูลที่ต้องการอัปเดต
-   * @param {File[]} files - ไฟล์ที่ต้องการอัปโหลดใหม่
+   * @param {Object} files - ไฟล์ที่ต้องการอัปโหลดใหม่
    * @returns {Promise} - ผลลัพธ์จากการอัปเดตโปรเจค
    */
   const updateProjectData = useCallback(async (id, projectData, files) => {
@@ -457,7 +371,15 @@ const useProject = (projectId = null) => {
       
       if (response) {
         message.success('อัปเดตโปรเจคสำเร็จ');
-        setProject(response);
+        
+        // อัปเดต state ของโปรเจค (ถ้ามี)
+        if (projectIdToUpdate === projectId) {
+          setProject(prev => ({
+            ...prev,
+            ...response
+          }));
+        }
+        
         return response;
       }
     } catch (err) {
@@ -492,8 +414,15 @@ const useProject = (projectId = null) => {
       if (response) {
         message.success('ลบโปรเจคสำเร็จ');
         
-        // นำทางไปยังหน้าโปรเจคของฉัน
-        navigate(PROJECT.MY_PROJECTS);
+        // นำทางไปยังหน้าโปรเจคของฉัน (ถ้าลบโปรเจคปัจจุบัน)
+        if (projectIdToDelete === projectId) {
+          navigate(PROJECT.MY_PROJECTS);
+        } else {
+          // รีเฟรชรายการโปรเจค
+          if (Array.isArray(projects)) {
+            setProjects(projects.filter(p => p.id !== projectIdToDelete));
+          }
+        }
         
         return response;
       }
@@ -505,12 +434,21 @@ const useProject = (projectId = null) => {
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, navigate]);
+  }, [projectId, navigate, projects]);
 
-  // Effect สำหรับดึงข้อมูลตัวกรองเมื่อ hook ถูกเรียกใช้
+
+
+  // สร้างข้อมูลปีโปรเจคย้อนหลัง 10 ปี
   useEffect(() => {
-    fetchFilterOptions();
-  }, [fetchFilterOptions]);
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    
+    for (let i = 0; i < 10; i++) {
+      years.push(currentYear - i);
+    }
+    
+    setProjectYears(years);
+  }, []);
 
   // Effect สำหรับดึงข้อมูลรายละเอียดของโปรเจคเมื่อมี projectId
   useEffect(() => {
@@ -557,10 +495,7 @@ const useProject = (projectId = null) => {
     deleteProject: removeProject,
     searchProjects: handleSearch,
     updateFilters,
-    changePage,
-    
-    // Utilities
-    fetchFilterOptions
+    changePage
   };
 };
 

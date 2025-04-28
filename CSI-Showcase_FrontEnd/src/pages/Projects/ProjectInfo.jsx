@@ -33,6 +33,7 @@ const ProjectInfo = () => {
   useEffect(() => {
     // ดึงข้อมูลโปรเจค
     fetchProjectDetails();
+    console.log(project)
     
     // ดึงโปรเจคที่เกี่ยวข้อง (โปรเจคล่าสุด)
     fetchLatestProjects(8); // ลดจำนวนลงจาก 9 เป็น 8 เพื่อให้แสดงเป็นแถวละ 4 ได้สวยงาม

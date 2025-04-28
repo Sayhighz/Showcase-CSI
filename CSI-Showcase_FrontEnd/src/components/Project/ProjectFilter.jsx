@@ -37,10 +37,19 @@ const ProjectFilter = ({
   const [form] = Form.useForm();
   const [expanded, setExpanded] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState(initialValues.keyword || '');
+  const [currentFilters, setCurrentFilters] = useState(initialValues);
+
+  // Debug log
+  console.log('ProjectFilter rendered with initialValues:', initialValues);
+  console.log('studyYears provided:', studyYears);
 
   // รีเซ็ตค่าฟอร์มเมื่อ initialValues เปลี่ยนแปลง
   useEffect(() => {
     console.log('🔄 รีเซ็ตฟอร์มด้วยค่า:', initialValues);
+    
+    // ตั้งค่า searchKeyword
+    setSearchKeyword(initialValues.keyword || '');
+    setCurrentFilters(initialValues);
     
     // สำหรับ category/type
     let categoryValue = null;
@@ -50,7 +59,7 @@ const ProjectFilter = ({
       categoryValue = initialValues.type;
     }
     
-    // สำหรับ level/studyYear
+    // สำหรับ level/studyYear - รองรับทั้งสองรูปแบบ
     let levelValue = null;
     if (initialValues.level !== undefined) {
       levelValue = initialValues.level;
@@ -58,17 +67,18 @@ const ProjectFilter = ({
       levelValue = initialValues.studyYear;
     }
     
+    // ตั้งค่าฟอร์ม - เก็บทั้ง level และ studyYear ไว้ในฟอร์ม
+    // เพื่อให้แน่ใจว่ามีการส่งค่าไปที่ API ทั้งสองรูปแบบ
     form.setFieldsValue({
+      type: categoryValue,
       category: categoryValue,
       year: initialValues.year || null,
       level: levelValue,
-      // ใช้ studyYear ในฟอร์มเพื่อความเข้ากันได้กับ component เดิม
       studyYear: levelValue,
-      // ใช้ type ในฟอร์มเพื่อความเข้ากันได้กับ component เดิม
-      type: categoryValue
+      keyword: initialValues.keyword || ''
     });
     
-    setSearchKeyword(initialValues.keyword || '');
+    console.log('Form values after reset:', form.getFieldsValue());
   }, [form, initialValues]);
 
   // ฟังก์ชันสำหรับการกรองข้อมูล
@@ -79,26 +89,45 @@ const ProjectFilter = ({
     if (!onFilterChange) return;
     
     // แปลงค่าให้ตรงกับที่ API ต้องการ
-    const filters = {};
+    const filters = { ...currentFilters };
     
-    // จัดการกับ category/type
+    // จัดการกับ category/type - กรณีที่ผู้ใช้เปลี่ยนแปลงหนึ่งในสองฟิลด์
     if ('type' in changedValues) {
       filters.category = changedValues.type;
+      filters.type = changedValues.type;
+      
+      // อัปเดตฟิลด์ category ในฟอร์มให้ตรงกัน
+      form.setFieldValue('category', changedValues.type);
     } else if ('category' in changedValues) {
       filters.category = changedValues.category;
+      filters.type = changedValues.category;
+      
+      // อัปเดตฟิลด์ type ในฟอร์มให้ตรงกัน
+      form.setFieldValue('type', changedValues.category);
     }
     
-    // จัดการกับ level/studyYear
+    // จัดการกับ level/studyYear - กรณีที่ผู้ใช้เปลี่ยนแปลงหนึ่งในสองฟิลด์
     if ('studyYear' in changedValues) {
       filters.level = changedValues.studyYear;
+      filters.studyYear = changedValues.studyYear;
+      
+      // อัปเดตฟิลด์ level ในฟอร์มให้ตรงกัน
+      form.setFieldValue('level', changedValues.studyYear);
     } else if ('level' in changedValues) {
       filters.level = changedValues.level;
+      filters.studyYear = changedValues.level;
+      
+      // อัปเดตฟิลด์ studyYear ในฟอร์มให้ตรงกัน
+      form.setFieldValue('studyYear', changedValues.level);
     }
     
     // จัดการกับ year
     if ('year' in changedValues) {
       filters.year = changedValues.year;
     }
+    
+    // อัปเดต state
+    setCurrentFilters(filters);
     
     console.log('🔍 ส่งค่าตัวกรองไปยัง onFilterChange:', filters);
     onFilterChange(filters);
@@ -109,22 +138,27 @@ const ProjectFilter = ({
     if (loading) return;
     
     const values = form.getFieldsValue();
+    console.log('Search with form values:', values);
     
     // แปลงค่าให้ตรงกับที่ API ต้องการ
-    const filters = {};
+    const filters = { ...currentFilters };
     
     // จัดการกับ category/type
     if (values.type) {
       filters.category = values.type;
+      filters.type = values.type;
     } else if (values.category) {
       filters.category = values.category;
+      filters.type = values.category;
     }
     
     // จัดการกับ level/studyYear
     if (values.studyYear) {
       filters.level = values.studyYear;
+      filters.studyYear = values.studyYear;
     } else if (values.level) {
       filters.level = values.level;
+      filters.studyYear = values.level;
     }
     
     // จัดการกับ year และ keyword
@@ -133,6 +167,9 @@ const ProjectFilter = ({
     }
     
     filters.keyword = searchKeyword;
+    
+    // อัปเดต state
+    setCurrentFilters(filters);
     
     console.log('🔍 ค้นหาด้วยค่า:', filters);
     
@@ -147,6 +184,17 @@ const ProjectFilter = ({
     
     form.resetFields();
     setSearchKeyword('');
+    
+    const resetFilters = {
+      category: null,
+      type: null,
+      year: null,
+      level: null,
+      studyYear: null,
+      keyword: ''
+    };
+    
+    setCurrentFilters(resetFilters);
     
     if (onReset) {
       onReset();
@@ -224,12 +272,8 @@ const ProjectFilter = ({
       <Form
         form={form}
         {...getFormLayout()}
-        initialValues={{
-          type: initialValues.category || initialValues.type || null,
-          year: initialValues.year || null,
-          studyYear: initialValues.level || initialValues.studyYear || null
-        }}
         onValuesChange={handleFilterChange}
+        className="project-filter-form"
       >
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={expanded ? 12 : 24} md={expanded ? 8 : 12} lg={expanded ? 6 : 8}>
@@ -246,6 +290,7 @@ const ProjectFilter = ({
                 showSearch
                 optionFilterProp="children"
                 className="custom-select"
+                disabled={loading}
               >
                 {projectTypes.map(type => (
                   <Option key={type.value} value={type.value}>
@@ -270,6 +315,7 @@ const ProjectFilter = ({
                 showSearch
                 optionFilterProp="children"
                 className="custom-select"
+                disabled={loading}
               >
                 {yearOptions}
               </Select>
@@ -289,31 +335,14 @@ const ProjectFilter = ({
                   allowClear
                   loading={loading}
                   className="custom-select"
+                  disabled={loading}
                 >
                   {studyYearOptions}
                 </Select>
               </Form.Item>
             </Col>
           )}
-          
-          {expanded && (
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <Form.Item
-                name="tags"
-                label="แท็ก"
-                labelCol={layout === 'horizontal' ? { span: 8 } : undefined}
-                wrapperCol={layout === 'horizontal' ? { span: 16 } : undefined}
-              >
-                <Select
-                  placeholder="เลือกแท็ก"
-                  mode="tags"
-                  allowClear
-                  loading={loading}
-                  className="custom-select"
-                />
-              </Form.Item>
-            </Col>
-          )}
+
         </Row>
         
         <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -343,6 +372,14 @@ const ProjectFilter = ({
             </Button>
           </Space>
         </div>
+
+        {/* Hidden form fields to maintain state compatibility with both naming conventions */}
+        <Form.Item name="category" hidden={true}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="level" hidden={true}>
+          <Input />
+        </Form.Item>
       </Form>
     </Card>
   );

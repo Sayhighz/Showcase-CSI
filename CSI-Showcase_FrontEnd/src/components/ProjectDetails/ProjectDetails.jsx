@@ -1,12 +1,16 @@
 import React from 'react';
-import { Tag, Avatar, Tooltip, Space, Divider, Badge, Card } from 'antd';
+import { Tag, Avatar, Card } from 'antd';
 import { BookOutlined, TeamOutlined, TrophyOutlined, CalendarOutlined, EyeOutlined, UserOutlined, 
-         DownloadOutlined, LinkOutlined, HeartOutlined, FilePdfOutlined } from '@ant-design/icons';
+         DownloadOutlined, FilePdfOutlined } from '@ant-design/icons';
 import ImageSlider from '../ImageSlider/ImageSlider';
 import { formatThaiDate } from '../../utils/dateUtils';
 import { getProjectTypeInfo } from '../../constants/projectTypes';
 import { API_ENDPOINTS } from '../../constants';
 
+// Import component ย่อยสำหรับแต่ละประเภทโปรเจค
+import CompetitionDetails from './CompetitionDetails';
+import CourseWorkDetails from './CourseWorkDetails';
+import AcademicDetails from './AcademicDetails';
 
 /**
  * ProjectDetails component แสดงรายละเอียดของโปรเจค
@@ -18,7 +22,6 @@ import { API_ENDPOINTS } from '../../constants';
  */
 const ProjectDetails = ({ project }) => {
   if (!project) return null;
-  console.log(project)
 
   // Get project type information
   const projectTypeInfo = getProjectTypeInfo(project.type);
@@ -27,13 +30,6 @@ const ProjectDetails = ({ project }) => {
   const imageFiles = project?.files?.filter(file => file.type === 'image') || [];
   const pdfFiles = project?.files?.filter(file => file.type === 'pdf') || [];
   
-  // Format coursework info if available
-  const courseInfo = project.coursework ? {
-    courseCode: project.coursework.course_code,
-    courseName: project.coursework.course_name,
-    instructor: project.coursework.instructor
-  } : null;
-
   // Format contributors
   const contributors = project.contributors || [];
   
@@ -60,19 +56,31 @@ const ProjectDetails = ({ project }) => {
         return 'ไม่อนุมัติ';
     }
   };
+
+  // แสดง Project Type Component ตามประเภทของโปรเจค
+  const renderProjectTypeDetails = () => {
+    switch(project.type) {
+      case 'competition':
+        return <CompetitionDetails competition={project.competition} project={project} />;
+      case 'coursework':
+        return <CourseWorkDetails coursework={project.coursework} project={project} />;
+      case 'academic':
+        return <AcademicDetails academic={project.academic} project={project} />;
+      default:
+        return null;
+    }
+  };
   
   return (
     <div className="w-full relative">
       {/* Project Status Badge - ย้ายไปทางบนมุมขวา */}
       <div className="absolute top-0 right-0 z-20">
-        <Badge
+        <Tag 
           color={getStatusColor(project.status)}
-          text={
-            <span className="text-sm font-medium">
-              {getStatusText(project.status)}
-            </span>
-          }
-        />
+          className="px-2 py-1"
+        >
+          {getStatusText(project.status)}
+        </Tag>
       </div>
 
       {/* Title Header - สวยงามและดึงดูดความสนใจ */}
@@ -116,7 +124,13 @@ const ProjectDetails = ({ project }) => {
           images={imageFiles.map(file => file.path)}
           video={project.coursework?.video_file_id || null}
           pdfFile={pdfFiles.length > 0 ? pdfFiles[0] : null}
-          title={project.title} 
+          title={project.title}
+          // เพิ่มภาพโปสเตอร์หากมี
+          posterImage={
+            project.competition?.poster ||
+            project.coursework?.poster ||
+            project.academic?.paper_file
+          }
         />
       </div>
 
@@ -133,53 +147,15 @@ const ProjectDetails = ({ project }) => {
                 <span>รายละเอียดโปรเจค</span>
               </div>
             }
-            variant={false}
+            bordered={false}
           >
             <div className="prose prose-sm max-w-none text-gray-700">
               <p className="leading-relaxed whitespace-pre-line">{project.description}</p>
             </div>
           </Card>
 
-          {/* Course Information Card - เฉพาะเมื่อมีข้อมูล */}
-          {courseInfo && (
-            <Card 
-              className="mb-6 shadow-sm border-[#90278E]/10 hover:shadow-md transition-shadow"
-              title={
-                <div className="flex items-center text-[#90278E]">
-                  <TeamOutlined className="mr-2" />
-                  <span>ข้อมูลรายวิชา</span>
-                </div>
-              }
-              variant={false}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex">
-                    <span className="font-medium w-32">รหัสวิชา:</span>
-                    <span>{courseInfo.courseCode}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-medium w-32">ชื่อวิชา:</span>
-                    <span>{courseInfo.courseName}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-medium w-32">อาจารย์ผู้สอน:</span>
-                    <span>{courseInfo.instructor}</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex">
-                    <span className="font-medium w-32">ชั้นปี:</span>
-                    <span>{project.studyYear}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-medium w-32">ภาคการศึกษา:</span>
-                    <span>{project.semester}/{project.year}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          )}
+          {/* Project Type Specific Details - แสดงผลตามประเภทของโปรเจค */}
+          {renderProjectTypeDetails()}
 
           {/* PDF Files Card - แสดงเฉพาะเมื่อมีไฟล์ */}
           {pdfFiles.length > 0 && (
@@ -191,7 +167,7 @@ const ProjectDetails = ({ project }) => {
                   <span>เอกสารดาวน์โหลด</span>
                 </div>
               }
-              variant={false}
+              bordered={false}
             >
               <ul className="space-y-2">
                 {pdfFiles.map((pdf, index) => (
@@ -233,7 +209,7 @@ const ProjectDetails = ({ project }) => {
                 <p className="font-semibold mb-2 text-gray-500">ผู้จัดทำหลัก:</p>
                 <div className="flex items-center">
                   <Avatar 
-                    src={`${API_ENDPOINTS.BASE}/${project.author.image}`} 
+                    src={project.author.image ? `${API_ENDPOINTS.BASE}/${project.author.image}` : null} 
                     size="large"
                     className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C]"
                   >
@@ -255,7 +231,7 @@ const ProjectDetails = ({ project }) => {
                   {contributors.map((contributor, index) => (
                     <div key={index} className="flex items-center">
                       <Avatar 
-                        src={`${API_ENDPOINTS.BASE}/${contributor?.image}`} 
+                        src={contributor.image ? `${API_ENDPOINTS.BASE}/${contributor.image}` : null} 
                         size="small"
                         className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C]"
                       >
@@ -301,6 +277,16 @@ const ProjectDetails = ({ project }) => {
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">ปรับปรุงล่าสุด:</span>
                 <span className="font-medium">{formatThaiDate(project.updatedAt || project.createdAt)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">ชั้นปีที่จัดทำ:</span>
+                <span className="font-medium">{project.studyYear || '-'}</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">ภาคการศึกษา:</span>
+                <span className="font-medium">{project.semester}/{project.year}</span>
               </div>
             </div>
           </Card>

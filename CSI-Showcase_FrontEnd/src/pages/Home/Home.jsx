@@ -27,20 +27,13 @@ const { TabPane } = Tabs;
 const Home = () => {
   const { isAuthenticated } = useAuth();
   
-  // ใช้ useProject hook เพื่อเข้าถึงฟังก์ชัน และข้อมูลที่เกี่ยวข้อง
-  const { 
-    fetchLatestProjects,
-    fetchTopProjects,
-    isLoading,
-    error
-  } = useProject();
-
   // สร้าง state สำหรับเก็บข้อมูลโปรเจคที่จะแสดงในหน้า Home
   const [latestProjects, setLatestProjects] = useState([]);
   const [topProjects, setTopProjects] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [loadingTop, setLoadingTop] = useState(false);
+  const [error, setError] = useState(null);
   
   const workControls = useAnimation();
   const bannerControls = useAnimation();
@@ -59,47 +52,71 @@ const Home = () => {
     }))
   ];
 
-  // ฟังก์ชันสำหรับโหลดโปรเจคล่าสุดและยอดนิยม
-  const loadProjects = async () => {
+  // ฟังก์ชันสำหรับโหลดโปรเจคล่าสุด
+  const loadLatestProjects = async () => {
     try {
-      // โหลดโปรเจคล่าสุด
       setLoadingLatest(true);
-      const latestData = await fetchLatestProjects(9); // ขอข้อมูล 9 รายการ
+      setError(null);
       
-      // ใช้ข้อมูลที่ได้จากการเรียก API โดยตรง
+      // เรียกใช้ service โดยตรง
+      const latestProjectsService = await import('../../services/projectService');
+      const latestData = await latestProjectsService.getLatestProjects(9);
+      
+      // กรองตาม category ที่เลือกไว้
       const filteredLatestProjects = selectedCategory !== 'all' 
         ? latestData?.filter(project => project.category === selectedCategory) || []
         : latestData || [];
-        // console.log(latestData)
         
       setLatestProjects(filteredLatestProjects);
+    } catch (err) {
+      console.error("Failed to fetch latest projects", err);
+      setError(err.message || 'ไม่สามารถโหลดข้อมูลโครงการล่าสุดได้');
+    } finally {
       setLoadingLatest(false);
+    }
+  };
 
-      // โหลดโปรเจคยอดนิยม
+  // ฟังก์ชันสำหรับโหลดโปรเจคยอดนิยม
+  const loadTopProjects = async () => {
+    try {
       setLoadingTop(true);
-      const topData = await fetchTopProjects();
-      // console.log(topData)
+      setError(null);
       
-      // ใช้ข้อมูลที่ได้จากการเรียก API โดยตรง
+      // เรียกใช้ service โดยตรง
+      const projectService = await import('../../services/projectService');
+      const topData = await projectService.getTopProjects();
+      
+      // กรองตาม category ที่เลือกไว้
       const filteredTopProjects = selectedCategory !== 'all' 
         ? topData?.filter(project => project.category === selectedCategory) || []
         : topData || [];
         
       setTopProjects(filteredTopProjects);
+    } catch (err) {
+      console.error("Failed to fetch top projects", err);
+      setError(err.message || 'ไม่สามารถโหลดข้อมูลโครงการยอดนิยมได้');
+    } finally {
       setLoadingTop(false);
+    }
+  };
+
+  // ฟังก์ชันรวมสำหรับโหลดข้อมูลทั้งหมด
+  const loadAllProjects = async () => {
+    try {
+      await Promise.all([
+        loadLatestProjects(),
+        loadTopProjects()
+      ]);
     } catch (err) {
       console.error("Failed to fetch projects", err);
       message.error('ไม่สามารถโหลดข้อมูลโครงการได้ โปรดลองอีกครั้งในภายหลัง');
-      setLatestProjects([]);
-      setTopProjects([]);
-      setLoadingLatest(false);
-      setLoadingTop(false);
     }
   };
 
   // โหลดข้อมูลเมื่อโหลดหน้าครั้งแรกหรือเมื่อเปลี่ยนประเภท
   useEffect(() => {
-    loadProjects();
+    loadAllProjects();
+    // console.log(latestProjects)
   }, [selectedCategory]);
   
   // ตั้งค่า scroll event listener แยกต่างหาก
@@ -158,7 +175,7 @@ const Home = () => {
           title="ไม่สามารถโหลดข้อมูลได้" 
           message={error} 
           showReloadButton={true} 
-          onReloadClick={loadProjects}
+          onReloadClick={loadAllProjects}
         />
       </div>
     );

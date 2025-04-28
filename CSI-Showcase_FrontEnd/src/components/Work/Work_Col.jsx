@@ -12,7 +12,9 @@ import {
   TeamOutlined,
   CalendarOutlined,
   ArrowRightOutlined,
-  UserOutlined
+  UserOutlined,
+  FileOutlined,
+  FilePdfOutlined
 } from '@ant-design/icons';
 import { API_ENDPOINTS } from '../../constants';
 
@@ -176,6 +178,34 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
     );
   }
 
+  // ฟังก์ชันสำหรับเลือกการแสดงผลเมื่อไม่มีรูปภาพ
+  const renderCoverImage = (item) => {
+    if (item.image) {
+      return (
+        <motion.img 
+          src={`${API_ENDPOINTS.BASE}/${item.image}`} 
+          alt={item.title} 
+          className="w-full h-full object-cover"
+          animate={{ 
+            scale: isHovering === item.id ? 1.08 : 1,
+            filter: isHovering === item.id ? "brightness(1.05)" : "brightness(1)"
+          }}
+          transition={{ duration: 0.5 }}
+        />
+      );
+    } else {
+      // แสดงไอคอนเอกสารเมื่อไม่มีรูปภาพ
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100">
+          <FilePdfOutlined style={{ fontSize: '48px', color: '#90278E' }} />
+          <div className="mt-3 text-center text-gray-500 px-4">
+            <p className="text-sm truncate max-w-full">{item.title}</p>
+          </div>
+        </div>
+      );
+    }
+  };
+
   return (
     <div className="work-section py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative"
       onMouseEnter={() => setAutoPlay(false)}
@@ -237,13 +267,13 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
           ) : (
             displayedItems.map((item, index) => (
               <motion.div
-                key={index}
+                key={item.id || index}
                 className="w-full"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -30 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                onMouseEnter={() => setIsHovering(index)}
+                onMouseEnter={() => setIsHovering(item.id)}
                 onMouseLeave={() => setIsHovering(null)}
                 whileHover={{ y: -8 }}
               >
@@ -252,7 +282,7 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                   className="overflow-hidden border-0 rounded-xl bg-white h-full"
                   style={{
                     width: cardWidth,
-                    boxShadow: isHovering === index 
+                    boxShadow: isHovering === item.id 
                       ? "0 15px 30px rgba(144, 39, 142, 0.15)" 
                       : "0 5px 15px rgba(0, 0, 0, 0.05)",
                     transition: "all 0.5s ease"
@@ -262,18 +292,9 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                       className="relative overflow-hidden"
                       style={{ height: imageHeight }}
                     >
-                      <motion.img 
-                        src={`${API_ENDPOINTS.BASE}/${item.image}`} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover"
-                        animate={{ 
-                          scale: isHovering === index ? 1.08 : 1,
-                          filter: isHovering === index ? "brightness(1.05)" : "brightness(1)"
-                        }}
-                        transition={{ duration: 0.5 }}
-                      />
+                      {renderCoverImage(item)}
                       
-                      {/* Category tag - Enhanced */}
+                      {/* Category tag */}
                       <Tag 
                         color={item.category === 'competition' ? 'gold' : 
                               item.category === 'academic' ? 'blue' : 'green'} 
@@ -283,7 +304,7 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                         {getTypeLabel(item.category)}
                       </Tag>
                       
-                      {/* Year badge - Enhanced */}
+                      {/* Year badge */}
                       <Badge 
                         count={
                           <span className="flex items-center text-white text-xs sm:text-sm">
@@ -299,13 +320,13 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                         }}
                       />
                       
-                      {/* Hover overlay - Enhanced with better animations */}
+                      {/* Hover overlay */}
                       <motion.div 
                         className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4 sm:p-5"
                         initial={{ opacity: 0 }}
                         animate={{ 
-                          opacity: isHovering === index ? 1 : 0,
-                          y: isHovering === index ? 0 : 20
+                          opacity: isHovering === item.id ? 1 : 0,
+                          y: isHovering === item.id ? 0 : 20
                         }}
                         transition={{ duration: 0.3 }}
                       >
@@ -313,7 +334,7 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                           <motion.h2 
                             className="text-base sm:text-xl font-semibold mb-2"
                             initial={{ y: 20 }}
-                            animate={{ y: isHovering === index ? 0 : 20 }}
+                            animate={{ y: isHovering === item.id ? 0 : 20 }}
                             transition={{ duration: 0.4 }}
                           >
                             {item.title}
@@ -322,14 +343,14 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                           <motion.div 
                             className="flex justify-between text-xs sm:text-sm"
                             initial={{ y: 20 }}
-                            animate={{ y: isHovering === index ? 0 : 20 }}
+                            animate={{ y: isHovering === item.id ? 0 : 20 }}
                             transition={{ duration: 0.4, delay: 0.1 }}
                           >
                             <span>ระดับ: {item.level}</span>
                             <Tooltip title="เข้าชม">
                               <span className="flex items-center">
                                 <EyeOutlined className="mr-1" /> 
-                                {item.viewsCount || Math.floor(Math.random() * 500) + 50}
+                                {item.viewsCount || 0}
                               </span>
                             </Tooltip>
                           </motion.div>
@@ -350,35 +371,46 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                       <p className="m-0 truncate">ปี {item.year} | ระดับ: {item.level}</p>
                     </div>
                     
-                    {/* แสดงไอคอนเฉพาะบางรายการ หรือสามารถกำหนดเงื่อนไขได้ */}
-                    {(item.featured || Math.random() > 0.7) && (
-                      <Tooltip title="ผลงานยอดนิยม">
-                        <FireOutlined className="text-red-500 text-base" />
+                    {/* แสดงไอคอนจำนวนผู้เข้าชม */}
+                    {item.viewsCount > 0 && (
+                      <Tooltip title={`${item.viewsCount} ครั้ง`}>
+                        <span className="flex items-center">
+                          <EyeOutlined className="mr-1 text-gray-500" /> 
+                          {item.viewsCount}
+                        </span>
                       </Tooltip>
                     )}
                   </div>
                   
-                  {/* เพิ่มชื่อนักเรียน/เจ้าของผลงาน */}
+                  {/* เจ้าของผลงาน */}
                   <div className="flex items-center mb-3">
-                    <div 
-                      className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 text-xs"
-                      style={{
-                        background: 'rgba(144, 39, 142, 0.1)',
-                        color: '#90278E'
-                      }}
-                    >
-                      {item.student ? item.student.charAt(0).toUpperCase() : <UserOutlined />}
-                    </div>
+                    {item.userImage ? (
+                      <img 
+                        src={`${API_ENDPOINTS.BASE}/${item.userImage}`}
+                        alt={item.student}
+                        className="w-6 h-6 rounded-full mr-2 object-cover"
+                      />
+                    ) : (
+                      <div 
+                        className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 text-xs"
+                        style={{
+                          background: 'rgba(144, 39, 142, 0.1)',
+                          color: '#90278E'
+                        }}
+                      >
+                        {item.student ? item.student.charAt(0).toUpperCase() : <UserOutlined />}
+                      </div>
+                    )}
                     <p className="text-xs sm:text-sm text-gray-600 m-0 truncate flex-1">
                       {item.student || "ไม่ระบุเจ้าของผลงาน"}
                     </p>
                   </div>
                   
-                  {/* เพิ่มปุ่มดูเพิ่มเติม */}
+                  {/* ปุ่มดูเพิ่มเติม */}
                   <motion.div 
                     className="mt-2"
                     initial={{ opacity: 0.7 }}
-                    animate={{ opacity: isHovering === index ? 1 : 0.7 }}
+                    animate={{ opacity: isHovering === item.id ? 1 : 0.7 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -396,7 +428,7 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Pagination Controls - Enhanced */}
+      {/* Pagination Controls */}
       {totalPages > 1 && (
         <motion.div 
           className="flex justify-center items-center mt-8 sm:mt-10 space-x-2 sm:space-x-3"
@@ -416,14 +448,15 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
           </motion.button>
 
           <div className="flex space-x-1 sm:space-x-2">
-            {totalPages <= 5 ? (
-              // แสดงทุกหน้าถ้ามีไม่เกิน 5 หน้า
-              Array.from({ length: totalPages }).map((_, index) => (
+            {Array.from({ length: Math.min(totalPages, 5) }).map((_, index) => {
+              // แสดงปุ่มกดเฉพาะ 5 หน้าแรก หรือน้อยกว่า
+              const pageNumber = index;
+              return (
                 <motion.button
-                  key={index}
-                  onClick={() => goToPage(index)}
+                  key={pageNumber}
+                  onClick={() => goToPage(pageNumber)}
                   className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border rounded-full transition-all ${
-                    currentPage === index 
+                    currentPage === pageNumber 
                       ? 'bg-gradient-to-r from-[#90278E] to-[#B252B0] text-white border-[#90278E] shadow-md' 
                       : 'text-gray-700 border-gray-200 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white'
                   }`}
@@ -433,92 +466,12 @@ const Work_Col = ({ title, items = [], side = 'center', description }) => {
                   }}
                   whileTap={{ scale: 0.9 }}
                   disabled={loading}
-                  aria-label={`Page ${index + 1}`}
+                  aria-label={`Page ${pageNumber + 1}`}
                 >
-                  {index + 1}
+                  {pageNumber + 1}
                 </motion.button>
-              ))
-            ) : (
-              // แสดงแบบย่อถ้ามีมากกว่า 5 หน้า
-              <>
-                {/* แสดงหน้าแรก */}
-                {currentPage > 1 && (
-                  <motion.button
-                    onClick={() => goToPage(0)}
-                    className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border rounded-full transition-all text-gray-700 border-gray-200 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white"
-                    whileHover={{ 
-                      scale: 1.1,
-                      boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
-                    }}
-                    whileTap={{ scale: 0.9 }}
-                    disabled={loading}
-                    aria-label="Page 1"
-                  >
-                    1
-                  </motion.button>
-                )}
-
-                {/* แสดงจุดไข่ปลาถ้าไม่ได้อยู่ใกล้หน้าแรก */}
-                {currentPage > 2 && (
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-gray-500">
-                    ...
-                  </div>
-                )}
-
-                {/* แสดงหน้าปัจจุบันและหน้าใกล้เคียง */}
-                {Array.from({ length: 3 }).map((_, i) => {
-                  const pageNum = currentPage - 1 + i;
-                  if (pageNum < 0 || pageNum >= totalPages || (pageNum === 0 && currentPage > 1) || (pageNum === totalPages - 1 && currentPage < totalPages - 2)) {
-                    return null;
-                  }
-                  
-                  return (
-                    <motion.button
-                      key={pageNum}
-                      onClick={() => goToPage(pageNum)}
-                      className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border rounded-full transition-all ${
-                        currentPage === pageNum 
-                          ? 'bg-gradient-to-r from-[#90278E] to-[#B252B0] text-white border-[#90278E] shadow-md' 
-                          : 'text-gray-700 border-gray-200 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white'
-                      }`}
-                      whileHover={{ 
-                        scale: 1.1,
-                        boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
-                      }}
-                      whileTap={{ scale: 0.9 }}
-                      disabled={loading}
-                      aria-label={`Page ${pageNum + 1}`}
-                    >
-                      {pageNum + 1}
-                    </motion.button>
-                  );
-                })}
-
-                {/* แสดงจุดไข่ปลาถ้าไม่ได้อยู่ใกล้หน้าสุดท้าย */}
-                {currentPage < totalPages - 3 && (
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-gray-500">
-                    ...
-                  </div>
-                )}
-
-                {/* แสดงหน้าสุดท้าย */}
-                {currentPage < totalPages - 2 && (
-                  <motion.button
-                    onClick={() => goToPage(totalPages - 1)}
-                    className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border rounded-full transition-all text-gray-700 border-gray-200 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white"
-                    whileHover={{ 
-                      scale: 1.1,
-                      boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
-                    }}
-                    whileTap={{ scale: 0.9 }}
-                    disabled={loading}
-                    aria-label={`Page ${totalPages}`}
-                  >
-                    {totalPages}
-                  </motion.button>
-                )}
-              </>
-            )}
+              );
+            })}
           </div>
 
           <motion.button

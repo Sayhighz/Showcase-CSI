@@ -9,16 +9,15 @@ import {
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
-// นำเข้า hooks ที่มีอยู่ในโปรเจค
-import { useAuth, useProject } from "../../hooks";
+// นำเข้า hooks และ services
+import useAuth from "../../hooks/useAuth";
+import { getMyProjects, deleteProject } from "../../services/projectService";
 
-// นำเข้า components ที่มีอยู่แล้วในโปรเจค
+// นำเข้า components
 import Work_Row from "../../components/Work/Work_Row";
-import Work_Col from "../../components/Work/Work_Col";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ErrorMessage from "../../components/common/ErrorMessage";
-import Pagination from "../../components/common/Pagination";
-import ProjectFilter from "../../components/Project/ProjectFilter"; // นำเข้า ProjectFilter
+import ProjectFilter from "../../components/Project/ProjectFilter";
 
 // นำเข้า constants
 import { PROJECT, HOME } from "../../constants/routes";
@@ -27,68 +26,76 @@ import { PROJECT_TYPES, PROJECT_TYPE } from "../../constants/projectTypes";
 const { Title, Text } = Typography;
 
 const MyProject = () => {
-  // ใช้ custom hooks จากโปรเจค
+  // ใช้ custom hook useAuth
   const { user, isAuthenticated, isAuthLoading } = useAuth();
-  const {
-    projects,
-    isLoading,
-    error,
-    fetchMyProjects,
-    deleteProject,
-    projectTypes,
-    projectYears,
-    studyYears,
-    pagination,
-    changePage,
-    updateFilters,
-  } = useProject();
-
-  // สำหรับคัดกรองข้อมูล - ใช้ชื่อฟิลด์ที่เข้ากันได้กับ API
+  
+  // สร้าง state สำหรับจัดการข้อมูลและการแสดงผล
+  const [myProjects, setMyProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [displayType, setDisplayType] = useState("grid"); // 'grid' หรือ 'list'
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  
+  // สำหรับคัดกรองข้อมูล
   const [filters, setFilters] = useState({
-    category: null, // ใช้ category แทน type
+    category: null,
     year: null,
-    level: null, // ใช้ level แทน studyYear
+    level: null,
     keyword: "",
   });
-
-  // สำหรับเก็บข้อมูลโปรเจคที่ได้จาก API
-  const [myProjects, setMyProjects] = useState([]);
-  const [displayType, setDisplayType] = useState("grid"); // 'grid' หรือ 'list'
-
+  
+  // อื่นๆ
+  const [projectYears, setProjectYears] = useState([]);
+  const [studyYears, setStudyYears] = useState([1, 2, 3, 4]);
+  
   const navigate = useNavigate();
 
   // ดึงข้อมูลโปรเจคเมื่อ component mount
   useEffect(() => {
     const fetchProjectData = async () => {
+      if (!user || !user.id) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
       try {
-        if (user && user.id) {
-          await fetchMyProjects(user.id);
+        const response = await getMyProjects(user.id, {
+          page: pagination.current,
+          limit: pagination.pageSize,
+          ...filters
+        });
+        
+        if (response && response.projects) {
+          setMyProjects(response.projects);
+          setPagination(prev => ({
+            ...prev,
+            total: response.pagination?.totalItems || response.projects.length
+          }));
+          
+          // สร้าง projectYears จากข้อมูลที่ได้รับ
+          const years = [...new Set(response.projects.map(p => p.year))].sort((a, b) => b - a);
+          if (years.length > 0) {
+            setProjectYears(years);
+          } else {
+            // สร้าง default ย้อนหลัง 5 ปี
+            const currentYear = new Date().getFullYear();
+            setProjectYears(Array.from({length: 5}, (_, i) => currentYear - i));
+          }
         }
-      } catch (error) {
-        console.error("Error fetching projects:", error);
+      } catch (err) {
+        console.error("Error fetching projects:", err);
+        setError(err.message || "ไม่สามารถโหลดข้อมูลโครงการได้");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchProjectData();
-  }, [user, fetchMyProjects]);
-
-  // เมื่อ projects เปลี่ยนแปลง อัพเดท myProjects state
-  useEffect(() => {
-    // ตรวจสอบว่า projects เป็น array หรือไม่
-    if (Array.isArray(projects)) {
-      setMyProjects(projects);
-    } else if (
-      projects &&
-      projects.projects &&
-      Array.isArray(projects.projects)
-    ) {
-      setMyProjects(projects.projects);
-    } else if (projects && projects.data && Array.isArray(projects.data)) {
-      setMyProjects(projects.data);
-    } else {
-      setMyProjects([]);
-    }
-  }, [projects]);
+  }, [user, pagination.current, pagination.pageSize, filters]);
 
   // คัดกรองโปรเจคตามเงื่อนไข
   const filteredProjects = myProjects.filter(
@@ -102,7 +109,6 @@ const MyProject = () => {
         project.year?.toString() === filters.year?.toString()) &&
       (filters.level === null ||
         filters.level === undefined ||
-        project.level === filters.level ||
         project.level === filters.level) &&
       (filters.keyword === "" ||
         project.title?.toLowerCase().includes(filters.keyword.toLowerCase()) ||
@@ -126,17 +132,24 @@ const MyProject = () => {
   const handleFilterChange = (newFilters) => {
     console.log("อัปเดทตัวกรอง:", newFilters);
     setFilters((prev) => ({ ...prev, ...newFilters }));
-
-    // อัปเดตฟิลเตอร์ใน useProject hook
-    if (updateFilters) {
-      updateFilters(newFilters);
-    }
+    
+    // รีเซ็ต pagination เป็นหน้าแรก
+    setPagination(prev => ({
+      ...prev,
+      current: 1
+    }));
   };
 
   // ค้นหาโปรเจค
   const handleSearch = (searchParams) => {
     console.log("ค้นหาด้วยพารามิเตอร์:", searchParams);
     setFilters((prev) => ({ ...prev, ...searchParams }));
+    
+    // รีเซ็ต pagination เป็นหน้าแรก
+    setPagination(prev => ({
+      ...prev,
+      current: 1
+    }));
   };
 
   // รีเซ็ตตัวกรอง
@@ -147,6 +160,12 @@ const MyProject = () => {
       level: null,
       keyword: "",
     });
+    
+    // รีเซ็ต pagination เป็นหน้าแรก
+    setPagination(prev => ({
+      ...prev,
+      current: 1
+    }));
   };
 
   // แก้ไขโปรเจค
@@ -156,21 +175,32 @@ const MyProject = () => {
 
   // ลบโปรเจค
   const handleDelete = async (project) => {
+    if (!project || !project.id) return;
+    
+    setIsLoading(true);
+    
     try {
       await deleteProject(project.id);
+      
+      // อัปเดตรายการโปรเจคหลังจากลบ
+      setMyProjects(prev => prev.filter(p => p.id !== project.id));
+      
+      // อัปเดตจำนวนโปรเจคทั้งหมด
+      setPagination(prev => ({
+        ...prev,
+        total: prev.total - 1
+      }));
     } catch (err) {
       console.error("Error deleting project:", err);
+      setError(err.message || "ไม่สามารถลบโครงการได้");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // ไปยังหน้าอัปโหลดโปรเจค
   const handleAddProject = () => {
-    navigate(PROJECT.UPLOAD.COURSEWORK);
-  };
-
-  // เปลี่ยนรูปแบบการแสดงผล
-  const toggleDisplayType = () => {
-    setDisplayType((prev) => (prev === "grid" ? "list" : "grid"));
+    navigate(PROJECT.UPLOAD.MAIN);
   };
 
   // กรณียังไม่ได้เข้าสู่ระบบ
@@ -286,7 +316,7 @@ const MyProject = () => {
           </Row>
         </div>
 
-        {/* ใช้ ProjectFilter แทน FilterPanel */}
+        {/* ใช้ ProjectFilter */}
         <div className="mb-8">
           <ProjectFilter
             projectTypes={PROJECT_TYPES}
@@ -300,23 +330,6 @@ const MyProject = () => {
             showSearch={true}
             layout="horizontal"
           />
-
-          {/* ปุ่มสลับการแสดงผล */}
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={toggleDisplayType}
-              icon={
-                displayType === "grid" ? (
-                  <AppstoreOutlined />
-                ) : (
-                  <ProjectOutlined />
-                )
-              }
-              type="default"
-            >
-              {displayType === "grid" ? "แสดงแบบรายการ" : "แสดงแบบกริด"}
-            </Button>
-          </div>
         </div>
 
         {/* แสดงผลงาน */}
@@ -341,30 +354,17 @@ const MyProject = () => {
             />
           </div>
         ) : (
-          // ใช้ Work Components ที่มีอยู่แล้ว\
+          // ใช้ Work Components
           <>
-            <Work_Row
-              title=""
-              items={filteredProjects}
-              side="center"
-              showActions={true}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+              <Work_Row
+                title=""
+                items={filteredProjects}
+                side="center"
+                showActions={true}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
           </>
-        )}
-
-        {/* แสดง Pagination */}
-        {!isLoading && !error && filteredProjects.length > 0 && (
-          <Pagination
-            current={pagination.current}
-            total={pagination.total || filteredProjects.length}
-            pageSize={pagination.pageSize}
-            onChange={changePage}
-            showSizeChanger={true}
-            showQuickJumper={false}
-            showTotal={true}
-          />
         )}
 
         {/* Placeholder เมื่อไม่มีผลงาน */}

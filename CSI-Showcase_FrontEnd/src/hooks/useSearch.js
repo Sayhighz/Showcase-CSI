@@ -30,11 +30,11 @@ const useSearch = () => {
     current: 1,
     pageSize: 10
   });
-  const [advancedFilters, setAdvancedFilters] = useState({
-    type: null,
-    year: null,
-    studyYear: null,
-    tags: []
+  const [filters, setFilters] = useState({
+    type: null,       // ประเภทโปรเจค (coursework, academic, competition)
+    year: null,       // ปีของโปรเจค
+    studyYear: null,  // ชั้นปีของผู้สร้างโปรเจค
+    tags: []          // แท็กที่เกี่ยวข้อง
   });
   
   const debounceTimeout = useRef(null);
@@ -53,12 +53,12 @@ const useSearch = () => {
     const term = searchTerm || keyword;
     
     try {
-      // รวมพารามิเตอร์จาก pagination, advancedFilters และพารามิเตอร์ที่ส่งมา
+      // รวมพารามิเตอร์จาก pagination, filters และพารามิเตอร์ที่ส่งมา
       const queryParams = {
         keyword: term,
         page: pagination.current,
         limit: pagination.pageSize,
-        ...advancedFilters,
+        ...filters,
         ...params
       };
       
@@ -69,14 +69,17 @@ const useSearch = () => {
         }
       });
       
+      console.log('Searching with params:', queryParams);
+      
       const response = await searchProjects(queryParams);
       
-      if (response) {
+      if (response && response.projects) {
         setSearchResults(response.projects || []);
         setPagination({
           ...pagination,
-          total: response.total || 0,
-          current: response.page || 1,
+          total: response.pagination?.total || 0,
+          current: response.pagination?.page || 1,
+          pageSize: response.pagination?.limit || pagination.pageSize
         });
       }
     } catch (err) {
@@ -85,7 +88,7 @@ const useSearch = () => {
     } finally {
       setIsSearching(false);
     }
-  }, [keyword, pagination, advancedFilters]);
+  }, [keyword, pagination, filters]);
 
   /**
    * ค้นหาผู้ใช้
@@ -136,24 +139,40 @@ const useSearch = () => {
       current: page,
       pageSize: pageSize || prev.pageSize
     }));
-  }, []);
+    
+    // ค้นหาใหม่เมื่อเปลี่ยนหน้า
+    handleSearchProjects(keyword, { 
+      page: page, 
+      limit: pageSize || pagination.pageSize
+    });
+  }, [keyword, pagination.pageSize, handleSearchProjects]);
 
   /**
    * ส่งแบบฟอร์มค้นหา
    * @param {string} searchTerm - คำค้นหา
+   * @param {Object} additionalParams - พารามิเตอร์เพิ่มเติม
    */
-  const submitSearch = useCallback((searchTerm = '') => {
+  const submitSearch = useCallback((searchTerm = '', additionalParams = {}) => {
     const term = searchTerm || keyword;
     
-    if (!term || term.trim() === '') {
-      message.warning('กรุณาระบุคำค้นหา');
+    if (!term && !Object.keys(additionalParams).length && !Object.keys(filters).some(key => filters[key])) {
+      message.warning('กรุณาระบุคำค้นหาหรือตัวกรอง');
       return;
     }
     
     // สร้าง URL สำหรับการค้นหา
     const queryParams = {
-      keyword: term
+      keyword: term,
+      ...filters,
+      ...additionalParams
     };
+    
+    // กรองค่า null และ undefined ออก
+    Object.keys(queryParams).forEach(key => {
+      if (queryParams[key] === null || queryParams[key] === undefined || queryParams[key] === '') {
+        delete queryParams[key];
+      }
+    });
     
     const searchPath = `${SEARCH.RESULTS}?${buildSearchQuery(queryParams)}`;
     
@@ -161,15 +180,15 @@ const useSearch = () => {
     navigate(searchPath);
     
     // ค้นหาโปรเจค
-    handleSearchProjects(term);
-  }, [keyword, navigate, handleSearchProjects]);
+    handleSearchProjects(term, additionalParams);
+  }, [keyword, filters, navigate, handleSearchProjects]);
 
   /**
-   * อัปเดตตัวกรองขั้นสูง
+   * อัปเดตตัวกรอง
    * @param {Object} newFilters - ตัวกรองใหม่
    */
-  const updateAdvancedFilters = useCallback((newFilters) => {
-    setAdvancedFilters(prevFilters => ({
+  const updateFilters = useCallback((newFilters) => {
+    setFilters(prevFilters => ({
       ...prevFilters,
       ...newFilters
     }));
@@ -182,10 +201,10 @@ const useSearch = () => {
   }, []);
 
   /**
-   * ล้างตัวกรองขั้นสูง
+   * ล้างตัวกรองทั้งหมด
    */
-  const clearAdvancedFilters = useCallback(() => {
-    setAdvancedFilters({
+  const clearFilters = useCallback(() => {
+    setFilters({
       type: null,
       year: null,
       studyYear: null,
@@ -203,10 +222,54 @@ const useSearch = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const termFromURL = searchParams.get('keyword');
+    const typeFromURL = searchParams.get('type') || searchParams.get('category');
+    const yearFromURL = searchParams.get('year');
+    const studyYearFromURL = searchParams.get('studyYear') || searchParams.get('level');
+    const tagsFromURL = searchParams.get('tags');
+    
+    // อัปเดตฟิลเตอร์และคำค้นหาถ้ามีพารามิเตอร์ใน URL
+    const updatedFilters = {};
+    let shouldSearch = false;
     
     if (termFromURL) {
       setKeyword(termFromURL);
-      handleSearchProjects(termFromURL);
+      shouldSearch = true;
+    }
+    
+    if (typeFromURL) {
+      updatedFilters.type = typeFromURL;
+      shouldSearch = true;
+    }
+    
+    if (yearFromURL) {
+      updatedFilters.year = yearFromURL;
+      shouldSearch = true;
+    }
+    
+    if (studyYearFromURL) {
+      updatedFilters.studyYear = studyYearFromURL;
+      shouldSearch = true;
+    }
+    
+    if (tagsFromURL) {
+      updatedFilters.tags = tagsFromURL.split(',');
+      shouldSearch = true;
+    }
+    
+    if (Object.keys(updatedFilters).length > 0) {
+      setFilters(prev => ({
+        ...prev,
+        ...updatedFilters
+      }));
+    }
+    
+    // ค้นหาอัตโนมัติถ้ามีพารามิเตอร์ใน URL
+    if (shouldSearch) {
+      const searchQueryParams = {
+        keyword: termFromURL,
+        ...updatedFilters
+      };
+      handleSearchProjects(termFromURL, updatedFilters);
     }
   }, [location.search, handleSearchProjects]);
 
@@ -226,7 +289,7 @@ const useSearch = () => {
     error,
     keyword,
     pagination,
-    advancedFilters,
+    filters,
     
     // Actions
     searchProjects: handleSearchProjects,
@@ -234,8 +297,8 @@ const useSearch = () => {
     changePage,
     handleKeywordChange,
     submitSearch,
-    updateAdvancedFilters,
-    clearAdvancedFilters,
+    updateFilters,
+    clearFilters,
   };
 };
 

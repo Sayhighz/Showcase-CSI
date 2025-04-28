@@ -13,7 +13,9 @@ import {
   EyeOutlined,
   ArrowRightOutlined,
   UserOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  FileOutlined,
+  FilePdfOutlined
 } from "@ant-design/icons";
 import { Card, Button, Skeleton, Tag, Avatar, Badge, Space, Empty } from "antd";
 import { API_ENDPOINTS } from "../../constants";
@@ -40,7 +42,6 @@ const Work_Row = ({
     if (savedPage) {
       setCurrentPage(Number(savedPage));
     }
-    console.log(items)
   }, []);
 
   useEffect(() => {
@@ -113,6 +114,47 @@ const Work_Row = ({
         return "gold";
       default:
         return "default";
+    }
+  };
+
+  // ฟังก์ชันสำหรับเลือกการแสดงผลเมื่อไม่มีรูปภาพ
+  const renderProjectImage = (item) => {
+    if (item.image) {
+      return (
+        <motion.div
+          className="w-full h-full"
+          animate={{ 
+            scale: activeHover === item.id ? 1.08 : 1
+          }}
+          transition={{ duration: 0.5 }}
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            overflow: "hidden"
+          }}
+        >
+          <img
+            src={`${API_ENDPOINTS.BASE}/${item.image}`}
+            alt={item.title}
+            className="w-full h-full object-cover"
+            style={{
+              filter: activeHover === item.id ? "brightness(1.05)" : "brightness(1)"
+            }}
+          />
+        </motion.div>
+      );
+    } else {
+      // แสดงไอคอนเอกสารเมื่อไม่มีรูปภาพ
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100">
+          <FilePdfOutlined style={{ fontSize: '64px', color: '#90278E' }} />
+          <div className="mt-4 text-center text-gray-600 px-4">
+            <p className="text-sm sm:text-base font-medium">{item.title}</p>
+            <p className="text-xs text-gray-500 mt-1">ไม่มีภาพประกอบ</p>
+          </div>
+        </div>
+      );
     }
   };
 
@@ -206,7 +248,7 @@ const Work_Row = ({
                 <Card 
                   key={index} 
                   className="w-full shadow-sm rounded-xl overflow-hidden border-0 bg-white"
-                  style={{ height: "400px" }} // Fixed card height for skeleton
+                  style={{ height: "260px" }}
                 >
                   <div className="flex flex-col lg:flex-row gap-6 h-full">
                     <div className="w-full lg:w-2/5 h-full">
@@ -221,9 +263,9 @@ const Work_Row = ({
             ) : (
               displayedItems.map((item, index) => (
                 <motion.div
-                  key={index}
+                  key={item.id || index}
                   variants={itemVariants}
-                  onMouseEnter={() => setActiveHover(index)}
+                  onMouseEnter={() => setActiveHover(item.id)}
                   onMouseLeave={() => setActiveHover(null)}
                   whileHover={{ y: -5 }}
                   transition={{ type: "spring", stiffness: 300 }}
@@ -232,38 +274,17 @@ const Work_Row = ({
                     className="w-full shadow-md hover:shadow-xl transition-all duration-500 rounded-xl overflow-hidden border-0 bg-white"
                     bodyStyle={{ padding: 0 }}
                     style={{ 
-                      boxShadow: activeHover === index 
+                      boxShadow: activeHover === item.id 
                         ? "0 10px 30px rgba(144, 39, 142, 0.15)" 
                         : "0 4px 20px rgba(0, 0, 0, 0.05)",
-                      height: "260px" // Fixed card height
+                      height: "260px"
                     }}
                   >
                     <div className="flex flex-col lg:flex-row h-full">
                       {/* Project Image Section with Fixed Height and Aspect Ratio */}
                       <div className="relative w-full lg:w-2/5 h-48 sm:h-60 lg:h-full overflow-hidden" style={{ minHeight: "240px" }}>
                         <div className="absolute inset-0">
-                          <motion.div
-                            className="w-full h-full"
-                            animate={{ 
-                              scale: activeHover === index ? 1.08 : 1
-                            }}
-                            transition={{ duration: 0.5 }}
-                            style={{
-                              position: "relative",
-                              width: "100%",
-                              height: "100%",
-                              overflow: "hidden"
-                            }}
-                          >
-                            <img
-                              src={`${API_ENDPOINTS.BASE}/${item.image}`}
-                              alt={item.title}
-                              className="w-full h-full object-cover"
-                              style={{
-                                filter: activeHover === index ? "brightness(1.05)" : "brightness(1)"
-                              }}
-                            />
-                          </motion.div>
+                          {renderProjectImage(item)}
                         </div>
                         
                         {/* Year Badge - Enhanced */}
@@ -283,37 +304,39 @@ const Work_Row = ({
                         />
                         
                         {/* Hover Overlay - Enhanced with animation */}
-                        <motion.div 
-                          className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4 sm:p-6"
-                          initial={{ opacity: 0 }}
-                          animate={{ 
-                            opacity: activeHover === index ? 1 : 0,
-                            y: activeHover === index ? 0 : 20
-                          }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <div className="text-white">
-                            <motion.h3 
-                              className="text-lg sm:text-xl font-semibold mb-2"
-                              initial={{ y: 20 }}
-                              animate={{ y: activeHover === index ? 0 : 20 }}
-                              transition={{ duration: 0.4 }}
-                            >
-                              {item.title}
-                            </motion.h3>
-                            <motion.div 
-                              className="flex justify-between w-full"
-                              initial={{ y: 20 }}
-                              animate={{ y: activeHover === index ? 0 : 20 }}
-                              transition={{ duration: 0.4, delay: 0.1 }}
-                            >
-                              <span className="flex items-center text-sm sm:text-base">
-                                <EyeOutlined className="mr-2" /> 
-                                {item.viewsCount} เข้าชม
-                              </span>
-                            </motion.div>
-                          </div>
-                        </motion.div>
+                        {item.image && (
+                          <motion.div 
+                            className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4 sm:p-6"
+                            initial={{ opacity: 0 }}
+                            animate={{ 
+                              opacity: activeHover === item.id ? 1 : 0,
+                              y: activeHover === item.id ? 0 : 20
+                            }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <div className="text-white">
+                              <motion.h3 
+                                className="text-lg sm:text-xl font-semibold mb-2"
+                                initial={{ y: 20 }}
+                                animate={{ y: activeHover === item.id ? 0 : 20 }}
+                                transition={{ duration: 0.4 }}
+                              >
+                                {item.title}
+                              </motion.h3>
+                              <motion.div 
+                                className="flex justify-between w-full"
+                                initial={{ y: 20 }}
+                                animate={{ y: activeHover === item.id ? 0 : 20 }}
+                                transition={{ duration: 0.4, delay: 0.1 }}
+                              >
+                                <span className="flex items-center text-sm sm:text-base">
+                                  <EyeOutlined className="mr-2" /> 
+                                  {item.viewsCount || 0} เข้าชม
+                                </span>
+                              </motion.div>
+                            </div>
+                          </motion.div>
+                        )}
                       </div>
                       
                       {/* Project Details Section - Enhanced with fixed height */}
@@ -352,6 +375,16 @@ const Work_Row = ({
                                 >
                                   ปี {item.year}
                                 </Tag>
+
+                                {item.viewsCount > 0 && (
+                                  <Tag 
+                                    icon={<EyeOutlined />} 
+                                    color="default"
+                                    className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm"
+                                  >
+                                    {item.viewsCount} ครั้ง
+                                  </Tag>
+                                )}
                               </Space>
                             </div>
                             
@@ -359,7 +392,7 @@ const Work_Row = ({
                             {showActions && (
                               <Space className="mt-2 sm:mt-0">
                                 <Button
-                                  onClick={() => onEdit(item)}
+                                  onClick={() => onEdit && onEdit(item)}
                                   icon={<EditOutlined />}
                                   type="primary"
                                   size="middle"
@@ -368,7 +401,7 @@ const Work_Row = ({
                                   แก้ไข
                                 </Button>
                                 <Button
-                                  onClick={() => onDelete(item)}
+                                  onClick={() => onDelete && onDelete(item)}
                                   icon={<DeleteOutlined />}
                                   type="primary"
                                   danger
@@ -382,8 +415,8 @@ const Work_Row = ({
                           </div>
                           
                           {/* Project Description - Fixed height with overflow */}
-                          <div className="flex-grow overflow-hidden" style={{ maxHeight: "120px" }}>
-                            <p className="text-gray-600 text-sm sm:text-base leading-relaxed line-clamp-3 sm:line-clamp-4">
+                          <div className="flex-grow overflow-hidden" style={{ maxHeight: "80px" }}>
+                            <p className="text-gray-600 text-sm sm:text-base leading-relaxed line-clamp-3">
                               {item.description || "รายละเอียดโครงการจะแสดงที่นี่ เพื่อให้ผู้ชมเข้าใจเกี่ยวกับโครงการนี้มากขึ้น"}
                             </p>
                           </div>
@@ -391,20 +424,27 @@ const Work_Row = ({
                           {/* Footer with Avatar and View More Button - Fixed position at bottom */}
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-auto pt-4 border-t border-gray-100">
                             <div className="flex items-center">
-                              <Avatar 
-                                size="large"
-                                className="border-2 border-white shadow-sm"
-                                icon={!item.studentImage && <UserOutlined />}
-                                src={item.studentImage ? `${API_ENDPOINTS.BASE}/${item.studentImage}` : null}
-                              >
-                                {!item.studentImage && item.student ? item.student.charAt(0) : null}
-                              </Avatar>
+                              {item.userImage ? (
+                                <Avatar 
+                                  size="large"
+                                  className="border-2 border-white shadow-sm"
+                                  src={`${API_ENDPOINTS.BASE}/${item.userImage}`}
+                                />
+                              ) : (
+                                <Avatar 
+                                  size="large"
+                                  className="border-2 border-white shadow-sm bg-[rgba(144,39,142,0.15)]"
+                                  style={{ color: '#90278E' }}
+                                >
+                                  {item.student ? item.student.charAt(0).toUpperCase() : <UserOutlined />}
+                                </Avatar>
+                              )}
                               <div className="ml-3">
                                 <p className="text-sm sm:text-base font-medium text-gray-800 m-0">
                                   {item.student || "ชื่อนักศึกษา"}
                                 </p>
                                 <p className="text-xs text-gray-500 m-0">
-                                  อัพโหลดโดย
+                                  {item.createdAt ? new Date(item.createdAt).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : "อัพโหลดโดย"}
                                 </p>
                               </div>
                             </div>
@@ -454,7 +494,7 @@ const Work_Row = ({
           </motion.button>
 
           <div className="flex space-x-1 sm:space-x-2">
-            {Array.from({ length: totalPages }).map((_, index) => (
+            {Array.from({ length: Math.min(totalPages, 5) }).map((_, index) => (
               <motion.button
                 key={index}
                 onClick={() => goToPage(index)}

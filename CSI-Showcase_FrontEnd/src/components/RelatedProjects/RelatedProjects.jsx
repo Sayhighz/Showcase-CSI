@@ -1,113 +1,109 @@
 import React from 'react';
-import { StarFilled, StarOutlined, RocketOutlined, AppstoreOutlined, FilterOutlined } from '@ant-design/icons';
-import Work_Col from '../Work/Work_Col';
-import { Empty, Button, Tooltip } from 'antd';
-import { PROJECT } from '../../constants';
+import { Row, Col, Card, Tag, Tooltip, Typography } from 'antd';
+import { EyeOutlined, UserOutlined, BookOutlined, TeamOutlined, TrophyOutlined } from '@ant-design/icons';
+import { Link } from 'react-router-dom';
+import { PROJECT } from '../../constants/routes';
+import { API_ENDPOINTS } from '../../constants';
+import { formatThaiDate } from '../../utils/dateUtils';
+
+const { Title, Text } = Typography;
 
 /**
- * RelatedProjects component แสดงโปรเจคที่เกี่ยวข้องในรูปแบบกริด
- * พร้อมการตกแต่งในรูปแบบอวกาศที่สวยงามและใช้งานง่าย
+ * Component สำหรับแสดงโปรเจคที่เกี่ยวข้อง
  * 
  * @param {Object} props - Props ของ component
  * @param {Array} props.projects - รายการโปรเจคที่เกี่ยวข้อง
  * @returns {JSX.Element} RelatedProjects component
  */
-const RelatedProjects = ({ projects }) => {
-  // ถ้าไม่มีข้อมูลหรือข้อมูลว่างเปล่า ให้แสดง Empty component
-  if (!projects || projects.length === 0) {
-    return (
-      <div className="w-full py-10 px-8 relative">
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <span className="text-[#90278E]/60">
-              ไม่มีผลงานที่เกี่ยวข้องในขณะนี้
-            </span>
-          }
-        />
-      </div>
-    );
-  }
+const RelatedProjects = ({ projects = [] }) => {
+  if (!projects || projects.length === 0) return null;
+
+  // ตัดให้แสดงไม่เกิน 8 โปรเจค
+  const displayProjects = projects.slice(0, 8);
 
   return (
-    <div className="w-full py-8 px-8 relative">
-      {/* Space-themed decorative elements */}
-      <div className="absolute -top-10 right-10 w-20 h-20 rounded-full bg-[#90278E]/10 blur-xl animate-pulse" style={{ animationDuration: '15s' }}></div>
-      <div className="absolute -bottom-10 left-10 w-24 h-24 rounded-full bg-[#FF5E8C]/10 blur-xl animate-pulse" style={{ animationDuration: '18s' }}></div>
-      
-      {/* Header with enhanced space theme */}
-      <div className="relative mb-8">
-        <div className="flex justify-center mb-2">
-          <div className="flex items-center space-x-3">
-            <div className="w-1 h-1 bg-[#FF5E8C] rounded-full animate-pulse" style={{ animationDuration: '2s' }}></div>
-            <div className="w-2 h-2 bg-[#90278E] rounded-full"></div>
-            <div className="w-1 h-1 bg-[#FF5E8C] rounded-full animate-pulse" style={{ animationDuration: '3s' }}></div>
-          </div>
-        </div>
-        
-        <h2 className="text-2xl font-bold text-center text-[#0D0221] relative mb-3">
-          ผลงานอื่นๆ ที่น่าสนใจ
-          <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-[#90278E] to-[#FF5E8C] rounded-full"></span>
-        </h2>
-        
-        <p className="text-center text-gray-500 flex items-center justify-center">
-          <RocketOutlined className="mr-2 text-[#90278E]" />
-          ผลงานล่าสุดที่คุณอาจสนใจ
-        </p>
-      </div>
-      
-      {/* Actions bar */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="text-sm">
-          <span className="px-3 py-1 bg-[#0D0221]/5 rounded-full text-gray-500">
-            พบ {projects.length} ผลงาน
-          </span>
-        </div>
-        
-      </div>
-      
-      {/* Projects grid with improved layout */}
-      <div className="relative bg-white/40 backdrop-blur-sm rounded-xl border border-[#90278E]/10 shadow-sm overflow-hidden">
-        {/* Accent corners */}
-        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#90278E]/20 rounded-tl-lg"></div>
-        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#90278E]/20 rounded-tr-lg"></div>
-        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#90278E]/20 rounded-bl-lg"></div>
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#90278E]/20 rounded-br-lg"></div>
-        
-        {/* Star decorations - subtle and non-distracting */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div 
-              key={`star-${i}`} 
-              className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                animationDuration: `${3 + Math.random() * 7}s`,
-                opacity: Math.random() * 0.4 + 0.1
-              }}
-            ></div>
-          ))}
-        </div>
-        
-        {/* Projects grid with padding */}
-        <div className="p-6">
-          <Work_Col items={projects} />
+    <div className="py-6 px-8">
+      <div className="mb-6 flex items-center">
+        <Title level={4} className="m-0 text-[#0D0221]">
+          ผลงานที่เกี่ยวข้อง
+        </Title>
+        <div className="ml-auto">
+          <Link 
+            to={PROJECT.ALL} 
+            className="text-[#90278E] hover:text-[#FF5E8C]"
+          >
+            ดูทั้งหมด
+          </Link>
         </div>
       </div>
-      
-      {/* "View All" button */}
-      <div className="mt-6 flex justify-center">
-        <Button 
-          type="primary" 
-          size="large"
-          className="bg-gradient-to-r from-[#90278E] to-[#FF5E8C] border-none px-8"
-          icon={<RocketOutlined />}
-          href={PROJECT.ALL}
-        >
-          ดูโปรเจคทั้งหมด
-        </Button>
-      </div>
+
+      <Row gutter={[16, 24]}>
+        {displayProjects.map((project, index) => (
+          <Col xs={24} sm={12} md={8} lg={6} key={index}>
+            <Link to={PROJECT.VIEW(project.id)}>
+              <Card
+                hoverable
+                className="h-full flex flex-col overflow-hidden transition-all duration-300 hover:shadow-md"
+                cover={
+                  <div className="relative pb-[56.25%] overflow-hidden bg-gray-100">
+                    {project.image ? (
+                      <img
+                        alt={project.title}
+                        src={project.image.startsWith('http') ? project.image : `${API_ENDPOINTS.BASE}/${project.image}`}
+                        className="absolute top-0 left-0 w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-gray-100">
+                        {project.type === 'academic' ? (
+                          <BookOutlined className="text-3xl text-gray-300" />
+                        ) : project.type === 'coursework' ? (
+                          <TeamOutlined className="text-3xl text-gray-300" />
+                        ) : (
+                          <TrophyOutlined className="text-3xl text-gray-300" />
+                        )}
+                      </div>
+                    )}
+                    <div className="absolute top-2 right-2">
+                      <Tag 
+                        color={
+                          project.type === 'academic' ? 'blue' : 
+                          project.type === 'coursework' ? 'green' : 
+                          'gold'
+                        }
+                        className="opacity-90"
+                      >
+                        {project.type === 'academic' ? 'บทความวิชาการ' : 
+                         project.type === 'coursework' ? 'งานในชั้นเรียน' : 
+                         'การแข่งขัน'}
+                      </Tag>
+                    </div>
+                  </div>
+                }
+                bodyStyle={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column' }}
+              >
+                <div className="flex-1">
+                  <Tooltip title={project.title}>
+                    <Title level={5} ellipsis={{ rows: 2 }} className="mb-1">
+                      {project.title}
+                    </Title>
+                  </Tooltip>
+                </div>
+                
+                <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
+                  <div className="flex items-center">
+                    <UserOutlined className="mr-1" />
+                    <span>{project.student || 'ไม่ระบุผู้จัดทำ'}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <EyeOutlined className="mr-1" />
+                    <span>{project.viewsCount || 0}</span>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          </Col>
+        ))}
+      </Row>
     </div>
   );
 };
