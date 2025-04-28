@@ -1,302 +1,210 @@
 import React, { useState, useEffect } from 'react';
-import { Steps, Button, message, Card, Row, Col } from 'antd';
-import { useNavigate } from 'react-router-dom';
-import PROJECT_TYPES from '../../constants/projectTypes';
+import { Card, Typography, Alert, Tabs, Spin } from 'antd';
+import { BookOutlined, TeamOutlined, TrophyOutlined } from '@ant-design/icons';
 import useAuth from '../../hooks/useAuth';
-import useUpload from '../../hooks/useUpload';
-import useNotification from '../../hooks/useNotification';
+import useProject from '../../hooks/useProject';
+import { useNavigate } from 'react-router-dom';
+import ProjectForm from '../../components/ManageProject/ProjectForm';
+import { PROJECT_TYPE } from '../../constants/projectTypes';
+import { PROJECT } from '../../constants/routes';
 
-import PageHeader from '../../components/common/PageHeader';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ErrorMessage from '../../components/common/ErrorMessage';
+const { Title, Paragraph } = Typography;
+const { TabPane } = Tabs;
 
-// Import step components
-import ProjectTypeStep from '../../components/upload/ProjectTypeStep';
-import BasicInfoStep from '../../components/upload/BasicInfoStep';
-import AdditionalInfoStep from '../../components/upload/AdditionalInfoStep';
-import UploadFilesStep from '../../components/upload/UploadFilesStep';
-import PreviewStep from '../../components/upload/PreviewStep';
-
-// Import services
-import { uploadProject } from '../../services/projectService';
-
+/**
+ * UploadProject - หน้าสำหรับอัปโหลดโปรเจคใหม่
+ * @returns {JSX.Element} - UploadProject component
+ */
 const UploadProject = () => {
+  const { user } = useAuth();
+  const { createProject, isLoading } = useProject();
   const navigate = useNavigate();
-  const { user, isAuthenticated, isAuthLoading } = useAuth();
-  const { uploadedFiles, isUploading, resetUpload } = useUpload();
-  const { showSuccess, showError } = useNotification();
-
-  // Current step state
-  const [currentStep, setCurrentStep] = useState(0);
-  
-  // Project data states
-  const [projectType, setProjectType] = useState('');
-  const [basicInfo, setBasicInfo] = useState({
-    title: '',
-    description: '',
-    study_year: '',
-    year: new Date().getFullYear().toString(),
-    semester: '1',
-    visibility: 1,
-    tags: ''
-  });
-  
-  // Additional info based on project type
-  const [additionalInfo, setAdditionalInfo] = useState({});
-  
-  // Files to upload
-  const [files, setFiles] = useState({});
-  
-  // Loading and error states
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState(PROJECT_TYPE.COURSEWORK);
   const [error, setError] = useState(null);
 
-  // Redirect if not authenticated
+  // ตรวจสอบว่ามีผู้ใช้งานหรือไม่
   useEffect(() => {
-    if (!isAuthLoading && !isAuthenticated) {
-      message.error('โปรดเข้าสู่ระบบก่อนอัปโหลดโครงงาน');
-      navigate('/login', { state: { from: '/upload' } });
+    if (!user) {
+      navigate('/login');
     }
-  }, [isAuthenticated, isAuthLoading, navigate]);
+  }, [user, navigate]);
 
-  // Reset uploaded files when component unmounts
-  useEffect(() => {
-    return () => {
-      resetUpload();
-    };
-  }, [resetUpload]);
-
-  // Step items definition
-  const steps = [
-    {
-      title: 'เลือกประเภท',
-      description: 'เลือกประเภทโครงงาน',
-      content: (
-        <ProjectTypeStep 
-          projectType={projectType} 
-          setProjectType={setProjectType} 
-        />
-      ),
-    },
-    {
-      title: 'ข้อมูลพื้นฐาน',
-      description: 'กรอกข้อมูลพื้นฐาน',
-      content: (
-        <BasicInfoStep 
-          basicInfo={basicInfo} 
-          setBasicInfo={setBasicInfo} 
-          projectType={projectType}
-        />
-      ),
-    },
-    {
-      title: 'ข้อมูลเฉพาะ',
-      description: 'กรอกข้อมูลเฉพาะประเภท',
-      content: (
-        <AdditionalInfoStep 
-          projectType={projectType} 
-          additionalInfo={additionalInfo} 
-          setAdditionalInfo={setAdditionalInfo} 
-        />
-      ),
-    },
-    {
-      title: 'อัปโหลดไฟล์',
-      description: 'อัปโหลดไฟล์ที่เกี่ยวข้อง',
-      content: (
-        <UploadFilesStep 
-          projectType={projectType} 
-          files={files} 
-          setFiles={setFiles} 
-        />
-      ),
-    },
-    {
-      title: 'ตรวจสอบ',
-      description: 'ตรวจสอบข้อมูลก่อนส่ง',
-      content: (
-        <PreviewStep 
-          projectType={projectType}
-          basicInfo={basicInfo}
-          additionalInfo={additionalInfo}
-          files={files}
-        />
-      ),
-    },
-  ];
-
-  // Check if current step is valid to proceed
-  const isStepValid = () => {
-    if (currentStep === 0) {
-      return !!projectType;
-    }
-    if (currentStep === 1) {
-      return (
-        basicInfo.title.trim() !== '' && 
-        basicInfo.description.trim() !== '' && 
-        basicInfo.study_year && 
-        basicInfo.year && 
-        basicInfo.semester
-      );
-    }
-    if (currentStep === 2) {
-      // Validate based on project type
-      if (projectType === PROJECT_TYPES.COURSEWORK) {
-        return (
-          additionalInfo.course_code && 
-          additionalInfo.course_name
-        );
-      } else if (projectType === PROJECT_TYPES.ACADEMIC) {
-        return (
-          additionalInfo.abstract && 
-          additionalInfo.authors
-        );
-      } else if (projectType === PROJECT_TYPES.COMPETITION) {
-        return (
-          additionalInfo.competition_name && 
-          additionalInfo.competition_level && 
-          additionalInfo.achievement
-        );
-      }
-    }
-    if (currentStep === 3) {
-      // Check if required files are uploaded
-      return files.coverImage !== undefined;
-    }
-    return true;
+  // จัดการการเปลี่ยนแท็บ
+  const handleTabChange = (key) => {
+    setActiveTab(key);
   };
 
-  // Navigation functions
-  const next = () => {
-    if (isStepValid()) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      message.warning('กรุณากรอกข้อมูลให้ครบถ้วน');
-    }
-  };
+  // จัดการการส่งฟอร์ม
+  // UploadProject.jsx
 
-  const prev = () => {
-    setCurrentStep(currentStep - 1);
-  };
+// UploadProject.jsx
 
-  // Handle form submission
-  const handleSubmit = async () => {
-    if (!user || !user.id) {
-      showError('ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
-      return;
-    }
-  
-    setIsSubmitting(true);
+// UploadProject.jsx
+
+// UploadProject.jsx
+
+const handleSubmit = async (formInput) => {
+  try {
     setError(null);
-  
-    try {
-      // สร้างข้อมูลโครงงาน
-      const projectData = {
-        ...basicInfo,
-        ...additionalInfo,
-        type: projectType, // เพิ่ม type ให้ชัดเจน
-      };
-  
-      // ส่งข้อมูลและไฟล์แยกกัน
-      const response = await uploadProject(user.id, projectData, files);
-  
-      if (response && response.projectId) {
-        showSuccess('อัปโหลดโครงงานสำเร็จ กรุณารอการอนุมัติจากผู้ดูแลระบบ');
-        
-        // Reset form states
-        setProjectType('');
-        setBasicInfo({
-          title: '',
-          description: '',
-          study_year: '',
-          year: new Date().getFullYear().toString(),
-          semester: '1',
-          visibility: 1,
-          tags: ''
-        });
-        setAdditionalInfo({});
-        setFiles({});
-        resetUpload();
-        
-        // Navigate to project detail or my projects
-        navigate(`/projects/${response.projectId}`);
-      } else {
-        throw new Error('ไม่สามารถอัปโหลดโครงงานได้');
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดโครงงาน');
-      showError(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดโครงงาน');
-    } finally {
-      setIsSubmitting(false);
+
+    const formData = new FormData();
+
+    // เติมข้อมูล text จาก formInput.data
+    if (formInput.data) {
+      Object.entries(formInput.data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
+        }
+      });
     }
-  };
 
-  // Show loading while checking authentication
-  if (isAuthLoading) {
-    return <LoadingSpinner tip="กำลังตรวจสอบข้อมูลผู้ใช้..." />;
+    // เติมไฟล์จาก formInput.files (ดึงเฉพาะ originFileObj)
+    if (formInput.files) {
+      Object.entries(formInput.files).forEach(([key, fileEntry]) => {
+        if (fileEntry && fileEntry.originFileObj instanceof File) {
+          formData.append(key, fileEntry.originFileObj);
+        }
+      });
+    }
+
+    // เพิ่มประเภทโปรเจคถ้าไม่มี
+    if (!formData.get('type')) {
+      formData.append('type', activeTab);
+    }
+
+    // แสดงข้อมูล FormData ใน console แบบอ่านง่าย (เฉพาะตอน dev)
+      console.log('FormData Preview:');
+      for (const [key, value] of formData.entries()) {
+        console.log(`${key}:`, value);
+      }
+
+    // ตรวจสอบผู้ใช้งาน
+    if (!user || !user.id) {
+      throw new Error('ไม่มีข้อมูลผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่');
+    }
+
+    console.log(formData)
+    // เรียก API สร้างโปรเจค
+    const response = await createProject(user.id, formInput.data, formInput.files);
+
+    if (response && response.projectId) {
+      navigate(PROJECT.VIEW(response.projectId));
+    }
+
+  } catch (err) {
+    console.error('เกิดข้อผิดพลาดในการอัปโหลดโปรเจค:', err);
+    setError(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดโปรเจค');
   }
+};
 
-  // Show error if any
-  if (error) {
-    return (
-      <ErrorMessage 
-        title="เกิดข้อผิดพลาด" 
-        message={error}
-        onReloadClick={() => setError(null)}
-      />
-    );
+
+  if (!user) {
+    return <Spin tip="กำลังตรวจสอบข้อมูลผู้ใช้..." />;
   }
 
   return (
-    <div className="upload-project-container mx-auto px-4 py-6 max-w-6xl">
-      <PageHeader 
-        title="อัปโหลดโครงงาน" 
-        subtitle="แบ่งปันผลงานของคุณกับผู้อื่น"
-        breadcrumb={[
-          { label: 'หน้าหลัก', path: '/' },
-          { label: 'อัปโหลดโครงงาน' }
+    <div className="container mx-auto px-4 py-6">
+      <Title level={2}>อัปโหลดโปรเจคใหม่</Title>
+      <Paragraph>
+        เพิ่มโปรเจคใหม่เข้าสู่ระบบ โดยเลือกประเภทโปรเจคที่ต้องการอัปโหลด และกรอกข้อมูลให้ครบถ้วน
+      </Paragraph>
+
+      {error && (
+        <Alert
+          message="เกิดข้อผิดพลาด"
+          description={error}
+          type="error"
+          showIcon
+          className="mb-6"
+          closable
+        />
+      )}
+
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={handleTabChange}
+        className="mb-6"
+        items={[
+          {
+            key: PROJECT_TYPE.COURSEWORK,
+            label: (
+              <span>
+                <TeamOutlined />
+                งานในชั้นเรียน
+              </span>
+            ),
+            children: (
+              <Card className="mb-6">
+                <div className="mb-6">
+                  <Title level={4}>อัปโหลดผลงานในชั้นเรียน</Title>
+                  <Paragraph>
+                    สำหรับผลงานที่ทำในรายวิชาต่างๆ เช่น โปรเจคในวิชาเฉพาะด้าน งานกลุ่ม หรือชิ้นงานที่ได้รับมอบหมายในชั้นเรียน
+                  </Paragraph>
+                </div>
+                
+                <ProjectForm 
+                  isEdit={false}
+                  onSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  initialValues={{ type: PROJECT_TYPE.COURSEWORK }}
+                />
+              </Card>
+            ),
+          },
+          {
+            key: PROJECT_TYPE.ACADEMIC,
+            label: (
+              <span>
+                <BookOutlined />
+                บทความวิชาการ
+              </span>
+            ),
+            children: (
+              <Card className="mb-6">
+                <div className="mb-6">
+                  <Title level={4}>อัปโหลดบทความวิชาการ</Title>
+                  <Paragraph>
+                    สำหรับบทความวิชาการ, งานวิจัย, หรือเอกสารทางวิชาการต่างๆ ที่ได้รับการตีพิมพ์หรือเผยแพร่
+                  </Paragraph>
+                </div>
+                
+                <ProjectForm 
+                  isEdit={false}
+                  onSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  initialValues={{ type: PROJECT_TYPE.ACADEMIC }}
+                />
+              </Card>
+            ),
+          },
+          {
+            key: PROJECT_TYPE.COMPETITION,
+            label: (
+              <span>
+                <TrophyOutlined />
+                การแข่งขัน
+              </span>
+            ),
+            children: (
+              <Card className="mb-6">
+                <div className="mb-6">
+                  <Title level={4}>อัปโหลดผลงานการแข่งขัน</Title>
+                  <Paragraph>
+                    สำหรับผลงานที่ส่งเข้าประกวดหรือแข่งขันในเวทีต่างๆ ทั้งระดับท้องถิ่น ระดับประเทศ หรือระดับนานาชาติ
+                  </Paragraph>
+                </div>
+                
+                <ProjectForm 
+                  isEdit={false}
+                  onSubmit={handleSubmit}
+                  isLoading={isLoading}
+                  initialValues={{ type: PROJECT_TYPE.COMPETITION }}
+                />
+              </Card>
+            ),
+          }
         ]}
       />
-
-      <Card className="mb-8 shadow-md">
-        <Steps
-          current={currentStep}
-          items={steps.map(item => ({
-            title: item.title,
-            description: item.description,
-          }))}
-          className="mb-8"
-        />
-
-        <div className="steps-content p-4 bg-gray-50 rounded-md min-h-[300px]">
-          {steps[currentStep].content}
-        </div>
-
-        <div className="steps-action mt-6 flex justify-between">
-          {currentStep > 0 && (
-            <Button onClick={() => prev()} disabled={isSubmitting}>
-              ย้อนกลับ
-            </Button>
-          )}
-          
-          {currentStep < steps.length - 1 && (
-            <Button type="primary" onClick={() => next()} disabled={!isStepValid() || isSubmitting}>
-              ถัดไป
-            </Button>
-          )}
-          
-          {currentStep === steps.length - 1 && (
-            <Button 
-              type="primary" 
-              onClick={handleSubmit} 
-              loading={isSubmitting}
-              disabled={!isStepValid()}
-            >
-              อัปโหลดโครงงาน
-            </Button>
-          )}
-        </div>
-      </Card>
     </div>
   );
 };

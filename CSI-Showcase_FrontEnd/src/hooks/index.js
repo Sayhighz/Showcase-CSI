@@ -7,7 +7,6 @@
 import useAuth from './useAuth';
 import useProject from './useProject';
 import useSearch from './useSearch';
-import useUpload from './useUpload';
 import useNotification from './useNotification';
 
 // Export แยกตามประเภท
@@ -15,7 +14,6 @@ export {
   useAuth, 
   useProject, 
   useSearch, 
-  useUpload, 
   useNotification 
 };
 
@@ -24,6 +22,5 @@ export default {
   useAuth,
   useProject,
   useSearch,
-  useUpload,
   useNotification
 };

@@ -188,6 +188,7 @@ export const uploadProject = async (userId, projectData, files) => {
     });
     
     // จัดการไฟล์ตามประเภทโปรเจค
+    console.log("dddddd",files);
     if (files) {
       if (files.coverImage) {
         formData.append('coverImage', files.coverImage);
@@ -209,6 +210,7 @@ export const uploadProject = async (userId, projectData, files) => {
       else if (projectData.type === 'academic') {
         if (files.paperFile) {
           formData.append('paperFile', files.paperFile);
+          console.log("asdasd",files.paperFile);
         }
       }
       // ไฟล์สำหรับ Competition
@@ -231,6 +233,7 @@ export const uploadProject = async (userId, projectData, files) => {
         });
       }
     }
+    console.log("formData",formData);
     
     const response = await uploadFile(API_ENDPOINTS.PROJECT.UPLOAD(userId), formData);
     

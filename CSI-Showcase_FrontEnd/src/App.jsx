@@ -41,7 +41,7 @@ const App = () => {
             </ProtectedRoute>
           } />
 
-          <Route path="/upload/coursework" element={
+          <Route path="/upload" element={
             <ProtectedRoute>
               <MasterLayout><CourseWork /></MasterLayout>
             </ProtectedRoute>
