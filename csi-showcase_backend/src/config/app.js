@@ -32,8 +32,14 @@ export const createApp = (options = {}) => {
   })); // ช่วยในการรักษาความปลอดภัย HTTP headers แต่อนุญาต cross-origin
   
   // กำหนดค่า CORS ที่อนุญาตหลาย origins
+  // แก้ไขตรงนี้เพื่อระบุ origins ที่อนุญาตให้ชัดเจน
   const allowedOrigins = [
-    '*'
+    '*', 
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    // เพิ่ม domain ของ frontend ที่ deploy
+    'http://103.40.119.50/',
   ];
   
   app.use(cors({
@@ -41,17 +47,17 @@ export const createApp = (options = {}) => {
       // อนุญาต requests ที่ไม่มี origin (เช่น mobile apps, curl requests)
       if (!origin) return callback(null, true);
       
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      if (allowedOrigins.indexOf('*') !== -1 || allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
         callback(null, true);
+        // ถ้าต้องการเข้มงวดมากขึ้น สามารถเปิดใช้บรรทัดล่างแทน
         // callback(new Error('Not allowed by CORS policy'));
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'secret_key', 'admin_secret_key'],
-    credentials: true
-    
+    credentials: true // สำคัญมาก! ต้องเปิดใช้เพื่อให้ส่ง cookies ข้าม domain ได้
   }));
   
   app.use(compression()); // บีบอัดข้อมูลเพื่อลดขนาดการส่งข้อมูล
@@ -89,15 +95,16 @@ export const createApp = (options = {}) => {
   
   // กำหนดเส้นทางสำหรับไฟล์ static พร้อมกับเพิ่ม CORS headers
   app.use('/uploads', (req, res, next) => {
-    // ใช้แนวทางเดียวกับ CORS config หลัก
+    // เพิ่ม CORS headers ให้ไฟล์ static
     const origin = req.headers.origin;
-    if (origin && allowedOrigins.includes(origin)) {
+    if (origin && (allowedOrigins.includes(origin) || allowedOrigins.includes('*'))) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
       res.setHeader('Access-Control-Allow-Origin', '*');
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     next();
   }, express.static(path.join(__dirname, '..', '..', 'uploads')));
   

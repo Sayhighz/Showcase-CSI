@@ -91,18 +91,13 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         ORDER BY month
       `),
       
-      // 11. จำนวนการเข้าชมในแต่ละเดือน (12 เดือนล่าสุด)
+      // 11. จำนวนการเข้าชมในแต่ละเดือน (12 เดือนล่าสุด) - เฉพาะจาก visitor_views
       pool.execute(`
         SELECT 
           DATE_FORMAT(viewed_at, '%Y-%m') as month, 
           COUNT(*) as count 
-        FROM (
-          SELECT viewed_at FROM visitor_views
-          WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-          UNION ALL
-          SELECT viewed_at FROM company_views
-          WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
-        ) as all_views
+        FROM visitor_views
+        WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 12 MONTH)
         GROUP BY month 
         ORDER BY month
       `)
@@ -193,8 +188,6 @@ export const getTodayStats = asyncHandler(async (req, res) => {
       usersYesterday,
       visitorViewsToday,
       visitorViewsYesterday,
-      companyViewsToday,
-      companyViewsYesterday,
       loginsToday,
       loginsYesterday,
       approvedToday,
@@ -220,19 +213,13 @@ export const getTodayStats = asyncHandler(async (req, res) => {
       // 6. จำนวนการเข้าชมเมื่อวาน (visitor)
       pool.execute('SELECT COUNT(*) as count FROM visitor_views WHERE DATE(viewed_at) = ?', [yesterdayFormatted]),
       
-      // 7. จำนวนการเข้าชมวันนี้ (company)
-      pool.execute('SELECT COUNT(*) as count FROM company_views WHERE DATE(viewed_at) = ?', [todayFormatted]),
-      
-      // 8. จำนวนการเข้าชมเมื่อวาน (company)
-      pool.execute('SELECT COUNT(*) as count FROM company_views WHERE DATE(viewed_at) = ?', [yesterdayFormatted]),
-      
-      // 9. จำนวนการเข้าสู่ระบบวันนี้
+      // 7. จำนวนการเข้าสู่ระบบวันนี้
       pool.execute('SELECT COUNT(*) as count FROM login_logs WHERE DATE(login_time) = ?', [todayFormatted]),
       
-      // 10. จำนวนการเข้าสู่ระบบเมื่อวาน
+      // 8. จำนวนการเข้าสู่ระบบเมื่อวาน
       pool.execute('SELECT COUNT(*) as count FROM login_logs WHERE DATE(login_time) = ?', [yesterdayFormatted]),
       
-      // 11. จำนวนโครงการที่ได้รับการอนุมัติวันนี้
+      // 9. จำนวนโครงการที่ได้รับการอนุมัติวันนี้
       pool.execute(`
         SELECT COUNT(*) as count
         FROM project_reviews
@@ -240,7 +227,7 @@ export const getTodayStats = asyncHandler(async (req, res) => {
         [PROJECT_STATUSES.APPROVED, todayFormatted]
       ),
       
-      // 12. จำนวนโครงการที่ได้รับการอนุมัติเมื่อวาน
+      // 10. จำนวนโครงการที่ได้รับการอนุมัติเมื่อวาน
       pool.execute(`
         SELECT COUNT(*) as count
         FROM project_reviews
@@ -248,7 +235,7 @@ export const getTodayStats = asyncHandler(async (req, res) => {
         [PROJECT_STATUSES.APPROVED, yesterdayFormatted]
       ),
       
-      // 13. จำนวนโครงการที่ถูกปฏิเสธวันนี้
+      // 11. จำนวนโครงการที่ถูกปฏิเสธวันนี้
       pool.execute(`
         SELECT COUNT(*) as count
         FROM project_reviews
@@ -256,11 +243,11 @@ export const getTodayStats = asyncHandler(async (req, res) => {
         [PROJECT_STATUSES.REJECTED, todayFormatted]
       ),
       
-      // 14. จำนวนโครงการที่ถูกปฏิเสธเมื่อวาน
+      // 12. จำนวนโครงการที่ถูกปฏิเสธเมื่อวาน
       pool.execute(`
         SELECT COUNT(*) as count
         FROM project_reviews
-        WHERE status = ? AND DATE(reviewed_at) = ?`, 
+        WHERE status = ? AND DATE(reviewed_at) =?`, 
         [PROJECT_STATUSES.REJECTED, yesterdayFormatted]
       )
     ]);
@@ -272,8 +259,6 @@ export const getTodayStats = asyncHandler(async (req, res) => {
     const usersYesterdayCount = usersYesterday[0][0].count;
     const visitorViewsTodayCount = visitorViewsToday[0][0].count;
     const visitorViewsYesterdayCount = visitorViewsYesterday[0][0].count;
-    const companyViewsTodayCount = companyViewsToday[0][0].count;
-    const companyViewsYesterdayCount = companyViewsYesterday[0][0].count;
     const loginsTodayCount = loginsToday[0][0].count;
     const loginsYesterdayCount = loginsYesterday[0][0].count;
     const approvedTodayCount = approvedToday[0][0].count;
@@ -281,9 +266,13 @@ export const getTodayStats = asyncHandler(async (req, res) => {
     const rejectedTodayCount = rejectedToday[0][0].count;
     const rejectedYesterdayCount = rejectedYesterday[0][0].count;
     
-    // คำนวณค่ารวม
-    const totalViewsToday = visitorViewsTodayCount + companyViewsTodayCount;
-    const totalViewsYesterday = visitorViewsYesterdayCount + companyViewsYesterdayCount;
+    // กำหนดค่า company views เป็น 0 เพื่อความเข้ากันได้กับ frontend
+    const companyViewsTodayCount = 0;
+    const companyViewsYesterdayCount = 0;
+    
+    // คำนวณค่ารวม (ในที่นี้ visitor views = total views เนื่องจากไม่มี company views)
+    const totalViewsToday = visitorViewsTodayCount;
+    const totalViewsYesterday = visitorViewsYesterdayCount;
     const totalReviewsToday = approvedTodayCount + rejectedTodayCount;
     const totalReviewsYesterday = approvedYesterdayCount + rejectedYesterdayCount;
     
@@ -307,7 +296,7 @@ export const getTodayStats = asyncHandler(async (req, res) => {
         company: {
           today: companyViewsTodayCount,
           yesterday: companyViewsYesterdayCount,
-          percentChange: calculatePercentChange(companyViewsTodayCount, companyViewsYesterdayCount)
+          percentChange: 0 // Percent change is 0 since both values are 0
         },
         total: {
           today: totalViewsToday,

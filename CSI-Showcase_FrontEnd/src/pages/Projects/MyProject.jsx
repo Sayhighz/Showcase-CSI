@@ -22,6 +22,7 @@ import ProjectFilter from "../../components/Project/ProjectFilter";
 // นำเข้า constants
 import { PROJECT, HOME } from "../../constants/routes";
 import { PROJECT_TYPES, PROJECT_TYPE } from "../../constants/projectTypes";
+import WorkGrid from "../../components/Work/WorkGrid";
 
 const { Title, Text } = Typography;
 
@@ -356,9 +357,10 @@ const MyProject = () => {
         ) : (
           // ใช้ Work Components
           <>
-              <Work_Row
+              <WorkGrid
                 title=""
                 items={filteredProjects}
+                displayMode="row"
                 side="center"
                 showActions={true}
                 onEdit={handleEdit}

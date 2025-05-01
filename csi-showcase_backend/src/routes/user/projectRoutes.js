@@ -789,7 +789,7 @@ router.put(
 router.delete(
   API_ROUTES.PROJECT.DELETE, 
   authenticateToken, 
-  // isResourceOwner, 
+  isResourceOwner, 
   deleteProject
 );
 

@@ -73,41 +73,33 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden flex items-center justify-center bg-gradient-to-b from-gray-900 via-indigo-900 to-black">
-      {/* Space theme animation overlay */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="stars"></div>
-        <div className="stars2"></div>
-        <div className="stars3"></div>
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      {/* Background with professional purple accent */}
+      <div className="absolute inset-0">
+        <div className="h-2/5 bg-gradient-to-r from-[#90278E] to-[#7A1C7A]"></div>
+        <div className="h-3/5 bg-white"></div>
       </div>
       
       {/* Center Container */}
       <div className="relative z-10 w-full max-w-md px-4 py-6 sm:px-0">
         <Card 
-          className="w-full shadow-2xl rounded-lg border-0 overflow-hidden backdrop-blur-sm"
-          style={{ 
-            background: 'rgba(16, 16, 35, 0.85)',
-            boxShadow: '0 8px 32px 0 rgba(144, 39, 142, 0.5)'
-          }}
+          className="w-full shadow-lg rounded-lg border border-gray-100"
           bordered={false}
+          style={{ 
+            background: 'white',
+          }}
         >
-          {/* Card Header with planet effect */}
-          <div className="absolute top-0 left-0 w-full h-2" style={{ background: '#90278E' }}></div>
-          
-          <div className="text-center mb-8 pt-2">
+          <div className="text-center mb-6">
             <div className="flex justify-center mb-4">
-              <div className="relative inline-block">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-800 to-purple-500 flex items-center justify-center shadow-lg">
-                  <LoginOutlined style={{ fontSize: '28px', color: 'white' }} />
-                </div>
-                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-indigo-400 opacity-75 animate-pulse"></div>
+              <div className="w-16 h-16 rounded-full bg-[#90278E] flex items-center justify-center shadow-md">
+                <LoginOutlined style={{ fontSize: '28px', color: 'white' }} />
               </div>
             </div>
-            <Title level={2} style={{ color: 'white', marginBottom: '4px' }}>เข้าสู่ระบบ</Title>
-            <Text style={{ color: 'rgba(255, 255, 255, 0.7)' }}>กรอกข้อมูลเพื่อเข้าใช้งานระบบ</Text>
+            <Title level={2} style={{ color: '#333', marginBottom: '4px', fontWeight: '600' }}>เข้าสู่ระบบ</Title>
+            <Text style={{ color: '#666' }}>กรุณากรอกข้อมูลเพื่อเข้าใช้งานระบบ</Text>
           </div>
           
-          <Spin spinning={isAuthLoading} tip="กำลังเข้าสู่ระบบ..." style={{ color: 'white' }}>
+          <Spin spinning={isAuthLoading} tip="กำลังเข้าสู่ระบบ...">
             <Form 
               form={form}
               layout="vertical" 
@@ -117,7 +109,7 @@ const Login = () => {
             >
               {/* Username */}
               <Form.Item 
-                label={<span style={{ color: 'white' }}>ชื่อผู้ใช้</span>} 
+                label={<span style={{ color: '#333', fontWeight: '500' }}>ชื่อผู้ใช้</span>} 
                 name="username" 
                 rules={[{ required: true, message: "กรุณากรอกชื่อผู้ใช้" }]}
               > 
@@ -125,18 +117,17 @@ const Login = () => {
                   prefix={<UserOutlined style={{ color: '#90278E' }} />} 
                   placeholder="ชื่อผู้ใช้" 
                   size="large" 
-                  className="rounded-md text-white"
+                  className="rounded-lg"
                   style={{ 
-                    backgroundColor: '#1e1e3a', 
-                    borderColor: '#90278E',
-                    caretColor: '#fff'
+                    borderColor: '#d9d9d9',
+                    boxShadow: 'none'
                   }}
                 />
               </Form.Item>
 
               {/* Password */}
               <Form.Item 
-                label={<span style={{ color: 'white' }}>รหัสผ่าน</span>} 
+                label={<span style={{ color: '#333', fontWeight: '500' }}>รหัสผ่าน</span>} 
                 name="password" 
                 rules={[{ required: true, message: "กรุณากรอกรหัสผ่าน" }]}
               > 
@@ -144,12 +135,12 @@ const Login = () => {
                   prefix={<LockOutlined style={{ color: '#90278E' }} />} 
                   placeholder="รหัสผ่าน" 
                   size="large" 
-                  className="rounded-md text-white"
+                  className="rounded-lg"
                   style={{ 
-                    backgroundColor: '#1e1e3a', 
-                    borderColor: '#90278E',
-                    caretColor: '#fff'
-                  }}/>
+                    borderColor: '#d9d9d9',
+                    boxShadow: 'none'
+                  }}
+                />
               </Form.Item>
 
               {/* Login Button */}
@@ -157,11 +148,11 @@ const Login = () => {
                 <Button 
                   type="primary" 
                   htmlType="submit" 
-                  className="w-full rounded-md h-12 flex items-center justify-center"
+                  className="w-full rounded-lg h-12 flex items-center justify-center"
                   size="large"
                   style={{ 
                     background: '#90278E',
-                    boxShadow: '0 4px 10px rgba(144, 39, 142, 0.3)'
+                    boxShadow: '0 2px 0 rgba(144, 39, 142, 0.1)'
                   }}
                   icon={<LoginOutlined />}
                 >
@@ -172,30 +163,36 @@ const Login = () => {
           </Spin>
           
           {/* Additional Buttons */}
-          <Divider className="my-2 border-gray-700" />
+          <Divider className="my-2" />
           <div className="text-center mt-4">
             <Button 
               type="link" 
               onClick={showForgotPasswordModal} 
-              className="text-gray-300 hover:text-purple-400"
+              className="text-gray-600 hover:text-[#90278E]"
             >
               ลืมรหัสผ่าน?
             </Button>
-            <span className="mx-2 text-gray-600">|</span>
+            <span className="mx-2 text-gray-300">|</span>
             <Button 
               type="link" 
               onClick={showRegisterModal} 
-              className="text-gray-300 hover:text-purple-400"
+              className="text-gray-600 hover:text-[#90278E]"
             >
               ยังไม่มีบัญชี?
             </Button>
           </div>
         </Card>
+
+        <div className="text-center mt-4">
+          <Text style={{ color: '#666', fontSize: '12px' }}>
+            © 2025 ระบบจัดการข้อมูล. สงวนลิขสิทธิ์.
+          </Text>
+        </div>
       </div>
 
       {/* Forgot Password Modal */}
       <Modal 
-        title={<div className="text-center text-lg">ลืมรหัสผ่าน</div>}
+        title={<div className="text-center text-lg font-medium">ลืมรหัสผ่าน</div>}
         open={isModalVisible} 
         onCancel={handleModalCancel} 
         centered
@@ -203,22 +200,13 @@ const Login = () => {
         style={{ 
           top: 20 
         }}
-        bodyStyle={{ 
-          background: '#1a1a2e',
-          color: 'white'
-        }}
-        headerStyle={{ 
-          background: '#1a1a2e',
-          color: 'white',
-          borderBottom: '1px solid rgba(144, 39, 142, 0.3)'
-        }}
       >
         <Form
           layout="vertical"
           onFinish={handleForgotPassword}
         >
           <div className="py-4">
-            <Paragraph className="text-base text-center mb-4 text-gray-300">
+            <Paragraph className="text-base text-center mb-4 text-gray-600">
               กรุณากรอกอีเมลของคุณเพื่อรับลิงก์สำหรับรีเซ็ตรหัสผ่าน
             </Paragraph>
             
@@ -233,20 +221,23 @@ const Login = () => {
                 prefix={<MailOutlined style={{ color: '#90278E' }} />} 
                 placeholder="อีเมล" 
                 size="large" 
-                className="rounded-md text-white"
-                style={{ 
-                  backgroundColor: '#1e1e3a', 
-                  borderColor: '#90278E',
-                  caretColor: '#fff'
-                }}
+                className="rounded-lg"
               />
             </Form.Item>
             
             <div className="flex justify-end gap-2 mt-4">
-              <Button onClick={handleModalCancel} style={{ borderColor: '#90278E', color: '#d0d0d0' }}>
+              <Button 
+                onClick={handleModalCancel}
+                className="rounded-lg"
+              >
                 ยกเลิก
               </Button>
-              <Button type="primary" htmlType="submit" style={{ background: '#90278E' }}>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                style={{ background: '#90278E' }}
+                className="rounded-lg"
+              >
                 ส่งคำขอ
               </Button>
             </div>
@@ -256,83 +247,31 @@ const Login = () => {
 
       {/* Register Modal */}
       <Modal 
-        title={<div className="text-center text-lg">แจ้งเตือน</div>}
+        title={<div className="text-center text-lg font-medium">แจ้งเตือน</div>}
         open={isRegisterModalVisible} 
         onCancel={handleRegisterModalCancel} 
         centered
-        bodyStyle={{ 
-          background: '#1a1a2e',
-          color: 'white'
-        }}
-        headerStyle={{ 
-          background: '#1a1a2e',
-          color: 'white',
-          borderBottom: '1px solid rgba(144, 39, 142, 0.3)'
-        }}
         footer={[ 
-          <Button key="ok" type="primary" onClick={handleRegisterModalCancel} style={{ background: '#90278E' }}>
+          <Button 
+            key="ok" 
+            type="primary" 
+            onClick={handleRegisterModalCancel} 
+            style={{ background: '#90278E' }}
+            className="rounded-lg"
+          >
             ตกลง
           </Button>,
         ]}
       >
         <div className="py-4 text-center">
-          <Paragraph className="text-base text-gray-300">
+          <Paragraph className="text-base text-gray-600">
             กรุณาติดต่อเจ้าหน้าที่หรือผู้ดูแลระบบเพื่อขอบัญชีผู้ใช้สำหรับเข้าใช้งานระบบ
           </Paragraph>
-          <Paragraph className="mt-2 text-purple-400">
-            อีเมล: admin@csi-showcase.com
+          <Paragraph className="mt-2 text-[#90278E] font-medium">
+            อีเมล: admin@example.com
           </Paragraph>
         </div>
       </Modal>
-
-      {/* CSS for space theme */}
-      <style jsx global>{`
-        .stars, .stars2, .stars3 {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          pointer-events: none;
-        }
-        
-        .stars {
-          background: transparent url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxwYXR0ZXJuIGlkPSJzdGFycyIgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSJ0cmFuc3BhcmVudCIvPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjAuNSIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjQwIiByPSIwLjMiIGZpbGw9IndoaXRlIi8+PGNpcmNsZSBjeD0iNzAiIGN5PSI3MCIgcj0iMC40IiBmaWxsPSJ3aGl0ZSIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iODAiIHI9IjAuMiIgZmlsbD0id2hpdGUiLz48Y2lyY2xlIGN4PSI4MCIgY3k9IjE1IiByPSIwLjMiIGZpbGw9IndoaXRlIi8+PC9wYXR0ZXJuPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjc3RhcnMpIi8+PC9zdmc+') repeat top center;
-          animation: stars 100s linear infinite;
-        }
-        
-        .stars2 {
-          background: transparent url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxwYXR0ZXJuIGlkPSJzdGFyczIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjMwIiByPSIwLjgiIGZpbGw9IiNkNGQ0ZmYiLz48Y2lyY2xlIGN4PSIxNjAiIGN5PSI3MCIgcj0iMC40IiBmaWxsPSIjYjlkNGZmIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIxNTAiIHI9IjAuNiIgZmlsbD0iI2Q0ZDRmZiIvPjxjaXJjbGUgY3g9IjE4MCIgY3k9IjMwIiByPSIwLjMiIGZpbGw9IiNiOWQ0ZmYiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjE4MCIgcj0iMC43IiBmaWxsPSIjZDRkNGZmIi8+PC9wYXR0ZXJuPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjc3RhcnMyKSIvPjwvc3ZnPg==') repeat top center;
-          animation: stars2 140s linear infinite;
-        }
-        
-        .stars3 {
-          background: transparent url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxwYXR0ZXJuIGlkPSJzdGFyczMiIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idHJhbnNwYXJlbnQiLz48Y2lyY2xlIGN4PSIxNTAiIGN5PSI4MCIgcj0iMSIgZmlsbD0iIzkwMjc4RSIvPjxjaXJjbGUgY3g9IjI2MCIgY3k9IjE5MCIgcj0iMC44IiBmaWxsPSIjOTAyNzhFIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSIyMzAiIHI9IjAuOSIgZmlsbD0iIzkwMjc4RSIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjQwIiByPSIwLjciIGZpbGw9IiM5MDI3OEUiLz48Y2lyY2xlIGN4PSI4MCIgY3k9IjEyMCIgcj0iMS4yIiBmaWxsPSIjOTAyNzhFIi8+PC9wYXR0ZXJuPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjc3RhcnMzKSIvPjwvc3ZnPg==') repeat top center;
-          animation: stars3 180s linear infinite;
-        }
-        
-        @keyframes stars {
-          0% { background-position: 0 0; }
-          100% { background-position: 0 1000px; }
-        }
-        
-        @keyframes stars2 {
-          0% { background-position: 0 0; }
-          100% { background-position: 0 1000px; }
-        }
-        
-        @keyframes stars3 {
-          0% { background-position: 0 0; }
-          100% { background-position: 0 1000px; }
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 640px) {
-          .stars, .stars2, .stars3 {
-            opacity: 0.5;
-          }
-        }
-      `}</style>
     </div>
   );
 };

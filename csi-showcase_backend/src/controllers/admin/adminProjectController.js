@@ -308,7 +308,7 @@ export const updateProject = async (req, res) => {
   try {
     const { projectId } = req.params;
     const {
-      title, description, type, study_year, year, semester, visibility, status, tags
+      title, description, type, study_year, year, semester, visibility, status
     } = req.body;
     
     // ตรวจสอบว่าเป็น admin หรือไม่
@@ -345,11 +345,11 @@ export const updateProject = async (req, res) => {
     const connection = await beginTransaction();
     
     try {
-      // อัปเดตข้อมูลหลักของโครงการ
+      // อัปเดตข้อมูลหลักของโครงการ (ไม่รวม tags)
       await connection.execute(`
         UPDATE projects
         SET title = ?, description = ?, type = ?, study_year = ?, year = ?,
-            semester = ?, visibility = ?, status = ?, tags = ?, updated_at = NOW()
+            semester = ?, visibility = ?, status = ?, updated_at = NOW()
         WHERE project_id = ?
       `, [
         title || project.title,
@@ -360,7 +360,6 @@ export const updateProject = async (req, res) => {
         semester || project.semester,
         visibility === undefined ? project.visibility : visibility,
         status || project.status,
-        tags || project.tags,
         projectId
       ]);
       
@@ -512,12 +511,11 @@ export const getProjectStats = async (req, res) => {
       PROJECT_TYPES.COMPETITION
     ]);
     
-    // ดึงข้อมูลโครงการที่มีการเข้าชมมากที่สุด
+    // ดึงข้อมูลโครงการที่มีการเข้าชมมากที่สุด - ไม่มีการอ้างอิงถึง project_files
     const [topProjects] = await pool.execute(`
       SELECT 
         p.project_id, p.title, p.type, p.views_count,
-        u.username, u.full_name,
-        (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as cover_image
+        u.username, u.full_name
       FROM projects p
       JOIN users u ON p.user_id = u.user_id
       WHERE p.status = ?
@@ -550,25 +548,26 @@ export const getProjectStats = async (req, res) => {
       ORDER BY month ASC
     `, [PROJECT_TYPES.ACADEMIC, PROJECT_TYPES.COURSEWORK, PROJECT_TYPES.COMPETITION]);
     
-    // ดึงข้อมูลจำนวนการเข้าชมโครงการในแต่ละเดือน (ข้อมูล 12 เดือนล่าสุด)
+    // ดึงข้อมูลจำนวนการเข้าชมโครงการในแต่ละเดือน (ข้อมูล 12 เดือนล่าสุด) - เฉพาะจาก visitor_views
     const [monthlyViews] = await pool.execute(`
       SELECT 
         DATE_FORMAT(viewed_at, '%Y-%m') as month,
         COUNT(*) as view_count
-      FROM (
-        SELECT viewed_at FROM visitor_views
-        UNION ALL
-        SELECT viewed_at FROM company_views
-      ) as all_views
+      FROM visitor_views
       WHERE viewed_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
       GROUP BY month
       ORDER BY month ASC
     `);
     
+    // เพิ่ม default cover_image สำหรับโครงการที่มีการเข้าชมมากที่สุด
+    const topProjectsWithImage = topProjects.map(project => ({
+      ...project,
+    }));
+    
     // รวมข้อมูลและส่งกลับ
     return res.status(STATUS_CODES.OK).json(successResponse({
       project_counts: projectCounts[0],
-      top_projects: topProjects,
+      top_projects: topProjectsWithImage,
       recent_projects: recentProjects,
       monthly_uploads: monthlyUploads,
       monthly_views: monthlyViews

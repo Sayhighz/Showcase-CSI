@@ -1,48 +1,30 @@
+// ProjectForm.jsx (ไฟล์หลัก)
 import React, { useState, useEffect } from "react";
 import {
   Form,
-  Input,
-  Select,
-  DatePicker,
-  InputNumber,
-  Button,
-  Upload,
   Steps,
-  message,
-  Card,
   Divider,
+  Card,
+  Button,
   Spin,
+  message
 } from "antd";
-import {
-  InboxOutlined,
-  UploadOutlined,
-  UserOutlined,
-  FileTextOutlined,
-  PictureOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
-import dayjs from "dayjs";
-import {
-  PROJECT_TYPE,
-  PROJECT_TYPE_DISPLAY,
-  PROJECT_TYPES,
-} from "../../constants/projectTypes";
-import { formatDate } from "../../utils/dateUtils";
-import {
-  isFileSizeValid,
-  ALLOWED_FILE_TYPES,
-  formatFileSize,
-} from "../../utils/fileUtils";
+import { PROJECT_TYPE } from "../../constants/projectTypes";
+import BasicInfoStep from "./steps/BasicInfoStep";
+import SpecificInfoStep from "./steps/SpecificInfoStep";
+import MediaUploadStep from "./steps/MediaUploadStep";
+import ContributorsStep from "./steps/ContributorsStep";
+import ReviewStep from "./steps/ReviewStep";
 
-const { TextArea } = Input;
 const { Step } = Steps;
-const { Dragger } = Upload;
 
+// ขั้นตอนต่างๆ ของฟอร์ม
 const STEPS = {
   PROJECT_INFO: 0,
   SPECIFIC_INFO: 1,
-  MEDIA_UPLOAD: 2,
-  REVIEW: 3,
+  CONTRIBUTORS: 2, // เพิ่มขั้นตอนใหม่
+  MEDIA_UPLOAD: 3,
+  REVIEW: 4,
 };
 
 /**
@@ -80,12 +62,13 @@ const ProjectForm = ({
       ? [initialValues.competitionPoster]
       : [],
   });
+  const [contributors, setContributors] = useState(initialValues.contributors || []);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
   // ปรับค่าเริ่มต้น
   useEffect(() => {
     if (isEdit && initialValues) {
-      // แปลงรูปแบบข้อมูลให้ตรงกับ form (เช่น รูปแบบวันที่)
+      // แปลงรูปแบบข้อมูลให้ตรงกับ form
       const formattedInitial = {
         ...initialValues,
         publication_date: initialValues.publication_date
@@ -95,6 +78,11 @@ const ProjectForm = ({
 
       form.setFieldsValue(formattedInitial);
       setProjectType(initialValues.type);
+      
+      // ถ้ามีข้อมูล contributors
+      if (initialValues.contributors && Array.isArray(initialValues.contributors)) {
+        setContributors(initialValues.contributors);
+      }
 
       // เตรียมข้อมูลไฟล์เริ่มต้น
       const initialFileList = {
@@ -155,72 +143,12 @@ const ProjectForm = ({
     form.setFieldsValue({ type: value });
   };
 
-  // ขั้นตอนการทำงานของแบบฟอร์ม
-  const next = async () => {
-    try {
-      if (currentStep === STEPS.PROJECT_INFO) {
-        // ตรวจสอบข้อมูลทั่วไปของโปรเจค
-        const values = await form.validateFields([
-          "title",
-          "description",
-          "type",
-          "study_year",
-          "year",
-          "semester",
-        ]);
-        setValidatedValues((prev) => ({ ...prev, ...values }));
-      } else if (currentStep === STEPS.SPECIFIC_INFO) {
-        // ตรวจสอบข้อมูลเฉพาะตามประเภทโปรเจค
-        if (projectType === PROJECT_TYPE.ACADEMIC) {
-          const values = await form.validateFields([
-            "published_year",
-            "publication_date",
-          ]);
-          setValidatedValues((prev) => ({ ...prev, ...values }));
-        } else if (projectType === PROJECT_TYPE.COMPETITION) {
-          const values = await form.validateFields([
-            "competition_name",
-            "competition_year",
-          ]);
-          setValidatedValues((prev) => ({ ...prev, ...values }));
-        } else if (projectType === PROJECT_TYPE.COURSEWORK) {
-          const values = await form.validateFields(["clip_video"]);
-          setValidatedValues((prev) => ({ ...prev, ...values }));
-        }
-      } else if (currentStep === STEPS.MEDIA_UPLOAD) {
-        // ตรวจสอบว่ามีการอัปโหลดไฟล์ที่จำเป็นหรือไม่
-        if (
-          projectType === PROJECT_TYPE.ACADEMIC &&
-          fileList.paperFile.length === 0
-        ) {
-          message.error("กรุณาอัปโหลดไฟล์บทความวิชาการ (.pdf)");
-          return;
-        } else if (
-          projectType === PROJECT_TYPE.COURSEWORK &&
-          fileList.courseworkPoster.length === 0
-        ) {
-          message.error("กรุณาอัปโหลดรูปโปสเตอร์สำหรับงานในชั้นเรียน");
-          return;
-        } else if (
-          projectType === PROJECT_TYPE.COMPETITION &&
-          fileList.competitionPoster.length === 0
-        ) {
-          message.error("กรุณาอัปโหลดรูปโปสเตอร์สำหรับการแข่งขัน");
-          return;
-        }
-      }
-
-      setCurrentStep(currentStep + 1);
-    } catch (error) {
-      console.error("Form validation error:", error);
-    }
+  // จัดการรายชื่อผู้ร่วมโปรเจค
+  const handleContributorsChange = (newContributors) => {
+    setContributors(newContributors);
   };
 
-  const prev = () => {
-    setCurrentStep(currentStep - 1);
-  };
-
-  // จัดการไฟล์อัปโหลด
+  // การเปลี่ยนแปลงข้อมูลไฟล์อัปโหลด
   const handleFileChange = (info, fileType) => {
     let fileListCopy = [...info.fileList];
 
@@ -242,100 +170,173 @@ const ProjectForm = ({
     });
   };
 
-  // ตรวจสอบไฟล์ก่อนอัปโหลด
-  const beforeUpload = (file, fileType) => {
-    // ตรวจสอบประเภทไฟล์
-    let isValidType = false;
-    let allowedTypes = [];
+  // ขั้นตอนถัดไป
+  const next = async () => {
+    try {
+      if (currentStep === STEPS.PROJECT_INFO) {
+        // ตรวจสอบข้อมูลทั่วไปของโปรเจค
+        const values = await form.validateFields([
+          "title",
+          "description",
+          "type",
+          "study_year",
+          "year",
+          "semester",
+          "visibility"
+        ]);
+        setValidatedValues((prev) => ({ ...prev, ...values }));
+      } else if (currentStep === STEPS.SPECIFIC_INFO) {
+        // ตรวจสอบข้อมูลเฉพาะตามประเภทโปรเจค
+        if (projectType === PROJECT_TYPE.ACADEMIC) {
+          const values = await form.validateFields([
+            "published_year",
+            "publication_date",
+          ]);
+          setValidatedValues((prev) => ({ ...prev, ...values }));
+        } else if (projectType === PROJECT_TYPE.COMPETITION) {
+          const values = await form.validateFields([
+            "competition_name",
+            "competition_year",
+          ]);
+          setValidatedValues((prev) => ({ ...prev, ...values }));
+        } else if (projectType === PROJECT_TYPE.COURSEWORK) {
+          const values = await form.validateFields(["clip_video"]);
+          setValidatedValues((prev) => ({ ...prev, ...values }));
+        }
+      } else if (currentStep === STEPS.CONTRIBUTORS) {
+        // ตรวจสอบและบันทึกข้อมูลผู้ร่วมโครงการ
+        setValidatedValues((prev) => ({ ...prev, contributors }));
+      } else if (currentStep === STEPS.MEDIA_UPLOAD) {
+        // ตรวจสอบว่ามีการอัปโหลดไฟล์ที่จำเป็นหรือไม่
+        if (
+          projectType === PROJECT_TYPE.ACADEMIC &&
+          fileList.paperFile.length === 0 &&
+          !isEdit // ถ้าเป็นการแก้ไข อาจจะไม่ต้องอัปโหลดไฟล์ใหม่
+        ) {
+          message.error("กรุณาอัปโหลดไฟล์บทความวิชาการ (.pdf)");
+          return;
+        } else if (
+          projectType === PROJECT_TYPE.COURSEWORK &&
+          fileList.courseworkPoster.length === 0 &&
+          !isEdit
+        ) {
+          message.error("กรุณาอัปโหลดรูปโปสเตอร์สำหรับงานในชั้นเรียน");
+          return;
+        } else if (
+          projectType === PROJECT_TYPE.COMPETITION &&
+          fileList.competitionPoster.length === 0 &&
+          !isEdit
+        ) {
+          message.error("กรุณาอัปโหลดรูปโปสเตอร์สำหรับการแข่งขัน");
+          return;
+        }
+      }
 
-    if (fileType === "paperFile") {
-      allowedTypes = ["application/pdf"];
-      isValidType = file.type === "application/pdf";
-    } else if (
-      fileType === "courseworkPoster" ||
-      fileType === "courseworkImage" ||
-      fileType === "competitionPoster"
-    ) {
-      allowedTypes = ALLOWED_FILE_TYPES.image;
-      isValidType = allowedTypes.includes(file.type);
-    } else if (fileType === "courseworkVideo") {
-      allowedTypes = ALLOWED_FILE_TYPES.video;
-      isValidType = allowedTypes.includes(file.type);
+      setCurrentStep(currentStep + 1);
+    } catch (error) {
+      console.error("Form validation error:", error);
     }
-
-    if (!isValidType) {
-      message.error(
-        `ไฟล์ "${
-          file.name
-        }" ไม่ถูกต้อง. กรุณาอัปโหลดไฟล์ประเภท: ${allowedTypes.join(", ")}`
-      );
-      return Upload.LIST_IGNORE;
-    }
-
-    // ตรวจสอบขนาดไฟล์
-    let maxSize = 0;
-    if (fileType === "paperFile") {
-      maxSize = 10 * 1024 * 1024; // 10MB
-    } else if (fileType === "courseworkVideo") {
-      maxSize = 50 * 1024 * 1024; // 50MB
-    } else {
-      maxSize = 5 * 1024 * 1024; // 5MB สำหรับรูปภาพ
-    }
-
-    if (!isFileSizeValid(file, maxSize)) {
-      message.error(
-        `ไฟล์ "${file.name}" มีขนาดใหญ่เกินไป. ขนาดสูงสุดคือ ${formatFileSize(
-          maxSize
-        )}`
-      );
-      return Upload.LIST_IGNORE;
-    }
-
-    // ป้องกันไม่ให้มีการอัปโหลดไปยังเซิร์ฟเวอร์โดยตรง (จะใช้ FormData ส่งทั้งฟอร์ม)
-    return false;
   };
 
+  // ขั้นตอนก่อนหน้า
+  const prev = () => {
+    setCurrentStep(currentStep - 1);
+  };
+
+  // จัดการการส่งฟอร์ม
   const handleSubmit = async () => {
     try {
       setConfirmLoading(true);
       
-      // รวบรวมข้อมูลจากฟอร์ม
+      // เตรียมข้อมูลสำหรับส่งไปยัง API
       const values = form.getFieldsValue(true);
       
-      // สร้างไฟล์สำหรับส่ง
-      const files = {};
+      // แปลง contributors เป็น JSON string ตามที่ API ต้องการ
+      // API ต้องการรูปแบบ: JSON string of contributors (array of {user_id, role})
+      const contributorsJson = JSON.stringify(
+        contributors.map(c => ({ 
+          user_id: c.user_id, 
+          role: c.role 
+        }))
+      );
+      
+      // สร้าง object สำหรับข้อมูลโปรเจค
+      const projectData = {
+        title: values.title,
+        description: values.description,
+        type: projectType,
+        study_year: values.study_year,
+        year: values.year,
+        semester: values.semester,
+        visibility: values.visibility || 1,
+        contributors: contributorsJson, // ส่งเป็น JSON string
+      };
+      
+      // เพิ่มข้อมูลเฉพาะตามประเภทโปรเจค
+      if (projectType === PROJECT_TYPE.ACADEMIC) {
+        projectData.published_year = values.published_year;
+        if (values.publication_date) {
+          projectData.publication_date = values.publication_date.format ? 
+            values.publication_date.format('YYYY-MM-DD') : values.publication_date;
+        }
+      } else if (projectType === PROJECT_TYPE.COMPETITION) {
+        projectData.competition_name = values.competition_name;
+        projectData.competition_year = values.competition_year;
+      } else if (projectType === PROJECT_TYPE.COURSEWORK) {
+        projectData.clip_video = values.clip_video;
+      }
+      
+      // รวบรวมไฟล์ที่จะส่งไป
+      const filesData = {};
       
       // จัดการไฟล์ตามประเภทโปรเจค
-      if (projectType === PROJECT_TYPE.ACADEMIC) {
-        if (fileList.paperFile.length > 0 && fileList.paperFile[0].originFileObj) {
-          files.paperFile = fileList.paperFile[0].originFileObj;
+      if (projectType === PROJECT_TYPE.ACADEMIC && fileList.paperFile.length > 0) {
+        const paperFile = fileList.paperFile[0];
+        if (paperFile.originFileObj) {
+          filesData.paperFile = paperFile.originFileObj;
+        } else if (paperFile instanceof File) {
+          filesData.paperFile = paperFile;
+        }
+      } else if (projectType === PROJECT_TYPE.COMPETITION && fileList.competitionPoster.length > 0) {
+        const posterFile = fileList.competitionPoster[0];
+        if (posterFile.originFileObj) {
+          filesData.competitionPoster = posterFile.originFileObj;
+        } else if (posterFile instanceof File) {
+          filesData.competitionPoster = posterFile;
         }
       } else if (projectType === PROJECT_TYPE.COURSEWORK) {
-        if (fileList.courseworkPoster.length > 0 && fileList.courseworkPoster[0].originFileObj) {
-          files.courseworkPoster = fileList.courseworkPoster[0].originFileObj;
+        if (fileList.courseworkPoster.length > 0) {
+          const posterFile = fileList.courseworkPoster[0];
+          if (posterFile.originFileObj) {
+            filesData.courseworkPoster = posterFile.originFileObj;
+          } else if (posterFile instanceof File) {
+            filesData.courseworkPoster = posterFile;
+          }
         }
         
         if (fileList.courseworkImage.length > 0) {
-          files.courseworkImage = fileList.courseworkImage.find(file => file.originFileObj)?.originFileObj;
+          const imageFile = fileList.courseworkImage[0];
+          if (imageFile.originFileObj) {
+            filesData.courseworkImage = imageFile.originFileObj;
+          } else if (imageFile instanceof File) {
+            filesData.courseworkImage = imageFile;
+          }
         }
         
-        if (fileList.courseworkVideo.length > 0 && fileList.courseworkVideo[0].originFileObj) {
-          files.courseworkVideo = fileList.courseworkVideo[0].originFileObj;
-        }
-      } else if (projectType === PROJECT_TYPE.COMPETITION) {
-        if (fileList.competitionPoster.length > 0 && fileList.competitionPoster[0].originFileObj) {
-          files.competitionPoster = fileList.competitionPoster[0].originFileObj;
+        if (fileList.courseworkVideo.length > 0) {
+          const videoFile = fileList.courseworkVideo[0];
+          if (videoFile.originFileObj) {
+            filesData.courseworkVideo = videoFile.originFileObj;
+          } else if (videoFile instanceof File) {
+            filesData.courseworkVideo = videoFile;
+          }
         }
       }
       
-      // เตรียมข้อมูลในรูปแบบที่ถูกต้อง
-      // แปลง dayjs object เป็น string
-      if (values.publication_date && dayjs.isDayjs(values.publication_date)) {
-        values.publication_date = values.publication_date.format('YYYY-MM-DD');
-      }
+      console.log("Data to submit:", { data: projectData, files: filesData });
       
-      // เรียกใช้ callback onSubmit ส่งข้อมูลและไฟล์
-      onSubmit({ data: values, files });
+      // ส่งข้อมูลไปยัง API
+      await onSubmit({ data: projectData, files: filesData });
       
       setConfirmLoading(false);
     } catch (error) {
@@ -345,484 +346,50 @@ const ProjectForm = ({
     }
   };
 
-  // แสดงข้อมูลในขั้นตอนตรวจสอบ
-  // แก้ไขฟังก์ชัน renderReviewData ทั้งหมด
-  const renderReviewData = () => {
-    return (
-      <div className="space-y-6">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-gray-900 mb-3">
-            ข้อมูลทั่วไป
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">ชื่อโปรเจค</p>
-              <p className="font-medium">{validatedValues.title}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">ประเภท</p>
-              <p className="font-medium">
-                {PROJECT_TYPE_DISPLAY[validatedValues.type]}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">ชั้นปี</p>
-              <p className="font-medium">ปี {validatedValues.study_year}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">ปีการศึกษา/ภาคเรียน</p>
-              <p className="font-medium">
-                {validatedValues.year} / {validatedValues.semester}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-sm text-gray-500">คำอธิบาย</p>
-            <p className="font-medium whitespace-pre-line">
-              {validatedValues.description}
-            </p>
-          </div>
-        </div>
-
-        {/* ข้อมูลเฉพาะตามประเภท */}
-        {projectType === PROJECT_TYPE.ACADEMIC && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">
-              ข้อมูลบทความวิชาการ
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">ปีที่ตีพิมพ์</p>
-                <p className="font-medium">{validatedValues.published_year}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">วันที่ตีพิมพ์</p>
-                <p className="font-medium">
-                  {validatedValues.publication_date
-                    ? formatDate(validatedValues.publication_date)
-                    : ""}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3">
-              <p className="text-sm text-gray-500">ไฟล์บทความ</p>
-              <ul className="list-disc pl-5">
-                {fileList.paperFile.map((file, index) => (
-                  <li key={index}>{file.name}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {projectType === PROJECT_TYPE.COMPETITION && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">
-              ข้อมูลการแข่งขัน
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">ชื่อการแข่งขัน</p>
-                <p className="font-medium">
-                  {validatedValues.competition_name}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">ปีที่แข่งขัน</p>
-                <p className="font-medium">
-                  {validatedValues.competition_year}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3">
-              <p className="text-sm text-gray-500">รูปโปสเตอร์</p>
-              <ul className="list-disc pl-5">
-                {fileList.competitionPoster.map((file, index) => (
-                  <li key={index}>{file.name}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {projectType === PROJECT_TYPE.COURSEWORK && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">
-              ข้อมูลงานในชั้นเรียน
-            </h3>
-            <div className="mt-3">
-              <p className="text-sm text-gray-500">โปสเตอร์</p>
-              <ul className="list-disc pl-5">
-                {fileList.courseworkPoster.map((file, index) => (
-                  <li key={index}>{file.name}</li>
-                ))}
-              </ul>
-            </div>
-            {fileList.courseworkImage.length > 0 && (
-              <div className="mt-3">
-                <p className="text-sm text-gray-500">รูปภาพเพิ่มเติม</p>
-                <ul className="list-disc pl-5">
-                  {fileList.courseworkImage.map((file, index) => (
-                    <li key={index}>{file.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {fileList.courseworkVideo.length > 0 && (
-              <div className="mt-3">
-                <p className="text-sm text-gray-500">วิดีโอ</p>
-                <ul className="list-disc pl-5">
-                  {fileList.courseworkVideo.map((file, index) => (
-                    <li key={index}>{file.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {validatedValues.clip_video && (
-              <div className="mt-3">
-                <p className="text-sm text-gray-500">ลิงก์วิดีโอ</p>
-                <p className="font-medium">{validatedValues.clip_video}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // แสดงขั้นตอนตามค่า currentStep
   const renderStepContent = () => {
     switch (currentStep) {
       case STEPS.PROJECT_INFO:
         return (
-          <div className="space-y-6">
-            <Form.Item
-              name="title"
-              label="ชื่อโปรเจค"
-              rules={[
-                { required: true, message: "กรุณากรอกชื่อโปรเจค" },
-                {
-                  min: 5,
-                  message: "ชื่อโปรเจคต้องมีความยาวอย่างน้อย 5 ตัวอักษร",
-                },
-              ]}
-            >
-              <Input placeholder="ระบุชื่อโปรเจค" maxLength={100} />
-            </Form.Item>
-
-            <Form.Item
-              name="description"
-              label="คำอธิบาย"
-              rules={[
-                { required: true, message: "กรุณากรอกคำอธิบายโปรเจค" },
-                {
-                  min: 20,
-                  message: "คำอธิบายต้องมีความยาวอย่างน้อย 20 ตัวอักษร",
-                },
-              ]}
-            >
-              <TextArea
-                placeholder="อธิบายรายละเอียดของโปรเจค"
-                autoSize={{ minRows: 4, maxRows: 8 }}
-                maxLength={2000}
-                showCount
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="type"
-              label="ประเภทโปรเจค"
-              rules={[{ required: true, message: "กรุณาเลือกประเภทโปรเจค" }]}
-            >
-              <Select
-                placeholder="เลือกประเภทโปรเจค"
-                onChange={handleProjectTypeChange}
-                options={PROJECT_TYPES.map((type) => ({
-                  value: type.value,
-                  label: type.label,
-                }))}
-              />
-            </Form.Item>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Form.Item
-                name="study_year"
-                label="ชั้นปี"
-                rules={[{ required: true, message: "กรุณาเลือกชั้นปี" }]}
-              >
-                <Select
-                  placeholder="เลือกชั้นปี"
-                  options={[
-                    { value: 1, label: "ปี 1" },
-                    { value: 2, label: "ปี 2" },
-                    { value: 3, label: "ปี 3" },
-                    { value: 4, label: "ปี 4" },
-                  ]}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="year"
-                label="ปีการศึกษา"
-                rules={[{ required: true, message: "กรุณากรอกปีการศึกษา" }]}
-              >
-                <InputNumber
-                  min={2520}
-                  max={2600}
-                  placeholder="เช่น 2566"
-                  style={{ width: "100%" }}
-                />
-              </Form.Item>
-            </div>
-
-            <Form.Item
-              name="semester"
-              label="ภาคเรียน"
-              rules={[{ required: true, message: "กรุณาเลือกภาคเรียน" }]}
-            >
-              <Select
-                placeholder="เลือกภาคเรียน"
-                options={[
-                  { value: "1", label: "ภาคเรียนที่ 1" },
-                  { value: "2", label: "ภาคเรียนที่ 2" },
-                  { value: "3", label: "ภาคฤดูร้อน" },
-                ]}
-              />
-            </Form.Item>
-
-            <Form.Item name="visibility" label="การแสดงผล" initialValue={1}>
-              <Select
-                placeholder="เลือกการแสดงผล"
-                options={[
-                  { value: 1, label: "สาธารณะ" },
-                  { value: 0, label: "ส่วนตัว" },
-                ]}
-              />
-            </Form.Item>
-          </div>
+          <BasicInfoStep 
+            form={form} 
+            onProjectTypeChange={handleProjectTypeChange} 
+          />
         );
 
       case STEPS.SPECIFIC_INFO:
         return (
-          <div className="space-y-6">
-            {projectType === PROJECT_TYPE.ACADEMIC && (
-              <>
-                <Form.Item
-                  name="published_year"
-                  label="ปีที่ตีพิมพ์"
-                  rules={[{ required: true, message: "กรุณากรอกปีที่ตีพิมพ์" }]}
-                >
-                  <InputNumber
-                    min={2520}
-                    max={2600}
-                    placeholder="เช่น 2566"
-                    style={{ width: "100%" }}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  name="publication_date"
-                  label="วันที่ตีพิมพ์"
-                  rules={[
-                    { required: true, message: "กรุณาเลือกวันที่ตีพิมพ์" },
-                  ]}
-                >
-                  <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
-                </Form.Item>
-              </>
-            )}
-
-            {projectType === PROJECT_TYPE.COMPETITION && (
-              <>
-                <Form.Item
-                  name="competition_name"
-                  label="ชื่อการแข่งขัน"
-                  rules={[
-                    { required: true, message: "กรุณากรอกชื่อการแข่งขัน" },
-                  ]}
-                >
-                  <Input placeholder="ระบุชื่อการแข่งขัน" />
-                </Form.Item>
-
-                <Form.Item
-                  name="competition_year"
-                  label="ปีที่แข่งขัน"
-                  rules={[{ required: true, message: "กรุณากรอกปีที่แข่งขัน" }]}
-                >
-                  <InputNumber
-                    min={2520}
-                    max={2600}
-                    placeholder="เช่น 2566"
-                    style={{ width: "100%" }}
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            {projectType === PROJECT_TYPE.COURSEWORK && (
-              <>
-                <Form.Item
-                  name="clip_video"
-                  label="ลิงก์วิดีโอ (ถ้ามี)"
-                  rules={[
-                    {
-                      pattern:
-                        /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com)\/.+/,
-                      message:
-                        "กรุณากรอกลิงก์วิดีโอจาก YouTube, Facebook หรือ TikTok ที่ถูกต้อง",
-                      validateTrigger: "onBlur",
-                    },
-                  ]}
-                >
-                  <Input placeholder="URL จาก YouTube, Facebook หรือ TikTok" />
-                </Form.Item>
-              </>
-            )}
-          </div>
+          <SpecificInfoStep 
+            form={form} 
+            projectType={projectType} 
+          />
+        );
+        
+      case STEPS.CONTRIBUTORS:
+        return (
+          <ContributorsStep 
+            contributors={contributors} 
+            onChange={handleContributorsChange} 
+          />
         );
 
       case STEPS.MEDIA_UPLOAD:
         return (
-          <div className="space-y-8">
-            {projectType === PROJECT_TYPE.ACADEMIC && (
-              <div>
-                <h3 className="text-lg font-medium mb-2">
-                  อัปโหลดบทความวิชาการ
-                </h3>
-                <Form.Item label="ไฟล์บทความ (PDF)" required={true}>
-                  <Dragger
-                    name="paperFile"
-                    fileList={fileList.paperFile}
-                    onChange={(info) => handleFileChange(info, "paperFile")}
-                    beforeUpload={(file) => beforeUpload(file, "paperFile")}
-                    accept=".pdf"
-                    maxCount={1}
-                    multiple={false}
-                  >
-                    <p className="ant-upload-drag-icon">
-                      <FileTextOutlined />
-                    </p>
-                    <p className="ant-upload-text">
-                      คลิกหรือลากไฟล์มาที่นี่เพื่ออัปโหลด
-                    </p>
-                    <p className="ant-upload-hint">
-                      รองรับเฉพาะไฟล์ PDF ขนาดไม่เกิน 10MB
-                    </p>
-                  </Dragger>
-                </Form.Item>
-              </div>
-            )}
-
-            {projectType === PROJECT_TYPE.COURSEWORK && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">
-                    อัปโหลดโปสเตอร์งานในชั้นเรียน
-                  </h3>
-                  <Form.Item label="รูปโปสเตอร์" required={true}>
-                    <Dragger
-                      name="courseworkPoster"
-                      fileList={fileList.courseworkPoster}
-                      onChange={(info) =>
-                        handleFileChange(info, "courseworkPoster")
-                      }
-                      beforeUpload={(file) =>
-                        beforeUpload(file, "courseworkPoster")
-                      }
-                      accept=".jpg,.jpeg,.png,.gif,.webp"
-                      maxCount={1}
-                      multiple={false}
-                    >
-                      <p className="ant-upload-drag-icon">
-                        <PictureOutlined />
-                      </p>
-                      <p className="ant-upload-text">
-                        คลิกหรือลากรูปภาพมาที่นี่เพื่ออัปโหลด
-                      </p>
-                      <p className="ant-upload-hint">
-                        รองรับไฟล์รูปภาพ JPG, PNG, GIF, WebP ขนาดไม่เกิน 5MB
-                      </p>
-                    </Dragger>
-                  </Form.Item>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-2">
-                    อัปโหลดรูปภาพเพิ่มเติม (ถ้ามี)
-                  </h3>
-                  <Form.Item label="รูปภาพเพิ่มเติม">
-                    <Upload
-                      name="courseworkImage"
-                      listType="picture-card"
-                      fileList={fileList.courseworkImage}
-                      onChange={(info) =>
-                        handleFileChange(info, "courseworkImage")
-                      }
-                      beforeUpload={(file) =>
-                        beforeUpload(file, "courseworkImage")
-                      }
-                      accept=".jpg,.jpeg,.png,.gif,.webp"
-                      maxCount={3}
-                      multiple={true}
-                    >
-                      {fileList.courseworkImage.length >= 3 ? null : (
-                        <div>
-                          <UploadOutlined />
-                          <div style={{ marginTop: 8 }}>อัปโหลด</div>
-                        </div>
-                      )}
-                    </Upload>
-                    <p className="text-xs text-gray-500">
-                      อัปโหลดได้สูงสุด 3 รูป
-                    </p>
-                  </Form.Item>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-2">
-                    อัปโหลดวิดีโอ (ถ้ามี)
-                  </h3>
-                  <Form.Item label="ไฟล์วิดีโอ">
-                    <Dragger
-                      name="courseworkVideo"
-                      fileList={fileList.courseworkVideo}
-                      onChange={(info) =>
-                        handleFileChange(info, "courseworkVideo")
-                      }
-                      beforeUpload={(file) =>
-                        beforeUpload(file, "courseworkVideo")
-                      }
-                      accept=".mp4,.webm,.mov"
-                      maxCount={1}
-                      multiple={false}
-                    >
-                      <p className="ant-upload-drag-icon">
-                        <VideoCameraOutlined />
-                      </p>
-                      <p className="ant-upload-text">
-                        คลิกหรือลากไฟล์วิดีโอมาที่นี่เพื่ออัปโหลด
-                      </p>
-                      <p className="ant-upload-hint">
-                        รองรับไฟล์วิดีโอ MP4, WebM, QuickTime ขนาดไม่เกิน 50MB
-                      </p>
-                    </Dragger>
-                  </Form.Item>
-                </div>
-              </div>
-            )}
-          </div>
+          <MediaUploadStep 
+            projectType={projectType} 
+            fileList={fileList} 
+            onFileChange={handleFileChange} 
+          />
         );
 
       case STEPS.REVIEW:
         return (
-          <div className="space-y-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-blue-700">
-                กรุณาตรวจสอบข้อมูลให้ถูกต้องก่อนบันทึก
-              </p>
-            </div>
-            {renderReviewData()}
-          </div>
+          <ReviewStep 
+            projectType={projectType} 
+            validatedValues={validatedValues} 
+            fileList={fileList} 
+            contributors={contributors}
+          />
         );
 
       default:
@@ -838,6 +405,7 @@ const ProjectForm = ({
           items={[
             { title: "ข้อมูลทั่วไป", description: "ข้อมูลเบื้องต้นของโปรเจค" },
             { title: "ข้อมูลเฉพาะ", description: "รายละเอียดตามประเภทโปรเจค" },
+            { title: "ผู้ร่วมโปรเจค", description: "เพิ่มผู้ร่วมสร้างโปรเจค" },
             { title: "อัปโหลดไฟล์", description: "อัปโหลดไฟล์ที่เกี่ยวข้อง" },
             { title: "ตรวจสอบ", description: "ตรวจสอบข้อมูลก่อนบันทึก" },
           ]}

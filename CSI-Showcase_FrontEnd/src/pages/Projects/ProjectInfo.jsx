@@ -116,6 +116,28 @@ const ProjectInfo = () => {
     );
   }
 
+  const prepareContributorsData = (contributors) => {
+    if (!contributors) return [];
+    
+    // ถ้าเป็น JSON string ให้แปลงเป็น array
+    if (typeof contributors === 'string') {
+      try {
+        const parsed = JSON.parse(contributors);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error('Failed to parse contributors JSON:', e);
+        return [];
+      }
+    }
+    
+    // ถ้าเป็น array อยู่แล้ว
+    if (Array.isArray(contributors)) {
+      return contributors;
+    }
+    
+    return [];
+  };
+
   const handleEdit = () => {
     navigate(PROJECT.EDIT(projectId));
   };
@@ -224,7 +246,7 @@ const ProjectInfo = () => {
             <ProjectDetailsCard project={project} />
             <ProjectContributors 
               author={project.author} 
-              contributors={project.contributors || []} 
+              contributors={prepareContributorsData(project.contributors)} 
             />
           </div>
         </div>

@@ -8,8 +8,15 @@ const AUTH_COOKIE_NAME = "authToken";
  * @param {number} expires - จำนวนวันก่อนหมดอายุ (default: 1 วัน)
  */
 export const setAuthCookie = (token, expires = 1) => {
-  Cookies.set(AUTH_COOKIE_NAME, token, { expires, secure: true, sameSite: 'Strict' });
+  // ตรวจสอบว่าใช้ HTTPS หรือไม่ แต่ในกรณีนี้เราจะตั้งเป็น false เพื่อให้ใช้ได้กับ HTTP
+  const isSecure = window.location.protocol === 'https:';
+  Cookies.set(AUTH_COOKIE_NAME, token, { 
+    expires, 
+    secure: isSecure, 
+    sameSite: 'Lax' // เปลี่ยนจาก Strict เป็น Lax เพื่อความยืดหยุ่นมากขึ้น
+  });
 };
+
 /**
  * ดึงค่า token จากคุกกี้
  * @returns {string|null} - ค่า token หรือ null ถ้าไม่มี
@@ -40,11 +47,12 @@ export const isAuthenticated = () => {
  * @param {number} expires - อายุคุกกี้ (วัน)
  */
 export const setCookie = (name, value, expires = 7) => {
-  const isSecure = process.env.NODE_ENV === 'production'; // Secure cookies in production
+  // ตรวจสอบว่าใช้ HTTPS หรือไม่ แต่ในกรณีนี้เราจะทำให้มันยืดหยุ่นมากขึ้น
+  const isSecure = window.location.protocol === 'https:';
   Cookies.set(name, value, { 
     expires, 
     secure: isSecure, 
-    sameSite: isSecure ? 'Strict' : 'Lax'
+    sameSite: 'Lax' // เปลี่ยนจาก Strict เป็น Lax เพื่อความยืดหยุ่นมากขึ้น
   });
 };
 

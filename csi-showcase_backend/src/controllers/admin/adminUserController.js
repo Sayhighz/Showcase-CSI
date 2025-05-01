@@ -239,17 +239,16 @@ export const getUserById = asyncHandler(async (req, res) => {
       return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
     
-    // ดึงข้อมูลโครงการของผู้ใช้
+    // ดึงข้อมูลโครงการของผู้ใช้ - โดยไม่อ้างอิงถึงตาราง project_files
     const [projects] = await pool.execute(`
-      SELECT p.project_id, p.title, p.type, p.study_year, p.year, p.status, p.created_at,
-            (SELECT file_path FROM project_files pf WHERE pf.project_id = p.project_id AND pf.file_type = 'image' LIMIT 1) as image_path
+      SELECT p.project_id, p.title, p.type, p.study_year, p.year, p.status, p.created_at
       FROM projects p
       WHERE p.user_id = ?
       OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?)
       ORDER BY p.created_at DESC
     `, [userId, userId]);
     
-    // ดึงประวัติการเข้าสู่ระบบ - ใช้ค่า LIMIT โดยตรงในคำสั่ง SQL
+    // ดึงประวัติการเข้าสู่ระบบ
     const [loginLogs] = await pool.execute(`
       SELECT log_id, login_time, ip_address
       FROM login_logs
@@ -268,7 +267,6 @@ export const getUserById = asyncHandler(async (req, res) => {
         year: project.year,
         status: project.status,
         createdAt: project.created_at,
-        image: project.image_path || 'https://via.placeholder.com/150',
         projectLink: `/projects/${project.project_id}`
       })),
       loginHistory: loginLogs

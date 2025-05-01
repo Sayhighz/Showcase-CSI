@@ -11,6 +11,7 @@ import Work_Row from '../../components/Work/Work_Row';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ProjectFilter from '../../components/Project/ProjectFilter';
 import FilterPanel from '../../components/common/FilterPanel';
+import WorkGrid from '../../components/Work/WorkGrid';
 
 const { Option } = Select;
 
@@ -184,11 +185,10 @@ const AllProject = () => {
             </motion.button>
           </div>
         ) : projects.length > 0 ? (
-          <Work_Row 
-            title="" 
-            items={projects} 
-            side="center" 
-          />
+          <WorkGrid
+            items={projects}
+            displayMode='row'
+            side='left'/>
         ) : (
           <div className="flex justify-center items-center h-64 flex-col">
             <Empty 

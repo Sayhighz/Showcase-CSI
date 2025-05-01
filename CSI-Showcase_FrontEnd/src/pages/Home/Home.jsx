@@ -20,6 +20,7 @@ import Work_Col from '../../components/Work/Work_Col';
 import Work_Row from '../../components/Work/Work_Row';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import WorkGrid from '../../components/Work/WorkGrid';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -260,7 +261,11 @@ const Home = () => {
               <LoadingSpinner tip="กำลังโหลดผลงานยอดนิยม..." />
             </div>
           ) : topProjects.length > 0 ? (
-            <Work_Col title="" items={topProjects} side="center" description="" />
+            <WorkGrid
+              items={topProjects}
+              displayMode={'column'}
+              side="center"
+              autoPlay={false} />
           ) : (
             <div className="py-10">
               {renderEmptyState()}
@@ -301,7 +306,12 @@ const Home = () => {
                 <LoadingSpinner tip="กำลังโหลดผลงานล่าสุด..." />
               </div>
             ) : latestProjects.length > 0 ? (
-              <Work_Row title="" items={latestProjects} side="left" description="" />
+              <WorkGrid  title="ผลงานอัพเดทล่าสุด"
+              description="Latest updated work"
+              items={latestProjects}
+              displayMode={'row'}
+              side="right"
+              autoPlay={false} />
             ) : (
               <div className="py-10">
                 {renderEmptyState()}

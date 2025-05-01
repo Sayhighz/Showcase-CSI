@@ -61,6 +61,7 @@ export const API_ENDPOINTS = {
   SEARCH: {
     BASE: `${API_BASE_URL}/search`,
     PROJECTS: `${API_BASE_URL}/search/projects`,
+    USERS: `${API_BASE_URL}/search/users`,
   },
   
 };

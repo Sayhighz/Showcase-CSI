@@ -118,80 +118,6 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
 
 
 /**
- * ดึงข้อมูลการเข้าชมโครงการจากบริษัท
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-export const getCompanyViews = asyncHandler(async (req, res) => {
-  try {
-    // ใช้ getPaginationParams จาก pagination helper
-    const pagination = getPaginationParams(req);
-    const { page, limit, offset } = pagination;
-    
-    const projectId = req.query.projectId || '';
-    const search = req.query.search || '';
-    
-    // สร้าง query พื้นฐาน
-    let query = `
-      SELECT cv.view_id, cv.company_name, cv.contact_email, cv.project_id, cv.viewed_at,
-             p.title as project_title
-      FROM company_views cv
-      JOIN projects p ON cv.project_id = p.project_id
-      WHERE 1=1
-    `;
-    
-    const queryParams = [];
-    
-    // เพิ่มการค้นหาตาม projectId ถ้ามี
-    if (projectId) {
-      query += ` AND cv.project_id = ?`;
-      queryParams.push(projectId);
-    }
-    
-    // เพิ่มการค้นหาจากข้อความถ้ามี
-    if (search) {
-      query += ` AND (cv.company_name LIKE ? OR cv.contact_email LIKE ? OR p.title LIKE ?)`;
-      queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-    
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
-    const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
-    const [countResult] = await pool.execute(countQuery, queryParams);
-    const totalItems = countResult[0].total;
-    
-    // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
-    const paginationInfo = getPaginationInfo(totalItems, page, limit);
-    
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY cv.viewed_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
-    
-    // ดึงข้อมูลการเข้าชมจากบริษัท
-    const [views] = await pool.execute(query, queryParams);
-    
-    // แปลงข้อมูลให้เหมาะสมกับ frontend
-    const formattedViews = views.map(view => ({
-      id: view.view_id,
-      companyName: view.company_name,
-      contactEmail: view.contact_email,
-      projectId: view.project_id,
-      projectTitle: view.project_title,
-      viewedAt: view.viewed_at
-    }));
-    
-    // ใช้ successResponse helper function พร้อม status code
-    return res.status(STATUS_CODES.OK).json(successResponse({
-      views: formattedViews,
-      pagination: paginationInfo
-    }, 'Company views retrieved successfully', STATUS_CODES.OK));
-    
-  } catch (error) {
-    logger.error('Error fetching company views:', error);
-    return handleServerError(res, error);
-  }
-});
-
-/**
  * ดึงข้อมูลการเข้าชมโครงการจากผู้เยี่ยมชม
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -228,20 +154,21 @@ export const getVisitorViews = asyncHandler(async (req, res) => {
       queryParams.push(`%${search}%`, `%${search}%`);
     }
     
-    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
+    // สร้าง query สำหรับนับจำนวนทั้งหมด
     const countQuery = `SELECT COUNT(*) as total FROM (${query}) as countTable`;
+    
+    // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
     const [countResult] = await pool.execute(countQuery, queryParams);
     const totalItems = countResult[0].total;
     
     // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
     const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY vv.viewed_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
+    // สร้าง query หลักพร้อมกับ ORDER BY และ LIMIT
+    const mainQuery = `${query} ORDER BY vv.viewed_at DESC LIMIT ${limit} OFFSET ${offset}`;
     
-    // ดึงข้อมูลการเข้าชมจากผู้เยี่ยมชม
-    const [views] = await pool.execute(query, queryParams);
+    // ดึงข้อมูลการเข้าชมโดยใช้ parameters ชุดเดิม (ไม่รวม limit และ offset เป็น parameters)
+    const [views] = await pool.execute(mainQuery, queryParams);
     
     // แปลงข้อมูลให้เหมาะสมกับ frontend
     const formattedViews = views.map(view => ({
@@ -319,12 +246,12 @@ export const getProjectReviews = asyncHandler(async (req, res) => {
     // ใช้ getPaginationInfo เพื่อรับข้อมูลการแบ่งหน้าที่สมบูรณ์
     const paginationInfo = getPaginationInfo(totalItems, page, limit);
     
-    // เพิ่ม ORDER BY และ LIMIT เข้าไปใน query
-    query += ` ORDER BY pr.reviewed_at DESC LIMIT ? OFFSET ?`;
-    queryParams.push(limit, offset);
+    // สร้าง query หลักพร้อมกับ ORDER BY และ LIMIT
+    // ใช้ค่าจริงของ limit และ offset แทนที่จะส่งเป็น parameters
+    const mainQuery = `${query} ORDER BY pr.reviewed_at DESC LIMIT ${limit} OFFSET ${offset}`;
     
     // ดึงข้อมูลประวัติการตรวจสอบ
-    const [reviews] = await pool.execute(query, queryParams);
+    const [reviews] = await pool.execute(mainQuery, queryParams);
     
     // แปลงข้อมูลให้เหมาะสมกับ frontend
     const formattedReviews = reviews.map(review => ({
@@ -376,8 +303,6 @@ export const getSystemStats = asyncHandler(async (req, res) => {
       GROUP BY date 
       ORDER BY date
     `);
-
-    
     
     // ใช้ formatToISODate เพื่อจัดรูปแบบวันที่
     const formattedLoginsByDay = loginsByDay.map(item => ({
@@ -385,11 +310,9 @@ export const getSystemStats = asyncHandler(async (req, res) => {
       count: item.count
     }));
     
-    // จำนวนการเข้าชมผลงานทั้งหมด
+    // จำนวนการเข้าชมผลงานทั้งหมด (เฉพาะ visitor_views เท่านั้น)
     const [totalViews] = await pool.execute(`
-      SELECT 
-        (SELECT COUNT(*) FROM visitor_views) + 
-        (SELECT COUNT(*) FROM company_views) as count
+      SELECT COUNT(*) as count FROM visitor_views
     `);
     
     // จำนวนการเข้าชมผลงานในแต่ละวัน (30 วันล่าสุด)
@@ -403,34 +326,12 @@ export const getSystemStats = asyncHandler(async (req, res) => {
       ORDER BY date
     `);
     
-    const [companyViewsByDay] = await pool.execute(`
-      SELECT 
-        DATE(viewed_at) as date, 
-        COUNT(*) as count 
-      FROM company_views 
-      WHERE viewed_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
-      GROUP BY date 
-      ORDER BY date
-    `);
-    
-    // รวมข้อมูลการเข้าชมจากทั้ง visitor และ company
-    const viewsByDay = [];
-    const allDates = new Set();
-    
-    visitorViewsByDay.forEach(item => allDates.add(formatToISODate(item.date)));
-    companyViewsByDay.forEach(item => allDates.add(formatToISODate(item.date)));
-    
-    Array.from(allDates).forEach(date => {
-      const visitorCount = visitorViewsByDay.find(item => formatToISODate(item.date) === date)?.count || 0;
-      const companyCount = companyViewsByDay.find(item => formatToISODate(item.date) === date)?.count || 0;
-      
-      viewsByDay.push({
-        date,
-        visitorCount,
-        companyCount,
-        totalCount: visitorCount + companyCount
-      });
-    });
+    // แปลงข้อมูลการเข้าชมจาก visitor เพียงอย่างเดียว
+    const viewsByDay = visitorViewsByDay.map(item => ({
+      date: formatToISODate(item.date),
+      visitorCount: item.count,
+      totalCount: item.count
+    }));
     
     // เรียงลำดับตามวันที่
     viewsByDay.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -540,7 +441,7 @@ export const getDailyStats = asyncHandler(async (req, res) => {
     `, [today, today]);
     const loginsAvg = loginsAvgResult[0].avg_count || 0;
     
-    // จำนวนการเข้าชมผลงานวันนี้
+    // จำนวนการเข้าชมผลงานวันนี้ (เฉพาะ visitor_views)
     const [visitorViewsTodayResult] = await pool.execute(`
       SELECT COUNT(*) as count
       FROM visitor_views
@@ -548,27 +449,20 @@ export const getDailyStats = asyncHandler(async (req, res) => {
     `, [today]);
     const visitorViewsToday = visitorViewsTodayResult[0].count;
     
-    const [companyViewsTodayResult] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM company_views
-      WHERE viewed_at >= ?
-    `, [today]);
-    const companyViewsToday = companyViewsTodayResult[0].count;
-    const viewsToday = visitorViewsToday + companyViewsToday;
+    // กำหนดให้จำนวน company views เป็น 0 เนื่องจากไม่มีตารางนี้แล้ว
+    const companyViewsToday = 0;
+    const viewsToday = visitorViewsToday;
     
-    // จำนวนการเข้าชมผลงานเฉลี่ย 7 วันที่ผ่านมา
+    // จำนวนการเข้าชมผลงานเฉลี่ย 7 วันที่ผ่านมา (เฉพาะ visitor_views)
     const [viewsAvgResult] = await pool.execute(`
       SELECT AVG(daily_count) as avg_count
       FROM (
         SELECT DATE(viewed_at) as view_date, COUNT(*) as daily_count
-        FROM (
-          SELECT viewed_at FROM visitor_views WHERE viewed_at BETWEEN DATE_SUB(?, INTERVAL 7 DAY) AND ?
-          UNION ALL
-          SELECT viewed_at FROM company_views WHERE viewed_at BETWEEN DATE_SUB(?, INTERVAL 7 DAY) AND ?
-        ) as all_views
+        FROM visitor_views
+        WHERE viewed_at BETWEEN DATE_SUB(?, INTERVAL 7 DAY) AND ?
         GROUP BY view_date
       ) as daily_counts
-    `, [today, today, today, today]);
+    `, [today, today]);
     const viewsAvg = viewsAvgResult[0].avg_count || 0;
     
     // จำนวนโครงการที่อัปโหลดวันนี้
@@ -650,7 +544,7 @@ export const getDailyStats = asyncHandler(async (req, res) => {
       views: {
         today: viewsToday,
         visitor: visitorViewsToday,
-        company: companyViewsToday,
+        company: companyViewsToday, // จะเป็น 0 เสมอ
         average: Math.round(viewsAvg * 10) / 10,
         percentChange: calculatePercentChange(viewsToday, viewsAvg)
       },

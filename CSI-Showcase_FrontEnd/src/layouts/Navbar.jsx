@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Input, Dropdown, Menu, Drawer, Button, Avatar, Badge, Tooltip } from "antd";
+import {
+  Layout,
+  Input,
+  Dropdown,
+  Menu,
+  Drawer,
+  Button,
+  Avatar,
+  Badge,
+  Tooltip,
+} from "antd";
 import { Link, useLocation } from "react-router-dom";
-import { 
-  UserOutlined, 
-  GiftOutlined, 
-  LogoutOutlined, 
+import {
+  UserOutlined,
+  GiftOutlined,
+  LogoutOutlined,
   MenuOutlined,
   BellOutlined,
   SearchOutlined,
@@ -12,19 +22,21 @@ import {
   ProjectOutlined,
   SettingOutlined,
   AppstoreOutlined,
-  CloseOutlined
+  CloseOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { removeAuthCookie } from "../lib/cookie";
 import LogoCSI from "../assets/Logo_CSI.png";
+import { API_ENDPOINTS } from "../constants";
 
 const { Header } = Layout;
 const { Search } = Input;
 
 const Navbar = () => {
   const { isAuthenticated, user } = useAuth();
-  const { fullName } = user || {}; // ใช้ optional chaining เพื่อป้องกันกรณี authData เป็น null
+  const { fullName, image } = user || {}; // ใช้ optional chaining เพื่อป้องกันกรณี authData เป็น null
+  console.log(API_ENDPOINTS.BASE + "/" + image);
   const location = useLocation();
 
   const [isVisible, setIsVisible] = useState(true);
@@ -54,7 +66,7 @@ const Navbar = () => {
         setIsVisible(true); // Show Navbar when scrolling up or at top
       }
       setLastScrollY(window.scrollY);
-      
+
       // Set overlay only on Home page and when at the very top
       if (location.pathname === "/") {
         setIsOverlay(window.scrollY === 0);
@@ -80,7 +92,7 @@ const Navbar = () => {
   // Dropdown menu items with icons and animations
   const items = [
     {
-      key: '1',
+      key: "1",
       label: (
         <Link to="/projects/my" className="flex items-center space-x-2 p-1">
           <ProjectOutlined />
@@ -89,7 +101,7 @@ const Navbar = () => {
       ),
     },
     {
-      key: '2',
+      key: "2",
       label: (
         <Link to="/settings" className="flex items-center space-x-2 p-1">
           <SettingOutlined />
@@ -98,12 +110,15 @@ const Navbar = () => {
       ),
     },
     {
-      type: 'divider',
+      type: "divider",
     },
     {
-      key: '3',
+      key: "3",
       label: (
-        <div onClick={handleLogout} className="flex items-center space-x-2 text-red-500 p-1">
+        <div
+          onClick={handleLogout}
+          className="flex items-center space-x-2 text-red-500 p-1"
+        >
           <LogoutOutlined />
           <span>ออกจากระบบ</span>
         </div>
@@ -122,24 +137,24 @@ const Navbar = () => {
 
   // Animation variants
   const navbarVariants = {
-    visible: { 
+    visible: {
       y: 0,
-      transition: { type: "spring", stiffness: 100, damping: 15 }
+      transition: { type: "spring", stiffness: 100, damping: 15 },
     },
-    hidden: { 
+    hidden: {
       y: "-100%",
-      transition: { type: "spring", stiffness: 100, damping: 15 }
-    }
+      transition: { type: "spring", stiffness: 100, damping: 15 },
+    },
   };
 
   const logoVariants = {
     normal: { scale: 1 },
-    hover: { scale: 1.05, transition: { duration: 0.2 } }
+    hover: { scale: 1.05, transition: { duration: 0.2 } },
   };
 
   const linkVariants = {
     normal: { y: 0 },
-    hover: { y: -2, transition: { duration: 0.2 } }
+    hover: { y: -2, transition: { duration: 0.2 } },
   };
 
   return (
@@ -149,10 +164,10 @@ const Navbar = () => {
         title={
           <div className="flex justify-between items-center">
             <img src={LogoCSI} alt="CSI Logo" className="h-10" />
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               onClick={closeDrawer}
-              icon={<CloseOutlined />} 
+              icon={<CloseOutlined />}
               className="border-none text-gray-600"
             />
           </div>
@@ -167,7 +182,11 @@ const Navbar = () => {
         <div className="p-4">
           {isAuthenticated && (
             <div className="flex items-center space-x-3 mb-6 p-3 bg-purple-50 rounded-lg">
-              <Avatar icon={<UserOutlined />} className="bg-[#90278E]" size="large" />
+              <Avatar
+                src={API_ENDPOINTS.BASE + "/" + image}
+                className="bg-[#90278E]"
+                size="large"
+              />
               <div>
                 <div className="font-medium text-[#90278E]">{fullName}</div>
                 <div className="text-xs text-gray-500">นักศึกษา CSI</div>
@@ -175,45 +194,71 @@ const Navbar = () => {
             </div>
           )}
         </div>
-        
+
         <Menu
           mode="inline"
           className="border-none custom-drawer-menu"
           items={[
             {
-              key: 'home',
+              key: "home",
               icon: <HomeOutlined />,
-              label: <Link to="/" onClick={closeDrawer}>หน้าแรก</Link>,
+              label: (
+                <Link to="/" onClick={closeDrawer}>
+                  หน้าแรก
+                </Link>
+              ),
             },
             {
-              key: 'all-projects',
+              key: "all-projects",
               icon: <AppstoreOutlined />,
-              label: <Link to="/projects/all" onClick={closeDrawer}>ผลงานทั้งหมด</Link>,
+              label: (
+                <Link to="/projects/all" onClick={closeDrawer}>
+                  ผลงานทั้งหมด
+                </Link>
+              ),
             },
-            ...(isAuthenticated ? [
-              {
-                key: 'my-projects',
-                icon: <ProjectOutlined />,
-                label: <Link to="/projects/my" onClick={closeDrawer}>ผลงานของฉัน</Link>,
-              },
-              {
-                key: 'settings',
-                icon: <SettingOutlined />,
-                label: <Link to="/settings" onClick={closeDrawer}>ตั้งค่าโปรไฟล์</Link>,
-              },
-              {
-                key: 'logout',
-                icon: <LogoutOutlined />,
-                label: <span onClick={handleLogout} className="text-red-500">ออกจากระบบ</span>,
-                className: 'mt-4 text-red-500',
-              }
-            ] : [
-              {
-                key: 'login',
-                icon: <UserOutlined />,
-                label: <Link to="/login" onClick={closeDrawer}>เข้าสู่ระบบ</Link>,
-              }
-            ])
+            ...(isAuthenticated
+              ? [
+                  {
+                    key: "my-projects",
+                    icon: <ProjectOutlined />,
+                    label: (
+                      <Link to="/projects/my" onClick={closeDrawer}>
+                        ผลงานของฉัน
+                      </Link>
+                    ),
+                  },
+                  {
+                    key: "settings",
+                    icon: <SettingOutlined />,
+                    label: (
+                      <Link to="/settings" onClick={closeDrawer}>
+                        ตั้งค่าโปรไฟล์
+                      </Link>
+                    ),
+                  },
+                  {
+                    key: "logout",
+                    icon: <LogoutOutlined />,
+                    label: (
+                      <span onClick={handleLogout} className="text-red-500">
+                        ออกจากระบบ
+                      </span>
+                    ),
+                    className: "mt-4 text-red-500",
+                  },
+                ]
+              : [
+                  {
+                    key: "login",
+                    icon: <UserOutlined />,
+                    label: (
+                      <Link to="/login" onClick={closeDrawer}>
+                        เข้าสู่ระบบ
+                      </Link>
+                    ),
+                  },
+                ]),
           ]}
         />
       </Drawer>
@@ -227,10 +272,14 @@ const Navbar = () => {
           className={`fixed top-0 left-0 w-full z-50`}
         >
           <Header
-            className={`px-4 md:px-8 flex justify-between items-center h-16 transition-all duration-500 ${isOverlay ? "bg-transparent" : "bg-gradient-to-r from-[#90278E] to-[#1F1F5C] shadow-md"}`}
+            className={`px-4 md:px-8 flex justify-between items-center h-16 transition-all duration-500 ${
+              isOverlay
+                ? "bg-transparent"
+                : "bg-gradient-to-r from-[#90278E] to-[#1F1F5C] shadow-md"
+            }`}
           >
             {/* Logo with hover animation */}
-            <motion.div 
+            <motion.div
               className="flex items-center"
               variants={logoVariants}
               initial="normal"
@@ -253,29 +302,26 @@ const Navbar = () => {
                     transition={{ duration: 0.3 }}
                     className="md:hidden"
                   >
-                    <Search 
-                      placeholder="ค้นหา..." 
-                      allowClear 
+                    <Search
+                      placeholder="ค้นหา..."
+                      allowClear
                       onBlur={() => setSearchExpanded(false)}
                       className="searchbar-custom"
                       autoFocus
                     />
                   </motion.div>
                 ) : (
-                  <motion.div
-                    whileTap={{ scale: 0.9 }}
-                    className="md:hidden"
-                  >
-                    <Button 
-                      type="text" 
-                      icon={<SearchOutlined className="text-white text-xl" />} 
+                  <motion.div whileTap={{ scale: 0.9 }} className="md:hidden">
+                    <Button
+                      type="text"
+                      icon={<SearchOutlined className="text-white text-xl" />}
                       onClick={toggleSearch}
                       className="flex items-center justify-center"
                     />
                   </motion.div>
                 )}
               </AnimatePresence>
-              
+
               {/* Mobile Menu Button */}
               <Button
                 type="text"
@@ -291,16 +337,18 @@ const Navbar = () => {
                   whileHover="hover"
                   className="relative"
                 >
-                  <Link 
-                    to="/" 
+                  <Link
+                    to="/"
                     className={`hover:text-white transition-colors ${
-                      location.pathname === "/" ? "text-white font-medium" : "text-gray-200"
+                      location.pathname === "/"
+                        ? "text-white font-medium"
+                        : "text-gray-200"
                     }`}
                   >
                     หน้าแรก
                   </Link>
                   {location.pathname === "/" && (
-                    <motion.div 
+                    <motion.div
                       className="absolute -bottom-1 left-0 right-0 h-[3px] bg-white rounded-full"
                       layoutId="navIndicator"
                     />
@@ -312,16 +360,18 @@ const Navbar = () => {
                   whileHover="hover"
                   className="relative"
                 >
-                  <Link 
-                    to="/projects/all" 
+                  <Link
+                    to="/projects/all"
                     className={`hover:text-white transition-colors ${
-                      location.pathname === "/projects/all" ? "text-white font-medium" : "text-gray-200"
+                      location.pathname === "/projects/all"
+                        ? "text-white font-medium"
+                        : "text-gray-200"
                     }`}
                   >
                     ผลงานทั้งหมด
                   </Link>
                   {location.pathname === "/projects/all" && (
-                    <motion.div 
+                    <motion.div
                       className="absolute -bottom-1 left-0 right-0 h-[3px] bg-white rounded-full"
                       layoutId="navIndicator"
                     />
@@ -334,16 +384,18 @@ const Navbar = () => {
                     whileHover="hover"
                     className="relative"
                   >
-                    <Link 
-                      to="/projects/my" 
+                    <Link
+                      to="/projects/my"
                       className={`hover:text-white transition-colors ${
-                        location.pathname === "/projects/my" ? "text-white font-medium" : "text-gray-200"
+                        location.pathname === "/projects/my"
+                          ? "text-white font-medium"
+                          : "text-gray-200"
                       }`}
                     >
                       ผลงานของฉัน
                     </Link>
                     {location.pathname === "/projects/my" && (
-                      <motion.div 
+                      <motion.div
                         className="absolute -bottom-1 left-0 right-0 h-[3px] bg-white rounded-full"
                         layoutId="navIndicator"
                       />
@@ -354,11 +406,11 @@ const Navbar = () => {
 
               {/* User Profile / Login Button */}
               {isAuthenticated ? (
-                <Dropdown 
-                  menu={{ items }} 
-                  placement="bottomRight" 
+                <Dropdown
+                  menu={{ items }}
+                  placement="bottomRight"
                   arrow={{ pointAtCenter: true }}
-                  trigger={['click']}
+                  trigger={["click"]}
                 >
                   <motion.div
                     onMouseEnter={() => setIsHovering(true)}
@@ -367,10 +419,10 @@ const Navbar = () => {
                     whileTap={{ scale: 0.95 }}
                     className="flex items-center cursor-pointer space-x-2 bg-white/10 px-3 py-1.5 rounded-full transition-all hover:bg-white/20"
                   >
-                    <Avatar 
-                      icon={<UserOutlined />} 
-                      size="small" 
-                      className="bg-[#1F1F5C]"
+                    <Avatar
+                      src={API_ENDPOINTS.BASE + "/" + image}
+                      className="bg-[#90278E]"
+                      size="large"
                     />
                     <span className="hidden md:inline">{fullName}</span>
                   </motion.div>
@@ -380,8 +432,8 @@ const Navbar = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Link 
-                    to="/login" 
+                  <Link
+                    to="/login"
                     className="hidden md:flex items-center space-x-1 bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all"
                   >
                     <UserOutlined />
