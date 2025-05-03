@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { message } from 'antd';
-import { getAuthCookie, removeAuthCookie } from './cookie';
+import { getAdminAuthCookie, removeAdminAuthCookie } from './cookie';
 
 // Use import.meta.env instead of process.env for Vite
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/admin';
@@ -22,7 +22,7 @@ axiosInstance.interceptors.request.use(
         config.headers['admin_secret_key'] = SECRET_KEY;
         
         // Add token if available
-        const token = getAuthCookie();
+        const token = getAdminAuthCookie();
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -58,7 +58,7 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
       
       // Remove token and notify user
-      removeAuthCookie();
+      removeAdminAuthCookie();
       message.error({
         content: 'เซสชั่นหมดอายุ กรุณาเข้าสู่ระบบใหม่',
         duration: 3,

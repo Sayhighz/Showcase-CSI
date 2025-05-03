@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { message } from 'antd';
 import { jwtDecode } from 'jwt-decode';
-import { setAuthCookie, getAuthCookie, removeAuthCookie } from '../lib/cookie';
-import { login, verifyToken } from '../services/authService';
+import { setAdminAuthCookie, getAdminAuthCookie, removeAdminAuthCookie } from '../lib/cookie';
+import { adminLogin, verifyAdminToken } from '../services/authService';
 
 // Create Auth Context
 const AuthContext = createContext(null);
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
         
         const verifyAuth = async () => {
             try {
-                const token = getAuthCookie();
+                const token = getAdminAuthCookie();
                 
                 if (!token) {
                     setIsAuthenticated(false);
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
                 }
 
                 // Verify token with backend
-                const response = await verifyToken(token);
+                const response = await verifyAdminToken(token);
                 console.log("response",response)
                 
                 if (response.valid) {
@@ -54,12 +54,12 @@ export const AuthProvider = ({ children }) => {
                     setIsAuthenticated(true);
                   } else {
                     // If invalid, clear auth data
-                    removeAuthCookie();
+                    removeAdminAuthCookie();
                     setIsAuthenticated(false);
                   }
                 } catch (error) {
                   console.error('Auth verification error:', error);
-                  removeAuthCookie();
+                  removeAdminAuthCookie();
                   setIsAuthenticated(false);
                 } finally {
                   setIsLoading(false);
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
             const handleLogin = useCallback(async (username, password) => {
               setIsLoading(true);
               try {
-                const response = await login(username, password);
+                const response = await adminLogin(username, password);
                 console.log(response)
                 
                 if (response.success && response.data && response.data.token) {
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }) => {
                   }
                   
                 // Set token in cookie
-                setAuthCookie(token);
+                setAdminAuthCookie(token);
                 
                 // Set admin data
                 setAdmin({
@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }) => {
 
     // Logout function
     const handleLogout = useCallback(() => {
-        removeAuthCookie();
+        removeAdminAuthCookie();
         setIsAuthenticated(false);
         setAdmin({
             id: null,
@@ -143,7 +143,7 @@ export const AuthProvider = ({ children }) => {
 
     // Refresh auth state
     const refreshAuth = useCallback(async () => {
-        const token = getAuthCookie();
+        const token = getAdminAuthCookie();
         if (!token || isTokenExpired(token)) {
             handleLogout();
             return false;

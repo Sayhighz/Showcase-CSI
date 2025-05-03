@@ -8,7 +8,7 @@ const AUTH_COOKIE_NAME = 'admin_auth_token';
  * @param {string} token - JWT token
  * @param {number} expires - จำนวนวันก่อนหมดอายุ (default: 1 วัน)
  */
-export const setAuthCookie = (token, expires = 1) => {
+export const setAdminAuthCookie = (token, expires = 1) => {
   Cookies.set(AUTH_COOKIE_NAME, token, { 
     expires, 
     secure: process.env.NODE_ENV === 'production',
@@ -20,14 +20,14 @@ export const setAuthCookie = (token, expires = 1) => {
  * ดึง auth token จากคุกกี้
  * @returns {string|null} - token หรือ null ถ้าไม่มี
  */
-export const getAuthCookie = () => {
+export const getAdminAuthCookie = () => {
   return Cookies.get(AUTH_COOKIE_NAME) || null;
 };
 
 /**
  * ลบคุกกี้ auth token
  */
-export const removeAuthCookie = () => {
+export const removeAdminAuthCookie = () => {
   Cookies.remove(AUTH_COOKIE_NAME);
 };
 
@@ -36,7 +36,7 @@ export const removeAuthCookie = () => {
  * @returns {boolean} - true ถ้ามี token, false ถ้าไม่มี
  */
 export const hasAuthCookie = () => {
-  return !!getAuthCookie();
+  return !!getAdminAuthCookie();
 };
 
 /**

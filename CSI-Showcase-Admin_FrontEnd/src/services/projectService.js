@@ -1,6 +1,6 @@
 // src/services/projectService.js
 import { axiosGet, axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/axios';
-import { API_ROUTES } from '../constants/routes';
+import API_ROUTES from '../constants/apiEndpoints';
 
 /**
  * ดึงรายการโปรเจคทั้งหมด

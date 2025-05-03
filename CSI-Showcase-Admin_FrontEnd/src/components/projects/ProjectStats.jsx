@@ -1,19 +1,26 @@
-import { 
-    ProjectOutlined, 
-    CheckCircleOutlined, 
+import {
+    ProjectOutlined,
+    CheckCircleOutlined,
     CloseCircleOutlined,
     ClockCircleOutlined,
     EyeOutlined,
     UserOutlined,
     FileTextOutlined,
     BookOutlined,
-    TrophyOutlined
+    TrophyOutlined,
   } from '@ant-design/icons';
+  import { Typography, Row, Col, Card, Table, Tag } from 'antd';
   import { Link } from 'react-router-dom';
   import StatCard from '../dashboard/StatCard';
   import LoadingSpinner from '../common/LoadingSpinner';
   import ErrorDisplay from '../common/ErrorDisplay';
-  import { getCategoryName, getCategoryColor, getStatusName, getStatusColor } from '../../utils/projectUtils';
+  import {
+    getCategoryName,
+    getCategoryColor,
+    getStatusName,
+    getStatusColor,
+  } from '../../utils/projectUtils';
+  
   
   const { Title, Text } = Typography;
   

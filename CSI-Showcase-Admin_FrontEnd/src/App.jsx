@@ -1,85 +1,117 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import thTH from 'antd/lib/locale/th_TH'; // ภาษาไทยสำหรับ Ant Design
 import '@ant-design/v5-patch-for-react-19';
 
 // นำเข้า context
 import { AuthProvider } from './context/AuthContext';
 import { AdminStateProvider } from './context/AdminStateContext';
 
-// นำเข้า routes
-import ProtectedRoute from './routes/ProtectedRoute';
-
 // นำเข้า layouts
-import MasterLayout from './layouts/MasterLayout';
+import MainLayout from './layouts/MainLayout';
+import AuthLayout from './layouts/AuthLayout';
 
 // นำเข้าหน้าต่างๆ
-import Login from './pages/auth/Login';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import Dashboard from './pages/dashboard/Dashboard';
-import Project from './pages/projectManagement/Project';
-import ProjectReview from './pages/projectManagement/ProjectReview';
-import ProjectDetail from './pages/projectManagement/ProjectDetail';
-import Student from './pages/accountManagement/Student';
-import Admin from './pages/accountManagement/Admin';
-import Log from './pages/Log/Log';
-import NotFound from './pages/NotFound';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
 
-// กำหนดธีมหลักสำหรับ Ant Design
+// นำเข้าหน้าต่างๆ เกี่ยวกับโครงงาน
+import ProjectsPage from './pages/projects/ProjectsPage';
+import PendingProjectsPage from './pages/projects/PendingProjectsPage';
+import ProjectDetailPage from './pages/projects/ProjectDetailPage';
+import ProjectStatsPage from './pages/projects/ProjectStatsPage';
+
+// นำเข้าหน้าต่างๆ เกี่ยวกับผู้ใช้
+import UsersPage from './pages/users/UsersPage';
+import AdminUsersPage from './pages/users/AdminUsersPage';
+import StudentUsersPage from './pages/users/StudentUsersPage';
+import UserDetailPage from './pages/users/UserDetailPage';
+import UserStatsPage from './pages/users/UserStatsPage';
+
+// นำเข้าหน้าต่างๆ เกี่ยวกับบันทึก
+import LoginLogsPage from './pages/log/LoginLogsPage';
+import VisitorViewsPage from './pages/log/VisitorViewsPage';
+import ReviewLogsPage from './pages/log/ReviewLogsPage';
+import SystemStatsPage from './pages/log/SystemStatsPage';
+
+// นำเข้าคอมโพเนนต์สำหรับป้องกันเส้นทาง
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// กำหนดสีธีมสำหรับ Ant Design
 const theme = {
   token: {
     colorPrimary: '#90278E',
-    colorSuccess: '#52c41a',
-    colorWarning: '#faad14',
-    colorError: '#f5222d',
-    colorInfo: '#1890ff',
-    borderRadius: 6,
+    colorInfo: '#90278E',
+    colorSuccess: '#4CAF50',
+    colorWarning: '#FFC107',
+    colorError: '#F44336',
+    colorBgBase: '#FFFFFF',
+    borderRadius: 4,
+    fontFamily: 'Kanit, sans-serif',
+  },
+  components: {
+    Menu: {
+      colorItemBg: 'transparent',
+      colorItemText: '#FFFFFF',
+      colorItemTextSelected: '#FFFFFF',
+      colorItemBgSelected: '#B15CD0',
+      colorItemTextHover: '#FFFFFF',
+    },
+    Button: {
+      colorPrimaryHover: '#B15CD0',
+    },
+    Layout: {
+      colorBgHeader: '#050114',
+      colorBgBody: '#F5F5F5',
+      colorBgSider: '#050114',
+    },
   },
 };
 
 const App = () => {
   return (
-    <ConfigProvider theme={theme} locale={thTH}>
+    <ConfigProvider theme={theme}>
       <AuthProvider>
         <AdminStateProvider>
           <Router>
             <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              
-              {/* Protected Routes ที่ใช้ MasterLayout */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <MasterLayout />
-                </ProtectedRoute>
-              }>
-                {/* ใช้ Navigate เพื่อ redirect จาก / ไปที่ /dashboard */}
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                
-                {/* Dashboard */}
-                <Route path="dashboard" element={<Dashboard />} />
-                
-                {/* Project Management */}
-                <Route path="projects">
-                  <Route index element={<Project />} />
-                  <Route path="review" element={<ProjectReview />} />
-                  <Route path=":projectId" element={<ProjectDetail />} />
-                </Route>
-                
-                {/* User Management */}
-                <Route path="users">
-                  <Route path="student" element={<Student />} />
-                  <Route path="admin" element={<Admin />} />
-                </Route>
-                
-                {/* Logs */}
-                <Route path="login-info" element={<Log />} />
+              {/* เส้นทางสำหรับหน้าเข้าสู่ระบบ */}
+              <Route element={<AuthLayout />}>
+                <Route path="/login" element={<LoginPage />} />
               </Route>
+
+              {/* เส้นทางที่ต้องยืนยันตัวตน */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                  {/* หน้าแดชบอร์ด */}
+                  <Route path="/dashboard" element={<DashboardPage />} />
+
+                  {/* หน้าเกี่ยวกับโครงงาน */}
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/projects/pending" element={<PendingProjectsPage />} />
+                  <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+                  <Route path="/projects/stats" element={<ProjectStatsPage />} />
+
+                  {/* หน้าเกี่ยวกับผู้ใช้ */}
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="/users/admins" element={<AdminUsersPage />} />
+                  <Route path="/users/students" element={<StudentUsersPage />} />
+                  <Route path="/users/:userId" element={<UserDetailPage />} />
+                  <Route path="/users/stats" element={<UserStatsPage />} />
+
+                  {/* หน้าเกี่ยวกับบันทึก */}
+                  <Route path="/logs/login" element={<LoginLogsPage />} />
+                  <Route path="/logs/visitor-views" element={<VisitorViewsPage />} />
+                  <Route path="/logs/reviews" element={<ReviewLogsPage />} />
+                  <Route path="/logs/system-stats" element={<SystemStatsPage />} />
+                </Route>
+              </Route>
+
+              {/* เส้นทางเริ่มต้น */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
-              {/* 404 Page */}
-              <Route path="*" element={<NotFound />} />
+              {/* เส้นทางที่ไม่มี */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Router>
         </AdminStateProvider>
