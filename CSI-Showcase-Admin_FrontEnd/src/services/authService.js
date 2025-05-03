@@ -1,22 +1,22 @@
-// src/services/authService.js
+// src/services/adminAuthService.js
 import { axiosPost, axiosGet } from '../lib/axios';
-import { setAuthCookie, removeAuthCookie, getAuthCookie } from '../lib/cookie';
+import { setAdminAuthCookie, removeAdminAuthCookie, getAdminAuthCookie } from '../lib/cookie';
 import { jwtDecode } from 'jwt-decode';
-import { AUTH } from '../constants/apiEndpoints';
+import { ADMIN } from '../constants/apiEndpoints';
 
 /**
- * เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่าน
+ * เข้าสู่ระบบแอดมินด้วยชื่อผู้ใช้และรหัสผ่าน
  * @param {string} username - ชื่อผู้ใช้
  * @param {string} password - รหัสผ่าน
- * @returns {Promise<Object>} - ข้อมูลการเข้าสู่ระบบ
+ * @returns {Promise<Object>} - ข้อมูลการเข้าสู่ระบบแอดมิน
  */
-export const login = async (username, password) => {
+export const adminLogin = async (username, password) => {
   try {
-    const response = await axiosPost(AUTH.LOGIN, { username, password });
+    const response = await axiosPost(ADMIN.AUTH.LOGIN, { username, password });
     
     if (response.success && response.data && response.data.token) {
       // จัดเก็บ token ใน cookie
-      setAuthCookie(response.data.token);
+      setAdminAuthCookie(response.data.token);
       
       return {
         success: true,
@@ -26,59 +26,59 @@ export const login = async (username, password) => {
     
     return {
       success: false,
-      message: response.message || 'เข้าสู่ระบบไม่สำเร็จ'
+      message: response.message || 'เข้าสู่ระบบแอดมินไม่สำเร็จ'
     };
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Admin login error:', error);
     
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบแอดมิน'
     };
   }
 };
 
 /**
- * ออกจากระบบ
- * @returns {Promise<Object>} - ผลลัพธ์การออกจากระบบ
+ * ออกจากระบบแอดมิน
+ * @returns {Promise<Object>} - ผลลัพธ์การออกจากระบบแอดมิน
  */
-export const logout = async () => {
+export const adminLogout = async () => {
   try {
     // ส่งคำขอออกจากระบบไปยัง API
-    await axiosPost(AUTH.LOGOUT);
+    await axiosPost(ADMIN.AUTH.LOGOUT);
     
     // ลบ token จาก cookie
-    removeAuthCookie();
+    removeAdminAuthCookie();
     
     return {
       success: true,
-      message: 'ออกจากระบบสำเร็จ'
+      message: 'ออกจากระบบแอดมินสำเร็จ'
     };
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error('Admin logout error:', error);
     
     // ลบ token จาก cookie แม้ว่าจะมีข้อผิดพลาด
-    removeAuthCookie();
+    removeAdminAuthCookie();
     
     return {
       success: true,
-      message: 'ออกจากระบบสำเร็จ'
+      message: 'ออกจากระบบแอดมินสำเร็จ'
     };
   }
 };
 
 /**
- * ตรวจสอบความถูกต้องของ token
+ * ตรวจสอบความถูกต้องของ token แอดมิน
  * @returns {Promise<Object>} - ผลลัพธ์การตรวจสอบ
  */
-export const verifyToken = async () => {
+export const verifyAdminToken = async () => {
   try {
-    const token = getAuthCookie();
+    const token = getAdminAuthCookie();
     
     if (!token) {
       return {
         valid: false,
-        message: 'ไม่พบ token'
+        message: 'ไม่พบ token แอดมิน'
       };
     }
     
@@ -87,136 +87,56 @@ export const verifyToken = async () => {
     const currentTime = Date.now() / 1000;
     
     if (decoded.exp < currentTime) {
-      removeAuthCookie();
+      removeAdminAuthCookie();
       return {
         valid: false,
-        message: 'Token หมดอายุ'
+        message: 'Token แอดมินหมดอายุ'
       };
     }
     
     // ตรวจสอบความถูกต้องของ token ด้วย API
-    const response = await axiosGet(AUTH.VERIFY_TOKEN);
+    const response = await axiosGet(ADMIN.AUTH.VERIFY_TOKEN);
     
     return {
-      valid: response.valid || false,
-      user: response.user || null,
-      message: response.message || 'ตรวจสอบ token สำเร็จ'
+      valid: response.data?.valid || false,
+      user: response.data?.user || null,
+      message: response.message || 'ตรวจสอบ token แอดมินสำเร็จ'
     };
   } catch (error) {
-    console.error('Token verification error:', error);
+    console.error('Admin token verification error:', error);
     
     return {
       valid: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการตรวจสอบ token'
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการตรวจสอบ token แอดมิน'
     };
   }
 };
 
 /**
- * ดึงข้อมูลผู้ใช้ปัจจุบัน
- * @returns {Promise<Object>} - ข้อมูลผู้ใช้
+ * ดึงข้อมูลแอดมินปัจจุบัน
+ * @returns {Promise<Object>} - ข้อมูลแอดมิน
  */
-export const getCurrentUser = async () => {
+export const getCurrentAdmin = async () => {
   try {
-    const response = await axiosGet(AUTH.ME);
+    const response = await axiosGet(ADMIN.AUTH.ME);
     
     return {
       success: true,
-      data: response.data || response
+      data: response.data
     };
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error('Get current admin error:', error);
     
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้'
-    };
-  }
-};
-
-/**
- * เปลี่ยนรหัสผ่าน
- * @param {string} currentPassword - รหัสผ่านปัจจุบัน
- * @param {string} newPassword - รหัสผ่านใหม่
- * @returns {Promise<Object>} - ผลลัพธ์การเปลี่ยนรหัสผ่าน
- */
-export const changePassword = async (currentPassword, newPassword) => {
-  try {
-    const response = await axiosPost(AUTH.CHANGE_PASSWORD, {
-      current_password: currentPassword,
-      new_password: newPassword
-    });
-    
-    return {
-      success: true,
-      message: response.message || 'เปลี่ยนรหัสผ่านสำเร็จ'
-    };
-  } catch (error) {
-    console.error('Change password error:', error);
-    
-    return {
-      success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
-    };
-  }
-};
-
-/**
- * ขอรีเซ็ตรหัสผ่าน
- * @param {string} email - อีเมลที่ใช้ในการลงทะเบียน
- * @returns {Promise<Object>} - ผลลัพธ์การขอรีเซ็ตรหัสผ่าน
- */
-export const forgotPassword = async (email) => {
-  try {
-    const response = await axiosPost(AUTH.FORGOT_PASSWORD, { email });
-    
-    return {
-      success: true,
-      message: response.message || 'ส่งคำขอรีเซ็ตรหัสผ่านสำเร็จ'
-    };
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    
-    return {
-      success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการขอรีเซ็ตรหัสผ่าน'
-    };
-  }
-};
-
-/**
- * รีเซ็ตรหัสผ่าน
- * @param {string} token - Token สำหรับรีเซ็ตรหัสผ่าน
- * @param {string} newPassword - รหัสผ่านใหม่
- * @returns {Promise<Object>} - ผลลัพธ์การรีเซ็ตรหัสผ่าน
- */
-export const resetPassword = async (token, newPassword) => {
-  try {
-    const response = await axiosPost(AUTH.RESET_PASSWORD, {
-      token,
-      new_password: newPassword
-    });
-    
-    return {
-      success: true,
-      message: response.message || 'รีเซ็ตรหัสผ่านสำเร็จ'
-    };
-  } catch (error) {
-    console.error('Reset password error:', error);
-    
-    return {
-      success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน'
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลแอดมิน'
     };
   }
 };
 
 export default {
-  login,
-  logout,
-  verifyToken,
-  getCurrentUser,
-  changePassword,
-  forgotPassword,
-  resetPassword
+  adminLogin,
+  adminLogout,
+  verifyAdminToken,
+  getCurrentAdmin
 };

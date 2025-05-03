@@ -9,11 +9,10 @@ import { STATISTICS } from '../constants/apiEndpoints';
 export const getDashboardStats = async () => {
   try {
     const response = await axiosGet(STATISTICS.DASHBOARD);
-    console.log(response)
     
     return {
       success: true,
-      data: response || response
+      data: response.data || response
     };
   } catch (error) {
     console.error('Get dashboard statistics error:', error);
@@ -33,7 +32,6 @@ export const getDashboardStats = async () => {
 export const getTodayStats = async () => {
   try {
     const response = await axiosGet(STATISTICS.TODAY);
-    console.log(response)
     
     return {
       success: true,
@@ -131,42 +129,46 @@ export const getStudyYearStats = async (filters = {}) => {
 };
 
 /**
- * ดึงข้อมูลสถิติกิจกรรมผู้ใช้
- * @param {Object} filters - ตัวกรองข้อมูล
- * @returns {Promise<Object>} - ข้อมูลสถิติกิจกรรมผู้ใช้
+ * ดึงข้อมูลสถิติระบบ
+ * @returns {Promise<Object>} - ข้อมูลสถิติระบบ
  */
-export const getUserActivityStats = async (filters = {}) => {
+export const getSystemStats = async () => {
   try {
-    // สร้าง query string จาก filters
-    const queryParams = new URLSearchParams();
-    
-    if (filters.startDate) {
-      queryParams.append('start_date', filters.startDate);
-    }
-    
-    if (filters.endDate) {
-      queryParams.append('end_date', filters.endDate);
-    }
-    
-    if (filters.role) {
-      queryParams.append('role', filters.role);
-    }
-    
-    // สร้าง URL พร้อม query string
-    const url = STATISTICS.USER_ACTIVITY + (queryParams.toString() ? `?${queryParams.toString()}` : '');
-    
-    const response = await axiosGet(url);
+    const response = await axiosGet(STATISTICS.SYSTEM_STATS);
     
     return {
       success: true,
       data: response.data || response
     };
   } catch (error) {
-    console.error('Get user activity statistics error:', error);
+    console.error('Get system statistics error:', error);
     
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสถิติกิจกรรมผู้ใช้',
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสถิติระบบ',
+      data: {}
+    };
+  }
+};
+
+/**
+ * ดึงข้อมูลสถิติรายวัน
+ * @returns {Promise<Object>} - ข้อมูลสถิติรายวัน
+ */
+export const getDailyStats = async () => {
+  try {
+    const response = await axiosGet(STATISTICS.DAILY_STATS);
+    
+    return {
+      success: true,
+      data: response.data || response
+    };
+  } catch (error) {
+    console.error('Get daily statistics error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสถิติรายวัน',
       data: {}
     };
   }
@@ -207,22 +209,78 @@ export const formatStudyYearChartData = (data) => {
 };
 
 /**
- * แปลงข้อมูลสถิติกิจกรรมผู้ใช้เป็นรูปแบบสำหรับแผนภูมิ
- * @param {Array} data - ข้อมูลสถิติกิจกรรมผู้ใช้
+ * แปลงข้อมูลสถิติสถานะโปรเจคเป็นรูปแบบสำหรับแผนภูมิ
+ * @param {Array} data - ข้อมูลสถิติสถานะโปรเจค
  * @returns {Array} - ข้อมูลสำหรับแผนภูมิ
  */
-export const formatUserActivityChartData = (data) => {
+export const formatProjectStatusChartData = (data) => {
   if (!data || !Array.isArray(data) || data.length === 0) {
     return [];
   }
   
+  const statusColors = {
+    pending: '#f0ad4e',
+    approved: '#5cb85c',
+    rejected: '#d9534f'
+  };
+  
   return data.map(item => ({
-    name: item.date,
-    logins: item.login_count,
-    projects: item.project_count,
-    reviews: item.review_count
+    name: translateStatus(item.status),
+    value: item.count,
+    fill: statusColors[item.status] || getRandomColor()
   }));
 };
+
+/**
+ * แปลสถานะภาษาอังกฤษเป็นภาษาไทย
+ * @param {string} status - สถานะภาษาอังกฤษ
+ * @returns {string} - สถานะภาษาไทย
+ */
+function translateStatus(status) {
+  const statusMap = {
+    pending: 'รอการอนุมัติ',
+    approved: 'อนุมัติแล้ว',
+    rejected: 'ไม่อนุมัติ'
+  };
+  
+  return statusMap[status] || status;
+}
+
+/**
+ * แปลงข้อมูลสถิติข้อมูลทั่วไปเป็นรูปแบบสำหรับการแสดงผล
+ * @param {Object} data - ข้อมูลสถิติทั่วไป
+ * @returns {Array} - ข้อมูลสำหรับการแสดงผล
+ */
+export const formatGeneralStats = (data) => {
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+  
+  return Object.keys(data).map(key => ({
+    key,
+    value: data[key],
+    label: translateStatKey(key)
+  }));
+};
+
+/**
+ * แปลคีย์สถิติเป็นป้ายกำกับภาษาไทย
+ * @param {string} key - คีย์สถิติ
+ * @returns {string} - ป้ายกำกับภาษาไทย
+ */
+function translateStatKey(key) {
+  const keyMap = {
+    totalProjects: 'จำนวนโปรเจคทั้งหมด',
+    totalUsers: 'จำนวนผู้ใช้ทั้งหมด',
+    totalViews: 'จำนวนการเข้าชมทั้งหมด',
+    totalLogins: 'จำนวนการเข้าสู่ระบบทั้งหมด',
+    pendingProjects: 'โปรเจครอการอนุมัติ',
+    approvedProjects: 'โปรเจคที่อนุมัติแล้ว',
+    rejectedProjects: 'โปรเจคที่ไม่อนุมัติ'
+  };
+  
+  return keyMap[key] || key;
+}
 
 /**
  * สร้างสีสุ่มสำหรับแผนภูมิ
@@ -242,8 +300,10 @@ export default {
   getTodayStats,
   getProjectTypeStats,
   getStudyYearStats,
-  getUserActivityStats,
+  getSystemStats,
+  getDailyStats,
   formatProjectTypeChartData,
   formatStudyYearChartData,
-  formatUserActivityChartData
+  formatProjectStatusChartData,
+  formatGeneralStats
 };

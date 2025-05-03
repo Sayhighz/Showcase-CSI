@@ -3,11 +3,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   getAllUsers, 
   getUserById, 
-  createUserWithImage, 
+  createUser, 
   updateUser, 
   deleteUser,
-  getUserLoginHistory,
-  uploadProfileImage
+  getUserStats
 } from '../services/userService';
 import { message } from 'antd';
 import useDebounce from './useDebounce';
@@ -24,11 +23,10 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   // สถานะสำหรับจัดเก็บข้อมูล
   const [users, setUsers] = useState([]);
   const [userDetails, setUserDetails] = useState(null);
-  const [loginHistory, setLoginHistory] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   
   // สถานะสำหรับตัวกรองข้อมูล
   const [filters, setFilters] = useState({
@@ -71,12 +69,11 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       const response = await getAllUsers(queryParams);
       
       if (response.success) {
-        setUsers(response.data.users);
-        console.log(response.data)
+        setUsers(response.data.users || response.data);
         setPagination({
           current: page,
           pageSize,
-          total: response.total || response.data.length
+          total: response.pagination?.total || response.data.length
         });
       } else {
         setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
@@ -115,27 +112,22 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   }, []);
   
   /**
-   * โหลดประวัติการเข้าสู่ระบบของผู้ใช้
+   * โหลดสถิติผู้ใช้งาน
    */
-  const fetchLoginHistory = useCallback(async (id, page = 1, pageSize = 10) => {
-    if (!id) return;
-    
+  const fetchUserStats = useCallback(async () => {
     setLoading(true);
     
     try {
-      const response = await getUserLoginHistory(id, {
-        page,
-        limit: pageSize
-      });
+      const response = await getUserStats();
       
       if (response.success) {
-        setLoginHistory(response.data);
+        setStats(response.data);
       } else {
-        message.error(response.message || 'ไม่สามารถโหลดประวัติการเข้าสู่ระบบได้');
+        message.error(response.message || 'ไม่สามารถโหลดข้อมูลสถิติได้');
       }
     } catch (err) {
-      console.error(`Error fetching login history for user ${id}:`, err);
-      message.error('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าสู่ระบบ');
+      console.error('Error fetching user stats:', err);
+      message.error('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ');
     } finally {
       setLoading(false);
     }
@@ -145,8 +137,8 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   useEffect(() => {
     if (mode === 'detail' && userId) {
       fetchUserDetails(userId);
-      // โหลดประวัติการเข้าสู่ระบบเฉพาะเมื่ออยู่ในโหมด detail
-      fetchLoginHistory(userId);
+    } else if (mode === 'stats') {
+      fetchUserStats();
     } else {
       fetchUsers(pagination.current, pagination.pageSize);
     }
@@ -154,7 +146,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     mode, 
     userId, 
     fetchUserDetails, 
-    fetchLoginHistory, 
+    fetchUserStats, 
     fetchUsers, 
     pagination.current, 
     pagination.pageSize
@@ -196,17 +188,28 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   
   /**
    * สร้างผู้ใช้ใหม่
-   * @param {Object} userData - ข้อมูลผู้ใช้
+   * @param {Object|FormData} userData - ข้อมูลผู้ใช้
    * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
    */
   const createUserAction = useCallback(async (userData) => {
     setActionLoading(true);
     
     try {
-      const response = await createUserWithImage(userData);
+      // ตรวจสอบและแปลงข้อมูลเป็น FormData ถ้าจำเป็น
+      let formData = userData;
+      if (!(userData instanceof FormData)) {
+        formData = new FormData();
+        Object.keys(userData).forEach(key => {
+          if (userData[key] !== undefined && userData[key] !== null) {
+            formData.append(key, userData[key]);
+          }
+        });
+      }
+      
+      const response = await createUser(formData);
       
       if (response.success) {
-        message.success('สร้างผู้ใช้สำเร็จ');
+        message.success(response.message || 'สร้างผู้ใช้สำเร็จ');
         
         // รีเฟรชข้อมูล
         fetchUsers(pagination.current, pagination.pageSize);
@@ -243,7 +246,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       const response = await updateUser(id, userData);
       
       if (response.success) {
-        message.success('อัปเดตข้อมูลผู้ใช้สำเร็จ');
+        message.success(response.message || 'อัปเดตข้อมูลผู้ใช้สำเร็จ');
         
         // รีเฟรชข้อมูล
         if (mode === 'detail') {
@@ -283,7 +286,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       const response = await deleteUser(id);
       
       if (response.success) {
-        message.success('ลบผู้ใช้สำเร็จ');
+        message.success(response.message || 'ลบผู้ใช้สำเร็จ');
         
         // รีเฟรชข้อมูล
         fetchUsers(pagination.current, pagination.pageSize);
@@ -302,69 +305,14 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     }
   }, [fetchUsers, pagination]);
   
-  /**
-   * อัปโหลดรูปโปรไฟล์
-   * @param {string|number} id - รหัสผู้ใช้
-   * @param {FormData} formData - ข้อมูลรูปภาพ
-   * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
-   */
-  const uploadProfileImageAction = useCallback(async (id, formData) => {
-    setActionLoading(true);
-    setUploadProgress(0);
-    
-    try {
-      if (!id) {
-        message.error('ไม่ระบุรหัสผู้ใช้');
-        return false;
-      }
-      
-      if (!formData || !(formData instanceof FormData)) {
-        message.error('ข้อมูลไม่ถูกต้อง');
-        return false;
-      }
-      
-      // ฟังก์ชันติดตามความคืบหน้า
-      const onProgress = (progress) => {
-        setUploadProgress(progress);
-      };
-      
-      const response = await uploadProfileImage(id, formData, onProgress);
-      
-      if (response.success) {
-        message.success('อัปโหลดรูปโปรไฟล์สำเร็จ');
-        
-        // รีเฟรชข้อมูล
-        if (mode === 'detail') {
-          fetchUserDetails(id);
-        } else {
-          fetchUsers(pagination.current, pagination.pageSize);
-        }
-        
-        return true;
-      } else {
-        message.error(response.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์');
-        return false;
-      }
-    } catch (err) {
-      console.error(`Error uploading profile image for user ${id}:`, err);
-      message.error('เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์ กรุณาลองใหม่อีกครั้ง');
-      return false;
-    } finally {
-      setActionLoading(false);
-      // รีเซ็ตความคืบหน้าหลังจากเสร็จสิ้น
-      setTimeout(() => setUploadProgress(0), 1000);
-    }
-  }, [mode, fetchUserDetails, fetchUsers, pagination]);
-  
   return {
     // สถานะข้อมูล
     users,
     userDetails,
-    loginHistory,
+    stats,
     loading,
     error,
     actionLoading,
-    uploadProgress,
     pagination,
     filters,
     
@@ -379,12 +327,11 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     createUser: createUserAction,
     updateUser: updateUserAction,
     deleteUser: deleteUserAction,
-    uploadProfileImage: uploadProfileImageAction,
     
     // รีเฟรชข้อมูล
     refreshUsers: () => fetchUsers(pagination.current, pagination.pageSize),
     refreshUserDetails: () => fetchUserDetails(userId),
-    refreshLoginHistory: () => fetchLoginHistory(userId)
+    refreshUserStats: fetchUserStats
   };
 };
 
