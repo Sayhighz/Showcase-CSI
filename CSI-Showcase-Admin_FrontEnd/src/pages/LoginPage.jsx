@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Typography, Alert, Spin } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -12,11 +12,18 @@ const LoginPage = () => {
   const location = useLocation();
   
   const [localError, setLocalError] = useState(null);
+  // เพิ่ม ref เพื่อป้องกันการ navigate ซ้ำซ้อน
+  const hasNavigatedRef = useRef(false);
 
   // เมื่อเข้าสู่ระบบแล้ว นำทางไปยังหน้าก่อนหน้าหรือแดชบอร์ด
   useEffect(() => {
-    if (admin) {
-      const from = location.state?.from?.pathname || '/dashboard';
+    // ตรวจสอบว่ามีข้อมูล admin และยังไม่ได้ navigate
+    if (admin && !hasNavigatedRef.current) {
+      // ตั้งค่า ref เพื่อป้องกันการเรียกซ้ำ
+      hasNavigatedRef.current = true;
+      
+      // redirect ไปยังหน้าก่อนหน้าหรือแดชบอร์ด
+      const from = location.state?.from?.pathname || '/login';
       navigate(from, { replace: true });
     }
   }, [admin, navigate, location]);

@@ -17,6 +17,7 @@ const LoginLogsPage = () => {
     resetFilters,
     refreshLogs
   } = useLog('login');
+  console.log("asdasd",logs)
 
   // ตัวกรองสำหรับบันทึกการเข้าสู่ระบบ
   const filterOptions = [

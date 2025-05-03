@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/DashboardPage.jsx
+import React, { useState, useEffect, useRef } from 'react';
+import _ from 'lodash';
 import { Row, Col, Spin, Alert, Button } from 'antd';
 import {
   UserOutlined,
@@ -22,12 +24,17 @@ import useLog from '../hooks/useLog';
 const DashboardPage = () => {
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
+  
+  // Refs to track previous values
+  const prevProjectStatsRef = useRef(null);
+  const prevUserStatsRef = useRef(null);
+  const prevDashboardStatsRef = useRef(null);
 
   const {
     projectStats,
     loading: projectLoading,
     error: projectError,
-    refreshProjectStats,
+    refreshProjects,
   } = useProject('stats');
 
   const {
@@ -41,21 +48,39 @@ const DashboardPage = () => {
     dashboardStats,
     loading: logLoading,
     error: logError,
-    refreshDashboardStats,
+    refreshLogs,
   } = useLog('dashboard');
 
   useEffect(() => {
     if (!projectLoading && !userLoading && !logLoading) {
       if (projectStats || userStats || dashboardStats) {
-        setDashboardData({
+        // Use lodash to check if data has actually changed before updating state
+        const newDashboardData = {
           projects: projectStats,
           users: userStats,
           logs: dashboardStats,
-        });
+        };
+        
+        const hasProjectStatsChanged = !_.isEqual(prevProjectStatsRef.current, projectStats);
+        const hasUserStatsChanged = !_.isEqual(prevUserStatsRef.current, userStats);
+        const hasDashboardStatsChanged = !_.isEqual(prevDashboardStatsRef.current, dashboardStats);
+        
+        // Only update state if data has changed
+        if (hasProjectStatsChanged || hasUserStatsChanged || hasDashboardStatsChanged) {
+          setDashboardData(newDashboardData);
+          
+          // Update refs with current values
+          prevProjectStatsRef.current = projectStats;
+          prevUserStatsRef.current = userStats;
+          prevDashboardStatsRef.current = dashboardStats;
+        }
       }
     }
-    if (projectError || userError || logError) {
-      setError(projectError || userError || logError);
+    
+    // Handle errors
+    const newError = projectError || userError || logError;
+    if (newError && !_.isEqual(error, newError)) {
+      setError(newError);
     }
   }, [
     projectLoading,
@@ -67,29 +92,30 @@ const DashboardPage = () => {
     projectError,
     userError,
     logError,
+    error
   ]);
 
   const handleRefresh = () => {
-    refreshProjectStats();
+    refreshProjects();
     refreshUserStats();
-    refreshDashboardStats();
+    refreshLogs();
   };
 
   const loading = projectLoading || userLoading || logLoading;
 
-  if (loading) {
+  if (loading && !dashboardData) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Spin size="large" tip="\u0e01\u0e33\u0e25\u0e31\u0e07\u0e42\u0e2b\u0e25\u0e14\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e14\u0e0a\u0e1a\u0e2d\u0e23\u0e4c\u0e14..." />
+        <Spin size="large" tip="กำลังโหลดข้อมูลแดชบอร์ด..." />
       </div>
     );
   }
 
-  if (error) {
+  if (error && !dashboardData) {
     return (
       <div className="p-4">
         <Alert
-          message="\u0e40\u0e01\u0e34\u0e14\u0e02\u0e49\u0e2d\u0e1c\u0e34\u0e14"
+          message="เกิดข้อผิดพลาด"
           description={error.toString() || 'ไม่สามารถโหลดข้อมูลแดชบอร์ดได้ โปรดลองอีกครั้งภายหลัง'}
           type="error"
           showIcon
@@ -130,6 +156,16 @@ const DashboardPage = () => {
         subtitle="ภาพรวมของระบบจัดการผลงานนักศึกษา"
         actions={[{ label: 'รีเฟรช', icon: <ReloadOutlined />, onClick: handleRefresh }]}
       />
+
+      {loading && (
+        <div className="mb-4">
+          <Alert
+            message="กำลังรีเฟรชข้อมูล..."
+            type="info"
+            showIcon
+          />
+        </div>
+      )}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>

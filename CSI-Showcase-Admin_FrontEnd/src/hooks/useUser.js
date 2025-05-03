@@ -1,5 +1,6 @@
 // src/hooks/useUser.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import _ from 'lodash';
 import { 
   getAllUsers, 
   getUserById, 
@@ -36,11 +37,28 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   });
   
   // สถานะสำหรับการแบ่งหน้า
+  // สถานะสำหรับการแบ่งหน้า
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0
   });
+  
+  // ใช้ ref สำหรับเก็บค่าล่าสุด
+  const filtersRef = useRef(filters);
+  const paginationRef = useRef(pagination);
+  const fetchingRef = useRef(false);
+  const initialModeRef = useRef(mode);
+  const initialUserIdRef = useRef(userId);
+  
+  // อัพเดต ref เมื่อ state เปลี่ยน
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+  
+  useEffect(() => {
+    paginationRef.current = pagination;
+  }, [pagination]);
   
   // ใช้ debounce สำหรับการค้นหาเพื่อลดการเรียก API บ่อยเกินไป
   const debouncedSearch = useDebounce(filters.search, 500);
@@ -48,116 +66,168 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   /**
    * โหลดข้อมูลผู้ใช้ทั้งหมด
    */
-  const fetchUsers = useCallback(async (page = 1, pageSize = 10) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // สร้าง query params
-      const queryParams = {
-        page,
-        limit: pageSize,
-        search: debouncedSearch,
-        status: filters.status
-      };
+  const fetchUsers = useCallback(
+    _.debounce(async (page = 1, pageSize = 10) => {
+      if (fetchingRef.current) return;
       
-      // กำหนดบทบาทถ้าไม่ใช่ 'all'
-      if (role !== 'all') {
-        queryParams.role = role;
+      fetchingRef.current = true;
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // สร้าง query params
+        const queryParams = {
+          page,
+          limit: pageSize,
+          search: debouncedSearch,
+          status: filtersRef.current.status
+        };
+        
+        // กำหนดบทบาทถ้าไม่ใช่ 'all'
+        if (role !== 'all') {
+          queryParams.role = role;
+        }
+        
+        const response = await getAllUsers(queryParams);
+        
+        if (response.success) {
+          setUsers(response.data.users || response.data);
+          
+          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          const newPagination = {
+            current: page,
+            pageSize,
+            total: response.pagination?.total || response.data.length
+          };
+          
+          if (!_.isEqual(paginationRef.current, newPagination)) {
+            setPagination(newPagination);
+          }
+        } else {
+          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        }
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        setLoading(false);
+        setTimeout(() => {
+          fetchingRef.current = false;
+        }, 300);
       }
-      
-      const response = await getAllUsers(queryParams);
-      
-      if (response.success) {
-        setUsers(response.data.users || response.data);
-        setPagination({
-          current: page,
-          pageSize,
-          total: response.pagination?.total || response.data.length
-        });
-      } else {
-        setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-      setError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, filters.status, role]);
+    }, 300),
+    [debouncedSearch, role]
+  );
   
   /**
    * โหลดข้อมูลผู้ใช้ตาม ID
    */
-  const fetchUserDetails = useCallback(async (id) => {
-    if (!id) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await getUserById(id);
+  const fetchUserDetails = useCallback(
+    _.debounce(async (id) => {
+      if (!id || fetchingRef.current) return;
       
-      if (response.success) {
-        setUserDetails(response.data);
-      } else {
-        setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้');
+      fetchingRef.current = true;
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await getUserById(id);
+        
+        if (response.success) {
+          setUserDetails(response.data);
+        } else {
+          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้');
+        }
+      } catch (err) {
+        console.error(`Error fetching user ${id}:`, err);
+        setError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
+      } finally {
+        setLoading(false);
+        setTimeout(() => {
+          fetchingRef.current = false;
+        }, 300);
       }
-    } catch (err) {
-      console.error(`Error fetching user ${id}:`, err);
-      setError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    }, 300),
+    []
+  );
   
   /**
    * โหลดสถิติผู้ใช้งาน
    */
-  const fetchUserStats = useCallback(async () => {
-    setLoading(true);
-    
-    try {
-      const response = await getUserStats();
+  const fetchUserStats = useCallback(
+    _.debounce(async () => {
+      if (fetchingRef.current) return;
       
-      if (response.success) {
-        setStats(response.data);
-      } else {
-        message.error(response.message || 'ไม่สามารถโหลดข้อมูลสถิติได้');
+      fetchingRef.current = true;
+      setLoading(true);
+      
+      try {
+        const response = await getUserStats();
+        
+        if (response.success) {
+          setStats(response.data);
+        } else {
+          message.error(response.message || 'ไม่สามารถโหลดข้อมูลสถิติได้');
+        }
+      } catch (err) {
+        console.error('Error fetching user stats:', err);
+        message.error('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ');
+      } finally {
+        setLoading(false);
+        setTimeout(() => {
+          fetchingRef.current = false;
+        }, 300);
       }
-    } catch (err) {
-      console.error('Error fetching user stats:', err);
-      message.error('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    }, 300),
+    []
+  );
   
-  // โหลดข้อมูลเมื่อตัวแปรที่เกี่ยวข้องเปลี่ยนแปลง
+  // ใช้ ref เพื่อติดตามการเรียก fetch ครั้งแรก
+  const hasInitialLoadRef = useRef(false);
+  
+  // โหลดข้อมูลครั้งแรกเมื่อ component mount
   useEffect(() => {
-    if (mode === 'detail' && userId) {
-      fetchUserDetails(userId);
-    } else if (mode === 'stats') {
-      fetchUserStats();
-    } else {
-      fetchUsers(pagination.current, pagination.pageSize);
+    if (!hasInitialLoadRef.current) {
+      hasInitialLoadRef.current = true;
+      
+      if (initialModeRef.current === 'detail' && initialUserIdRef.current) {
+        fetchUserDetails(initialUserIdRef.current);
+      } else if (initialModeRef.current === 'stats') {
+        fetchUserStats();
+      } else {
+        fetchUsers(pagination.current, pagination.pageSize);
+      }
     }
-  }, [
-    mode, 
-    userId, 
-    fetchUserDetails, 
-    fetchUserStats, 
-    fetchUsers, 
-    pagination.current, 
-    pagination.pageSize
-  ]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // useEffect สำหรับจัดการการเปลี่ยนแปลงของ filters และ pagination
+  useEffect(() => {
+    // ไม่ทำงานถ้าเป็นโหมด detail หรือ stats
+    if (initialModeRef.current === 'detail' || initialModeRef.current === 'stats') return;
+    
+    // ใช้ setTimeout เพื่อป้องกันการ fetch บ่อยเกินไป
+    const timeoutId = setTimeout(() => {
+      if (hasInitialLoadRef.current && !fetchingRef.current) {
+        fetchUsers(pagination.current, pagination.pageSize);
+      }
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [debouncedSearch, pagination.current, pagination.pageSize]);
   
   /**
    * จัดการการเปลี่ยนแปลงตัวกรอง
    * @param {Object} newFilters - ตัวกรองใหม่
    */
   const handleFilterChange = useCallback((newFilters) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
+    setFilters(prev => {
+      // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต
+      if (_.isEqual({ ...prev, ...newFilters }, prev)) {
+        return prev;
+      }
+      return { ...prev, ...newFilters };
+    });
+    
     // รีเซ็ตหน้าเมื่อมีการเปลี่ยนแปลงตัวกรอง
     setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
@@ -179,54 +249,65 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
    * @param {number} pageSize - จำนวนรายการต่อหน้า
    */
   const handlePaginationChange = useCallback((page, pageSize) => {
+    // ป้องกันการเรียกซ้ำถ้าค่าไม่เปลี่ยน
+    if (page === pagination.current && pageSize === pagination.pageSize) {
+      return;
+    }
+    
     setPagination({
       current: page,
       pageSize,
       total: pagination.total
     });
-  }, [pagination.total]);
+  }, [pagination.current, pagination.pageSize, pagination.total]);
   
   /**
    * สร้างผู้ใช้ใหม่
    * @param {Object|FormData} userData - ข้อมูลผู้ใช้
    * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
    */
-  const createUserAction = useCallback(async (userData) => {
-    setActionLoading(true);
-    
-    try {
-      // ตรวจสอบและแปลงข้อมูลเป็น FormData ถ้าจำเป็น
-      let formData = userData;
-      if (!(userData instanceof FormData)) {
-        formData = new FormData();
-        Object.keys(userData).forEach(key => {
-          if (userData[key] !== undefined && userData[key] !== null) {
-            formData.append(key, userData[key]);
-          }
-        });
-      }
+  const createUserAction = useCallback(
+    _.debounce(async (userData) => {
+      if (actionLoading) return false;
       
-      const response = await createUser(formData);
+      setActionLoading(true);
       
-      if (response.success) {
-        message.success(response.message || 'สร้างผู้ใช้สำเร็จ');
+      try {
+        // ตรวจสอบและแปลงข้อมูลเป็น FormData ถ้าจำเป็น
+        let formData = userData;
+        if (!(userData instanceof FormData)) {
+          formData = new FormData();
+          Object.keys(userData).forEach(key => {
+            if (userData[key] !== undefined && userData[key] !== null) {
+              formData.append(key, userData[key]);
+            }
+          });
+        }
         
-        // รีเฟรชข้อมูล
-        fetchUsers(pagination.current, pagination.pageSize);
+        const response = await createUser(formData);
         
-        return true;
-      } else {
-        message.error(response.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
+        if (response.success) {
+          message.success(response.message || 'สร้างผู้ใช้สำเร็จ');
+          
+          // รีเฟรชข้อมูล
+          fetchingRef.current = false;
+          fetchUsers(paginationRef.current.current, paginationRef.current.pageSize);
+          
+          return true;
+        } else {
+          message.error(response.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้');
+          return false;
+        }
+      } catch (err) {
+        console.error('Error creating user:', err);
+        message.error('เกิดข้อผิดพลาดในการสร้างผู้ใช้ กรุณาลองใหม่อีกครั้ง');
         return false;
+      } finally {
+        setActionLoading(false);
       }
-    } catch (err) {
-      console.error('Error creating user:', err);
-      message.error('เกิดข้อผิดพลาดในการสร้างผู้ใช้ กรุณาลองใหม่อีกครั้ง');
-      return false;
-    } finally {
-      setActionLoading(false);
-    }
-  }, [fetchUsers, pagination]);
+    }, 300),
+    [actionLoading]
+  );
   
   /**
    * อัปเดตข้อมูลผู้ใช้
@@ -234,76 +315,89 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
    * @param {Object} userData - ข้อมูลผู้ใช้ที่ต้องการอัปเดต
    * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
    */
-  const updateUserAction = useCallback(async (id, userData) => {
-    setActionLoading(true);
-    
-    try {
-      if (!id) {
-        message.error('ไม่ระบุรหัสผู้ใช้');
-        return false;
-      }
+  const updateUserAction = useCallback(
+    _.debounce(async (id, userData) => {
+      if (actionLoading) return false;
       
-      const response = await updateUser(id, userData);
+      setActionLoading(true);
       
-      if (response.success) {
-        message.success(response.message || 'อัปเดตข้อมูลผู้ใช้สำเร็จ');
-        
-        // รีเฟรชข้อมูล
-        if (mode === 'detail') {
-          fetchUserDetails(id);
-        } else {
-          fetchUsers(pagination.current, pagination.pageSize);
+      try {
+        if (!id) {
+          message.error('ไม่ระบุรหัสผู้ใช้');
+          return false;
         }
         
-        return true;
-      } else {
-        message.error(response.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้');
+        const response = await updateUser(id, userData);
+        
+        if (response.success) {
+          message.success(response.message || 'อัปเดตข้อมูลผู้ใช้สำเร็จ');
+          
+          // รีเฟรชข้อมูล
+          fetchingRef.current = false;
+          
+          if (initialModeRef.current === 'detail') {
+            fetchUserDetails(id);
+          } else {
+            fetchUsers(paginationRef.current.current, paginationRef.current.pageSize);
+          }
+          
+          return true;
+        } else {
+          message.error(response.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้');
+          return false;
+        }
+      } catch (err) {
+        console.error(`Error updating user ${id}:`, err);
+        message.error('เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
         return false;
+      } finally {
+        setActionLoading(false);
       }
-    } catch (err) {
-      console.error(`Error updating user ${id}:`, err);
-      message.error('เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
-      return false;
-    } finally {
-      setActionLoading(false);
-    }
-  }, [mode, fetchUserDetails, fetchUsers, pagination]);
+    }, 300),
+    [actionLoading]
+  );
   
   /**
    * ลบผู้ใช้
    * @param {string|number} id - รหัสผู้ใช้
    * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
    */
-  const deleteUserAction = useCallback(async (id) => {
-    setActionLoading(true);
-    
-    try {
-      if (!id) {
-        message.error('ไม่ระบุรหัสผู้ใช้');
-        return false;
-      }
+  const deleteUserAction = useCallback(
+    _.debounce(async (id) => {
+      if (actionLoading) return false;
       
-      const response = await deleteUser(id);
+      setActionLoading(true);
       
-      if (response.success) {
-        message.success(response.message || 'ลบผู้ใช้สำเร็จ');
+      try {
+        if (!id) {
+          message.error('ไม่ระบุรหัสผู้ใช้');
+          return false;
+        }
         
-        // รีเฟรชข้อมูล
-        fetchUsers(pagination.current, pagination.pageSize);
+        const response = await deleteUser(id);
         
-        return true;
-      } else {
-        message.error(response.message || 'เกิดข้อผิดพลาดในการลบผู้ใช้');
+        if (response.success) {
+          message.success(response.message || 'ลบผู้ใช้สำเร็จ');
+          
+          // รีเฟรชข้อมูล
+          fetchingRef.current = false;
+          fetchUsers(paginationRef.current.current, paginationRef.current.pageSize);
+          
+          return true;
+        } else {
+          message.error(response.message || 'เกิดข้อผิดพลาดในการลบผู้ใช้');
+          return false;
+        }
+      } catch (err) {
+        console.error(`Error deleting user ${id}:`, err);
+        message.error('เกิดข้อผิดพลาดในการลบผู้ใช้ กรุณาลองใหม่อีกครั้ง');
         return false;
+      } finally {
+        setActionLoading(false);
       }
-    } catch (err) {
-      console.error(`Error deleting user ${id}:`, err);
-      message.error('เกิดข้อผิดพลาดในการลบผู้ใช้ กรุณาลองใหม่อีกครั้ง');
-      return false;
-    } finally {
-      setActionLoading(false);
-    }
-  }, [fetchUsers, pagination]);
+    }, 300),
+    [actionLoading]
+  );
   
   return {
     // สถานะข้อมูล
@@ -329,9 +423,18 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     deleteUser: deleteUserAction,
     
     // รีเฟรชข้อมูล
-    refreshUsers: () => fetchUsers(pagination.current, pagination.pageSize),
-    refreshUserDetails: () => fetchUserDetails(userId),
-    refreshUserStats: fetchUserStats
+    refreshUsers: () => {
+      fetchingRef.current = false;
+      fetchUsers(paginationRef.current.current, paginationRef.current.pageSize);
+    },
+    refreshUserDetails: () => {
+      fetchingRef.current = false;
+      fetchUserDetails(initialUserIdRef.current);
+    },
+    refreshUserStats: () => {
+      fetchingRef.current = false;
+      fetchUserStats();
+    }
   };
 };
 

@@ -41,10 +41,11 @@ export const getAllLoginLogs = async (filters = {}) => {
     const url = ADMIN.LOGS.LOGIN_LOGS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
     const response = await axiosGet(url);
+    console.log(response);
     
     return {
       success: true,
-      data: response.data,
+      data: response.logs,
       message: response.message || 'ดึงประวัติการเข้าสู่ระบบสำเร็จ'
     };
   } catch (error) {

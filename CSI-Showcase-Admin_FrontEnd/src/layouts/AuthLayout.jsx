@@ -1,27 +1,46 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Layout, theme } from 'antd';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const { Content } = Layout;
 
 const AuthLayout = () => {
-  const { admin, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  
+  // Reference to prevent processing the authentication check multiple times
+  const authCheckCompleted = useRef(false);
   
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  if (loading) {
+  useEffect(() => {
+    // Only run this once when loading completes
+    if (!isLoading && !authCheckCompleted.current) {
+      authCheckCompleted.current = true;
+      console.log('Auth check completed. isAuthenticated:', isAuthenticated);
+    }
+    
+    // Reset the flag when component unmounts
+    return () => {
+      authCheckCompleted.current = false;
+    };
+  }, [isLoading, isAuthenticated]);
+
+  // While loading, show spinner
+  if (isLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
-  // 如果用戶已登入，重定向到儀表板
-  if (admin) {
+  // If authenticated, redirect to dashboard
+  if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Not authenticated, show the login form
   return (
     <Layout className="min-h-screen">
       <Layout>

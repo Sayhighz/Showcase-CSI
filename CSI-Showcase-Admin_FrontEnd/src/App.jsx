@@ -1,3 +1,4 @@
+// src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
@@ -36,6 +37,7 @@ import SystemStatsPage from './pages/log/SystemStatsPage';
 
 // นำเข้าคอมโพเนนต์สำหรับป้องกันเส้นทาง
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // กำหนดสีธีมสำหรับ Ant Design
 const theme = {
@@ -71,51 +73,109 @@ const theme = {
 const App = () => {
   return (
     <ConfigProvider theme={theme}>
-      <AuthProvider>
-        <AdminStateProvider>
-          <Router>
-            <Routes>
-              {/* เส้นทางสำหรับหน้าเข้าสู่ระบบ */}
-              <Route element={<AuthLayout />}>
-                <Route path="/login" element={<LoginPage />} />
-              </Route>
-
-              {/* เส้นทางที่ต้องยืนยันตัวตน */}
-              <Route element={<ProtectedRoute />}>
-                <Route element={<MainLayout />}>
-                  {/* หน้าแดชบอร์ด */}
-                  <Route path="/dashboard" element={<DashboardPage />} />
-
-                  {/* หน้าเกี่ยวกับโครงงาน */}
-                  <Route path="/projects" element={<ProjectsPage />} />
-                  <Route path="/projects/pending" element={<PendingProjectsPage />} />
-                  <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-                  <Route path="/projects/stats" element={<ProjectStatsPage />} />
-
-                  {/* หน้าเกี่ยวกับผู้ใช้ */}
-                  <Route path="/users" element={<UsersPage />} />
-                  <Route path="/users/admins" element={<AdminUsersPage />} />
-                  <Route path="/users/students" element={<StudentUsersPage />} />
-                  <Route path="/users/:userId" element={<UserDetailPage />} />
-                  <Route path="/users/stats" element={<UserStatsPage />} />
-
-                  {/* หน้าเกี่ยวกับบันทึก */}
-                  <Route path="/logs/login" element={<LoginLogsPage />} />
-                  <Route path="/logs/visitor-views" element={<VisitorViewsPage />} />
-                  <Route path="/logs/reviews" element={<ReviewLogsPage />} />
-                  <Route path="/logs/system-stats" element={<SystemStatsPage />} />
+      <ErrorBoundary>
+        <AuthProvider>
+          <AdminStateProvider>
+            <Router>
+              <Routes>
+                {/* เส้นทางสำหรับหน้าเข้าสู่ระบบ */}
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<LoginPage />} />
                 </Route>
-              </Route>
 
-              {/* เส้นทางเริ่มต้น */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              
-              {/* เส้นทางที่ไม่มี */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Router>
-        </AdminStateProvider>
-      </AuthProvider>
+                {/* เส้นทางที่ต้องยืนยันตัวตน */}
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<MainLayout />}>
+                    {/* หน้าแดชบอร์ด */}
+                    <Route path="/dashboard" element={
+                      <ErrorBoundary>
+                        <DashboardPage />
+                      </ErrorBoundary>
+                    } />
+
+                    {/* หน้าเกี่ยวกับโครงงาน */}
+                    <Route path="/projects" element={
+                      <ErrorBoundary>
+                        <ProjectsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/projects/pending" element={
+                      <ErrorBoundary>
+                        <PendingProjectsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/projects/:projectId" element={
+                      <ErrorBoundary>
+                        <ProjectDetailPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/projects/stats" element={
+                      <ErrorBoundary>
+                        <ProjectStatsPage />
+                      </ErrorBoundary>
+                    } />
+
+                    {/* หน้าเกี่ยวกับผู้ใช้ */}
+                    <Route path="/users" element={
+                      <ErrorBoundary>
+                        <UsersPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/users/admins" element={
+                      <ErrorBoundary>
+                        <AdminUsersPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/users/students" element={
+                      <ErrorBoundary>
+                        <StudentUsersPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/users/:userId" element={
+                      <ErrorBoundary>
+                        <UserDetailPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/users/stats" element={
+                      <ErrorBoundary>
+                        <UserStatsPage />
+                      </ErrorBoundary>
+                    } />
+
+                    {/* หน้าเกี่ยวกับบันทึก */}
+                    <Route path="/logs/login" element={
+                      <ErrorBoundary>
+                        <LoginLogsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/logs/visitor-views" element={
+                      <ErrorBoundary>
+                        <VisitorViewsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/logs/reviews" element={
+                      <ErrorBoundary>
+                        <ReviewLogsPage />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/logs/system-stats" element={
+                      <ErrorBoundary>
+                        <SystemStatsPage />
+                      </ErrorBoundary>
+                    } />
+                  </Route>
+                </Route>
+
+                {/* เส้นทางเริ่มต้น */}
+                {/* <Route path="/" element={<Navigate to="/dashboard" replace />} /> */}
+                
+                {/* เส้นทางที่ไม่มี */}
+                {/* <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
+              </Routes>
+            </Router>
+          </AdminStateProvider>
+        </AuthProvider>
+      </ErrorBoundary>
     </ConfigProvider>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Layout, theme, Button, Drawer, Grid } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
@@ -15,10 +15,15 @@ const { useBreakpoint } = Grid;
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const { admin, loading, logout } = useAuth();
+  const { admin, isAuthenticated, isLoading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const screens = useBreakpoint();
+  
+  // เพิ่ม ref เพื่อป้องกันการ navigate ซ้ำซ้อน
+  const hasRedirected = useRef(false);
+  // เพิ่ม ref เพื่อติดตามว่าได้ตรวจสอบ auth แล้วหรือยัง
+  const authCheckedRef = useRef(false);
   
   const isMobile = !screens.md;
 
@@ -27,21 +32,45 @@ const MainLayout = () => {
   } = theme.useToken();
 
   useEffect(() => {
-    // 自動關閉抽屜當路由變化
+    // ปิดลิ้นชักเมื่อเปลี่ยนเส้นทาง
     if (mobileDrawerOpen) {
       setMobileDrawerOpen(false);
     }
-  }, [location.pathname]);
+  }, [location.pathname, mobileDrawerOpen]);
 
-  // 檢查用戶是否已驗證
+  // ปรับปรุงการตรวจสอบสิทธิ์การใช้งาน
   useEffect(() => {
-    if (!loading && !admin) {
-      navigate('/login');
+    // ตรวจสอบเพียงครั้งเดียวหลังจากโหลดเสร็จ
+    if (!isLoading && !authCheckedRef.current) {
+      authCheckedRef.current = true;
+      
+      // หากยังไม่เข้าสู่ระบบและยังไม่ได้ redirect
+      if (!isAuthenticated && !admin && !hasRedirected.current) {
+        // ตั้งค่า ref เป็น true เพื่อป้องกันการเรียกซ้ำ
+        hasRedirected.current = true;
+        
+        // ใช้ setTimeout เพื่อให้การ navigate เกิดขึ้นหลังจาก render cycle
+        setTimeout(() => {
+          navigate('/login', { replace: true });
+        }, 100);
+      }
     }
-  }, [admin, loading, navigate]);
+  }, [isLoading, isAuthenticated, admin, navigate]);
 
-  if (loading) {
+  // รีเซ็ต hasRedirected เมื่อมีการ login สำเร็จ
+  useEffect(() => {
+    if (isAuthenticated && admin) {
+      hasRedirected.current = false;
+    }
+  }, [isAuthenticated, admin]);
+
+  if (isLoading) {
     return <LoadingSpinner fullScreen />;
+  }
+
+  // ถ้ายังไม่เข้าสู่ระบบและตรวจสอบ auth แล้ว แสดง loading
+  if (!isAuthenticated && !admin && authCheckedRef.current) {
+    return <LoadingSpinner fullScreen tip="กำลังนำท่านไปยังหน้าเข้าสู่ระบบ..." />;
   }
 
   const toggleCollapsed = () => {
@@ -52,20 +81,21 @@ const MainLayout = () => {
     setMobileDrawerOpen(!mobileDrawerOpen);
   };
 
-  // 處理登出
+  // จัดการการออกจากระบบ
   const handleLogout = async () => {
+    hasRedirected.current = false;
+    authCheckedRef.current = false;
     await logout();
-    navigate('/login');
   };
 
-  // 側邊欄
+  // แถบด้านข้าง
   const sidebarComponent = (
     <Sidebar collapsed={collapsed} onBreakpoint={broken => setCollapsed(broken)} />
   );
 
   return (
     <Layout className="min-h-screen">
-      {/* 移動設備抽屜 */}
+      {/* ลิ้นชักสำหรับอุปกรณ์มือถือ */}
       {isMobile && (
         <Drawer
           placement="left"
@@ -79,7 +109,7 @@ const MainLayout = () => {
         </Drawer>
       )}
 
-      {/* 桌面側邊欄 */}
+      {/* แถบด้านข้างสำหรับเดสก์ท็อป */}
       {!isMobile && (
         <Layout.Sider
           trigger={null}
