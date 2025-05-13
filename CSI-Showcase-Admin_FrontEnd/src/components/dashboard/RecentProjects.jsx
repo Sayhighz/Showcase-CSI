@@ -4,6 +4,7 @@ import { EyeOutlined, UserOutlined, CalendarOutlined, LinkOutlined } from '@ant-
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
 import { getCategoryName, getCategoryColor, getStatusName, getStatusColor } from '../../utils/projectUtils';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Text } = Typography;
 
@@ -24,7 +25,7 @@ const RecentProjects = ({
         <div className="flex items-center">
           {record.image ? (
             <img 
-              src={`/uploads/images/${record.image}`} 
+              src={`${URL}${record.image}`} 
               alt={text} 
               className="w-10 h-10 object-cover rounded mr-3"
               onError={(e) => { e.target.src = '/images/project-placeholder.png'; }}
@@ -66,7 +67,7 @@ const RecentProjects = ({
             <div className="flex items-center">
               {record.user_image ? (
                 <img 
-                  src={`/uploads/profiles/${record.user_image}`} 
+                  src={`${URL}/${record.user_image}`} 
                   alt={text} 
                   className="w-6 h-6 object-cover rounded-full mr-2"
                   onError={(e) => { e.target.src = '/images/user-placeholder.png'; }}
@@ -85,10 +86,10 @@ const RecentProjects = ({
       dataIndex: 'views_count',
       key: 'views_count',
       width: 100,
-      render: (views) => (
+      render: (views, record) => (
         <div className="flex items-center">
           <EyeOutlined className="mr-1 text-gray-400" />
-          <Text>{views || 0}</Text>
+          <Text>{views || record.views_count || 0}</Text>
         </div>
       ),
     },

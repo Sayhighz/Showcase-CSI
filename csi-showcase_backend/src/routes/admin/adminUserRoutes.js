@@ -1,6 +1,11 @@
 // routes/admin/adminUserRoutes.js
 
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import { API_ROUTES } from '../../constants/routes.js';
+import { createDirectoryIfNotExists } from '../../utils/fileHelper.js';
+import { importUsersFromCSV, downloadCSVTemplate } from '../../controllers/admin/batchUserController.js';
 import { 
   getAllUsers,
   getUserById,
@@ -10,10 +15,209 @@ import {
   getUserStats
 } from '../../controllers/admin/adminUserController.js';
 import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
 import { uploadProfileImage } from '../../controllers/common/uploadController.js';
 
+
+// กำหนดค่าการอัปโหลดไฟล์ CSV
+const csvUploadDir = path.join(process.cwd(), 'uploads', 'temp');
+createDirectoryIfNotExists(csvUploadDir);
 const router = express.Router();
+
+const csvStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, csvUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'users-import-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const csvUpload = multer({
+  storage: csvStorage,
+  fileFilter: (req, file, cb) => {
+    // รับเฉพาะไฟล์ CSV
+    if (file.mimetype === 'text/csv' || path.extname(file.originalname).toLowerCase() === '.csv') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // จำกัดขนาดไฟล์ 10MB
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/users/batch-import:
+ *   post:
+ *     summary: Import multiple users from CSV
+ *     description: Imports multiple users from a CSV file. Continues importing non-duplicate users if some duplicates are found. Admin only.
+ *     tags: [Admin Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV file containing user data (username,full_name,email,role,password)
+ *     responses:
+ *       200:
+ *         description: Users imported successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully imported 10 users. 2 users already exist."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalRecords:
+ *                       type: integer
+ *                       example: 14
+ *                     successCount:
+ *                       type: integer
+ *                       example: 10
+ *                     failedCount:
+ *                       type: integer
+ *                       example: 2
+ *                     skippedCount:
+ *                       type: integer
+ *                       example: 2
+ *                     successRecords:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 15
+ *                           username:
+ *                             type: string
+ *                             example: "student001"
+ *                           email:
+ *                             type: string
+ *                             example: "student001@example.com"
+ *                           full_name:
+ *                             type: string
+ *                             example: "Student Name"
+ *                           role:
+ *                             type: string
+ *                             example: "student"
+ *                     failedRecords:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 3
+ *                           username:
+ *                             type: string
+ *                             example: "invalid@user"
+ *                           email:
+ *                             type: string
+ *                             example: "invalid-email"
+ *                           full_name:
+ *                             type: string
+ *                             example: "Invalid User"
+ *                           error:
+ *                             type: string
+ *                             example: "Invalid email format"
+ *                     skippedRecords:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 4
+ *                           username:
+ *                             type: string
+ *                             example: "existing"
+ *                           email:
+ *                             type: string
+ *                             example: "existing@example.com"
+ *                           full_name:
+ *                             type: string
+ *                             example: "Existing User"
+ *                           status:
+ *                             type: string
+ *                             example: "Username exists"
+ *                           existingUser:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                                 example: 5
+ *                               username:
+ *                                 type: string
+ *                                 example: "existing"
+ *                               email:
+ *                                 type: string
+ *                                 example: "existing@example.com"
+ *                               full_name:
+ *                                 type: string
+ *                                 example: "Existing User"
+ *       400:
+ *         description: Bad Request - Invalid CSV file or validation error
+ *       401:
+ *         description: Unauthorized - Authentication required
+ *       403:
+ *         description: Forbidden - Admin privileges required
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post(
+  API_ROUTES.ADMIN.USER.BATCH_IMPORT,
+  [authenticateToken, isAdmin, csvUpload.single('file')],
+  importUsersFromCSV
+);
+
+/**
+ * @swagger
+ * /api/admin/users/csv-template:
+ *   get:
+ *     summary: Download CSV template for user import
+ *     description: Downloads a CSV template with example data for batch user import. Admin only.
+ *     tags: [Admin Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: CSV template file
+ *         content:
+ *           text/csv:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized - Authentication required
+ *       403:
+ *         description: Forbidden - Admin privileges required
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get(
+  API_ROUTES.ADMIN.USER.CSV_TEMPLATE,
+  [authenticateToken, isAdmin],
+  downloadCSVTemplate
+);
 
 // สร้าง middleware chain ที่ใช้บ่อย
 const adminAuth = [authenticateToken, isAdmin];

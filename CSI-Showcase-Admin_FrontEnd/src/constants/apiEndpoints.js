@@ -6,7 +6,8 @@
  */
 
 // Base URL
-export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+export const URL = import.meta.env.VITE_API_URL;
+export const BASE_URL = import.meta.env.VITE_API_URL + '/api' || 'http://localhost:4000/api';
 export const ADMIN_BASE_URL = `${BASE_URL}/admin`;
 
 // การยืนยันตัวตนของแอดมิน (Admin Authentication)
@@ -23,7 +24,9 @@ export const ADMIN = {
     CREATE: `${ADMIN_BASE_URL}/users/create`,
     UPDATE: (userId) => `${ADMIN_BASE_URL}/users/update/${userId}`,
     DELETE: (userId) => `${ADMIN_BASE_URL}/users/delete/${userId}`,
-    STATS: `${ADMIN_BASE_URL}/users/stats`
+    STATS: `${ADMIN_BASE_URL}/users/stats`,
+    BATCH_IMPORT: `${ADMIN_BASE_URL}/users/batch-import`,
+    CSV_TEMPLATE: `${ADMIN_BASE_URL}/users/csv-template`
   },
   PROJECT: {
     ALL: `${ADMIN_BASE_URL}/projects/all`,

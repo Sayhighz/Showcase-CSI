@@ -6,13 +6,15 @@ const AUTH_COOKIE_NAME = 'admin_auth_token';
 /**
  * ตั้งค่าคุกกี้สำหรับเก็บ auth token
  * @param {string} token - JWT token
- * @param {number} expires - จำนวนวันก่อนหมดอายุ (default: 1 วัน)
+ * @param {number} expires - จำนวนวันก่อนหมดอายุ (default: 7 วัน)
  */
-export const setAdminAuthCookie = (token, expires = 1) => {
+export const setAdminAuthCookie = (token, expires = 7) => {
+  // console.log('🔐 Setting admin auth cookie with expiry:', expires, 'days');
   Cookies.set(AUTH_COOKIE_NAME, token, { 
-    expires, 
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Strict' 
+    expires: expires, // เพิ่มเวลาหมดอายุเป็น 7 วัน (จากเดิม 1 วัน)
+    path: '/', // กำหนด path ให้ชัดเจน
+    secure: false,
+    sameSite: 'Lax' 
   });
 };
 
@@ -21,14 +23,19 @@ export const setAdminAuthCookie = (token, expires = 1) => {
  * @returns {string|null} - token หรือ null ถ้าไม่มี
  */
 export const getAdminAuthCookie = () => {
-  return Cookies.get(AUTH_COOKIE_NAME) || null;
+  const token = Cookies.get(AUTH_COOKIE_NAME) || null;
+  // console.log('🔍 Retrieved admin auth cookie:', token ? 'Found' : 'Not found');
+  return token;
 };
 
 /**
  * ลบคุกกี้ auth token
  */
 export const removeAdminAuthCookie = () => {
-  Cookies.remove(AUTH_COOKIE_NAME);
+  // console.log('🗑️ Removing admin auth cookie');
+  Cookies.remove(AUTH_COOKIE_NAME, { 
+    path: '/' // ต้องระบุ path เดียวกับตอนสร้าง
+  });
 };
 
 /**
@@ -48,8 +55,9 @@ export const hasAuthCookie = () => {
 export const setCookie = (name, value, expires = 7) => {
   Cookies.set(name, value, { 
     expires, 
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Strict'
+    path: '/', // กำหนด path ให้ชัดเจน
+    secure: false,
+    sameSite: 'Lax'
   });
 };
 
@@ -67,7 +75,9 @@ export const getCookie = (name) => {
  * @param {string} name - ชื่อคุกกี้
  */
 export const removeCookie = (name) => {
-  Cookies.remove(name);
+  Cookies.remove(name, { 
+    path: '/' // ต้องระบุ path เดียวกับตอนสร้าง
+  });
 };
 
 /**
@@ -75,7 +85,9 @@ export const removeCookie = (name) => {
  */
 export const removeAllCookies = () => {
   Object.keys(Cookies.get()).forEach(cookieName => {
-    Cookies.remove(cookieName);
+    Cookies.remove(cookieName, { 
+      path: '/' // ต้องระบุ path เดียวกับตอนสร้าง
+    });
   });
 };
 

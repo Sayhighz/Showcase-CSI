@@ -56,8 +56,8 @@ const ProjectReviewForm = ({
         label="ความคิดเห็น"
         rules={[
           { 
-            required: action === 'reject', 
-            message: 'กรุณาระบุเหตุผลที่ปฏิเสธ'
+            required: true, 
+            message: action === 'approve' ? 'กรุณาระบุความคิดเห็นประกอบการอนุมัติ' : 'กรุณาระบุเหตุผลที่ปฏิเสธ'
           }
         ]}
       >
@@ -65,11 +65,19 @@ const ProjectReviewForm = ({
           rows={4} 
           placeholder={
             action === 'approve' 
-              ? 'ความคิดเห็นเพิ่มเติม (ไม่จำเป็น)' 
+              ? 'กรุณาระบุความคิดเห็นประกอบการอนุมัติ' 
               : 'กรุณาระบุเหตุผลที่ปฏิเสธ'
           }
         />
       </Form.Item>
+
+      {action === 'approve' && (
+        <div className="mb-4">
+          <Text type="success">
+            *โปรดระบุความคิดเห็นประกอบการอนุมัติโครงงานนี้
+          </Text>
+        </div>
+      )}
 
       {action === 'reject' && (
         <div className="mb-4">

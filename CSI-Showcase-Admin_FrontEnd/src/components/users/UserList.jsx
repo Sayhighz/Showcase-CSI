@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Tag, Button, Avatar, Typography, Space, Dropdown, Menu, Modal, Tooltip } from 'antd';
+import { Table, Tag, Button, Avatar, Typography, Space, Dropdown, Modal, Menu } from 'antd';
 import { 
   UserOutlined, 
   EditOutlined, 
@@ -7,14 +7,14 @@ import {
   MoreOutlined, 
   EyeOutlined,
   PlusOutlined,
-  ExclamationCircleOutlined,
-  SearchOutlined
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
 import SearchBar from '../common/SearchBar';
 import EmptyState from '../common/EmptyState';
 import ErrorDisplay from '../common/ErrorDisplay';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Text, Title } = Typography;
 const { confirm } = Modal;
@@ -33,7 +33,7 @@ const UserList = ({
   searchLoading = false,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-
+  
   // คำแปลบทบาท
   const getRoleText = (role) => {
     switch (role) {
@@ -62,34 +62,6 @@ const UserList = ({
     }
   };
 
-  // คำแปลสถานะ
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'active':
-        return 'ใช้งาน';
-      case 'inactive':
-        return 'ไม่ได้ใช้งาน';
-      case 'suspended':
-        return 'ถูกระงับ';
-      default:
-        return status;
-    }
-  };
-
-  // สีของแท็กตามสถานะ
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'default';
-      case 'suspended':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
   // แสดงกล่องยืนยันการลบ
   const showDeleteConfirm = (userId, username) => {
     confirm({
@@ -112,7 +84,28 @@ const UserList = ({
     });
   };
 
-  // คอลัมน์สำหรับตาราง
+  // สร้าง menu items สำหรับ dropdown
+  const getMenu = (record) => (
+    <Menu>
+      <Menu.Item key="view" icon={<EyeOutlined />}>
+        <Link to={`/users/${record.user_id}`}>ดูรายละเอียด</Link>
+      </Menu.Item>
+      <Menu.Item key="edit" icon={<EditOutlined />}>
+        <Link to={`/users/${record.user_id}/edit`}>แก้ไข</Link>
+      </Menu.Item>
+      <Menu.Divider />
+      <Menu.Item 
+        key="delete" 
+        icon={<DeleteOutlined />} 
+        danger
+        onClick={() => showDeleteConfirm(record.user_id, record.username)}
+      >
+        ลบ
+      </Menu.Item>
+    </Menu>
+  );
+
+  // คอลัมน์สำหรับตาราง - ปรับให้ตรงกับข้อมูลตัวอย่าง
   const columns = [
     {
       title: 'ชื่อผู้ใช้',
@@ -121,7 +114,7 @@ const UserList = ({
       render: (text, record) => (
         <div className="flex items-center">
           <Avatar 
-            src={record.image ? `/uploads/profiles/${record.image}` : null}
+            src={record.image ? `${URL}/${record.image}` : null}
             icon={!record.image && <UserOutlined />}
             size="large"
             className="mr-3"
@@ -154,15 +147,6 @@ const UserList = ({
       ),
     },
     {
-      title: 'สถานะ',
-      dataIndex: 'status',
-      key: 'status',
-      responsive: ['md'],
-      render: (status) => (
-        <Tag color={getStatusColor(status)}>{getStatusText(status)}</Tag>
-      ),
-    },
-    {
       title: 'วันที่สร้าง',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -174,25 +158,28 @@ const UserList = ({
       key: 'action',
       render: (_, record) => (
         <Dropdown
-          overlay={
-            <Menu>
-              <Menu.Item key="view" icon={<EyeOutlined />}>
-                <Link to={`/users/${record.user_id}`}>ดูรายละเอียด</Link>
-              </Menu.Item>
-              <Menu.Item key="edit" icon={<EditOutlined />}>
-                <Link to={`/users/${record.user_id}/edit`}>แก้ไข</Link>
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item 
-                key="delete" 
-                icon={<DeleteOutlined />} 
-                danger
-                onClick={() => showDeleteConfirm(record.user_id, record.username)}
-              >
-                ลบ
-              </Menu.Item>
-            </Menu>
-          }
+          menu={{ items: [
+            {
+              key: 'view',
+              icon: <EyeOutlined />,
+              label: <Link to={`/users/${record.user_id}`}>ดูรายละเอียด</Link>
+            },
+            {
+              key: 'edit',
+              icon: <EditOutlined />,
+              label: <Link to={`/users/${record.user_id}/edit`}>แก้ไข</Link>
+            },
+            {
+              type: 'divider'
+            },
+            {
+              key: 'delete',
+              icon: <DeleteOutlined />,
+              danger: true,
+              label: 'ลบ',
+              onClick: () => showDeleteConfirm(record.user_id, record.username)
+            }
+          ]}}
           trigger={['click']}
         >
           <Button type="text" icon={<MoreOutlined />} />
@@ -226,6 +213,8 @@ const UserList = ({
       message = 'ยังไม่มีผู้ดูแลระบบ';
     } else if (role === 'student') {
       message = 'ยังไม่มีนักศึกษา';
+    } else if (role === 'visitor') {
+      message = 'ยังไม่มีผู้เยี่ยมชม';
     }
 
     return (
@@ -249,6 +238,27 @@ const UserList = ({
     );
   }
 
+  // แปลง pagination ให้อยู่ในรูปแบบที่ antd ต้องการ
+  const tablePagination = {
+    current: pagination.current || 1,
+    pageSize: pagination.pageSize || 10,
+    total: pagination.total || 0,
+    showSizeChanger: true,
+    pageSizeOptions: ['10', '20', '50', '100'],
+    showQuickJumper: true,
+    showTotal: (total) => `ทั้งหมด ${total} รายการ`,
+    onChange: (page, pageSize) => {
+      if (onPageChange) {
+        onPageChange(page, pageSize);
+      }
+    },
+    onShowSizeChange: (current, size) => {
+      if (onPageChange) {
+        onPageChange(current, size);
+      }
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
@@ -256,6 +266,7 @@ const UserList = ({
           {role === 'all' && 'ผู้ใช้ทั้งหมด'}
           {role === 'admin' && 'ผู้ดูแลระบบทั้งหมด'}
           {role === 'student' && 'นักศึกษาทั้งหมด'}
+          {role === 'visitor' && 'ผู้เยี่ยมชมทั้งหมด'}
         </Title>
         
         <div className="flex flex-col md:flex-row w-full md:w-auto space-y-2 md:space-y-0 md:space-x-2">
@@ -285,9 +296,8 @@ const UserList = ({
       <Table
         rowSelection={rowSelection}
         columns={columns}
-        dataSource={users.map(user => ({ ...user, key: user.user_id }))}
-        pagination={pagination}
-        onChange={onPageChange}
+        dataSource={Array.isArray(users) ? users.map(user => ({ ...user, key: user.user_id })) : []}
+        pagination={tablePagination}
         loading={loading}
         locale={{
           emptyText: renderEmptyState()
@@ -313,7 +323,12 @@ const UserList = ({
                     okType: 'danger',
                     cancelText: 'ยกเลิก',
                     onOk() {
-                      // TODO: ลบผู้ใช้หลายคน
+                      // ลบผู้ใช้หลายคน
+                      const selectedIds = selectedRowKeys;
+                      if (onDelete) {
+                        // อาจต้องเพิ่มฟังก์ชันลบหลายรายการ
+                        selectedIds.forEach(id => onDelete(id));
+                      }
                       setSelectedRowKeys([]);
                     },
                   });

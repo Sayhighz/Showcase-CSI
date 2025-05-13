@@ -11,6 +11,7 @@ const ProjectStatsPage = () => {
     error,
     refreshProjects,
   } = useProject('stats', 'stats');
+//   console.log("asdd",projectStats)
 
   return (
     <div>

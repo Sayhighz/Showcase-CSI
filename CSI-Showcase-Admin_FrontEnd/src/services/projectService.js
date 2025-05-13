@@ -24,8 +24,8 @@ export const getAllProjects = async (filters = {}) => {
       queryParams.append('year', filters.year);
     }
     
-    if (filters.study_year) {
-      queryParams.append('study_year', filters.study_year);
+    if (filters.level) {
+      queryParams.append('level', filters.level);
     }
     
     if (filters.semester) {
@@ -53,9 +53,10 @@ export const getAllProjects = async (filters = {}) => {
       success: true,
       data: response.data || response,
       pagination: response.pagination || {
-        page: response.page,
-        limit: response.limit,
-        totalItems: response.total
+        page: response.page || 1,
+        limit: response.limit || 10,
+        totalItems: response.totalItems || response.total || 0,
+        totalPages: response.totalPages || Math.ceil((response.totalItems || response.total || 0) / (response.limit || 10))
       }
     };
   } catch (error) {
@@ -87,8 +88,8 @@ export const getPendingProjects = async (filters = {}) => {
       queryParams.append('year', filters.year);
     }
     
-    if (filters.study_year) {
-      queryParams.append('study_year', filters.study_year);
+    if (filters.level) {
+      queryParams.append('level', filters.level);
     }
     
     if (filters.search) {
@@ -112,9 +113,10 @@ export const getPendingProjects = async (filters = {}) => {
       success: true,
       data: response.data || response,
       pagination: response.pagination || {
-        page: response.page,
-        limit: response.limit,
-        totalItems: response.total
+        page: response.page || 1,
+        limit: response.limit || 10,
+        totalItems: response.totalItems || response.total || 0,
+        totalPages: response.totalPages || Math.ceil((response.totalItems || response.total || 0) / (response.limit || 10))
       }
     };
   } catch (error) {
@@ -142,7 +144,7 @@ export const getProjectDetails = async (projectId) => {
       };
     }
     
-    const url = API_ROUTES.ADMIN.PROJECT.GET_BY_ID.replace(':projectId', projectId);
+    const url = API_ROUTES.ADMIN.PROJECT.GET_BY_ID(projectId);
     const response = await axiosGet(url);
     
     return {
@@ -190,7 +192,7 @@ export const reviewProject = async (projectId, status, comment = '') => {
       };
     }
     
-    const url = API_ROUTES.ADMIN.PROJECT.REVIEW.replace(':projectId', projectId);
+    const url = API_ROUTES.ADMIN.PROJECT.REVIEW(projectId);
     const response = await axiosPost(url, { status, comment });
     
     return {
@@ -223,7 +225,7 @@ export const updateProject = async (projectId, projectData) => {
       };
     }
     
-    const url = API_ROUTES.ADMIN.PROJECT.UPDATE.replace(':projectId', projectId);
+    const url = API_ROUTES.ADMIN.PROJECT.UPDATE(projectId);
     const response = await axiosPut(url, projectData);
     
     return {
@@ -255,7 +257,7 @@ export const deleteProject = async (projectId) => {
       };
     }
     
-    const url = API_ROUTES.ADMIN.PROJECT.DELETE.replace(':projectId', projectId);
+    const url = API_ROUTES.ADMIN.PROJECT.DELETE(projectId);
     const response = await axiosDelete(url);
     
     return {
@@ -286,7 +288,7 @@ export const getProjectReviews = async (projectId) => {
       };
     }
     
-    const url = API_ROUTES.ADMIN.PROJECT.REVIEWS.replace(':projectId', projectId);
+    const url = API_ROUTES.ADMIN.PROJECT.REVIEWS(projectId);
     const response = await axiosGet(url);
     
     return {
@@ -334,6 +336,7 @@ export const getAdminReviewStats = async () => {
 export const getProjectStats = async () => {
   try {
     const response = await axiosGet(API_ROUTES.ADMIN.PROJECT.STATS);
+    // console.log("dddd",response)
     
     return {
       success: true,
@@ -393,9 +396,10 @@ export const getAllProjectReviews = async (filters = {}) => {
       success: true,
       data: response.data || response,
       pagination: response.pagination || {
-        page: response.page,
-        limit: response.limit,
-        totalItems: response.total
+        page: response.page || 1,
+        limit: response.limit || 10,
+        totalItems: response.totalItems || response.total || 0,
+        totalPages: response.totalPages || Math.ceil((response.totalItems || response.total || 0) / (response.limit || 10))
       }
     };
   } catch (error) {

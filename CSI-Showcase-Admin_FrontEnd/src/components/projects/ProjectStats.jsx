@@ -20,7 +20,15 @@ import {
     getStatusName,
     getStatusColor,
   } from '../../utils/projectUtils';
-  
+  // Import recharts components
+  import {
+    PieChart, Pie, Cell, 
+    BarChart, Bar, 
+    LineChart, Line,
+    XAxis, YAxis, CartesianGrid, 
+    Tooltip as RechartsTooltip, 
+    Legend, ResponsiveContainer
+  } from 'recharts';
   
   const { Title, Text } = Typography;
   
@@ -90,19 +98,56 @@ import {
       );
     }
   
-    // สร้าง Icon ตามประเภทโครงงาน
-    const getTypeIcon = (type) => {
-      switch (type) {
-        case 'coursework':
-          return <FileTextOutlined style={{ fontSize: 24 }} />;
-        case 'academic':
-          return <BookOutlined style={{ fontSize: 24 }} />;
-        case 'competition':
-          return <TrophyOutlined style={{ fontSize: 24 }} />;
-        default:
-          return <ProjectOutlined style={{ fontSize: 24 }} />;
-      }
-    };
+    // Format chart data to ensure numbers, not strings
+    const typeChartData = [
+      { 
+        name: 'ผลงานการเรียน', 
+        value: parseInt(stats.project_counts?.coursework_count || 0), 
+        type: 'coursework' 
+      },
+      { 
+        name: 'บทความวิชาการ', 
+        value: parseInt(stats.project_counts?.academic_count || 0), 
+        type: 'academic' 
+      },
+      { 
+        name: 'การแข่งขัน', 
+        value: parseInt(stats.project_counts?.competition_count || 0), 
+        type: 'competition' 
+      },
+    ];
+  
+    const statusChartData = [
+      { 
+        name: 'รอตรวจสอบ', 
+        value: parseInt(stats.project_counts?.pending_count || 0), 
+        status: 'pending' 
+      },
+      { 
+        name: 'อนุมัติแล้ว', 
+        value: parseInt(stats.project_counts?.approved_count || 0), 
+        status: 'approved' 
+      },
+      { 
+        name: 'ถูกปฏิเสธ', 
+        value: parseInt(stats.project_counts?.rejected_count || 0), 
+        status: 'rejected' 
+      },
+    ];
+  
+    // Format monthly data to ensure numbers
+    const formattedMonthlyUploads = stats.monthly_uploads?.map(month => ({
+      month: month.month,
+      project_count: parseInt(month.project_count),
+      academic_count: parseInt(month.academic_count),
+      coursework_count: parseInt(month.coursework_count),
+      competition_count: parseInt(month.competition_count)
+    })) || [];
+  
+    const formattedMonthlyViews = stats.monthly_views?.map(month => ({
+      month: month.month,
+      view_count: parseInt(month.view_count)
+    })) || [];
   
     // คอลัมน์สำหรับตารางโครงงานยอดนิยม
     const topProjectsColumns = [
@@ -179,6 +224,15 @@ import {
         title: 'วันที่สร้าง',
         dataIndex: 'created_at',
         key: 'created_at',
+        render: (date) => {
+          // Format date for better display
+          const formattedDate = new Date(date).toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          });
+          return formattedDate;
+        }
       },
     ];
   
@@ -197,7 +251,7 @@ import {
           <Col xs={24} sm={12} lg={6}>
             <StatCard
               title="โครงงานที่อนุมัติแล้ว"
-              value={stats.project_counts?.approved_count || 0}
+              value={parseInt(stats.project_counts?.approved_count) || 0}
               icon={<CheckCircleOutlined style={{ fontSize: 24 }} />}
               color="#52c41a"
             />
@@ -206,7 +260,7 @@ import {
           <Col xs={24} sm={12} lg={6}>
             <StatCard
               title="โครงงานที่รอตรวจสอบ"
-              value={stats.project_counts?.pending_count || 0}
+              value={parseInt(stats.project_counts?.pending_count) || 0}
               icon={<ClockCircleOutlined style={{ fontSize: 24 }} />}
               color="#faad14"
             />
@@ -215,7 +269,7 @@ import {
           <Col xs={24} sm={12} lg={6}>
             <StatCard
               title="โครงงานที่ถูกปฏิเสธ"
-              value={stats.project_counts?.rejected_count || 0}
+              value={parseInt(stats.project_counts?.rejected_count) || 0}
               icon={<CloseCircleOutlined style={{ fontSize: 24 }} />}
               color="#f5222d"
             />
@@ -229,11 +283,7 @@ import {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[
-                        { name: 'ผลงานการเรียน', value: stats.project_counts?.coursework_count || 0, type: 'coursework' },
-                        { name: 'บทความวิชาการ', value: stats.project_counts?.academic_count ||.0, type: 'academic' },
-                        { name: 'การแข่งขัน', value: stats.project_counts?.competition_count || 0, type: 'competition' },
-                      ]}
+                      data={typeChartData}
                       nameKey="name"
                       dataKey="value"
                       cx="50%"
@@ -241,11 +291,7 @@ import {
                       outerRadius={80}
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
-                      {[
-                        { name: 'ผลงานการเรียน', value: stats.project_counts?.coursework_count || 0, type: 'coursework' },
-                        { name: 'บทความวิชาการ', value: stats.project_counts?.academic_count || 0, type: 'academic' },
-                        { name: 'การแข่งขัน', value: stats.project_counts?.competition_count || 0, type: 'competition' },
-                      ].map((entry, index) => (
+                      {typeChartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={TYPE_COLORS[entry.type] || '#8884d8'} />
                       ))}
                     </Pie>
@@ -262,11 +308,7 @@ import {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[
-                        { name: 'รอตรวจสอบ', value: stats.project_counts?.pending_count || 0, status: 'pending' },
-                        { name: 'อนุมัติแล้ว', value: stats.project_counts?.approved_count || 0, status: 'approved' },
-                        { name: 'ถูกปฏิเสธ', value: stats.project_counts?.rejected_count || 0, status: 'rejected' },
-                      ]}
+                      data={statusChartData}
                       nameKey="name"
                       dataKey="value"
                       cx="50%"
@@ -274,11 +316,7 @@ import {
                       outerRadius={80}
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
-                      {[
-                        { name: 'รอตรวจสอบ', value: stats.project_counts?.pending_count || 0, status: 'pending' },
-                        { name: 'อนุมัติแล้ว', value: stats.project_counts?.approved_count || 0, status: 'approved' },
-                        { name: 'ถูกปฏิเสธ', value: stats.project_counts?.rejected_count || 0, status: 'rejected' },
-                      ].map((entry, index) => (
+                      {statusChartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || '#8884d8'} />
                       ))}
                     </Pie>
@@ -296,7 +334,7 @@ import {
               <div style={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={stats.monthly_uploads || []}
+                    data={formattedMonthlyUploads}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -321,7 +359,7 @@ import {
               <div style={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={stats.monthly_views || []}
+                    data={formattedMonthlyViews}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />

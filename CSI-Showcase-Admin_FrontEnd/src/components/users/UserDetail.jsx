@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Descriptions, Card, Avatar, Typography, Tag, Button, Tabs, Table, Timeline, List, Space, Divider, Modal } from 'antd';
+import { Descriptions, Card, Avatar, Typography, Tag, Button, Tabs, Table, Space, Divider, Modal } from 'antd';
 import { 
   UserOutlined, 
   MailOutlined, 
@@ -14,8 +14,9 @@ import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorDisplay from '../common/ErrorDisplay';
+import { URL } from '../../constants/apiEndpoints';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { confirm } = Modal;
 
@@ -166,43 +167,14 @@ const UserDetail = ({
       },
     },
     {
-      title: 'สถานะ',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status) => {
-        let text = 'ไม่ระบุ';
-        let color = 'default';
-        
-        if (status === 'pending') {
-          text = 'รอตรวจสอบ';
-          color = 'warning';
-        } else if (status === 'approved') {
-          text = 'อนุมัติแล้ว';
-          color = 'success';
-        } else if (status === 'rejected') {
-          text = 'ถูกปฏิเสธ';
-          color = 'error';
-        }
-        
-        return <Tag color={color}>{text}</Tag>;
-      },
+      title: 'ระดับ',
+      dataIndex: 'level',
+      key: 'level',
     },
     {
-      title: 'วันที่สร้าง',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => formatThaiDate(date, { dateStyle: 'medium' }),
-    },
-    {
-      title: 'การเข้าชม',
-      dataIndex: 'viewsCount',
-      key: 'viewsCount',
-      render: (views) => (
-        <div className="flex items-center">
-          <EyeOutlined className="mr-1 text-gray-400" />
-          <Text>{views || 0}</Text>
-        </div>
-      ),
+      title: 'ปีการศึกษา',
+      dataIndex: 'year',
+      key: 'year',
     },
     {
       title: 'การดำเนินการ',
@@ -229,20 +201,12 @@ const UserDetail = ({
       title: 'ที่อยู่ IP',
       dataIndex: 'ip_address',
       key: 'ip_address',
-    },
-    {
-      title: 'อุปกรณ์',
-      dataIndex: 'device',
-      key: 'device',
-      render: (device) => device || 'ไม่ทราบ',
-    },
-    {
-      title: 'เบราว์เซอร์',
-      dataIndex: 'browser',
-      key: 'browser',
-      render: (browser) => browser || 'ไม่ทราบ',
-    },
+    }
   ];
+
+  // ตรวจสอบว่ามีแท็บที่ควรแสดงหรือไม่
+  const hasProjects = user.projects && user.projects.length > 0;
+  const hasLoginHistory = user.loginHistory && user.loginHistory.length > 0;
 
   return (
     <div>
@@ -250,7 +214,7 @@ const UserDetail = ({
         <div className="flex flex-col md:flex-row">
           <div className="flex flex-col items-center md:items-start md:mr-8">
             <Avatar 
-              src={user.image ? `/uploads/profiles/${user.image}` : null}
+              src={user.image ? `${URL}/${user.image}` : null}
               icon={!user.image && <UserOutlined />}
               size={120}
               style={{ 
@@ -289,7 +253,9 @@ const UserDetail = ({
               <div className="mt-2 md:mt-0">
                 <Space>
                   <Tag color={getRoleColor(user.role)}>{getRoleText(user.role)}</Tag>
-                  <Tag color={getStatusColor(user.status)}>{getStatusText(user.status)}</Tag>
+                  {user.status && (
+                    <Tag color={getStatusColor(user.status)}>{getStatusText(user.status)}</Tag>
+                  )}
                 </Space>
               </div>
             </div>
@@ -312,20 +278,9 @@ const UserDetail = ({
               <Descriptions.Item label="จำนวนโครงงาน">
                 <div className="flex items-center">
                   <ProjectOutlined className="mr-2 text-gray-500" />
-                  <Text>{user.project_count || 0} โครงงาน</Text>
+                  <Text>{user.projects ? user.projects.length : 0} โครงงาน</Text>
                 </div>
               </Descriptions.Item>
-              
-              {user.role === 'student' && (
-                <>
-                  <Descriptions.Item label="รหัสนักศึกษา">
-                    <Text>{user.student_id || 'ไม่ระบุ'}</Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="ชั้นปี">
-                    <Text>ปี {user.year || 'ไม่ระบุ'}</Text>
-                  </Descriptions.Item>
-                </>
-              )}
             </Descriptions>
           </div>
         </div>
@@ -339,88 +294,42 @@ const UserDetail = ({
               <Descriptions.Item label="ชื่อ-นามสกุล">{user.full_name}</Descriptions.Item>
               <Descriptions.Item label="อีเมล">{user.email}</Descriptions.Item>
               <Descriptions.Item label="บทบาท">{getRoleText(user.role)}</Descriptions.Item>
-              <Descriptions.Item label="สถานะ">{getStatusText(user.status)}</Descriptions.Item>
-              <Descriptions.Item label="วันที่สร้างบัญชี">{formatThaiDate(user.created_at, { dateStyle: 'full' })}</Descriptions.Item>
-              <Descriptions.Item label="การเข้าสู่ระบบล่าสุด">
-                {user.last_login ? formatThaiDate(user.last_login, { dateStyle: 'full', timeStyle: 'short' }) : 'ไม่มีข้อมูล'}
-              </Descriptions.Item>
-              
-              {user.role === 'student' && (
-                <>
-                  <Descriptions.Item label="รหัสนักศึกษา">{user.student_id || 'ไม่ระบุ'}</Descriptions.Item>
-                  <Descriptions.Item label="คณะ/ภาควิชา">{user.department || 'ไม่ระบุ'}</Descriptions.Item>
-                  <Descriptions.Item label="ชั้นปี">ปี {user.year || 'ไม่ระบุ'}</Descriptions.Item>
-                  <Descriptions.Item label="ภาคการศึกษา">{user.semester || 'ไม่ระบุ'}</Descriptions.Item>
-                </>
+              {user.status && (
+                <Descriptions.Item label="สถานะ">{getStatusText(user.status)}</Descriptions.Item>
               )}
-              
-              <Descriptions.Item label="เกี่ยวกับ" span={2}>
-                <Paragraph>{user.bio || 'ไม่มีข้อมูล'}</Paragraph>
-              </Descriptions.Item>
+              <Descriptions.Item label="วันที่สร้างบัญชี">{formatThaiDate(user.created_at, { dateStyle: 'full' })}</Descriptions.Item>
+              {user.last_login && (
+                <Descriptions.Item label="การเข้าสู่ระบบล่าสุด">
+                  {formatThaiDate(user.last_login, { dateStyle: 'full', timeStyle: 'short' })}
+                </Descriptions.Item>
+              )}
             </Descriptions>
           </Card>
         </TabPane>
         
-        <TabPane tab="โครงงาน" key="projects">
-          <Card>
-            {user.projects && user.projects.length > 0 ? (
+        {hasProjects && (
+          <TabPane tab="โครงงาน" key="projects">
+            <Card>
               <Table
                 columns={projectColumns}
                 dataSource={user.projects.map(project => ({ ...project, key: project.id }))}
                 pagination={{ pageSize: 5 }}
               />
-            ) : (
-              <div className="text-center p-8">
-                <Text type="secondary">ยังไม่มีโครงงานของผู้ใช้นี้</Text>
-              </div>
-            )}
-          </Card>
-        </TabPane>
+            </Card>
+          </TabPane>
+        )}
         
-        <TabPane tab="ประวัติการเข้าสู่ระบบ" key="login_history">
-          <Card>
-            {user.loginHistory && user.loginHistory.length > 0 ? (
+        {hasLoginHistory && (
+          <TabPane tab="ประวัติการเข้าสู่ระบบ" key="login_history">
+            <Card>
               <Table
                 columns={loginHistoryColumns}
                 dataSource={user.loginHistory.map((log, index) => ({ ...log, key: log.log_id || index }))}
                 pagination={{ pageSize: 5 }}
               />
-            ) : (
-              <div className="text-center p-8">
-                <Text type="secondary">ยังไม่มีประวัติการเข้าสู่ระบบ</Text>
-              </div>
-            )}
-          </Card>
-        </TabPane>
-        
-        <TabPane tab="กิจกรรม" key="activities">
-          <Card>
-            {user.activities && user.activities.length > 0 ? (
-              <Timeline mode="left" className="p-4">
-                {user.activities.map((activity, index) => (
-                  <Timeline.Item key={index} label={formatThaiDate(activity.timestamp, { dateStyle: 'medium', timeStyle: 'short' })}>
-                    <div>
-                      <Text strong>{activity.type_text}</Text>
-                      <div className="text-gray-600 mt-1">{activity.description}</div>
-                      
-                      {activity.project_id && (
-                        <div className="mt-2">
-                          <Link to={`/projects/${activity.project_id}`} className="text-purple-600">
-                            เกี่ยวกับโครงงาน: {activity.project_title}
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
-            ) : (
-              <div className="text-center p-8">
-                <Text type="secondary">ยังไม่มีกิจกรรม</Text>
-              </div>
-            )}
-          </Card>
-        </TabPane>
+            </Card>
+          </TabPane>
+        )}
       </Tabs>
     </div>
   );

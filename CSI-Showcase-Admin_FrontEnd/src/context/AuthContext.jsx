@@ -7,6 +7,26 @@ import { adminLogin, verifyAdminToken } from '../services/authService';
 // Create Auth Context
 const AuthContext = createContext(null);
 
+// ฟังก์ชันสำหรับตรวจสอบว่า token หมดอายุหรือไม่
+const isTokenExpired = (token) => {
+    if (!token) return true;
+    
+    try {
+        const decoded = jwtDecode(token);
+        const currentTime = Date.now() / 1000;
+        const isExpired = decoded.exp < currentTime;
+        
+        if (isExpired) {
+            console.log("Token is expired! Current time:", currentTime, "Expiry time:", decoded.exp);
+        }
+        
+        return isExpired;
+    } catch (error) {
+        console.error("Error checking token expiry:", error);
+        return true;
+    }
+};
+
 export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,155 +37,202 @@ export const AuthProvider = ({ children }) => {
         avatar: null
     });
     
-    // สร้างตัวแปรเพื่อตรวจสอบว่าทำการตรวจสอบ token แล้วหรือยัง
-    const verifyAuthRef = useRef(false);
-    // เพิ่ม ref เพื่อป้องกันการ redirect ซ้ำซ้อน
-    const redirectInProgressRef = useRef(false);
-    // เพิ่ม ref เพื่อควบคุมการตรวจสอบ cookie
-    const cookieCheckRef = useRef(0);
-    // เพิ่ม ref เพื่อตรวจสอบว่าได้จัดการ token ที่หมดอายุแล้วหรือไม่
-    const expiredTokenHandledRef = useRef(false);
-
-    // Verify token and set authentication state
+    // เพิ่ม userInfoRef เพื่อเก็บข้อมูลผู้ใช้เพิ่มเติมที่ไม่ได้อยู่ใน token
+    const userInfoRef = useRef({
+        username: '',
+        avatar: null
+    });
+    
+    // ใช้ Ref เพียงอันเดียวเพื่อป้องกันการทำงานซ้ำซ้อน
+    const authInProgressRef = useRef(false);
+    
+    // ฟังก์ชันตั้งค่าข้อมูลผู้ใช้จาก token
+    const setUserFromToken = useCallback((token) => {
+        try {
+            if (!token) return false;
+            
+            const decodedToken = jwtDecode(token);
+            console.log("Decoded token in setUserFromToken:", decodedToken);
+            
+            // ตรวจสอบการหมดอายุของ token
+            if (isTokenExpired(token)) {
+                console.log("Token expired when setting user");
+                return false;
+            }
+            
+            // ดึงข้อมูลจาก userInfoRef ที่เก็บไว้ตอน login
+            const savedUserInfo = userInfoRef.current;
+            console.log("Saved user info:", savedUserInfo);
+            
+            // ตั้งค่าข้อมูลผู้ใช้โดยใช้ข้อมูลจาก userInfoRef ก่อน
+            // ถ้าไม่มีค่อยใช้ข้อมูลจาก token
+            setAdmin({
+                id: decodedToken.id || decodedToken.userId || null,
+                // ใช้ username ที่เก็บไว้ในตอน login ก่อน
+                username: savedUserInfo.username || 
+                         decodedToken.user?.fullName || 
+                         decodedToken.fullName || 
+                         decodedToken.username || 
+                         decodedToken.name || 
+                         '',
+                role: decodedToken.role,
+                // ใช้ avatar ที่เก็บไว้ในตอน login ก่อน
+                avatar: savedUserInfo.avatar || 
+                       decodedToken.user?.image || 
+                       decodedToken.image || 
+                       decodedToken.user?.avatar || 
+                       decodedToken.avatar || 
+                       null
+            });
+            
+            setIsAuthenticated(true);
+            
+            console.log("User set from token:", {
+                id: decodedToken.id || decodedToken.userId || null,
+                username: savedUserInfo.username || decodedToken.username || '',
+                role: decodedToken.role,
+                avatar: savedUserInfo.avatar || null
+            });
+            
+            return true;
+        } catch (error) {
+            console.error("Error setting user from token:", error);
+            return false;
+        }
+    }, []);
+    
+    // ตรวจสอบ token เมื่อโหลดแอพ - ทำงานเพียงครั้งเดียว
     useEffect(() => {
-        // ป้องกันการทำงานซ้ำ
-        if (verifyAuthRef.current) return;
-        verifyAuthRef.current = true;
+        console.log("🚀 Initial auth check on app load");
         
-        const verifyAuth = async () => {
+        const initialAuthCheck = async () => {
+            // ป้องกันการทำงานซ้ำซ้อน
+            if (authInProgressRef.current) {
+                console.log("Auth check already in progress, skipping");
+                return;
+            }
+            
+            authInProgressRef.current = true;
+            setIsLoading(true);
+            
             try {
                 const token = getAdminAuthCookie();
+                console.log("Token from cookie:", token ? "exists" : "not found");
                 
                 if (!token) {
+                    console.log("No token found, setting unauthenticated");
                     setIsAuthenticated(false);
-                    setIsLoading(false);
                     return;
                 }
-
-                // ตรวจสอบการหมดอายุของ token ก่อน
-                try {
-                    const decodedToken = jwtDecode(token);
-                    const currentTime = Date.now() / 1000;
-                    
-                    // ถ้า token หมดอายุแล้ว ให้ลบและจัดการ
-                    if (decodedToken.exp < currentTime) {
-                        console.log("Token expired during initial verification");
-                        removeAdminAuthCookie();
-                        setIsAuthenticated(false);
-                        setIsLoading(false);
-                        
-                        // เตรียม redirect ไปหน้า login ในกรณีที่ token หมดอายุ
-                        if (!redirectInProgressRef.current && !expiredTokenHandledRef.current) {
-                            expiredTokenHandledRef.current = true;
-                            message.error("เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่");
-                            
-                            setTimeout(() => {
-                                window.location.href = '/login';
-                            }, 500);
-                        }
-                        return;
-                    }
-                } catch (err) {
-                    console.error("Error decoding token:", err);
+                
+                // ตรวจสอบ token หมดอายุหรือไม่
+                if (isTokenExpired(token)) {
+                    console.log("Token is expired, removing");
                     removeAdminAuthCookie();
                     setIsAuthenticated(false);
-                    setIsLoading(false);
-                    return;
-                }
-
-                // Verify token with backend - ทำเพียงครั้งเดียวเมื่อโหลดแอพ
-                cookieCheckRef.current += 1;
-                if (cookieCheckRef.current > 1) {
-                    console.log("ป้องกันการตรวจสอบ cookie ซ้ำซ้อน");
-                    setIsLoading(false);
                     return;
                 }
                 
-                const response = await verifyAdminToken(token);
+                // ตั้งค่าผู้ใช้จาก token โดยไม่เรียก API
+                const success = setUserFromToken(token);
                 
-                if (response.valid) {
-                    // If valid, decode and set admin data
-                    const decodedToken = jwtDecode(token);
-                    setAdmin({
-                      id: decodedToken.id,
-                      username: response.user.fullName,
-                      role: decodedToken.role,
-                      avatar: response.user.image || null
-                    });
-                    setIsAuthenticated(true);
+                if (success) {
+                    console.log("Successfully authenticated from token");
                 } else {
-                    // If invalid, clear auth data
-                    console.log("Token invalid from server response");
+                    console.log("Failed to authenticate from token");
                     removeAdminAuthCookie();
                     setIsAuthenticated(false);
-                    
-                    // เตรียม redirect ไปหน้า login ในกรณีที่ token ไม่ถูกต้อง
-                    if (!redirectInProgressRef.current && !expiredTokenHandledRef.current) {
-                        expiredTokenHandledRef.current = true;
-                        message.error("เซสชันไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่");
-                        
-                        setTimeout(() => {
-                            window.location.href = '/login';
-                        }, 500);
-                    }
                 }
             } catch (error) {
-                console.error('Auth verification error:', error);
-                removeAdminAuthCookie();
+                console.error("Initial auth check error:", error);
                 setIsAuthenticated(false);
-                
-                // เตรียม redirect ไปหน้า login ในกรณีที่มีข้อผิดพลาด
-                if (!redirectInProgressRef.current && !expiredTokenHandledRef.current) {
-                    expiredTokenHandledRef.current = true;
-                    message.error("เกิดข้อผิดพลาดในการตรวจสอบสถานะ กรุณาเข้าสู่ระบบใหม่");
-                    
-                    setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 500);
-                }
             } finally {
                 setIsLoading(false);
+                authInProgressRef.current = false;
             }
         };
         
-        verifyAuth();
-    }, []); // เพิ่ม array ว่างเพื่อให้ทำงานเพียงครั้งเดียว
+        initialAuthCheck();
+    }, [setUserFromToken]);
     
-    // Login function - แก้ไขให้มีชื่อที่ไม่ซ้ำกับ import
+    // ฟังก์ชันเข้าสู่ระบบ
     const handleLogin = useCallback(async (username, password) => {
+        console.log("Login attempt for:", username);
         setIsLoading(true);
+        
         try {
             const response = await adminLogin(username, password);
+            console.log("Login response:", response);
             
             if (response.success && response.data && response.data.token) {
-                // Fixed: Get token from response.data.token
                 const token = response.data.token;
-                const decodedToken = jwtDecode(token);
                 
-                // Check if user is admin
+                // ตรวจสอบบทบาทของผู้ใช้
+                const decodedToken = jwtDecode(token);
+                console.log("Decoded token:", decodedToken);
+                
                 if (decodedToken.role !== 'admin') {
                     message.error('คุณไม่มีสิทธิ์เข้าถึงระบบผู้ดูแล');
                     setIsLoading(false);
                     return false;
                 }
                 
-                // Set token in cookie
-                setAdminAuthCookie(token);
-                // รีเซ็ตตัวนับการตรวจสอบ cookie
-                cookieCheckRef.current = 0;
-                verifyAuthRef.current = false;
-                expiredTokenHandledRef.current = false;
+                // ตั้งค่า token ใน cookie (เพิ่มเวลาหมดอายุเป็น 7 วัน)
+                setAdminAuthCookie(token, 7);
                 
-                // Set admin data
+                // กำหนดค่า username และ avatar ที่ต้องการใช้
+                const userFullName = response.data.user?.fullName || 
+                                     response.data.user?.username || 
+                                     decodedToken.user?.fullName || 
+                                     decodedToken.fullName || 
+                                     decodedToken.username || 
+                                     decodedToken.name || 
+                                     username || '';
+                
+                const userAvatar = response.data.user?.image || 
+                                  response.data.user?.avatar || 
+                                  decodedToken.user?.image || 
+                                  decodedToken.image || 
+                                  decodedToken.avatar || 
+                                  null;
+                
+                // เก็บข้อมูล username และ avatar ไว้ใน userInfoRef
+                // เพื่อใช้ในกรณี refresh
+                userInfoRef.current = {
+                    username: userFullName,
+                    avatar: userAvatar
+                };
+                console.log("Saved user info to ref:", userInfoRef.current);
+                
+                // ตั้งค่าข้อมูลผู้ดูแล
                 setAdmin({
-                    id: decodedToken.id,
-                    username: response.data.user.fullName,
+                    id: decodedToken.id || decodedToken.userId || null,
+                    username: userFullName,
                     role: decodedToken.role,
-                    avatar: response.data.user.image || null
+                    avatar: userAvatar
                 });
                 
                 setIsAuthenticated(true);
                 message.success('เข้าสู่ระบบสำเร็จ');
+                
+                console.log("User set after login:", {
+                    id: decodedToken.id || decodedToken.userId || null,
+                    username: userFullName,
+                    role: decodedToken.role,
+                    avatar: userAvatar
+                });
+                
+                // เพิ่ม: บันทึกข้อมูลผู้ใช้ลงใน localStorage
+                try {
+                    localStorage.setItem('admin_user_info', JSON.stringify({
+                        username: userFullName,
+                        avatar: userAvatar
+                    }));
+                    console.log("User info saved to localStorage");
+                } catch (storageError) {
+                    console.error("Could not save to localStorage:", storageError);
+                }
+                
                 return true;
             } else {
                 message.error(response.message || 'เข้าสู่ระบบล้มเหลว');
@@ -179,14 +246,27 @@ export const AuthProvider = ({ children }) => {
             setIsLoading(false);
         }
     }, []);
-
-    // Logout function - ปรับปรุงการ redirect และเพิ่ม force parameter
-    const handleLogout = useCallback((force = false) => {
-        // ป้องกันการเรียกซ้ำ
-        if (redirectInProgressRef.current && !force) return;
-        redirectInProgressRef.current = true;
+    
+    // ฟังก์ชันออกจากระบบ
+    const handleLogout = useCallback(() => {
+        console.log("Logging out");
         
+        // ลบ token และรีเซ็ตสถานะ
         removeAdminAuthCookie();
+        
+        // รีเซ็ต userInfoRef
+        userInfoRef.current = {
+            username: '',
+            avatar: null
+        };
+        
+        // ลบข้อมูลจาก localStorage
+        try {
+            localStorage.removeItem('admin_user_info');
+        } catch (error) {
+            console.error("Error removing from localStorage:", error);
+        }
+        
         setIsAuthenticated(false);
         setAdmin({
             id: null,
@@ -195,111 +275,70 @@ export const AuthProvider = ({ children }) => {
             avatar: null
         });
         
-        // แสดงข้อความเฉพาะกรณีไม่ได้ถูกบังคับออกจากระบบ (session หมดอายุ)
-        if (!force) {
-            message.success('ออกจากระบบสำเร็จ');
-        }
+        message.success('ออกจากระบบสำเร็จ');
         
-        // รีเซ็ตตัวนับการตรวจสอบ cookie
-        cookieCheckRef.current = 0;
-        verifyAuthRef.current = false;
-        
-        // ใช้ setTimeout เพื่อป้องกัน infinite loop
+        // ทำการ redirect
         setTimeout(() => {
-            // ใช้ replace state แทน window.location.href เพื่อป้องกันปัญหากับ React Router
-            window.history.replaceState(null, '', '/login');
-            window.location.reload();
-            
-            // รีเซ็ต ref หลังจากเริ่มกระบวนการ redirect
-            setTimeout(() => {
-                redirectInProgressRef.current = false;
-            }, 300);
+            window.location.href = '/login';
         }, 100);
     }, []);
-
-    // Check if token is expired - ปรับปรุงให้แสดง log เพื่อการ debug
-    const isTokenExpired = useCallback((token) => {
+    
+    // ดึงข้อมูลผู้ใช้จาก localStorage เมื่อเริ่มต้น
+    useEffect(() => {
         try {
-            const decoded = jwtDecode(token);
-            const currentTime = Date.now() / 1000;
-            
-            // เพิ่ม log เพื่อเช็คการทำงาน
-            const isExpired = decoded.exp < currentTime;
-            if (isExpired) {
-                console.log("Token is expired! Current time:", currentTime, "Expiry time:", decoded.exp);
+            const savedUserInfo = localStorage.getItem('admin_user_info');
+            if (savedUserInfo) {
+                const parsedInfo = JSON.parse(savedUserInfo);
+                userInfoRef.current = parsedInfo;
+                console.log("Loaded saved user info from localStorage:", parsedInfo);
             }
-            
-            return isExpired;
         } catch (error) {
-            console.error("Error checking token expiry:", error);
-            return true;
+            console.error("Error loading from localStorage:", error);
         }
     }, []);
-
-    // Refresh auth state - ปรับปรุงเพื่อการจัดการ token ที่หมดอายุ
+    
+    // ฟังก์ชันรีเฟรชสถานะการยืนยันตัวตน (ใช้เมื่อต้องการตรวจสอบ token ซ้ำ)
     const refreshAuth = useCallback(async () => {
-        // ป้องกันการเรียกหลายครั้ง
-        if (cookieCheckRef.current > 10) {
-            console.warn("การตรวจสอบ cookie มากเกินไป!");
+        console.log("Manual refresh auth requested");
+        
+        if (authInProgressRef.current) {
+            console.log("Auth refresh already in progress");
             return isAuthenticated;
         }
         
-        cookieCheckRef.current += 1;
+        authInProgressRef.current = true;
         
-        // ตรวจสอบว่ามี token หรือไม่
-        const token = getAdminAuthCookie();
-        if (!token) {
-            console.log("No token found during refresh auth");
+        try {
+            const token = getAdminAuthCookie();
             
-            if (!redirectInProgressRef.current && !expiredTokenHandledRef.current) {
-                expiredTokenHandledRef.current = true;
-                handleLogout(true); // force logout
+            if (!token) {
+                console.log("No token found during refresh");
+                setIsAuthenticated(false);
+                return false;
             }
-            return false;
-        }
-        
-        // ตรวจสอบว่า token หมดอายุหรือไม่
-        if (isTokenExpired(token)) {
-            console.log("Token expired during refresh auth");
             
-            // ลบ token และรีเซ็ต state
-            removeAdminAuthCookie();
-            setIsAuthenticated(false);
-            setAdmin({
-                id: null,
-                username: '',
-                role: '',
-                avatar: null
-            });
-            
-            if (!redirectInProgressRef.current && !expiredTokenHandledRef.current) {
-                expiredTokenHandledRef.current = true;
-                message.error("เซสชันหมดอายุแล้ว กรุณาเข้าสู่ระบบใหม่");
-                
-                // ทำการ redirect ไปยังหน้า login
-                setTimeout(() => {
-                    window.history.replaceState(null, '', '/login');
-                    window.location.reload();
-                }, 500);
+            if (isTokenExpired(token)) {
+                console.log("Token expired during refresh");
+                removeAdminAuthCookie();
+                setIsAuthenticated(false);
+                return false;
             }
-            return false;
+            
+            // ตรวจสอบกับ backend เฉพาะเมื่อจำเป็น (ไม่ตรวจสอบทุกครั้ง)
+            if (!isAuthenticated) {
+                return setUserFromToken(token);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error("Refresh auth error:", error);
+            return isAuthenticated; // คงสถานะเดิมในกรณีที่มีข้อผิดพลาด
+        } finally {
+            authInProgressRef.current = false;
         }
-        
-        // ในกรณีที่ token ยังไม่หมดอายุ
-        return true;
-    }, [isTokenExpired, handleLogout, isAuthenticated]);
-
-    // เพิ่ม useEffect เพื่อตรวจสอบ token ทุก 5 นาที
-    useEffect(() => {
-        // ตั้งเวลาตรวจสอบ token เป็นระยะ
-        const interval = setInterval(async () => {
-            await refreshAuth();
-        }, 5 * 60 * 1000); // 5 นาที
-        
-        return () => clearInterval(interval);
-    }, [refreshAuth]);
-
-    // Memoize context value to prevent unnecessary re-renders
+    }, [isAuthenticated, setUserFromToken]);
+    
+    // สร้าง context value ที่มี performance ดี
     const contextValue = React.useMemo(() => ({
         isAuthenticated,
         isLoading,
@@ -308,7 +347,7 @@ export const AuthProvider = ({ children }) => {
         logout: handleLogout,
         refreshAuth
     }), [isAuthenticated, isLoading, admin, handleLogin, handleLogout, refreshAuth]);
-
+    
     return (
         <AuthContext.Provider value={contextValue}>
             {children}
@@ -316,7 +355,7 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
-// Custom hook to use the auth context
+// Custom hook สำหรับใช้ context
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {

@@ -26,7 +26,7 @@ const LoginForm = () => {
       
       if (success) {
         // นำทางไปยังหน้าแดชบอร์ด
-        navigate('/dashboard');
+        navigate('/');
       } else {
         throw new Error('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
       }

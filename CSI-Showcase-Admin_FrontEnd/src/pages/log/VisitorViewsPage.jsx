@@ -14,7 +14,7 @@ const VisitorViewsPage = () => {
     filters,
     handleFilterChange,
     handlePaginationChange,
-    resetFilters,
+    resetFilters, // ดึงฟังก์ชัน resetFilters มาจาก hook
     refreshLogs
   } = useLog('visitor');
 
@@ -42,6 +42,11 @@ const VisitorViewsPage = () => {
     }
   ];
 
+  // การจัดการค้นหา
+  const handleSearch = (value) => {
+    handleFilterChange({ search: value });
+  };
+
   return (
     <div>
       <PageTitle
@@ -50,25 +55,18 @@ const VisitorViewsPage = () => {
         icon={<EyeOutlined />}
       />
       
-      <FilterPanel
-        filters={filterOptions}
-        initialValues={filters}
-        onFilter={handleFilterChange}
-        onReset={resetFilters}
-        loading={loading}
-        title="ตัวกรองบันทึกการเข้าชม"
-        collapsed={false}
-      />
-      
       <VisitorViewList
         views={views}
         loading={loading}
         error={error}
         pagination={pagination}
         onPageChange={handlePaginationChange}
-        onSearch={(value) => handleFilterChange({ search: value })}
+        onSearch={handleSearch}
         searchQuery={filters.search || ''}
         onRefresh={refreshLogs}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onReset={resetFilters} // เพิ่ม prop onReset และส่ง resetFilters ไปให้ VisitorViewList
       />
     </div>
   );

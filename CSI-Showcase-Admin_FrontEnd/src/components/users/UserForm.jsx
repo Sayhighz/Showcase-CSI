@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, Upload, Button, Switch, Card, Row, Col, message } from 'antd';
-import { UploadOutlined, UserOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
+import { Form, Input, Select, Upload, Button, Card, Row, Col, message } from 'antd';
+import { UserOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import ImgCrop from 'antd-img-crop';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Option } = Select;
-const { TextArea } = Input;
 
 const UserForm = ({
   initialValues = {},
@@ -18,7 +18,7 @@ const UserForm = ({
   const [uploadLoading, setUploadLoading] = useState(false);
   const [fileList, setFileList] = useState([]);
 
-  // ตั้งค่าฟอร์มเมื่อมีการเปลี่ยนแปลง initialValues
+  // Set form values when initialValues change
   useEffect(() => {
     form.setFieldsValue(initialValues);
     
@@ -29,13 +29,13 @@ const UserForm = ({
           uid: '-1',
           name: 'profile-image.png',
           status: 'done',
-          url: `/uploads/profiles/${initialValues.image}`,
+          url: `${URL}/${initialValues.image}`,
         },
       ]);
     }
   }, [form, initialValues]);
 
-  // จัดการการอัปโหลดรูปภาพ
+  // Handle image upload
   const handleImageChange = (info) => {
     setFileList(info.fileList);
     
@@ -54,17 +54,32 @@ const UserForm = ({
     }
   };
 
-  // จัดการฟอร์มส่ง
+  // Handle form submission
   const handleSubmit = (values) => {
-    // เพิ่มข้อมูลรูปภาพ
-    const formData = { ...values, image: imageUrl };
+    // Prepare the data according to API requirements
+    const formData = {
+      username: values.username,
+      full_name: values.full_name,
+      email: values.email,
+      role: values.role,
+    };
+    
+    // Add password only for new users
+    if (!isEdit && values.password) {
+      formData.password = values.password;
+    }
+    
+    // Add image if available
+    if (imageUrl) {
+      formData.image = imageUrl;
+    }
     
     if (onFinish) {
       onFinish(formData);
     }
   };
 
-  // แสดงตัวอย่างรูปภาพอัปโหลด
+  // Upload button component
   const uploadButton = (
     <div>
       {uploadLoading ? <LoadingOutlined /> : <PlusOutlined />}
@@ -72,18 +87,18 @@ const UserForm = ({
     </div>
   );
 
-  // กำหนดค่าเริ่มต้นของรูปแบบการอัปโหลด
-  const uploadProps = {
-    name: 'profileImage',
-    action: '/api/admin/upload/profile-image',
-    headers: {
-      authorization: 'auth-token',
-    },
-    fileList,
-    onChange: handleImageChange,
-    accept: 'image/png, image/jpeg, image/gif',
-    maxCount: 1,
-  };
+  // Upload configuration
+//   const uploadProps = {
+//     name: 'profileImage',
+//     action: '/api/admin/upload/profile-image',
+//     headers: {
+//       authorization: 'auth-token',
+//     },
+//     fileList,
+//     onChange: handleImageChange,
+//     accept: 'image/png, image/jpeg, image/gif',
+//     maxCount: 1,
+//   };
 
   return (
     <Card>
@@ -94,7 +109,7 @@ const UserForm = ({
         initialValues={initialValues}
       >
         <Row gutter={24}>
-          <Col xs={24} md={8} className="mb-4 text-center">
+          {/* <Col xs={24} md={8} className="mb-4 text-center">
             <Form.Item
               name="profileImage"
               label="รูปโปรไฟล์"
@@ -115,7 +130,7 @@ const UserForm = ({
                 >
                   {imageUrl ? (
                     <img
-                      src={`/uploads/profiles/${imageUrl}`}
+                      src={`${URL}/${imageUrl}`}
                       alt="avatar"
                       style={{ width: '100%' }}
                       onError={(e) => {
@@ -132,7 +147,7 @@ const UserForm = ({
               แนะนำรูปภาพขนาด 300x300 พิกเซล<br />
               รองรับไฟล์ JPG, PNG และ GIF
             </div>
-          </Col>
+          </Col> */}
           
           <Col xs={24} md={16}>
             <Row gutter={16}>
@@ -228,37 +243,13 @@ const UserForm = ({
                   rules={[
                     { required: true, message: 'กรุณาเลือกบทบาท' }
                   ]}
+                  initialValue="student"
                 >
                   <Select placeholder="เลือกบทบาท">
                     <Option value="admin">ผู้ดูแลระบบ</Option>
                     <Option value="student">นักศึกษา</Option>
                     <Option value="visitor">ผู้เยี่ยมชม</Option>
                   </Select>
-                </Form.Item>
-              </Col>
-              
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="status"
-                  label="สถานะ"
-                  rules={[
-                    { required: true, message: 'กรุณาเลือกสถานะ' }
-                  ]}
-                >
-                  <Select placeholder="เลือกสถานะ">
-                    <Option value="active">ใช้งาน</Option>
-                    <Option value="inactive">ไม่ได้ใช้งาน</Option>
-                    <Option value="suspended">ถูกระงับ</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-              
-              <Col xs={24}>
-                <Form.Item
-                  name="bio"
-                  label="เกี่ยวกับ"
-                >
-                  <TextArea rows={4} placeholder="เกี่ยวกับผู้ใช้..." />
                 </Form.Item>
               </Col>
             </Row>

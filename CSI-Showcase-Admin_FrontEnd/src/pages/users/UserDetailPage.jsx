@@ -19,6 +19,7 @@ const UserDetailPage = () => {
     refreshUserDetails,
     actionLoading
   } = useUser('all', 'detail', {}, userId);
+  console.log(userDetails)
 
   // แสดงโมดัลแก้ไขผู้ใช้
   const showEditModal = () => {

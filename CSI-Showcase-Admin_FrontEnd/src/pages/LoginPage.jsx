@@ -12,26 +12,20 @@ const LoginPage = () => {
   const location = useLocation();
   
   const [localError, setLocalError] = useState(null);
-  // เพิ่ม ref เพื่อป้องกันการ navigate ซ้ำซ้อน
   const hasNavigatedRef = useRef(false);
 
-  // เมื่อเข้าสู่ระบบแล้ว นำทางไปยังหน้าก่อนหน้าหรือแดชบอร์ด
   useEffect(() => {
-    // ตรวจสอบว่ามีข้อมูล admin และยังไม่ได้ navigate
     if (admin && !hasNavigatedRef.current) {
-      // ตั้งค่า ref เพื่อป้องกันการเรียกซ้ำ
       hasNavigatedRef.current = true;
-      
-      // redirect ไปยังหน้าก่อนหน้าหรือแดชบอร์ด
       const from = location.state?.from?.pathname || '/login';
       navigate(from, { replace: true });
     }
   }, [admin, navigate, location]);
 
-  // แสดงข้อความผิดพลาดจาก context หรือ local
+  // Display error from context or local
   const error = authError || localError;
 
-  // กรณีกำลังโหลด
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -41,49 +35,19 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-12 px-4 sm:px-6 lg:px-8 relative">
+    <div className="min-h-screen w-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      {/* Simplified background */}
       <div 
-        className="absolute inset-0 overflow-hidden z-0"
+        className="absolute inset-0 z-0"
         style={{ 
-          background: 'linear-gradient(135deg, #090116 0%, #10033A 100%)',
+          background: 'linear-gradient(135deg, #ffffff 0%, #f9f0fc 100%)',
         }}
-      >
-        {/* พื้นหลังกาแล็กซี่แบบแอนิเมชัน */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            backgroundImage: 'url(/images/stars-bg.png)',
-            backgroundRepeat: 'repeat',
-            opacity: 0.3,
-          }}
-        ></div>
-        
-        {/* จุดเรืองแสงกระจายบนพื้นหลัง */}
-        <div className="stars">
-          {Array.from({ length: 20 }).map((_, index) => (
-            <div 
-              key={index}
-              className="star"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                width: `${Math.random() * 3 + 1}px`,
-                height: `${Math.random() * 3 + 1}px`,
-                animationDelay: `${Math.random() * 5}s`,
-                opacity: Math.random() * 0.8 + 0.2,
-              }}
-            ></div>
-          ))}
-        </div>
-      </div>
+      />
       
-      <div className="w-full max-w-md z-10 relative">
-        <div className="text-center mb-8">
-          <img src="/images/csi-logo-white.png" alt="CSI Logo" className="h-16 mx-auto" />
-          <Title level={2} className="mt-4 text-white">CSI Showcase Admin</Title>
-          <Text className="text-gray-300">ระบบจัดการผลงานนักศึกษา</Text>
-        </div>
+      {/* Content Container */}
+      <div className="w-full max-w-lg z-10 relative">
         
+        {/* Error Alert */}
         {error && (
           <Alert
             message="เกิดข้อผิดพลาดในการเข้าสู่ระบบ"
@@ -96,50 +60,42 @@ const LoginPage = () => {
           />
         )}
         
+        {/* Login Card */}
         <Card 
-          className="shadow-xl"
+          className="shadow-md rounded-md overflow-hidden"
           style={{
-            backdropFilter: 'blur(10px)',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid rgba(144, 39, 142, 0.2)',
           }}
         >
-          <LoginForm />
+          <div className="pt-6 pb-8 px-8">
+            {/* Logo or Brand Element */}
+            <div className="flex justify-center mb-6">
+              <div 
+                className="h-16 w-16 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: '#90278E' }}
+              >
+                <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-14h2v6h-2zm0 8h2v2h-2z" />
+                </svg>
+              </div>
+            </div>
+            
+            <Title 
+              level={2} 
+              className="text-center mb-6"
+              style={{ color: '#90278E' }}
+            >
+              เข้าสู่ระบบ
+            </Title>
+            <LoginForm />
+          </div>
         </Card>
         
-        <div className="text-center mt-6 text-white text-sm opacity-70">
+        {/* Footer */}
+        <div className="text-center mt-8 text-gray-600 text-sm">
           <p>สงวนลิขสิทธิ์ © {new Date().getFullYear()} ภาควิชาวิทยาการคอมพิวเตอร์</p>
         </div>
       </div>
-      
-      <style jsx>{`
-        .stars {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-        }
-        
-        .star {
-          position: absolute;
-          background-color: #fff;
-          border-radius: 50%;
-          animation: pulse 3s infinite;
-        }
-        
-        @keyframes pulse {
-          0% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.5);
-            opacity: 0.7;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 };

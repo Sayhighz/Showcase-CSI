@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Text } = Typography;
 
@@ -55,7 +56,7 @@ const RecentLogins = ({
             <List.Item.Meta
               avatar={
                 <Avatar 
-                  src={item.image ? `/uploads/profiles/${item.image}` : null}
+                  src={item.image ? `${URL}/${item.image}` : null}
                   icon={!item.image && <UserOutlined />}
                   style={{
                     backgroundColor: !item.image ? '#90278E' : undefined
@@ -64,13 +65,13 @@ const RecentLogins = ({
               }
               title={
                 <div className="flex items-center justify-between">
-                  <Link to={`/users/${item.user_id}`} className="font-medium hover:text-purple-700">
+                  <Link to={`/users/${item.user_id || item.id}`} className="font-medium hover:text-purple-700">
                     {item.username || 'ผู้ใช้ไม่ระบุชื่อ'}
                   </Link>
-                  <Tooltip title={formatThaiDate(item.login_time, { dateStyle: 'full', timeStyle: 'medium' })}>
+                  <Tooltip title={formatThaiDate(item.loginTime || item.login_time, { dateStyle: 'full', timeStyle: 'medium' })}>
                     <div className="flex items-center text-xs text-gray-500">
                       <ClockCircleOutlined className="mr-1" />
-                      <span>{formatThaiDate(item.login_time, { dateStyle: 'short' })}</span>
+                      <span>{formatThaiDate(item.loginTime || item.login_time, { dateStyle: 'short' })}</span>
                     </div>
                   </Tooltip>
                 </div>
@@ -78,15 +79,15 @@ const RecentLogins = ({
               description={
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                   <div className="flex items-center text-gray-500 text-sm">
-                    <Text type="secondary" className="mr-2">{item.full_name}</Text>
+                    <Text type="secondary" className="mr-2">{item.fullName || item.full_name}</Text>
                     <Tag color="purple">{item.role === 'admin' ? 'ผู้ดูแลระบบ' : 'นักศึกษา'}</Tag>
                   </div>
                   <div className="flex items-center text-xs text-gray-500 mt-1 md:mt-0">
                     <Tooltip title={`${item.browser} on ${item.os}`}>
                       <span className="mr-2">{getBrowserIcon(item.browser)}</span>
                     </Tooltip>
-                    <Tooltip title={item.ip_address}>
-                      <span><EnvironmentOutlined /> {item.ip_address}</span>
+                    <Tooltip title={item.ipAddress || item.ip_address}>
+                      <span><EnvironmentOutlined /> {item.ipAddress || item.ip_address}</span>
                     </Tooltip>
                   </div>
                 </div>

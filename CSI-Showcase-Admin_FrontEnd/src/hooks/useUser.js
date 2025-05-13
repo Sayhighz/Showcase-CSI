@@ -7,7 +7,9 @@ import {
   createUser, 
   updateUser, 
   deleteUser,
-  getUserStats
+  getUserStats,
+  importUsersFromCSV,
+  downloadCSVTemplate
 } from '../services/userService';
 import { message } from 'antd';
 import useDebounce from './useDebounce';
@@ -28,6 +30,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
   
   // สถานะสำหรับตัวกรองข้อมูล
   const [filters, setFilters] = useState({
@@ -36,7 +39,6 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     ...initialFilters
   });
   
-  // สถานะสำหรับการแบ่งหน้า
   // สถานะสำหรับการแบ่งหน้า
   const [pagination, setPagination] = useState({
     current: 1,
@@ -89,26 +91,29 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
         }
         
         const response = await getAllUsers(queryParams);
+        // console.log(response)
         
         if (response.success) {
-          setUsers(response.data.users || response.data);
+          // ตรวจสอบว่า response.data เป็น array หรือไม่
+          const usersData = Array.isArray(response.data) ? response.data : [];
+          setUsers(usersData);
           
-          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          // อัปเดต pagination จาก response
           const newPagination = {
-            current: page,
-            pageSize,
-            total: response.pagination?.total || response.data.length
+            current: parseInt(page),
+            pageSize: parseInt(pageSize),
+            total: response.pagination?.total || usersData.length || 0
           };
           
-          if (!_.isEqual(paginationRef.current, newPagination)) {
-            setPagination(newPagination);
-          }
+          setPagination(newPagination);
         } else {
           setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+          setUsers([]); // ตั้งค่าเป็น empty array เมื่อเกิดข้อผิดพลาด
         }
       } catch (err) {
         console.error('Error fetching users:', err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
+        setUsers([]); // ตั้งค่าเป็น empty array เมื่อเกิดข้อผิดพลาด
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -134,13 +139,15 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
         const response = await getUserById(id);
         
         if (response.success) {
-          setUserDetails(response.data);
+          setUserDetails(response.data || null);
         } else {
           setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้');
+          setUserDetails(null);
         }
       } catch (err) {
         console.error(`Error fetching user ${id}:`, err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้ กรุณาลองใหม่อีกครั้ง');
+        setUserDetails(null);
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -163,15 +170,18 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       
       try {
         const response = await getUserStats();
+        console.log(response)
         
         if (response.success) {
-          setStats(response.data);
+          setStats(response.data || null);
         } else {
           message.error(response.message || 'ไม่สามารถโหลดข้อมูลสถิติได้');
+          setStats(null);
         }
       } catch (err) {
         console.error('Error fetching user stats:', err);
         message.error('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ');
+        setStats(null);
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -200,7 +210,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // useEffect สำหรับจัดการการเปลี่ยนแปลงของ filters และ pagination
+  // useEffect สำหรับจัดการการเปลี่ยนแปลงของ filters
   useEffect(() => {
     // ไม่ทำงานถ้าเป็นโหมด detail หรือ stats
     if (initialModeRef.current === 'detail' || initialModeRef.current === 'stats') return;
@@ -208,12 +218,15 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     // ใช้ setTimeout เพื่อป้องกันการ fetch บ่อยเกินไป
     const timeoutId = setTimeout(() => {
       if (hasInitialLoadRef.current && !fetchingRef.current) {
-        fetchUsers(pagination.current, pagination.pageSize);
+        // รีเซ็ตหน้าเป็น 1 เมื่อมีการเปลี่ยนแปลง filter
+        const pageSize = pagination.pageSize || 10;
+        fetchUsers(1, pageSize);
+        setPagination(prev => ({ ...prev, current: 1 }));
       }
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [debouncedSearch, pagination.current, pagination.pageSize]);
+  }, [debouncedSearch, filters.status, fetchUsers, pagination.pageSize]);
   
   /**
    * จัดการการเปลี่ยนแปลงตัวกรอง
@@ -227,9 +240,6 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       }
       return { ...prev, ...newFilters };
     });
-    
-    // รีเซ็ตหน้าเมื่อมีการเปลี่ยนแปลงตัวกรอง
-    setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
   
   /**
@@ -240,7 +250,6 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       search: '',
       status: ''
     });
-    setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
   
   /**
@@ -249,17 +258,19 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
    * @param {number} pageSize - จำนวนรายการต่อหน้า
    */
   const handlePaginationChange = useCallback((page, pageSize) => {
-    // ป้องกันการเรียกซ้ำถ้าค่าไม่เปลี่ยน
-    if (page === pagination.current && pageSize === pagination.pageSize) {
-      return;
-    }
+    // รีเซ็ต fetchingRef เพื่อให้สามารถเรียกข้อมูลใหม่ได้
+    fetchingRef.current = false;
     
-    setPagination({
-      current: page,
-      pageSize,
-      total: pagination.total
-    });
-  }, [pagination.current, pagination.pageSize, pagination.total]);
+    // อัปเดต pagination และเรียกข้อมูลใหม่
+    setPagination(prev => ({
+      ...prev,
+      current: page || 1,
+      pageSize: pageSize || 10
+    }));
+    
+    // เรียกข้อมูลใหม่ตามหน้าที่เลือก
+    fetchUsers(page, pageSize);
+  }, [fetchUsers]);
   
   /**
    * สร้างผู้ใช้ใหม่
@@ -291,7 +302,8 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
           
           // รีเฟรชข้อมูล
           fetchingRef.current = false;
-          fetchUsers(paginationRef.current.current, paginationRef.current.pageSize);
+          fetchUsers(1, paginationRef.current.pageSize);
+          setPagination(prev => ({ ...prev, current: 1 }));
           
           return true;
         } else {
@@ -306,7 +318,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
         setActionLoading(false);
       }
     }, 300),
-    [actionLoading]
+    [actionLoading, fetchUsers]
   );
   
   /**
@@ -354,7 +366,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
         setActionLoading(false);
       }
     }, 300),
-    [actionLoading]
+    [actionLoading, fetchUserDetails, fetchUsers]
   );
   
   /**
@@ -381,7 +393,8 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
           
           // รีเฟรชข้อมูล
           fetchingRef.current = false;
-          fetchUsers(paginationRef.current.current, paginationRef.current.pageSize);
+          fetchUsers(1, paginationRef.current.pageSize);
+          setPagination(prev => ({ ...prev, current: 1 }));
           
           return true;
         } else {
@@ -396,9 +409,60 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
         setActionLoading(false);
       }
     }, 300),
-    [actionLoading]
+    [actionLoading, fetchUsers]
   );
   
+    /**
+   * นำเข้าผู้ใช้จากไฟล์ CSV
+   * @param {FormData} formData - FormData ที่มีไฟล์ CSV
+   * @returns {Promise<Object>} - ผลลัพธ์การนำเข้าผู้ใช้
+   */
+    const importUsersAction = useCallback(async (formData) => {
+      if (importLoading) return { success: false };
+      
+      setImportLoading(true);
+      
+      try {
+        const response = await importUsersFromCSV(formData);
+        
+        if (response.success) {
+          // รีเฟรชข้อมูล
+          fetchingRef.current = false;
+          fetchUsers(1, paginationRef.current.pageSize);
+          setPagination(prev => ({ ...prev, current: 1 }));
+        }
+        
+        return response;
+      } catch (err) {
+        console.error('Error importing users from CSV:', err);
+        return {
+          success: false,
+          message: 'เกิดข้อผิดพลาดในการนำเข้าผู้ใช้จากไฟล์ CSV'
+        };
+      } finally {
+        setImportLoading(false);
+      }
+    }, [importLoading, fetchUsers]);
+    
+    /**
+     * ดาวน์โหลดเทมเพลต CSV สำหรับการนำเข้าผู้ใช้
+     * @returns {Promise<Object>} - ผลลัพธ์การดาวน์โหลด
+     */
+    const downloadCSVTemplateAction = useCallback(async () => {
+      try {
+        const response = await downloadCSVTemplate();
+        return response;
+      } catch (err) {
+        console.error('Error downloading CSV template:', err);
+        message.error('เกิดข้อผิดพลาดในการดาวน์โหลดเทมเพลต CSV');
+        return {
+          success: false,
+          message: 'เกิดข้อผิดพลาดในการดาวน์โหลดเทมเพลต CSV'
+        };
+      }
+    }, []);
+
+
   return {
     // สถานะข้อมูล
     users,
@@ -409,6 +473,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     actionLoading,
     pagination,
     filters,
+    importLoading,
     
     // การจัดการตัวกรอง
     handleFilterChange,
@@ -416,6 +481,9 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     
     // การแบ่งหน้า
     handlePaginationChange,
+    
+    importUsers: importUsersAction,
+    downloadCSVTemplate: downloadCSVTemplateAction,
     
     // การดำเนินการกับผู้ใช้
     createUser: createUserAction,

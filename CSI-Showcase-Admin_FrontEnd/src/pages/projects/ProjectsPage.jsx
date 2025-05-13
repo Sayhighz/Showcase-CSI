@@ -28,14 +28,6 @@ const ProjectsPage = () => {
       <PageTitle
         title="จัดการโครงงานทั้งหมด"
         subtitle={`โครงงานทั้งหมด ${pagination.total} รายการ`}
-        actions={[
-          {
-            label: "เพิ่มโครงงานใหม่",
-            icon: <PlusOutlined />,
-            type: "primary",
-            onClick: () => navigate('/projects/new')
-          }
-        ]}
       />
       
       <ProjectList

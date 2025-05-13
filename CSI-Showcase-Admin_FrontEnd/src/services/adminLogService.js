@@ -13,39 +13,36 @@ export const getAllLoginLogs = async (filters = {}) => {
     // สร้าง query string จาก filters
     const queryParams = new URLSearchParams();
     
-    if (filters.page) {
-      queryParams.append('page', filters.page);
+    // Clone filters to avoid modifying the original object
+    const processedFilters = { ...filters };
+    
+    // Convert any date objects to strings
+    if (processedFilters.startDate && typeof processedFilters.startDate === 'object' && processedFilters.startDate.format) {
+      processedFilters.startDate = processedFilters.startDate.format('YYYY-MM-DD');
     }
     
-    if (filters.limit) {
-      queryParams.append('limit', filters.limit);
+    if (processedFilters.endDate && typeof processedFilters.endDate === 'object' && processedFilters.endDate.format) {
+      processedFilters.endDate = processedFilters.endDate.format('YYYY-MM-DD');
     }
     
-    if (filters.userId) {
-      queryParams.append('userId', filters.userId);
-    }
-    
-    if (filters.startDate) {
-      queryParams.append('startDate', filters.startDate);
-    }
-    
-    if (filters.endDate) {
-      queryParams.append('endDate', filters.endDate);
-    }
-    
-    if (filters.search) {
-      queryParams.append('search', filters.search);
-    }
+    // Filter out empty values before appending to queryParams
+    Object.entries(processedFilters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
     
     // สร้าง URL พร้อม query string
     const url = ADMIN.LOGS.LOGIN_LOGS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
     const response = await axiosGet(url);
-    console.log(response);
     
     return {
       success: true,
-      data: response.logs,
+      data: {
+        logs: response.logs || [],
+        pagination: response.pagination || {}
+      },
       message: response.message || 'ดึงประวัติการเข้าสู่ระบบสำเร็จ'
     };
   } catch (error) {
@@ -66,24 +63,14 @@ export const getAllLoginLogs = async (filters = {}) => {
  */
 export const getVisitorViews = async (filters = {}) => {
   try {
-    // สร้าง query string จาก filters
     const queryParams = new URLSearchParams();
     
-    if (filters.page) {
-      queryParams.append('page', filters.page);
-    }
-    
-    if (filters.limit) {
-      queryParams.append('limit', filters.limit);
-    }
-    
-    if (filters.projectId) {
-      queryParams.append('projectId', filters.projectId);
-    }
-    
-    if (filters.search) {
-      queryParams.append('search', filters.search);
-    }
+    // Filter out empty values before appending to queryParams
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
     
     // สร้าง URL พร้อม query string
     const url = ADMIN.LOGS.VISITOR_VIEWS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
@@ -92,7 +79,10 @@ export const getVisitorViews = async (filters = {}) => {
     
     return {
       success: true,
-      data: response.data,
+      data: {
+        views: response.data?.views || response.views || [],
+        pagination: response.data?.pagination || response.pagination || {}
+      },
       message: response.message || 'ดึงประวัติการเข้าชมสำเร็จ'
     };
   } catch (error) {
@@ -113,28 +103,14 @@ export const getVisitorViews = async (filters = {}) => {
  */
 export const getProjectReviews = async (filters = {}) => {
   try {
-    // สร้าง query string จาก filters
     const queryParams = new URLSearchParams();
     
-    if (filters.page) {
-      queryParams.append('page', filters.page);
-    }
-    
-    if (filters.limit) {
-      queryParams.append('limit', filters.limit);
-    }
-    
-    if (filters.projectId) {
-      queryParams.append('projectId', filters.projectId);
-    }
-    
-    if (filters.status) {
-      queryParams.append('status', filters.status);
-    }
-    
-    if (filters.adminId) {
-      queryParams.append('adminId', filters.adminId);
-    }
+    // Filter out empty values before appending to queryParams
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value);
+      }
+    });
     
     // สร้าง URL พร้อม query string
     const url = ADMIN.LOGS.PROJECT_REVIEWS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
@@ -143,7 +119,10 @@ export const getProjectReviews = async (filters = {}) => {
     
     return {
       success: true,
-      data: response.data,
+      data: {
+        reviews: response.data?.reviews || response.reviews || [],
+        pagination: response.data?.pagination || response.pagination || {}
+      },
       message: response.message || 'ดึงประวัติการตรวจสอบโปรเจคสำเร็จ'
     };
   } catch (error) {
@@ -165,9 +144,21 @@ export const getSystemStats = async () => {
   try {
     const response = await axiosGet(ADMIN.LOGS.SYSTEM_STATS);
     
+    // สร้างโครงสร้างข้อมูลให้ตรงกับ response ที่ได้รับ
+    const statsData = {
+      totalLogins: response?.totalLogins || 0,
+      totalViews: response?.totalViews || 0,
+      loginsByDay: response?.loginsByDay || [],
+      viewsByDay: response?.viewsByDay || [],
+      projectsByDay: response?.projectsByDay || [],
+      usersByDay: response?.usersByDay || [],
+      reviewsByDay: response?.reviewsByDay || [],
+      reviewsByStatus: response?.reviewsByStatus || []
+    };
+    
     return {
       success: true,
-      data: response.data,
+      data: statsData,
       message: response.message || 'ดึงสถิติระบบสำเร็จ'
     };
   } catch (error) {
@@ -176,7 +167,16 @@ export const getSystemStats = async () => {
     return {
       success: false,
       message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงสถิติระบบ',
-      data: {}
+      data: {
+        totalLogins: 0,
+        totalViews: 0,
+        loginsByDay: [],
+        viewsByDay: [],
+        projectsByDay: [],
+        usersByDay: [],
+        reviewsByDay: [],
+        reviewsByStatus: []
+      }
     };
   }
 };
@@ -283,9 +283,17 @@ export const formatDashboardStats = (data) => {
   const totals = {
     logins: data.totalLogins || 0,
     views: data.totalViews || 0,
-    projects: 0, // คำนวณจากข้อมูลอื่น
-    users: 0,    // คำนวณจากข้อมูลอื่น
-    reviews: 0   // คำนวณจากข้อมูลอื่น
+    projects: data.totalProjects || 0,
+    users: data.totalUsers || 0,
+    reviews: data.totalReviews || 0
+  };
+  
+  // สถิติวันนี้
+  const today = {
+    logins: data.dailyStats?.logins?.today || 0,
+    views: data.dailyStats?.views?.today || 0,
+    projects: data.dailyStats?.projects?.today || 0,
+    reviews: data.dailyStats?.reviews?.today || 0
   };
   
   // แนวโน้มข้อมูล
@@ -296,6 +304,7 @@ export const formatDashboardStats = (data) => {
   
   return {
     totals,
+    today,
     trends,
     reviewsByStatus
   };

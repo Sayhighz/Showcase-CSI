@@ -25,6 +25,8 @@ import SearchBar from '../common/SearchBar';
 import FilterPanel from '../common/FilterPanel';
 import EmptyState from '../common/EmptyState';
 import ErrorDisplay from '../common/ErrorDisplay';
+import ProjectReviewForm from '../projects/ProjectReviewForm';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Text, Title } = Typography;
 const { confirm } = Modal;
@@ -48,12 +50,15 @@ const ProjectList = ({
   filterOptions = {
     type: true,
     year: true,
-    studyYear: true,
+    level: false,
     tag: true,
   },
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [filterVisible, setFilterVisible] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [currentProject, setCurrentProject] = useState(null);
   
   // แสดงกล่องยืนยันการลบ
   const showDeleteConfirm = (projectId, title) => {
@@ -77,49 +82,34 @@ const ProjectList = ({
     });
   };
 
-  // แสดงกล่องยืนยันการอนุมัติ
-  const showApproveConfirm = (projectId, title) => {
-    confirm({
-      title: 'ยืนยันการอนุมัติโครงงาน',
-      icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-      content: (
-        <div>
-          <p>คุณแน่ใจหรือไม่ที่ต้องการอนุมัติโครงงาน <Text strong>{title}</Text>?</p>
-          <p>โครงงานนี้จะแสดงในหน้าเว็บไซต์หลัก</p>
-        </div>
-      ),
-      okText: 'อนุมัติ',
-      okType: 'primary',
-      okButtonProps: { style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } },
-      cancelText: 'ยกเลิก',
-      onOk() {
-        if (onApprove) {
-          onApprove(projectId);
-        }
-      },
-    });
+  // แสดง modal รีวิวโครงงาน
+  const showReviewModal = (projectId, title) => {
+    setCurrentProject({ id: projectId, title: title });
+    setReviewModalVisible(true);
   };
 
-  // แสดงกล่องยืนยันการปฏิเสธ
-  const showRejectConfirm = (projectId, title) => {
-    confirm({
-      title: 'ยืนยันการปฏิเสธโครงงาน',
-      icon: <CloseCircleOutlined style={{ color: '#f5222d' }} />,
-      content: (
-        <div>
-          <p>คุณแน่ใจหรือไม่ที่ต้องการปฏิเสธโครงงาน <Text strong>{title}</Text>?</p>
-          <p>โครงงานนี้จะไม่แสดงในหน้าเว็บไซต์หลัก</p>
-        </div>
-      ),
-      okText: 'ปฏิเสธ',
-      okType: 'danger',
-      cancelText: 'ยกเลิก',
-      onOk() {
-        if (onReject) {
-          onReject(projectId);
+  // จัดการการส่งฟอร์มรีวิว
+  const handleReviewFinish = async (values) => {
+    if (!currentProject) return;
+    
+    setReviewLoading(true);
+    
+    try {
+      if (values.action === 'approve') {
+        if (onApprove) {
+          await onApprove(currentProject.id, values.comment);
         }
-      },
-    });
+      } else {
+        if (onReject) {
+          await onReject(currentProject.id, values.comment);
+        }
+      }
+      setReviewModalVisible(false);
+    } catch (error) {
+      console.error('Error during review process:', error);
+    } finally {
+      setReviewLoading(false);
+    }
   };
 
   // คอลัมน์สำหรับตาราง
@@ -132,7 +122,7 @@ const ProjectList = ({
         <div className="flex items-center">
           {record.image ? (
             <img 
-              src={`/uploads/images/${record.image}`} 
+              src={`${URL}/${record.image}`} 
               alt={text} 
               className="w-12 h-12 object-cover rounded mr-3"
               onError={(e) => { e.target.src = '/images/project-placeholder.png'; }}
@@ -180,7 +170,7 @@ const ProjectList = ({
           <Tooltip title={record.full_name || text}>
             <div className="flex items-center">
               <Avatar 
-                src={record.user_image ? `/uploads/profiles/${record.user_image}` : null}
+                src={record.user_image ? `${URL}/${record.user_image}` : null}
                 icon={!record.user_image && <UserOutlined />}
                 size="small"
                 className="mr-2"
@@ -249,25 +239,15 @@ const ProjectList = ({
             icon: <EyeOutlined />,
             label: <Link to={`/projects/${record.project_id}`}>ดูรายละเอียด</Link>,
           },
-          {
-            key: 'edit',
-            icon: <EditOutlined />,
-            label: <Link to={`/projects/${record.project_id}/edit`}>แก้ไข</Link>,
-          },
         ];
 
-        // เพิ่มปุ่มสำหรับอนุมัติ/ปฏิเสธ ถ้าสถานะเป็น pending
+        // เพิ่มปุ่มสำหรับตรวจสอบถ้าสถานะเป็น pending
         if (record.status === 'pending') {
           items.push(
             {
-              key: 'approve',
-              icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-              label: <span onClick={() => showApproveConfirm(record.project_id, record.title)}>อนุมัติ</span>,
-            },
-            {
-              key: 'reject',
-              icon: <CloseCircleOutlined style={{ color: '#f5222d' }} />,
-              label: <span onClick={() => showRejectConfirm(record.project_id, record.title)}>ปฏิเสธ</span>,
+              key: 'review',
+              icon: <CheckCircleOutlined style={{ color: '#1890ff' }} />,
+              label: <span onClick={() => showReviewModal(record.project_id, record.title)}>ตรวจสอบโครงงาน</span>,
             }
           );
         }
@@ -317,9 +297,9 @@ const ProjectList = ({
       });
     }
 
-    if (filterOptions.studyYear) {
+    if (filterOptions.level) {
       filterItems.push({
-        name: 'studyYear',
+        name: 'level',
         label: 'ชั้นปี',
         type: 'select',
         options: [
@@ -407,6 +387,25 @@ const ProjectList = ({
     return 'โครงงานทั้งหมด';
   };
 
+  // กำหนด pagination options ให้ใช้ได้กับ antd Table
+  const paginationOptions = {
+    current: pagination.current || 1,
+    pageSize: pagination.pageSize || 10,
+    total: pagination.total || 0,
+    showSizeChanger: true,
+    showTotal: (total, range) => `${range[0]}-${range[1]} จาก ${total} รายการ`
+  };
+
+  // แสดง Modal สำหรับตรวจสอบโครงงานหลายรายการ
+  const showBatchReviewModal = (action) => {
+    setCurrentProject({ 
+      id: selectedRowKeys,
+      title: `${selectedRowKeys.length} รายการ`, 
+      action: action 
+    });
+    setReviewModalVisible(true);
+  };
+
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
@@ -432,16 +431,6 @@ const ProjectList = ({
             {filterVisible ? 'ซ่อนตัวกรอง' : 'แสดงตัวกรอง'}
           </Button>
           
-          {onAddProject && (
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
-              onClick={onAddProject}
-              className="md:ml-2"
-            >
-              เพิ่มโครงงาน
-            </Button>
-          )}
         </div>
       </div>
 
@@ -459,8 +448,10 @@ const ProjectList = ({
         rowSelection={rowSelection}
         columns={columns}
         dataSource={projects.map(project => ({ ...project, key: project.project_id }))}
-        pagination={pagination}
-        onChange={onPageChange}
+        pagination={paginationOptions}
+        onChange={(pagination, filters, sorter) => {
+          onPageChange(pagination.current, pagination.pageSize);
+        }}
         loading={loading}
         locale={{
           emptyText: renderEmptyState()
@@ -480,41 +471,14 @@ const ProjectList = ({
                     type="primary"
                     icon={<CheckCircleOutlined />}
                     style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-                    onClick={() => {
-                      confirm({
-                        title: `ยืนยันการอนุมัติโครงงาน ${selectedRowKeys.length} รายการ`,
-                        icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-                        content: 'โครงงานทั้งหมดที่เลือกจะถูกอนุมัติ',
-                        okText: 'อนุมัติ',
-                        okType: 'primary',
-                        okButtonProps: { style: { backgroundColor: '#52c41a', borderColor: '#52c41a' } },
-                        cancelText: 'ยกเลิก',
-                        onOk() {
-                          // TODO: อนุมัติโครงงานหลายรายการ
-                          setSelectedRowKeys([]);
-                        },
-                      });
-                    }}
+                    onClick={() => showBatchReviewModal('approve')}
                   >
                     อนุมัติที่เลือก
                   </Button>
                   <Button 
                     danger
                     icon={<CloseCircleOutlined />}
-                    onClick={() => {
-                      confirm({
-                        title: `ยืนยันการปฏิเสธโครงงาน ${selectedRowKeys.length} รายการ`,
-                        icon: <CloseCircleOutlined style={{ color: '#f5222d' }} />,
-                        content: 'โครงงานทั้งหมดที่เลือกจะถูกปฏิเสธ',
-                        okText: 'ปฏิเสธ',
-                        okType: 'danger',
-                        cancelText: 'ยกเลิก',
-                        onOk() {
-                          // TODO: ปฏิเสธโครงงานหลายรายการ
-                          setSelectedRowKeys([]);
-                        },
-                      });
-                    }}
+                    onClick={() => showBatchReviewModal('reject')}
                   >
                     ปฏิเสธที่เลือก
                   </Button>
@@ -544,6 +508,22 @@ const ProjectList = ({
           </div>
         </div>
       )}
+
+      {/* Modal ตรวจสอบโครงงาน */}
+      <Modal
+        title={`ตรวจสอบโครงงาน${currentProject ? `: ${currentProject.title}` : ''}`}
+        open={reviewModalVisible}
+        onCancel={() => setReviewModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <ProjectReviewForm
+          initialValues={currentProject ? { action: currentProject.action || 'approve' } : {}}
+          onFinish={handleReviewFinish}
+          onCancel={() => setReviewModalVisible(false)}
+          loading={reviewLoading}
+        />
+      </Modal>
     </div>
   );
 };

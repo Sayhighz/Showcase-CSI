@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout, theme, Button, Drawer, Grid } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { 
+  MenuFoldOutlined, 
+  MenuUnfoldOutlined
+} from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
-import Header from '../components/common/Header';
-import Sidebar from '../components/common/Sidebar';
 import Footer from '../components/common/Footer';
 import Breadcrumb from '../components/common/Breadcrumb';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import Sidebar from '../components/common/Sidebar'; // Import the new Sidebar component
 
-const { Content } = Layout;
+const { Content, Sider } = Layout;
 const { useBreakpoint } = Grid;
 
 const MainLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState([]);
+  const [openKeys, setOpenKeys] = useState([]);
   const { admin, isAuthenticated, isLoading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -31,25 +35,30 @@ const MainLayout = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  // กำหนดค่าเริ่มต้นเมื่อ pathname เปลี่ยน
   useEffect(() => {
-    // ปิดลิ้นชักเมื่อเปลี่ยนเส้นทาง
+    const pathSnippets = location.pathname.split('/').filter(i => i);
+    const selectedKey = `/${pathSnippets.slice(0, 2).join('/')}`;
+    
+    setSelectedKeys([selectedKey]);
+    
+    if (pathSnippets.length > 0 && !collapsed && !isMobile) {
+      setOpenKeys([`/${pathSnippets[0]}`]);
+    }
+    
+    // ปิด drawer เมื่อมีการเปลี่ยนเส้นทาง
     if (mobileDrawerOpen) {
       setMobileDrawerOpen(false);
     }
-  }, [location.pathname, mobileDrawerOpen]);
+  }, [location.pathname, collapsed, isMobile]);
 
   // ปรับปรุงการตรวจสอบสิทธิ์การใช้งาน
   useEffect(() => {
-    // ตรวจสอบเพียงครั้งเดียวหลังจากโหลดเสร็จ
     if (!isLoading && !authCheckedRef.current) {
       authCheckedRef.current = true;
       
-      // หากยังไม่เข้าสู่ระบบและยังไม่ได้ redirect
       if (!isAuthenticated && !admin && !hasRedirected.current) {
-        // ตั้งค่า ref เป็น true เพื่อป้องกันการเรียกซ้ำ
         hasRedirected.current = true;
-        
-        // ใช้ setTimeout เพื่อให้การ navigate เกิดขึ้นหลังจาก render cycle
         setTimeout(() => {
           navigate('/login', { replace: true });
         }, 100);
@@ -68,10 +77,22 @@ const MainLayout = () => {
     return <LoadingSpinner fullScreen />;
   }
 
-  // ถ้ายังไม่เข้าสู่ระบบและตรวจสอบ auth แล้ว แสดง loading
   if (!isAuthenticated && !admin && authCheckedRef.current) {
     return <LoadingSpinner fullScreen tip="กำลังนำท่านไปยังหน้าเข้าสู่ระบบ..." />;
   }
+
+  // จัดการเมื่อ openKeys เปลี่ยน
+  const onOpenChange = keys => {
+    setOpenKeys(keys);
+  };
+
+  // จัดการเมื่อเลือกเมนู
+  const onClick = ({ key }) => {
+    setSelectedKeys([key]);
+    if (isMobile) {
+      setMobileDrawerOpen(false);
+    }
+  };
 
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
@@ -88,11 +109,6 @@ const MainLayout = () => {
     await logout();
   };
 
-  // แถบด้านข้าง
-  const sidebarComponent = (
-    <Sidebar collapsed={collapsed} onBreakpoint={broken => setCollapsed(broken)} />
-  );
-
   return (
     <Layout className="min-h-screen">
       {/* ลิ้นชักสำหรับอุปกรณ์มือถือ */}
@@ -102,16 +118,33 @@ const MainLayout = () => {
           onClose={toggleMobileDrawer}
           open={mobileDrawerOpen}
           closable={false}
-          bodyStyle={{ padding: 0, backgroundColor: '#050114' }}
+          bodyStyle={{ 
+            padding: 0, 
+            backgroundColor: '#90278E',
+            overflow: 'hidden'
+          }}
           width={256}
+          destroyOnClose={false}
+          maskClosable={true}
+          zIndex={1001}
         >
-          {sidebarComponent}
+          {/* Use the Sidebar component for mobile */}
+          <Sidebar 
+            collapsed={false}
+            isMobile={true}
+            selectedKeys={selectedKeys}
+            openKeys={openKeys}
+            onOpenChange={onOpenChange}
+            onClick={onClick}
+            onLogout={handleLogout}
+            admin={admin}
+          />
         </Drawer>
       )}
 
       {/* แถบด้านข้างสำหรับเดสก์ท็อป */}
       {!isMobile && (
-        <Layout.Sider
+        <Sider
           trigger={null}
           collapsible
           collapsed={collapsed}
@@ -125,38 +158,41 @@ const MainLayout = () => {
             left: 0,
             top: 0,
             bottom: 0,
-            backgroundColor: '#050114',
-            backgroundImage: 'linear-gradient(180deg, #050114 0%, #10033A 100%)'
+            backgroundColor: '#90278E',
+            backgroundImage: 'linear-gradient(180deg, #90278E 0%, #6A1B68 100%)',
+            zIndex: 1000
           }}
         >
-          {sidebarComponent}
-        </Layout.Sider>
+          {/* Use the Sidebar component for desktop */}
+          <Sidebar 
+            collapsed={collapsed}
+            isMobile={false}
+            selectedKeys={selectedKeys}
+            openKeys={openKeys}
+            onOpenChange={onOpenChange}
+            onClick={onClick}
+            onLogout={handleLogout}
+            admin={admin}
+          />
+        </Sider>
       )}
 
       <Layout className={!isMobile && !collapsed ? "ml-64" : !isMobile && collapsed ? "ml-20" : ""}>
-        <Header 
-          onMenuClick={isMobile ? toggleMobileDrawer : toggleCollapsed} 
-          collapsed={collapsed}
-          onLogout={handleLogout}
-          admin={admin}
-        />
-        
         <Content className="mx-4 my-4">
           <div className="flex items-center mb-4">
-            {!isMobile && (
-              <Button
-                type="text"
-                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                onClick={toggleCollapsed}
-                className="mr-4 text-2xl"
-                style={{
-                  fontSize: '16px',
-                  width: 40,
-                  height: 40,
-                  color: '#90278E',
-                }}
-              />
-            )}
+            {/* ปุ่มสำหรับทั้งอุปกรณ์เดสก์ท็อปและมือถือ */}
+            <Button
+              type="text"
+              icon={isMobile ? (mobileDrawerOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+              onClick={isMobile ? toggleMobileDrawer : toggleCollapsed}
+              className="mr-4 text-2xl"
+              style={{
+                fontSize: '16px',
+                width: 40,
+                height: 40,
+                color: '#90278E',
+              }}
+            />
             <Breadcrumb />
           </div>
           

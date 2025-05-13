@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Tag, Tooltip, Typography, Space, Button, Avatar } from 'antd';
+import { Table, Tag, Tooltip, Typography, Space, Button, Avatar, Input } from 'antd';
 import { 
   UserOutlined, 
   ClockCircleOutlined, 
@@ -7,7 +7,8 @@ import {
   CloseCircleOutlined,
   ProjectOutlined,
   FileTextOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
@@ -16,6 +17,7 @@ import ErrorDisplay from '../common/ErrorDisplay';
 import LogFilterForm from './LogFilterForm';
 
 const { Text, Paragraph } = Typography;
+const { Search } = Input;
 
 const ReviewLogList = ({
   reviews = [],
@@ -26,6 +28,9 @@ const ReviewLogList = ({
   onRefresh,
   filters = {},
   onFilterChange,
+  onSearch,
+  searchQuery = '',
+  onReset // เพิ่ม prop onReset
 }) => {
   const [filterVisible, setFilterVisible] = useState(false);
 
@@ -33,8 +38,8 @@ const ReviewLogList = ({
   const columns = [
     {
       title: 'โครงงาน',
-      dataIndex: 'project_title',
-      key: 'project_title',
+      dataIndex: 'projectTitle',
+      key: 'projectTitle',
       render: (text, record) => (
         <div className="flex items-center">
           <Avatar 
@@ -44,14 +49,14 @@ const ReviewLogList = ({
             style={{ backgroundColor: '#1890ff' }}
           />
           <div>
-            <Link to={`/projects/${record.project_id}`} className="font-medium hover:text-purple-700">
-              {text || `โครงงาน #${record.project_id}`}
+            <Link to={`/projects/${record.projectId}`} className="font-medium hover:text-purple-700">
+              {text || `โครงงาน #${record.projectId}`}
             </Link>
-            {record.project_type && (
+            {record.projectType && (
               <div className="text-xs text-gray-500 mt-1">
-                {record.project_type === 'coursework' && 'ผลงานการเรียน'}
-                {record.project_type === 'academic' && 'บทความวิชาการ'}
-                {record.project_type === 'competition' && 'การแข่งขัน'}
+                {record.projectType === 'coursework' && 'ผลงานการเรียน'}
+                {record.projectType === 'academic' && 'บทความวิชาการ'}
+                {record.projectType === 'competition' && 'การแข่งขัน'}
               </div>
             )}
           </div>
@@ -60,22 +65,22 @@ const ReviewLogList = ({
     },
     {
       title: 'ผู้ตรวจสอบ',
-      dataIndex: 'admin_name',
-      key: 'admin_name',
+      dataIndex: ['admin', 'fullName'],
+      key: 'adminName',
       render: (text, record) => (
         <div className="flex items-center">
           <Avatar 
-            src={record.admin_image ? `/uploads/profiles/${record.admin_image}` : null}
-            icon={!record.admin_image && <UserOutlined />}
+            src={record.admin?.image ? `/uploads/profiles/${record.admin.image}` : null}
+            icon={!record.admin?.image && <UserOutlined />}
             size="small"
             className="mr-2"
             style={{ 
-              backgroundColor: !record.admin_image ? '#90278E' : undefined,
+              backgroundColor: !record.admin?.image ? '#90278E' : undefined,
             }}
           />
           <div>
-            <Link to={`/users/${record.admin_id}`} className="font-medium hover:text-purple-700">
-              {text || record.admin_username || 'ผู้ดูแลระบบ'}
+            <Link to={`/users/${record.admin?.id}`} className="font-medium hover:text-purple-700">
+              {text || record.admin?.username || 'ผู้ดูแลระบบ'}
             </Link>
           </div>
         </div>
@@ -114,8 +119,8 @@ const ReviewLogList = ({
     },
     {
       title: 'ความคิดเห็น',
-      dataIndex: 'review_comment',
-      key: 'review_comment',
+      dataIndex: 'comment',
+      key: 'comment',
       ellipsis: true,
       render: (comment) => (
         <Tooltip title={comment || 'ไม่มีความคิดเห็น'}>
@@ -127,8 +132,8 @@ const ReviewLogList = ({
     },
     {
       title: 'เวลาตรวจสอบ',
-      dataIndex: 'reviewed_at',
-      key: 'reviewed_at',
+      dataIndex: 'reviewedAt',
+      key: 'reviewedAt',
       width: 180,
       render: (time) => (
         <Tooltip title={formatThaiDate(time, { dateStyle: 'full', timeStyle: 'medium' })}>
@@ -141,6 +146,24 @@ const ReviewLogList = ({
     },
   ];
 
+  // เพิ่มฟังก์ชัน handleTableChange
+  const handleTableChange = (tablePagination, tableFilters, sorter) => {
+    onPageChange(tablePagination, tableFilters, sorter);
+  };
+
+  // สร้างฟังก์ชันสำหรับการ reset filter
+  const handleResetFilters = () => {
+    console.log('Resetting filters from ReviewLogList');
+    
+    // ใช้ onReset จาก props หากมี
+    if (typeof onReset === 'function') {
+      onReset();
+    } else {
+      // ถ้าไม่มี onReset ให้ใช้ onFilterChange กับ object ว่าง
+      onFilterChange({});
+    }
+  };
+
   // แสดงแบบฟอร์มกรองข้อมูล
   const renderFilterForm = () => {
     if (!filterVisible) return null;
@@ -149,27 +172,27 @@ const ReviewLogList = ({
       <LogFilterForm
         filters={filters}
         onFilter={onFilterChange}
-        onReset={() => onFilterChange({})}
+        onReset={handleResetFilters} // ส่ง handleResetFilters ไปยัง LogFilterForm
         filterOptions={{
           showProjectFilter: true,
           showAdminFilter: true,
-          showDateRangeFilter: true,
           showReviewStatusFilter: true,
         }}
+        loading={loading}
       />
     );
   };
 
   // แสดงข้อความเมื่อไม่มีข้อมูล
   const renderEmptyState = () => {
-    if (Object.keys(filters).some(key => filters[key])) {
+    if (Object.keys(filters).some(key => filters[key] && key !== 'page' && key !== 'limit')) {
       return (
         <EmptyState
           description="ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา"
           type="search"
           showAction={true}
           actionText="ล้างตัวกรอง"
-          onAction={() => onFilterChange({})}
+          onAction={handleResetFilters} // ใช้ handleResetFilters แทน
         />
       );
     }
@@ -194,7 +217,14 @@ const ReviewLogList = ({
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-between">
+        <Search
+          placeholder="ค้นหาโครงงาน, ชื่อผู้ตรวจสอบ..."
+          allowClear
+          value={searchQuery}
+          onChange={(e) => onSearch(e.target.value)}
+          style={{ width: 300 }}
+        />
         <Space>
           <Button 
             onClick={() => setFilterVisible(!filterVisible)}
@@ -215,9 +245,16 @@ const ReviewLogList = ({
 
       <Table
         columns={columns}
-        dataSource={reviews.map(review => ({ ...review, key: review.review_id || review.id }))}
-        pagination={pagination}
-        onChange={onPageChange}
+        dataSource={reviews.map(review => ({ ...review, key: review.id }))}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `รวมทั้งหมด ${total} รายการ`
+        }}
+        onChange={handleTableChange}
         loading={loading}
         locale={{
           emptyText: renderEmptyState()

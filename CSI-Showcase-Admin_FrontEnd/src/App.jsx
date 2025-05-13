@@ -87,7 +87,7 @@ const App = () => {
                 <Route element={<ProtectedRoute />}>
                   <Route element={<MainLayout />}>
                     {/* หน้าแดชบอร์ด */}
-                    <Route path="/dashboard" element={
+                    <Route path="/" element={
                       <ErrorBoundary>
                         <DashboardPage />
                       </ErrorBoundary>

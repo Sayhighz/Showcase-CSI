@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Tag, Tooltip, Typography, Space, Button, Avatar } from 'antd';
+import React, { useState } from 'react';
+import { Table, Tag, Tooltip, Typography, Space, Button, Avatar, Input } from 'antd';
 import { 
   UserOutlined, 
   ClockCircleOutlined, 
   EnvironmentOutlined,
   GlobalOutlined,
   DesktopOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
 import EmptyState from '../common/EmptyState';
 import ErrorDisplay from '../common/ErrorDisplay';
 import LogFilterForm from './LogFilterForm';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Text } = Typography;
+const { Search } = Input;
 
 const LoginLogList = ({
   logs = [],
@@ -25,8 +28,60 @@ const LoginLogList = ({
   onRefresh,
   filters = {},
   onFilterChange,
+  onSearch,
+  searchQuery = '',
+  onReset // รับ prop onReset มาจาก parent component
 }) => {
   const [filterVisible, setFilterVisible] = useState(false);
+
+  // ฟังก์ชันสำหรับจัดรูปแบบ userAgent ให้อ่านง่ายขึ้น
+  const formatUserAgent = (ua, os) => {
+    if (!ua) return 'ไม่ทราบ';
+    
+    // ดึงชื่อเบราวเซอร์และเวอร์ชันจาก userAgent
+    let browserInfo = '';
+    if (ua.includes('Chrome')) {
+      const chromeVersion = ua.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
+      if (chromeVersion && chromeVersion[1]) {
+        browserInfo = `Chrome ${chromeVersion[1].split('.')[0]}`; // แสดงเฉพาะเวอร์ชันหลัก
+      }
+    } else if (ua.includes('Firefox')) {
+      const firefoxVersion = ua.match(/Firefox\/(\d+\.\d+)/);
+      if (firefoxVersion && firefoxVersion[1]) {
+        browserInfo = `Firefox ${firefoxVersion[1]}`;
+      }
+    } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
+      const safariVersion = ua.match(/Version\/(\d+\.\d+)/);
+      if (safariVersion && safariVersion[1]) {
+        browserInfo = `Safari ${safariVersion[1]}`;
+      }
+    } else if (ua.includes('Edge')) {
+      const edgeVersion = ua.match(/Edge\/(\d+\.\d+)/);
+      if (edgeVersion && edgeVersion[1]) {
+        browserInfo = `Edge ${edgeVersion[1]}`;
+      }
+    }
+    
+    // ใช้ข้อมูล OS ที่ได้รับมาโดยตรง ถ้ามี
+    let osInfo = os || '';
+    
+    // ถ้าไม่มีข้อมูล OS ให้พยายามดึงจาก userAgent
+    if (!osInfo) {
+      if (ua.includes('Windows')) {
+        osInfo = 'Windows';
+      } else if (ua.includes('Mac OS')) {
+        osInfo = 'macOS';
+      } else if (ua.includes('Android')) {
+        osInfo = 'Android';
+      } else if (ua.includes('iOS')) {
+        osInfo = 'iOS';
+      } else if (ua.includes('Linux')) {
+        osInfo = 'Linux';
+      }
+    }
+    
+    return browserInfo && osInfo ? `${browserInfo} บน ${osInfo}` : (browserInfo || osInfo || 'ไม่ทราบ');
+  };
 
   // คอลัมน์สำหรับตาราง
   const columns = [
@@ -37,7 +92,7 @@ const LoginLogList = ({
       render: (text, record) => (
         <div className="flex items-center">
           <Avatar 
-            src={record.image ? `/uploads/profiles/${record.image}` : null}
+            src={record.image ? `${URL}/${record.image}` : null}
             icon={!record.image && <UserOutlined />}
             size="small"
             className="mr-2"
@@ -46,11 +101,11 @@ const LoginLogList = ({
             }}
           />
           <div>
-            <Link to={`/users/${record.user_id}`} className="font-medium hover:text-purple-700">
+            <Link to={`/users/${record.userId}`} className="font-medium hover:text-purple-700">
               {text || 'ผู้ใช้ไม่ระบุชื่อ'}
             </Link>
             <div className="text-xs text-gray-500 mt-1">
-              {record.full_name}
+              {record.fullName}
             </div>
           </div>
         </div>
@@ -69,8 +124,8 @@ const LoginLogList = ({
     },
     {
       title: 'เวลาเข้าสู่ระบบ',
-      dataIndex: 'login_time',
-      key: 'login_time',
+      dataIndex: 'loginTime',
+      key: 'loginTime',
       width: 180,
       render: (time) => (
         <Tooltip title={formatThaiDate(time, { dateStyle: 'full', timeStyle: 'medium' })}>
@@ -83,8 +138,8 @@ const LoginLogList = ({
     },
     {
       title: 'ที่อยู่ IP',
-      dataIndex: 'ip_address',
-      key: 'ip_address',
+      dataIndex: 'ipAddress',
+      key: 'ipAddress',
       width: 150,
       render: (ip) => (
         <div className="flex items-center">
@@ -95,13 +150,13 @@ const LoginLogList = ({
     },
     {
       title: 'อุปกรณ์',
-      dataIndex: 'device',
-      key: 'device',
-      render: (device, record) => (
-        <Tooltip title={`${record.os || 'ไม่ทราบ OS'}`}>
+      dataIndex: 'userAgent',
+      key: 'userAgent',
+      render: (userAgent, record) => (
+        <Tooltip title={userAgent || 'ไม่ทราบข้อมูลอุปกรณ์'}>
           <div className="flex items-center">
             <DesktopOutlined className="mr-1 text-gray-500" />
-            <Text>{device || 'ไม่ทราบ'}</Text>
+            <Text>{formatUserAgent(userAgent, record.os)}</Text>
           </div>
         </Tooltip>
       ),
@@ -119,6 +174,24 @@ const LoginLogList = ({
     },
   ];
 
+  // เพิ่มฟังก์ชัน handleTableChange
+  const handleTableChange = (tablePagination, tableFilters, sorter) => {
+    onPageChange(tablePagination, tableFilters, sorter);
+  };
+  
+  // สร้างฟังก์ชันสำหรับการ reset filter
+  const handleResetFilters = () => {
+    console.log('Resetting filters from LoginLogList');
+    
+    // ใช้ onReset จาก props หากมี
+    if (typeof onReset === 'function') {
+      onReset();
+    } else {
+      // ถ้าไม่มี onReset ให้ใช้ onFilterChange กับ object ว่าง
+      onFilterChange({});
+    }
+  };
+
   // แสดงแบบฟอร์มกรองข้อมูล
   const renderFilterForm = () => {
     if (!filterVisible) return null;
@@ -127,26 +200,26 @@ const LoginLogList = ({
       <LogFilterForm
         filters={filters}
         onFilter={onFilterChange}
-        onReset={() => onFilterChange({})}
+        onReset={handleResetFilters} // ส่ง handleResetFilters ไปให้ LogFilterForm
         filterOptions={{
-          showUserFilter: true,
-          showDateRangeFilter: true,
-          showLoginStatusFilter: true,
+            showUserFilter: true,         // รองรับการกรองตามผู้ใช้
+            showDateRangeFilter: true,    // รองรับการกรองตามวันที่
         }}
+        loading={loading}
       />
     );
   };
 
   // แสดงข้อความเมื่อไม่มีข้อมูล
   const renderEmptyState = () => {
-    if (Object.keys(filters).some(key => filters[key])) {
+    if (Object.keys(filters).some(key => filters[key] && key !== 'page' && key !== 'limit')) {
       return (
         <EmptyState
           description="ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา"
           type="search"
           showAction={true}
           actionText="ล้างตัวกรอง"
-          onAction={() => onFilterChange({})}
+          onAction={handleResetFilters} // ใช้ handleResetFilters แทน
         />
       );
     }
@@ -171,7 +244,14 @@ const LoginLogList = ({
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-between">
+        <Search
+          placeholder="ค้นหาผู้ใช้, IP, อุปกรณ์..."
+          allowClear
+          value={searchQuery}
+          onChange={(e) => onSearch(e.target.value)}
+          style={{ width: 300 }}
+        />
         <Space>
           <Button 
             onClick={() => setFilterVisible(!filterVisible)}
@@ -192,9 +272,16 @@ const LoginLogList = ({
 
       <Table
         columns={columns}
-        dataSource={logs.map(log => ({ ...log, key: log.log_id || log.id }))}
-        pagination={pagination}
-        onChange={onPageChange}
+        dataSource={logs.map(log => ({ ...log, key: log.id || log.log_id }))}
+        pagination={{
+          current: pagination.current || 1,
+          pageSize: pagination.pageSize || 10,
+          total: pagination.total || (logs ? logs.length : 0),
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `รวมทั้งหมด ${total} รายการ`,
+        }}
+        onChange={handleTableChange}
         loading={loading}
         locale={{
           emptyText: renderEmptyState()

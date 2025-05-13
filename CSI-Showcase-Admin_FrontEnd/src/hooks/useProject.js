@@ -56,7 +56,7 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
     type: '',
     status: '',
     year: '',
-    studyYear: '',
+    level: '',
     adminId: '',
     startDate: '',
     endDate: '',
@@ -103,7 +103,7 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
           type: filtersRef.current.type,
           status: filtersRef.current.status,
           year: filtersRef.current.year,
-          study_year: filtersRef.current.studyYear
+          level: filtersRef.current.level
         };
         
         // เลือกฟังก์ชันที่จะใช้ตามโหมด
@@ -113,15 +113,17 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
         }
         
         const response = await apiFunction(queryParams);
+        console.log(response);
         
         if (response.success) {
-          setProjects(response.data.projects || []);
+          // ตรวจสอบโครงสร้างข้อมูลและดึง projects ออกมา
+          setProjects(response.data.projects || response.data || []);
           
-          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          // ใช้ pagination จาก response โดยตรง
           const newPagination = {
-            current: page,
-            pageSize,
-            total: response.pagination?.totalItems || (response.data ? response.data.length : 0)
+            current: response.pagination?.page || page,
+            pageSize: response.pagination?.limit || pageSize,
+            total: response.pagination?.totalItems || 0
           };
           
           if (!_.isEqual(paginationRef.current, newPagination)) {
@@ -189,6 +191,7 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
       
       try {
         const response = await getProjectReviews(id);
+        console.log("asdasd",response)
         
         if (response.success) {
           setProjectReviews(response.data.reviews || response.data || []);
@@ -253,6 +256,7 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
       
       try {
         const response = await getProjectStats();
+        // console.log("aaaa",response)
         
         if (response.success) {
           setProjectStats(response.data);
@@ -295,15 +299,16 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
         };
         
         const response = await getAllProjectReviews(queryParams);
+        console.log('response', response);
         
         if (response.success) {
           setAllReviews(response.data.reviews || response.data || []);
           
-          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          // ใช้ pagination จาก response โดยตรง
           const newPagination = {
-            current: page,
-            pageSize,
-            total: response.pagination?.totalItems || (response.data ? response.data.length : 0)
+            current: response.pagination?.page || page,
+            pageSize: response.pagination?.limit || pageSize,
+            total: response.pagination?.totalItems || 0
           };
           
           if (!_.isEqual(paginationRef.current, newPagination)) {
@@ -341,8 +346,8 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
         // ถ้าอยู่ในโหมด detail ให้โหลดประวัติการตรวจสอบด้วย
         fetchProjectReviews(initialProjectIdRef.current);
       } else if (initialModeRef.current === 'stats') {
-        fetchReviewStats();
         fetchProjectStats();
+        fetchReviewStats();
       } else if (initialModeRef.current === 'reviews') {
         fetchAllReviews(pagination.current, pagination.pageSize);
       } else {
@@ -377,8 +382,7 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
         clearTimeout(filterChangeTimeoutRef.current);
       }
     };
-  }, [debouncedSearch, pagination.current, pagination.pageSize]);
-  // ลด dependency ลงเหลือเฉพาะตัวแปรที่จำเป็นต้องติดตามสำหรับการ trigger การโหลดข้อมูลใหม่
+  }, [debouncedSearch, filters]); // เพิ่ม filters ใน dependency array เพื่อตรวจจับการเปลี่ยนแปลงของตัวกรองทั้งหมด
   
   /**
    * จัดการการเปลี่ยนแปลงตัวกรอง
@@ -407,7 +411,7 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
       type: '',
       status: '',
       year: '',
-      studyYear: '',
+      level: '',
       adminId: '',
       startDate: '',
       endDate: ''
@@ -431,6 +435,13 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
       pageSize,
       total: pagination.total
     });
+    
+    // เรียก fetch ข้อมูลใหม่เมื่อเปลี่ยนหน้า
+    if (initialModeRef.current === 'reviews') {
+      fetchAllReviews(page, pageSize);
+    } else {
+      fetchProjects(page, pageSize);
+    }
   }, [pagination.current, pagination.pageSize, pagination.total]);
   
   /**
@@ -594,8 +605,8 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
       fetchProjectDetails(initialProjectIdRef.current);
       fetchProjectReviews(initialProjectIdRef.current);
     } else if (initialModeRef.current === 'stats') {
-      fetchReviewStats();
       fetchProjectStats();
+      fetchReviewStats();
     } else if (initialModeRef.current === 'reviews') {
       fetchAllReviews(paginationRef.current.current, paginationRef.current.pageSize);
     } else {

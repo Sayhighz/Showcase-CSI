@@ -39,6 +39,7 @@ const useLog = (logType = 'login', initialFilters = {}) => {
     adminId: '',
     startDate: '',
     endDate: '',
+    visitorType: '',
     ...initialFilters
   });
   
@@ -70,7 +71,8 @@ const useLog = (logType = 'login', initialFilters = {}) => {
   /**
    * โหลดประวัติการเข้าสู่ระบบ
    */
-  const fetchLoginLogs = useCallback(
+  // Example for fetchLoginLogs
+const fetchLoginLogs = useCallback(
     _.debounce(async (page = 1, pageSize = 10) => {
       if (fetchingRef.current) return;
       
@@ -79,29 +81,54 @@ const useLog = (logType = 'login', initialFilters = {}) => {
       setError(null);
       
       try {
-        // สร้าง query params
+        // Build query params from all current filters
         const queryParams = {
           page,
           limit: pageSize,
-          search: debouncedSearch,
-          userId: filtersRef.current.userId || undefined,
-          startDate: filtersRef.current.startDate || undefined,
-          endDate: filtersRef.current.endDate || undefined
+          ...filtersRef.current
         };
         
+        // Remove dateRange as it's already processed to startDate and endDate
+        if (queryParams.dateRange) {
+          delete queryParams.dateRange;
+        }
+        
+        // Convert any dayjs objects to string format
+        if (queryParams.startDate && typeof queryParams.startDate === 'object' && queryParams.startDate.format) {
+          queryParams.startDate = queryParams.startDate.format('YYYY-MM-DD');
+        }
+        
+        if (queryParams.endDate && typeof queryParams.endDate === 'object' && queryParams.endDate.format) {
+          queryParams.endDate = queryParams.endDate.format('YYYY-MM-DD');
+        }
+        
+        // Remove empty values
+        Object.keys(queryParams).forEach(key => {
+          if (queryParams[key] === undefined || queryParams[key] === '') {
+            delete queryParams[key];
+          }
+        });
+        
+        console.log('Fetching login logs with params:', queryParams);
+        
         const response = await getAllLoginLogs(queryParams);
+        console.log('Login logs API response:', response);
+        
+        // Rest of the function remains the same...
         
         if (response && response.success) {
-            console.log("assdasd",response)
-          // ตรวจสอบว่า response.data มีอยู่ และใช้ optional chaining สำหรับการเข้าถึง logs
-          const logsData = response?.data || [];
+          const logsData = response.data?.logs || [];
           setLogs(logsData);
           
-          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          const paginationData = response.data?.pagination || {};
+          
           const newPagination = {
-            current: page,
-            pageSize,
-            total: response.data?.pagination?.total || logsData.length || 0
+            current: paginationData.currentPage || page,
+            pageSize: paginationData.limit || pageSize,
+            total: paginationData.totalItems || 0,
+            hasNextPage: paginationData.hasNextPage,
+            hasPrevPage: paginationData.hasPrevPage,
+            totalPages: paginationData.totalPages
           };
           
           if (!_.isEqual(paginationRef.current, newPagination)) {
@@ -109,10 +136,12 @@ const useLog = (logType = 'login', initialFilters = {}) => {
           }
         } else {
           setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+          message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการเข้าสู่ระบบได้');
         }
       } catch (err) {
         console.error('Error fetching login logs:', err);
         setError('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง');
+        message.error('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าสู่ระบบ');
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -123,10 +152,10 @@ const useLog = (logType = 'login', initialFilters = {}) => {
     [debouncedSearch]
   );
   
-  /**
-   * โหลดประวัติการเข้าชมของผู้เยี่ยมชม
-   */
-  const fetchVisitorViews = useCallback(
+/**
+ * โหลดประวัติการเข้าชมของผู้เยี่ยมชม
+ */
+const fetchVisitorViews = useCallback(
     _.debounce(async (page = 1, pageSize = 10) => {
       if (fetchingRef.current) return;
       
@@ -135,26 +164,67 @@ const useLog = (logType = 'login', initialFilters = {}) => {
       setError(null);
       
       try {
-        // สร้าง query params
+        // สร้าง copy ของ filtersRef.current เพื่อไม่ให้มีการแก้ไขอ้างอิงโดยตรง
+        const currentFilters = {...filtersRef.current};
+        
+        // สร้าง query params จาก filters
         const queryParams = {
           page,
           limit: pageSize,
-          search: debouncedSearch,
-          projectId: filtersRef.current.projectId || undefined
+          ...currentFilters
         };
         
+        // จัดการกับ dateRange ให้เป็น startDate และ endDate
+        if (queryParams.dateRange) {
+          // ตรวจสอบว่า dateRange เป็น array หรือไม่
+          if (Array.isArray(queryParams.dateRange) && queryParams.dateRange.length === 2) {
+            // แปลง dateRange เป็น startDate และ endDate
+            queryParams.startDate = queryParams.dateRange[0].format ? 
+              queryParams.dateRange[0].format('YYYY-MM-DD') : 
+              queryParams.dateRange[0];
+              
+            queryParams.endDate = queryParams.dateRange[1].format ? 
+              queryParams.dateRange[1].format('YYYY-MM-DD') : 
+              queryParams.dateRange[1];
+          }
+          // ลบ dateRange ออกไป
+          delete queryParams.dateRange;
+        }
+        
+        // แปลง dayjs objects เป็น string ถ้าจำเป็น
+        if (queryParams.startDate && typeof queryParams.startDate === 'object' && queryParams.startDate.format) {
+          queryParams.startDate = queryParams.startDate.format('YYYY-MM-DD');
+        }
+        
+        if (queryParams.endDate && typeof queryParams.endDate === 'object' && queryParams.endDate.format) {
+          queryParams.endDate = queryParams.endDate.format('YYYY-MM-DD');
+        }
+        
+        // ลบค่าที่เป็น undefined หรือ empty string ออกจาก queryParams
+        Object.keys(queryParams).forEach(key => {
+          if (queryParams[key] === undefined || queryParams[key] === '' || queryParams[key] === null) {
+            delete queryParams[key];
+          }
+        });
+        
+        console.log('Fetching visitor views with params:', queryParams);
+        
         const response = await getVisitorViews(queryParams);
+        console.log('Visitor views API response:', response);
         
         if (response && response.success) {
-          // ตรวจสอบว่า response.data มีอยู่ และใช้ optional chaining สำหรับการเข้าถึง views
           const viewsData = response.data?.views || [];
           setLogs(viewsData);
           
-          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          const paginationData = response.data?.pagination || {};
+          
           const newPagination = {
-            current: page,
-            pageSize,
-            total: response.data?.pagination?.total || viewsData.length || 0
+            current: paginationData.currentPage || page,
+            pageSize: paginationData.limit || pageSize,
+            total: paginationData.totalItems || 0,
+            hasNextPage: paginationData.hasNextPage,
+            hasPrevPage: paginationData.hasPrevPage,
+            totalPages: paginationData.totalPages
           };
           
           if (!_.isEqual(paginationRef.current, newPagination)) {
@@ -162,10 +232,12 @@ const useLog = (logType = 'login', initialFilters = {}) => {
           }
         } else {
           setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+          message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการเข้าชมได้');
         }
       } catch (err) {
         console.error('Error fetching visitor views:', err);
         setError('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าชม กรุณาลองใหม่อีกครั้ง');
+        message.error('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าชม');
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -188,27 +260,40 @@ const useLog = (logType = 'login', initialFilters = {}) => {
       setError(null);
       
       try {
-        // สร้าง query params
         const queryParams = {
           page,
           limit: pageSize,
-          projectId: filtersRef.current.projectId || undefined,
-          status: filtersRef.current.status || undefined,
-          adminId: filtersRef.current.adminId || undefined
+          ...filtersRef.current
         };
         
+        if (queryParams.dateRange) {
+          delete queryParams.dateRange;
+        }
+        
+        Object.keys(queryParams).forEach(key => {
+          if (queryParams[key] === undefined || queryParams[key] === '') {
+            delete queryParams[key];
+          }
+        });
+        
+        console.log('Fetching project reviews with params:', queryParams);
+        
         const response = await getProjectReviews(queryParams);
+        console.log('Project reviews API response:', response);
         
         if (response && response.success) {
-          // ตรวจสอบ response.data และเข้าถึง reviews อย่างปลอดภัย
-          const reviewsData = response.data?.reviews || response.data || [];
+          const reviewsData = response.data?.reviews || [];
           setLogs(reviewsData);
           
-          // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต pagination
+          const paginationData = response.data?.pagination || {};
+          
           const newPagination = {
-            current: page,
-            pageSize,
-            total: response.data?.pagination?.total || reviewsData.length || 0
+            current: paginationData.currentPage || page,
+            pageSize: paginationData.limit || pageSize,
+            total: paginationData.totalItems || 0,
+            hasNextPage: paginationData.hasNextPage,
+            hasPrevPage: paginationData.hasPrevPage,
+            totalPages: paginationData.totalPages
           };
           
           if (!_.isEqual(paginationRef.current, newPagination)) {
@@ -216,10 +301,12 @@ const useLog = (logType = 'login', initialFilters = {}) => {
           }
         } else {
           setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+          message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการตรวจสอบโปรเจคได้');
         }
       } catch (err) {
         console.error('Error fetching project reviews:', err);
         setError('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
+        message.error('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค');
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -227,7 +314,7 @@ const useLog = (logType = 'login', initialFilters = {}) => {
         }, 300);
       }
     }, 300),
-    []
+    [debouncedSearch]
   );
   
   /**
@@ -245,7 +332,25 @@ const useLog = (logType = 'login', initialFilters = {}) => {
         const response = await getSystemStats();
         
         if (response && response.success) {
-          setSystemStats(response.data);
+          // รับข้อมูลจาก response ซึ่งมีโครงสร้างตรงกับที่ต้องการแล้ว
+          const statsData = response.data;
+          
+          // ตรวจสอบความถูกต้องของข้อมูลก่อนตั้งค่า state
+          if (statsData) {
+            setSystemStats({
+              totalLogins: statsData.totalLogins || 0,
+              totalViews: statsData.totalViews || 0,
+              loginsByDay: statsData.loginsByDay || [],
+              viewsByDay: statsData.viewsByDay || [],
+              projectsByDay: statsData.projectsByDay || [],
+              usersByDay: statsData.usersByDay || [],
+              reviewsByDay: statsData.reviewsByDay || [],
+              reviewsByStatus: statsData.reviewsByStatus || []
+            });
+          } else {
+            setError('ข้อมูลสถิติไม่ถูกต้อง');
+            message.error('ข้อมูลสถิติไม่ถูกต้อง');
+          }
         } else {
           setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
           message.error((response && response.message) || 'ไม่สามารถโหลดสถิติระบบได้');
@@ -325,9 +430,17 @@ const useLog = (logType = 'login', initialFilters = {}) => {
           
           const formattedStats = formatDashboardStats(combinedData);
           setDashboardStats(formattedStats);
+          
+          // เก็บข้อมูลดิบไว้สำหรับการใช้งานอื่นๆ
+          setSystemStats(systemResponse.data);
+          setDailyStats(dailyResponse.data);
         } else {
-          setError('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ');
-          message.error('ไม่สามารถโหลดข้อมูลสถิติได้');
+          const errorMessage = (systemResponse && !systemResponse.success ? systemResponse.message : '') || 
+                             (dailyResponse && !dailyResponse.success ? dailyResponse.message : '') || 
+                             'เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติ';
+          
+          setError(errorMessage);
+          message.error(errorMessage || 'ไม่สามารถโหลดข้อมูลสถิติได้');
         }
       } catch (err) {
         console.error('Error fetching dashboard stats:', err);
@@ -371,14 +484,19 @@ const useLog = (logType = 'login', initialFilters = {}) => {
     // ไม่ทำงานถ้าเป็นโหมด stats หรือ dashboard
     if (logTypeRef.current === 'stats' || logTypeRef.current === 'dashboard') return;
     
+    console.log('Pagination or search changed:', pagination.current, pagination.pageSize, debouncedSearch);
+    
     // ใช้ setTimeout เพื่อป้องกันการ fetch บ่อยเกินไป
     const timeoutId = setTimeout(() => {
       if (hasInitialLoadRef.current && !fetchingRef.current) {
         if (logTypeRef.current === 'login') {
+          console.log('Fetching login logs with page:', pagination.current);
           fetchLoginLogs(pagination.current, pagination.pageSize);
         } else if (logTypeRef.current === 'visitor') {
+          console.log('Fetching visitor views with page:', pagination.current);
           fetchVisitorViews(pagination.current, pagination.pageSize);
         } else if (logTypeRef.current === 'review') {
+          console.log('Fetching project reviews with page:', pagination.current);
           fetchProjectReviews(pagination.current, pagination.pageSize);
         }
       }
@@ -391,53 +509,114 @@ const useLog = (logType = 'login', initialFilters = {}) => {
    * จัดการการเปลี่ยนแปลงตัวกรอง
    * @param {Object} newFilters - ตัวกรองใหม่
    */
-  const handleFilterChange = useCallback((newFilters) => {
+  // แก้ไขส่วนของ handleFilterChange ใน useLog.js
+const handleFilterChange = useCallback((newFilters) => {
+    console.log('Filter change triggered:', newFilters);
+    
     setFilters(prev => {
-      // ใช้ lodash ในการเปรียบเทียบก่อนอัพเดต filters
       const updatedFilters = { ...prev, ...newFilters };
-      if (_.isEqual(updatedFilters, prev)) {
-        return prev;
-      }
+      console.log('Updated filters:', updatedFilters);
       return updatedFilters;
     });
     
     // รีเซ็ตหน้าเมื่อมีการเปลี่ยนแปลงตัวกรอง
     setPagination(prev => ({ ...prev, current: 1 }));
-  }, []);
-  
+    
+    // เพิ่มการเรียก fetch ข้อมูลทันทีหลังจาก filter เปลี่ยน
+    setTimeout(() => {
+      console.log('Fetching after filter change...');
+      if (logTypeRef.current === 'login') {
+        fetchLoginLogs(1, paginationRef.current.pageSize);
+      } else if (logTypeRef.current === 'visitor') {
+        fetchVisitorViews(1, paginationRef.current.pageSize);
+      } else if (logTypeRef.current === 'review') {
+        fetchProjectReviews(1, paginationRef.current.pageSize);
+      }
+    }, 0);
+  }, [fetchLoginLogs, fetchVisitorViews, fetchProjectReviews]);
   /**
    * รีเซ็ตตัวกรองทั้งหมด
    */
+  // 1. First, modify the handleReset function in LogFilterForm.js:
+
+// Change this function in LogFilterForm.js
+const handleReset = () => {
+    form.resetFields();
+    
+    if (onReset) {
+      // Call onReset callback to trigger data refresh
+      onReset();
+    }
+  };
+  
+  // 2. Next, modify the resetFilters function in useLog.js:
+  
+  // Change this function in useLog.js
   const resetFilters = useCallback(() => {
-    setFilters({
+    console.log('Resetting filters');
+    
+    // Clear all filters with empty values
+    const emptyFilters = {
       search: '',
       userId: '',
       projectId: '',
       status: '',
       adminId: '',
       startDate: '',
-      endDate: ''
-    });
+      endDate: '',
+      visitorType: '',
+      dateRange: null
+    };
+    
+    // Update filters state with empty values
+    setFilters(emptyFilters);
+    
+    // Also update the ref to ensure immediate access to updated values
+    filtersRef.current = emptyFilters;
+    
+    // Reset pagination to first page
     setPagination(prev => ({ ...prev, current: 1 }));
-  }, []);
+    
+    // Force a data fetch with the reset filters
+    setTimeout(() => {
+      console.log('Fetching after filter reset...');
+      fetchingRef.current = false; // Reset fetching lock to ensure fetch happens
+      
+      if (logTypeRef.current === 'login') {
+        fetchLoginLogs(1, pagination.pageSize);
+      } else if (logTypeRef.current === 'visitor') {
+        fetchVisitorViews(1, pagination.pageSize);
+      } else if (logTypeRef.current === 'review') {
+        fetchProjectReviews(1, pagination.pageSize);
+      }
+    }, 100); // Using a slightly longer timeout to ensure state updates complete
+  }, [fetchLoginLogs, fetchVisitorViews, fetchProjectReviews, pagination.pageSize]);
   
   /**
    * จัดการการเปลี่ยนแปลงการแบ่งหน้า
-   * @param {number} page - หน้าที่ต้องการ
-   * @param {number} pageSize - จำนวนรายการต่อหน้า
+   * ฟังก์ชันนี้จะถูกเรียกจาก Table component ของ Ant Design
+   * @param {Object} tablePagination - ข้อมูลการแบ่งหน้าจาก Table
+   * @param {Object} tableFilters - ข้อมูลตัวกรองจาก Table (ไม่ใช่ state filters)
+   * @param {Object} sorter - ข้อมูลการเรียงลำดับจาก Table
    */
-  const handlePaginationChange = useCallback((page, pageSize) => {
+  const handlePaginationChange = useCallback((tablePagination, tableFilters, sorter) => {
+    // ดึงค่า page และ pageSize จาก tablePagination
+    const { current, pageSize } = tablePagination;
+    
+    console.log('handlePaginationChange', current, pageSize, tablePagination);
+    
     // ป้องกันการเรียกซ้ำถ้าค่าไม่เปลี่ยน
-    if (page === pagination.current && pageSize === pagination.pageSize) {
+    if (current === pagination.current && pageSize === pagination.pageSize) {
       return;
     }
     
-    setPagination({
-      current: page,
-      pageSize,
-      total: pagination.total
-    });
-  }, [pagination.current, pagination.pageSize, pagination.total]);
+    // อัพเดต pagination ใน state
+    setPagination(prev => ({
+      ...prev,
+      current,
+      pageSize
+    }));
+  }, [pagination.current, pagination.pageSize]);
   
   /**
    * แปลงข้อมูลสำหรับกราฟแนวโน้มการเข้าใช้งานรายวัน
@@ -469,6 +648,8 @@ const useLog = (logType = 'login', initialFilters = {}) => {
    * รีเฟรชข้อมูลล็อก (เรียกจากภายนอก)
    */
   const refreshLogs = useCallback(() => {
+    console.log('Refreshing logs');
+    
     fetchingRef.current = false; // รีเซ็ตป้องกัน flag
     
     if (logTypeRef.current === 'login') {

@@ -15,7 +15,6 @@ import ProjectTypeChart from '../components/dashboard/ProjectTypeChart';
 import ProjectStatusChart from '../components/dashboard/ProjectStatusChart';
 import RecentProjects from '../components/dashboard/RecentProjects';
 import RecentLogins from '../components/dashboard/RecentLogins';
-import ActivityTimeline from '../components/dashboard/ActivityTimeline';
 import PageTitle from '../components/common/PageTitle';
 import useProject from '../hooks/useProject';
 import useUser from '../hooks/useUser';
@@ -139,15 +138,22 @@ const DashboardPage = () => {
     );
   }
 
+  // ปรับโครงสร้างข้อมูลให้ตรงกับ response จริงจาก API
   const stats = {
     totalProjects: dashboardData.projects?.project_counts?.total_projects || 0,
     pendingProjects: dashboardData.projects?.project_counts?.pending_count || 0,
     totalUsers: dashboardData.users?.totalUsers || 0,
-    totalViews: dashboardData.logs?.viewStats?.total || 0,
+    // ตรวจสอบว่า dashboardStats.viewStats มีหรือไม่ ถ้าไม่มีให้ใช้ค่าเริ่มต้น
+    totalViews: (dashboardData.logs?.viewStats?.total || 0),
+    
+    // ปรับตามโครงสร้างข้อมูลจริง
     recentProjects: dashboardData.projects?.recent_projects || [],
-    recentLogins: dashboardData.logs?.recentLogins || [],
+    recentLogins: dashboardData.users?.recentLogins || [],
     activities: dashboardData.logs?.recentActivities || [],
   };
+
+  // ใช้ข้อมูลที่มีอยู่จริง
+  const projectsForCharts = dashboardData.projects?.recent_projects || [];
 
   return (
     <div>
@@ -208,10 +214,16 @@ const DashboardPage = () => {
 
       <Row gutter={[16, 16]} className="mt-4">
         <Col xs={24} lg={12}>
-          <ProjectTypeChart projects={dashboardData.projects?.all || []} height={300} />
+          <ProjectTypeChart 
+            projects={projectsForCharts} 
+            height={300} 
+          />
         </Col>
         <Col xs={24} lg={12}>
-          <ProjectStatusChart projects={dashboardData.projects?.all || []} height={300} />
+          <ProjectStatusChart 
+            projects={projectsForCharts} 
+            height={300} 
+          />
         </Col>
       </Row>
 
@@ -226,16 +238,6 @@ const DashboardPage = () => {
           <RecentLogins
             logins={stats.recentLogins}
             onViewMore={() => (window.location.href = '/logs/login')}
-          />
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col xs={24}>
-          <ActivityTimeline
-            activities={stats.activities}
-            onViewMore={() => (window.location.href = '/logs/activities')}
-            limit={10}
           />
         </Col>
       </Row>

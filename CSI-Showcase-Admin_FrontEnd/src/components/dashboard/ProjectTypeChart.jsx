@@ -53,6 +53,7 @@ const ProjectTypeChart = ({
   const [activeIndex, setActiveIndex] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [chartType, setChartType] = useState('count'); // 'count' หรือ 'views'
+  console.log("dddd",projects)
 
   // สร้างข้อมูลสำหรับแผนภูมิ
   useEffect(() => {
@@ -67,17 +68,36 @@ const ProjectTypeChart = ({
       data = createProjectTypeChartData(projects);
     } else {
       // สร้างข้อมูลสำหรับแสดงจำนวนการเข้าชม
-      const viewsByType = projects.reduce((acc, project) => {
-        const type = project.type || 'unknown';
-        acc[type] = (acc[type] || 0) + (project.views_count || 0);
-        return acc;
-      }, {});
+      // ตรวจสอบว่าโปรเจคมีฟิลด์ views_count หรือไม่
+      const hasViewsCount = projects.some(project => project.views_count !== undefined);
+      
+      if (!hasViewsCount) {
+        // หากไม่มีฟิลด์ views_count ให้ใช้ค่าเริ่มต้นเป็น 0
+        const viewsByType = projects.reduce((acc, project) => {
+          const type = project.type || 'unknown';
+          acc[type] = (acc[type] || 0) + 0; // ใช้ค่าเริ่มต้นเป็น 0
+          return acc;
+        }, {});
 
-      data = Object.keys(viewsByType).map(type => ({
-        name: getCategoryName(type),
-        value: viewsByType[type],
-        fill: getCategoryColor(type)
-      }));
+        data = Object.keys(viewsByType).map(type => ({
+          name: getCategoryName(type),
+          value: viewsByType[type],
+          fill: getCategoryColor(type)
+        }));
+      } else {
+        // กรณีมีฟิลด์ views_count
+        const viewsByType = projects.reduce((acc, project) => {
+          const type = project.type || 'unknown';
+          acc[type] = (acc[type] || 0) + (project.views_count || 0);
+          return acc;
+        }, {});
+
+        data = Object.keys(viewsByType).map(type => ({
+          name: getCategoryName(type),
+          value: viewsByType[type],
+          fill: getCategoryColor(type)
+        }));
+      }
     }
 
     setChartData(data);
@@ -127,7 +147,6 @@ const ProjectTypeChart = ({
           buttonStyle="solid"
         >
           <Radio.Button value="count">จำนวนโครงงาน</Radio.Button>
-          <Radio.Button value="views">จำนวนการเข้าชม</Radio.Button>
         </Radio.Group>
       }
     >

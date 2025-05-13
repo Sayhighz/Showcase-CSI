@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, DatePicker, Button, Spin, Tabs } from 'antd';
+import React, { useState } from 'react';
+import { Card, Row, Col, DatePicker, Tabs } from 'antd';
 import { 
   BarChartOutlined, 
-  LineChartOutlined, 
-  PieChartOutlined, 
   ReloadOutlined 
 } from '@ant-design/icons';
 import PageTitle from '../../components/common/PageTitle';
@@ -13,7 +11,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardStatCard from '../../components/dashboard/StatCard';
 import useLog from '../../hooks/useLog';
 
-// กำหนดคอมโพเนนต์สำหรับการแสดงแผนภูมิ
+// Recharts components
 import {
   LineChart,
   Line,
@@ -41,12 +39,12 @@ const SystemStatsPage = () => {
   const [selectedDateRange, setSelectedDateRange] = useState(null);
   
   const {
-    stats,
-    dailyStats,
+    systemStats,
     loading,
     error,
     refreshStats
-  } = useLog('stats');
+  } = useLog();
+  console.log("fffff", systemStats);
 
   // ฟังก์ชันเมื่อเปลี่ยน tab
   const handleTabChange = (key) => {
@@ -66,6 +64,154 @@ const SystemStatsPage = () => {
     return '#FAAD14'; // สีเหลือง
   };
 
+  // ฟังก์ชันสำหรับคำนวณเปอร์เซ็นต์การเปลี่ยนแปลง
+  const getPercentChange = (today, average) => {
+    if (!average) return 0;
+    return Math.round(((today - average) / average) * 100);
+  };
+
+  // ฟังก์ชันสำหรับแปลงข้อมูลการเข้าชม
+  const getViewsChartData = () => {
+    if (!systemStats || !systemStats.viewsByDay) return [];
+    
+    return systemStats.viewsByDay.map(day => ({
+      date: day.date,
+      totalCount: day.totalCount || 0,
+      visitorCount: day.visitorCount || 0,
+      companyCount: day.companyCount || 0
+    }));
+  };
+
+  // ฟังก์ชันสำหรับแปลงข้อมูลเทรนด์รายวัน
+  const getDailyTrendsChartData = () => {
+    if (!systemStats || !systemStats.loginsByDay) return [];
+    
+    return systemStats.loginsByDay.map(day => ({
+      date: day.date,
+      logins: day.count || 0
+    }));
+  };
+
+  // ฟังก์ชันสำหรับประมวลผลข้อมูลการตรวจสอบตามวัน
+  const getReviewsByDayChartData = () => {
+    if (!systemStats || !systemStats.reviewsByDay) return [];
+    
+    // สร้าง Map สำหรับจัดกลุ่มข้อมูลตามวันที่
+    const reviewsByDateMap = new Map();
+    
+    systemStats.reviewsByDay.forEach(review => {
+      if (!reviewsByDateMap.has(review.date)) {
+        reviewsByDateMap.set(review.date, { date: review.date, count: 0 });
+      }
+      
+      const dateData = reviewsByDateMap.get(review.date);
+      dateData.count += review.count;
+    });
+    
+    // แปลง Map เป็น Array
+    return Array.from(reviewsByDateMap.values());
+  };
+
+  // คำนวณสถิติรายวัน
+  const calculateDailyStats = () => {
+    if (!systemStats) return null;
+    
+    // ข้อมูลการเข้าสู่ระบบ
+    const loginToday = systemStats.loginsByDay && systemStats.loginsByDay.length > 0
+      ? systemStats.loginsByDay[systemStats.loginsByDay.length - 1].count
+      : 0;
+    
+    const loginAverage = systemStats.loginsByDay && systemStats.loginsByDay.length > 0
+      ? systemStats.loginsByDay
+          .slice(-7)
+          .reduce((sum, day) => sum + day.count, 0) / Math.min(systemStats.loginsByDay.length, 7)
+      : 0;
+    
+    const loginPercentChange = getPercentChange(loginToday, loginAverage);
+    
+    // ข้อมูลการเข้าชม
+    const viewToday = systemStats.viewsByDay && systemStats.viewsByDay.length > 0
+      ? systemStats.viewsByDay[systemStats.viewsByDay.length - 1].totalCount
+      : 0;
+    
+    const viewAverage = systemStats.viewsByDay && systemStats.viewsByDay.length > 0
+      ? systemStats.viewsByDay
+          .slice(-7)
+          .reduce((sum, day) => sum + day.totalCount, 0) / Math.min(systemStats.viewsByDay.length, 7)
+      : 0;
+    
+    const viewPercentChange = getPercentChange(viewToday, viewAverage);
+    
+    // ข้อมูลโครงงาน
+    const projectToday = systemStats.projectsByDay && systemStats.projectsByDay.length > 0
+      ? systemStats.projectsByDay[systemStats.projectsByDay.length - 1].count
+      : 0;
+    
+    const projectAverage = systemStats.projectsByDay && systemStats.projectsByDay.length > 0
+      ? systemStats.projectsByDay
+          .slice(-7)
+          .reduce((sum, day) => sum + day.count, 0) / Math.min(systemStats.projectsByDay.length, 7)
+      : 0;
+    
+    const projectPercentChange = getPercentChange(projectToday, projectAverage);
+    
+    // ข้อมูลการตรวจสอบ
+    // สร้าง Map สำหรับจัดกลุ่มข้อมูลตามวันที่
+    const reviewsByDateMap = new Map();
+    
+    if (systemStats.reviewsByDay && systemStats.reviewsByDay.length > 0) {
+      systemStats.reviewsByDay.forEach(review => {
+        if (!reviewsByDateMap.has(review.date)) {
+          reviewsByDateMap.set(review.date, 0);
+        }
+        
+        reviewsByDateMap.set(review.date, reviewsByDateMap.get(review.date) + review.count);
+      });
+    }
+    
+    // แปลง Map เป็น Array และเรียงตามวันที่
+    const reviewsByDate = Array.from(reviewsByDateMap.entries())
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    const reviewToday = reviewsByDate.length > 0
+      ? reviewsByDate[reviewsByDate.length - 1].count
+      : 0;
+    
+    const reviewAverage = reviewsByDate.length > 0
+      ? reviewsByDate
+          .slice(-7)
+          .reduce((sum, day) => sum + day.count, 0) / Math.min(reviewsByDate.length, 7)
+      : 0;
+    
+    const reviewPercentChange = getPercentChange(reviewToday, reviewAverage);
+    
+    return {
+      logins: {
+        today: loginToday,
+        average: loginAverage,
+        percentChange: loginPercentChange
+      },
+      views: {
+        today: viewToday,
+        average: viewAverage,
+        percentChange: viewPercentChange
+      },
+      projects: {
+        today: projectToday,
+        average: projectAverage,
+        percentChange: projectPercentChange
+      },
+      reviews: {
+        today: reviewToday,
+        average: reviewAverage,
+        percentChange: reviewPercentChange
+      }
+    };
+  };
+
+  const dailyStats = calculateDailyStats();
+
   if (loading) {
     return <LoadingSpinner tip="กำลังโหลดข้อมูลสถิติ..." />;
   }
@@ -80,7 +226,7 @@ const SystemStatsPage = () => {
     );
   }
 
-  if (!stats || !dailyStats) {
+  if (!systemStats) {
     return (
       <EmptyState
         description="ไม่พบข้อมูลสถิติ"
@@ -192,7 +338,7 @@ const SystemStatsPage = () => {
                 <div style={{ height: 300 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
-                      data={stats.loginsByDay}
+                      data={systemStats.loginsByDay || []}
                       margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
@@ -218,7 +364,7 @@ const SystemStatsPage = () => {
                 <div style={{ height: 300 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={stats.viewsByDay}
+                      data={getViewsChartData()}
                       margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
@@ -248,7 +394,7 @@ const SystemStatsPage = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={stats.reviewsByStatus}
+                        data={systemStats.reviewsByStatus || []}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -258,7 +404,7 @@ const SystemStatsPage = () => {
                         nameKey="status"
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
-                        {stats.reviewsByStatus.map((entry, index) => (
+                        {(systemStats.reviewsByStatus || []).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
@@ -283,7 +429,7 @@ const SystemStatsPage = () => {
                       <Tooltip />
                       <Legend />
                       <Line
-                        data={stats.projectsByDay}
+                        data={systemStats.projectsByDay || []}
                         type="monotone"
                         dataKey="count"
                         name="โครงงาน"
@@ -291,7 +437,7 @@ const SystemStatsPage = () => {
                         activeDot={{ r: 8 }}
                       />
                       <Line
-                        data={stats.usersByDay}
+                        data={systemStats.usersByDay || []}
                         type="monotone"
                         dataKey="count"
                         name="ผู้ใช้"
@@ -311,7 +457,7 @@ const SystemStatsPage = () => {
             <div style={{ height: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={stats.loginsByDay}
+                  data={getDailyTrendsChartData()}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -321,7 +467,7 @@ const SystemStatsPage = () => {
                   <Legend />
                   <Line
                     type="monotone"
-                    dataKey="count"
+                    dataKey="logins"
                     name="จำนวนการเข้าสู่ระบบ"
                     stroke="#90278E"
                     activeDot={{ r: 8 }}
@@ -337,7 +483,7 @@ const SystemStatsPage = () => {
             <div style={{ height: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={stats.viewsByDay}
+                  data={getViewsChartData()}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -371,7 +517,7 @@ const SystemStatsPage = () => {
             <div style={{ height: 400 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={stats.reviewsByDay}
+                  data={getReviewsByDayChartData()}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />

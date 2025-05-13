@@ -104,7 +104,9 @@ export const API_ROUTES = {
         UPDATE: '/update/:userId',
         DELETE: '/delete/:userId',
         STATS: '/stats',
-        LOGIN_HISTORY: '/login-history'
+        LOGIN_HISTORY: '/login-history',
+        BATCH_IMPORT: '/batch-import',
+        CSV_TEMPLATE: '/csv-template',
       },
       
       // การจัดการโครงการโดยผู้ดูแลระบบ

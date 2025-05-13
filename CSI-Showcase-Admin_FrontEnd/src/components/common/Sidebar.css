@@ -1,0 +1,328 @@
+/* เพิ่ม CSS นี้ไปยังไฟล์ CSS ของคุณ */
+
+/* ปรับแต่ง Sidebar ทั้งหมด */
+.sidebar-container {
+    transition: all 0.3s ease;
+  }
+  
+  /* ปรับแต่งเมนู */
+  .custom-sidebar-menu .ant-menu-item {
+    margin: 4px 8px !important;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+  
+  .custom-sidebar-menu .ant-menu-submenu-title {
+    margin: 4px 8px !important;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+  
+  .custom-sidebar-menu .ant-menu-item:hover,
+  .custom-sidebar-menu .ant-menu-submenu-title:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .custom-sidebar-menu .ant-menu-item-selected {
+    background-color: #c15ac1 !important;
+    box-shadow: 0 2px 6px rgba(144, 39, 142, 0.4);
+  }
+  
+  /* ปรับแต่งสีไอคอนและข้อความ */
+  .custom-sidebar-menu .ant-menu-item-icon,
+  .custom-sidebar-menu .ant-menu-submenu-title .ant-menu-item-icon {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .custom-sidebar-menu .ant-menu-item-selected .ant-menu-item-icon {
+    color: white !important;
+  }
+  
+  /* ปรับแต่ง submenu */
+  .custom-sidebar-menu .ant-menu-sub {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 6px;
+    margin: 0 8px !important;
+  }
+  
+  /* ปรับแต่งส่วนออกจากระบบ */
+  .logout-section {
+    transition: all 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  .logout-section:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* สีสำหรับเมนูและธีมทั้งหมด */
+  .ant-menu.ant-menu-dark {
+    background: transparent;
+  }
+  
+  .ant-menu-dark .ant-menu-item-selected {
+    background-color: #c15ac1 !important;
+  }
+  
+  /* ปรับแต่ง Avatar */
+  .ant-avatar {
+    transition: all 0.3s ease;
+  }
+  
+  .ant-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* ปรับแต่งข้อมูลผู้ใช้งาน */
+  .admin-profile {
+    transition: all 0.3s ease;
+  }
+  
+  .admin-profile:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  /* ปรับแต่ง Drawer และ Mobile Menu */
+  .ant-drawer-body {
+    padding: 0;
+  }
+  
+  .ant-drawer-content {
+    background-color: #90278E;
+  }
+  
+  .mobile-menu-toggle {
+    transition: all 0.3s ease;
+  }
+  
+  .mobile-menu-toggle .ant-btn:hover, 
+  .mobile-menu-toggle .ant-btn:focus {
+    background: #c15ac1;
+    border-color: #c15ac1;
+  }
+  
+  /* Media Queries */
+  @media (max-width: 767px) {
+    .sidebar-container {
+      display: none;
+    }
+    
+    .ant-layout {
+      padding-left: 0 !important;
+    }
+    
+    .mobile-menu-toggle {
+      display: block;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .mobile-menu-toggle {
+      display: none;
+    }
+  }
+  
+  /* เพิ่มระยะห่างเมื่ออยู่ในโหมด Drawer (Mobile) */
+  .ant-drawer .custom-sidebar-menu .ant-menu-item,
+  .ant-drawer .custom-sidebar-menu .ant-menu-submenu-title {
+    margin: 8px 12px !important;
+    height: 44px !important;
+    line-height: 44px !important;
+  }
+  
+  /* ปรับปรุงการแสดงผลใน Drawer ให้ดีขึ้น */
+  .ant-drawer .ant-menu-inline-collapsed {
+    width: 100%;
+  }
+  
+  /* เพิ่มระยะห่างสำหรับ Content เมื่อมี Sidebar */
+  .with-sidebar {
+    transition: padding-left 0.3s ease;
+  }
+  
+  @media (min-width: 768px) {
+    .with-sidebar {
+      padding-left: 260px;
+    }
+    
+    .with-sidebar.collapsed {
+      padding-left: 80px;
+    }
+  }
+  
+  /* ปรับแต่งสีไอคอนและข้อความ */
+  .custom-sidebar-menu .ant-menu-item-icon,
+  .custom-sidebar-menu .ant-menu-submenu-title .ant-menu-item-icon {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .custom-sidebar-menu .ant-menu-item-selected .ant-menu-item-icon {
+    color: white !important;
+  }
+  
+  /* ปรับแต่ง submenu */
+  .custom-sidebar-menu .ant-menu-sub {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 6px;
+    margin: 0 8px !important;
+  }
+  
+  /* ปรับแต่งส่วนออกจากระบบ */
+  .logout-section {
+    transition: all 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  .logout-section:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* สีสำหรับเมนูและธีมทั้งหมด */
+  .ant-menu.ant-menu-dark {
+    background: transparent;
+  }
+  
+  .ant-menu-dark .ant-menu-item-selected {
+    background-color: #c15ac1 !important;
+  }
+  
+  /* ปรับแต่ง Avatar */
+  .ant-avatar {
+    transition: all 0.3s ease;
+  }
+  
+  .ant-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* ปรับแต่งข้อมูลผู้ใช้งาน */
+  .admin-profile {
+    transition: all 0.3s ease;
+  }
+  
+  .admin-profile:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  /* ปรับแต่ง Drawer และ Mobile Menu */
+  .ant-drawer-body {
+    padding: 0;
+  }
+  
+  .ant-drawer-content {
+    background-color: #90278E;
+  }
+  
+  .mobile-menu-toggle {
+    transition: all 0.3s ease;
+  }
+  
+  .mobile-menu-toggle .ant-btn:hover, 
+  .mobile-menu-toggle .ant-btn:focus {
+    background: #c15ac1;
+    border-color: #c15ac1;
+  }
+  
+  /* Media Queries */
+  @media (max-width: 767px) {
+    .sidebar-container {
+      display: none;
+    }
+    
+    .ant-layout {
+      padding-left: 0 !important;
+    }
+    
+    .mobile-menu-toggle {
+      display: block;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .mobile-menu-toggle {
+      display: none;
+    }
+  }
+  
+  /* เพิ่มระยะห่างเมื่ออยู่ในโหมด Drawer (Mobile) */
+  .ant-drawer .custom-sidebar-menu .ant-menu-item,
+  .ant-drawer .custom-sidebar-menu .ant-menu-submenu-title {
+    margin: 8px 12px !important;
+    height: 44px !important;
+    line-height: 44px !important;
+  }
+  
+  /* ปรับปรุงการแสดงผลใน Drawer ให้ดีขึ้น */
+  .ant-drawer .ant-menu-inline-collapsed {
+    width: 100%;
+  }
+  
+  /* เพิ่มระยะห่างสำหรับ Content เมื่อมี Sidebar */
+  .with-sidebar {
+    transition: padding-left 0.3s ease;
+  }
+  
+  @media (min-width: 768px) {
+    .with-sidebar {
+      padding-left: 260px;
+    }
+    
+    .with-sidebar.collapsed {
+      padding-left: 80px;
+    }
+  }ปรับแต่งสีไอคอนและข้อความ */
+  .custom-sidebar-menu .ant-menu-item-icon,
+  .custom-sidebar-menu .ant-menu-submenu-title .ant-menu-item-icon {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .custom-sidebar-menu .ant-menu-item-selected .ant-menu-item-icon {
+    color: white !important;
+  }
+  
+  /* ปรับแต่ง submenu */
+  .custom-sidebar-menu .ant-menu-sub {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 6px;
+    margin: 0 8px !important;
+  }
+  
+  /* ปรับแต่งส่วนออกจากระบบ */
+  .logout-section {
+    transition: all 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  .logout-section:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* สีสำหรับเมนูและธีมทั้งหมด */
+  .ant-menu.ant-menu-dark {
+    background: transparent;
+  }
+  
+  .ant-menu-dark .ant-menu-item-selected {
+    background-color: #c15ac1 !important;
+  }
+  
+  /* ปรับแต่ง Avatar */
+  .ant-avatar {
+    transition: all 0.3s ease;
+  }
+  
+  .ant-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* ปรับแต่งข้อมูลผู้ใช้งาน */
+  .admin-profile {
+    transition: all 0.3s ease;
+  }
+  
+  .admin-profile:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }

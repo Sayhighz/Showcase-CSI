@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { PlusOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import PageTitle from '../../components/common/PageTitle';
-import UserList from '../../components/users/UserList';
-import UserForm from '../../components/users/UserForm';
-import { Modal } from 'antd';
-import useUser from '../../hooks/useUser';
+import React, { useState } from "react";
+import { PlusOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import PageTitle from "../../components/common/PageTitle";
+import UserList from "../../components/users/UserList";
+import UserForm from "../../components/users/UserForm";
+import { Modal } from "antd";
+import useUser from "../../hooks/useUser";
 
 const AdminUsersPage = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const navigate = useNavigate();
-  
+
   const {
     users,
     loading,
@@ -22,8 +22,8 @@ const AdminUsersPage = () => {
     createUser,
     deleteUser,
     resetFilters,
-    actionLoading
-  } = useUser('admin', 'list');
+    actionLoading,
+  } = useUser("admin", "list");
 
   // แสดงโมดัลสร้างผู้ดูแลระบบใหม่
   const showCreateModal = () => {
@@ -38,7 +38,7 @@ const AdminUsersPage = () => {
   // จัดการการสร้างผู้ดูแลระบบใหม่
   const handleCreateUser = async (values) => {
     // กำหนดค่า role เป็น admin
-    const userData = { ...values, role: 'admin' };
+    const userData = { ...values, role: "admin" };
     const success = await createUser(userData);
     if (success) {
       hideCreateModal();
@@ -50,30 +50,20 @@ const AdminUsersPage = () => {
       <PageTitle
         title="จัดการผู้ดูแลระบบ"
         subtitle={`ผู้ดูแลระบบทั้งหมด ${pagination.total || 0} คน`}
-        actions={[
-          {
-            label: "เพิ่มผู้ดูแลระบบใหม่",
-            icon: <PlusOutlined />,
-            type: "primary",
-            onClick: showCreateModal
-          }
-        ]}
       />
-      
       <UserList
         users={users}
         loading={loading}
         error={error}
         pagination={pagination}
-        onPageChange={handlePaginationChange}
+        onPageChange={handlePaginationChange} // ฟังก์ชันนี้ถูกแก้ไขใน useUser hook แล้ว
         onDelete={deleteUser}
         onSearch={(value) => handleFilterChange({ search: value })}
-        searchQuery={filters.search || ''}
+        searchQuery={filters.search || ""}
         searchLoading={loading}
         onAddUser={showCreateModal}
         role="admin"
       />
-      
       <Modal
         title="เพิ่มผู้ดูแลระบบใหม่"
         open={isModalVisible}
@@ -82,7 +72,7 @@ const AdminUsersPage = () => {
         width={800}
       >
         <UserForm
-          initialValues={{ role: 'admin', status: 'active' }}
+          initialValues={{ role: "admin", status: "active" }}
           onFinish={handleCreateUser}
           onCancel={hideCreateModal}
           loading={actionLoading}
