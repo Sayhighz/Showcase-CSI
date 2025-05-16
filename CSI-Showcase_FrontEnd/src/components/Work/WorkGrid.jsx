@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useViewportScroll, useTransform } from "framer-motion";
 import { Skeleton, Card, Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
@@ -27,6 +27,11 @@ const WorkGrid = ({
   const [itemsPerPage, setItemsPerPage] = useState(
     displayMode === "column" ? getItemsPerPage() : 3
   );
+  
+  // Scroll animation
+  const { scrollYProgress } = useViewportScroll();
+  const sectionOpacity = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [0.6, 1, 1, 0.6]);
+  const sectionY = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [20, 0, 0, 20]);
 
   // ข้อมูลต้องไม่เป็น null หรือ undefined
   const safeItems = items || [];
@@ -92,6 +97,36 @@ const WorkGrid = ({
     }, 300);
   };
 
+  // สร้างดาวประกอบฉากหลัง
+  const renderStars = () => {
+    return Array.from({ length: 30 }).map((_, i) => {
+      const size = Math.random() * 3 + 1;
+      const opacity = Math.random() * 0.5 + 0.3;
+      
+      return (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: size,
+            height: size,
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            backgroundColor: '#FFE6FF',
+            boxShadow: `0 0 ${parseInt(size) * 2}px rgba(255, 230, 255, ${opacity})`
+          }}
+          animate={{ 
+            opacity: [opacity * 0.7, opacity, opacity * 0.7] 
+          }}
+          transition={{ 
+            duration: Math.random() * 3 + 2,
+            repeat: Infinity
+          }}
+        />
+      );
+    });
+  };
+
   // หากไม่มีข้อมูลให้แสดง Empty state
   if (safeItems.length === 0) {
     return <WorkEmpty title={title} description={description} />;
@@ -117,7 +152,8 @@ const WorkGrid = ({
             <Card
               className="overflow-hidden border-0 rounded-xl bg-white h-full"
               style={{
-                boxShadow: "0 5px 15px rgba(0, 0, 0, 0.05)",
+                boxShadow: "0 5px 15px rgba(144, 39, 142, 0.05)",
+                border: "1px solid rgba(144, 39, 142, 0.1)"
               }}
               cover={
                 <Skeleton.Image active style={{ width: '100%', height: 180 }} />
@@ -132,7 +168,11 @@ const WorkGrid = ({
           <Card 
             key={index} 
             className="w-full shadow-sm rounded-xl overflow-hidden border-0 bg-white"
-            style={{ height: "260px" }}
+            style={{ 
+              height: "260px",
+              boxShadow: "0 5px 15px rgba(144, 39, 142, 0.05)",
+              border: "1px solid rgba(144, 39, 142, 0.1)"
+            }}
           >
             <div className="flex flex-col lg:flex-row gap-6 h-full">
               <div className="w-full lg:w-2/5 h-full">
@@ -159,7 +199,8 @@ const WorkGrid = ({
           icon={<EditOutlined />}
           type="primary"
           size="middle"
-          className="bg-blue-500 hover:bg-blue-600 rounded-full text-xs sm:text-sm"
+          className="bg-[#90278E] hover:bg-[#B252B0] rounded-full text-xs sm:text-sm border-0"
+          style={{ backgroundColor: '#90278E', borderColor: '#90278E' }}
         >
           แก้ไข
         </Button>
@@ -177,14 +218,32 @@ const WorkGrid = ({
     );
   };
 
+  // Background section color based on displayMode
+  const getSectionBackground = () => {
+    if (displayMode === "column") {
+      return "bg-gradient-to-b from-white via-[rgba(245,234,255,0.3)] to-[rgba(224,209,255,0.2)]";
+    } else {
+      return "bg-gradient-to-b from-[rgba(245,234,255,0.9)] to-[rgba(224,209,255,0.9)]";
+    }
+  };
+
   return (
-    <div 
-      className="work-section py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative"
+    <motion.div 
+      className={`work-section py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative ${getSectionBackground()}`}
+      style={{ 
+        opacity: sectionOpacity,
+        y: sectionY
+      }}
       onMouseEnter={() => setIsAutoPlay(false)}
       onMouseLeave={() => setIsAutoPlay(autoPlay)}
     >
       {/* Background decoration blob */}
       {getRenderDecorationBlob(displayMode === "column" ? "left" : "right")}
+      
+      {/* Background stars decoration */}
+      <div className="absolute inset-0 overflow-hidden -z-10 opacity-30">
+        {renderStars()}
+      </div>
 
       {/* Section heading */}
       <motion.div
@@ -199,7 +258,7 @@ const WorkGrid = ({
         >
           {title}
         </h1>
-        <p className="text-gray-600 mb-8 text-base sm:text-lg">{description}</p>
+        <p className="text-[#8b949e] mb-8 text-base sm:text-lg">{description}</p>
       </motion.div>
 
       {/* Grid or List Layout */}
@@ -246,7 +305,7 @@ const WorkGrid = ({
         nextPage={nextPage}
         loading={loading}
       />
-    </div>
+    </motion.div>
   );
 };
 

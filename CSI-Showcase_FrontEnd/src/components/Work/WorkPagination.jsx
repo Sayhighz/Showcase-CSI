@@ -23,8 +23,12 @@ const WorkPagination = ({
       {/* Previous Button */}
       <motion.button
         onClick={prevPage}
-        className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-gray-200 rounded-full text-gray-700 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white shadow-sm"
-        whileHover={{ scale: 1.1, boxShadow: "0 5px 15px rgba(0,0,0,0.1)" }}
+        className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-[rgba(144,39,142,0.2)] rounded-full text-[#90278E] hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white backdrop-filter backdrop-blur-md bg-opacity-80 shadow-sm"
+        whileHover={{ 
+          scale: 1.1, 
+          boxShadow: "0 5px 15px rgba(144,39,142,0.15)",
+          borderColor: "#90278E"
+        }}
         whileTap={{ scale: 0.9 }}
         disabled={loading}
         aria-label="Previous page"
@@ -44,15 +48,21 @@ const WorkPagination = ({
               className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border rounded-full transition-all ${
                 currentPage === pageNumber 
                   ? 'bg-gradient-to-r from-[#90278E] to-[#B252B0] text-white border-[#90278E] shadow-md' 
-                  : 'text-gray-700 border-gray-200 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white'
+                  : 'text-[#90278E] border-[rgba(144,39,142,0.2)] hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] bg-white backdrop-filter backdrop-blur-md bg-opacity-80'
               }`}
               whileHover={{ 
                 scale: 1.1,
-                boxShadow: "0 5px 15px rgba(0,0,0,0.1)"
+                boxShadow: "0 5px 15px rgba(144,39,142,0.15)",
+                borderColor: "#90278E"
               }}
               whileTap={{ scale: 0.9 }}
               disabled={loading}
               aria-label={`Page ${pageNumber + 1}`}
+              style={{
+                boxShadow: currentPage === pageNumber 
+                  ? "0 5px 15px rgba(144,39,142,0.3)" 
+                  : "0 5px 15px rgba(0,0,0,0.05)"
+              }}
             >
               {pageNumber + 1}
             </motion.button>
@@ -63,8 +73,12 @@ const WorkPagination = ({
       {/* Next Button */}
       <motion.button
         onClick={nextPage}
-        className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-gray-200 rounded-full text-gray-700 hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white shadow-sm"
-        whileHover={{ scale: 1.1, boxShadow: "0 5px 15px rgba(0,0,0,0.1)" }}
+        className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center border border-[rgba(144,39,142,0.2)] rounded-full text-[#90278E] hover:bg-[#F8E9F8] hover:border-[#90278E] hover:text-[#90278E] transition-colors bg-white backdrop-filter backdrop-blur-md bg-opacity-80 shadow-sm"
+        whileHover={{ 
+          scale: 1.1, 
+          boxShadow: "0 5px 15px rgba(144,39,142,0.15)",
+          borderColor: "#90278E"
+        }}
         whileTap={{ scale: 0.9 }}
         disabled={loading}
         aria-label="Next page"

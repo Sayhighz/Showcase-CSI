@@ -1,174 +1,143 @@
-import React, { useState, useEffect } from 'react';
-import { motion, useAnimation } from 'framer-motion';
-import { Card, Skeleton, Typography, Tabs, Divider, Space, BackTop, Button, Empty, message } from 'antd';
-import { 
-  RocketOutlined, 
-  FireOutlined, 
-  ClockCircleOutlined, 
-  UpOutlined, 
-  BulbOutlined, 
-  TrophyOutlined, 
-  ReadOutlined 
-} from '@ant-design/icons';
-
-// นำเข้า hooks และ components จากโปรเจค
-import { useProject } from '../../hooks';
-import { PROJECT_TYPES } from '../../constants/projectTypes';
+import React, { useRef, useState, useEffect } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { BackTop } from 'antd';
+import { UpOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
-import Banner from '../../components/Home/Banner';
-import Work_Col from '../../components/Work/Work_Col';
-import Work_Row from '../../components/Work/Work_Row';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
-import ErrorMessage from '../../components/common/ErrorMessage';
-import WorkGrid from '../../components/Work/WorkGrid';
+import useProject from '../../hooks/useProject';
 
-const { Title, Text } = Typography;
-const { TabPane } = Tabs;
+// Import components
+import Banner from '../../components/Home/Banner';
+import NavigationSidebar from '../../components/Home/NavigationSidebar';
+import CourseWorkSection from '../../components/Home/CourseWorkSection';
+import CompetitionSection from '../../components/Home/CompetitionSection';
+import AcademicSection from '../../components/Home/AcademicSection';
+import ErrorMessage from '../../components/common/ErrorMessage';
 
 const Home = () => {
+  // Auth context
   const { isAuthenticated } = useAuth();
   
-  // สร้าง state สำหรับเก็บข้อมูลโปรเจคที่จะแสดงในหน้า Home
-  const [latestProjects, setLatestProjects] = useState([]);
+  // Local state for pagination of different project types
+  const [courseWorkPage, setCourseWorkPage] = useState(1);
+  const [competitionPage, setCompetitionPage] = useState(1);
+  const [academicPage, setAcademicPage] = useState(1);
+  
+  // Use the project hook
+  const { 
+    isLoading,
+    error,
+    fetchTopProjects,
+  } = useProject();
+  
+  // State for storing projects
   const [topProjects, setTopProjects] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [loadingLatest, setLoadingLatest] = useState(false);
-  const [loadingTop, setLoadingTop] = useState(false);
-  const [error, setError] = useState(null);
   
-  const workControls = useAnimation();
-  const bannerControls = useAnimation();
-  const [scrollY, setScrollY] = useState(0);
-  const [bannerOpacity, setBannerOpacity] = useState(1);
-
-  // Define category options จาก PROJECT_TYPES
-  const categories = [
-    { key: 'all', label: 'ทั้งหมด', icon: <RocketOutlined /> },
-    ...PROJECT_TYPES.map(type => ({
-      key: type.value,
-      label: type.label,
-      icon: type.value === 'coursework' ? <BulbOutlined /> : 
-            type.value === 'academic' ? <ReadOutlined /> : 
-            type.value === 'competition' ? <TrophyOutlined /> : <RocketOutlined />
-    }))
-  ];
-
-  // ฟังก์ชันสำหรับโหลดโปรเจคล่าสุด
-  const loadLatestProjects = async () => {
-    try {
-      setLoadingLatest(true);
-      setError(null);
-      
-      // เรียกใช้ service โดยตรง
-      const latestProjectsService = await import('../../services/projectService');
-      const latestData = await latestProjectsService.getLatestProjects(9);
-      
-      // กรองตาม category ที่เลือกไว้
-      const filteredLatestProjects = selectedCategory !== 'all' 
-        ? latestData?.filter(project => project.category === selectedCategory) || []
-        : latestData || [];
-        
-      setLatestProjects(filteredLatestProjects);
-    } catch (err) {
-      console.error("Failed to fetch latest projects", err);
-      setError(err.message || 'ไม่สามารถโหลดข้อมูลโครงการล่าสุดได้');
-    } finally {
-      setLoadingLatest(false);
-    }
-  };
-
-  // ฟังก์ชันสำหรับโหลดโปรเจคยอดนิยม
-  const loadTopProjects = async () => {
-    try {
-      setLoadingTop(true);
-      setError(null);
-      
-      // เรียกใช้ service โดยตรง
-      const projectService = await import('../../services/projectService');
-      const topData = await projectService.getTopProjects();
-      
-      // กรองตาม category ที่เลือกไว้
-      const filteredTopProjects = selectedCategory !== 'all' 
-        ? topData?.filter(project => project.category === selectedCategory) || []
-        : topData || [];
-        
-      setTopProjects(filteredTopProjects);
-    } catch (err) {
-      console.error("Failed to fetch top projects", err);
-      setError(err.message || 'ไม่สามารถโหลดข้อมูลโครงการยอดนิยมได้');
-    } finally {
-      setLoadingTop(false);
-    }
-  };
-
-  // ฟังก์ชันรวมสำหรับโหลดข้อมูลทั้งหมด
-  const loadAllProjects = async () => {
-    try {
-      await Promise.all([
-        loadLatestProjects(),
-        loadTopProjects()
-      ]);
-    } catch (err) {
-      console.error("Failed to fetch projects", err);
-      message.error('ไม่สามารถโหลดข้อมูลโครงการได้ โปรดลองอีกครั้งในภายหลัง');
-    }
-  };
-
-  // โหลดข้อมูลเมื่อโหลดหน้าครั้งแรกหรือเมื่อเปลี่ยนประเภท
+  // Load top projects on mount
   useEffect(() => {
-    loadAllProjects();
-    // console.log(latestProjects)
-  }, [selectedCategory]);
-  
-  // ตั้งค่า scroll event listener แยกต่างหาก
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-      const newOpacity = Math.max(1 - window.scrollY / 300, 0);
-      setBannerOpacity(newOpacity);
-
-      const workOpacity = Math.min(window.scrollY / 300, 1);
-      const translateY = Math.max(50 - (window.scrollY / 5), 0);
-
-      bannerControls.start({ opacity: newOpacity });
-      workControls.start({ opacity: workOpacity, y: translateY });
+    const loadProjects = async () => {
+      const data = await fetchTopProjects();
+      setTopProjects(data || []);
     };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [bannerControls, workControls]);
-
-  // Handle category change
-  const handleCategoryChange = (category) => {
-    setSelectedCategory(category);
+    
+    loadProjects();
+  }, [fetchTopProjects]);
+  
+  // Filter projects by category
+  const getCourseWorkProjects = () => {
+    return topProjects.filter(project => project.category === 'coursework');
   };
 
-  // Animate section variants
-  const sectionVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.6 }
+  const getCompetitionProjects = () => {
+    return topProjects.filter(project => project.category === 'competition');
+  };
+
+  const getAcademicProjects = () => {
+    return topProjects.filter(project => project.category === 'academic');
+  };
+  
+  // Refs for scrolling sections
+  const courseWorkRef = useRef(null);
+  const competitionRef = useRef(null);
+  const academicRef = useRef(null);
+  
+  // เอฟเฟกต์การเลื่อนแบบ GitHub
+  const { scrollY } = useScroll();
+  const [windowHeight, setWindowHeight] = useState(0);
+  
+  // ตั้งค่า scroll event listener และดึงขนาดหน้าต่าง
+  useEffect(() => {
+    setWindowHeight(window.innerHeight);
+    
+    const handleResize = () => {
+      setWindowHeight(window.innerHeight);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Transform values สำหรับการเปลี่ยนผ่าน section
+  const bannerOpacity = useTransform(
+    scrollY, 
+    [0, windowHeight * 0.8], 
+    [1, 0]
+  );
+  
+  const contentOpacity = useTransform(
+    scrollY, 
+    [0, windowHeight * 0.5, windowHeight * 0.8], 
+    [0, 0.5, 1]
+  );
+  
+  const contentY = useTransform(
+    scrollY, 
+    [0, windowHeight], 
+    [100, 0]
+  );
+  
+  // แปลงค่าสำหรับ Header ที่ปรากฏเมื่อเลื่อน
+  const headerOpacity = useTransform(
+    scrollY,
+    [0, windowHeight * 0.3],
+    [0, 1]
+  );
+  
+  // Scroll to section function
+  const scrollToSection = (ref) => {
+    if (ref && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  const renderEmptyState = () => (
-    <Empty
-      image={Empty.PRESENTED_IMAGE_SIMPLE}
-      description={
-        <span className="text-gray-500">
-          ไม่พบผลงานในหมวดหมู่นี้
-        </span>
-      }
-    >
-      <Button type="primary" onClick={() => handleCategoryChange('all')}>
-        ดูผลงานทั้งหมด
-      </Button>
-    </Empty>
-  );
+  // สร้างฟังก์ชันสำหรับการสร้าง stars ในพื้นหลัง
+  const createBackgroundStars = () => {
+    return Array.from({ length: 50 }).map((_, i) => (
+      <motion.div
+        key={`bg-star-${i}`}
+        className="absolute rounded-full"
+        style={{
+          top: `${Math.random() * 100}%`,
+          left: `${Math.random() * 100}%`,
+          width: `${Math.random() * 2 + 1}px`,
+          height: `${Math.random() * 2 + 1}px`,
+          backgroundColor: 'white',
+          opacity: Math.random() * 0.5 + 0.2,
+          boxShadow: `0 0 ${Math.random() * 3 + 1}px rgba(144, 39, 142, 0.8)`
+        }}
+        animate={{
+          opacity: [0.2, 0.5, 0.2],
+          scale: [1, 1.2, 1],
+        }}
+        transition={{
+          duration: Math.random() * 3 + 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+    ));
+  };
 
-  // แสดงข้อความผิดพลาดถ้ามี error
+  // Show error message if needed
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -176,7 +145,10 @@ const Home = () => {
           title="ไม่สามารถโหลดข้อมูลได้" 
           message={error} 
           showReloadButton={true} 
-          onReloadClick={loadAllProjects}
+          onReloadClick={async () => {
+            const data = await fetchTopProjects();
+            setTopProjects(data || []);
+          }}
         />
       </div>
     );
@@ -184,146 +156,99 @@ const Home = () => {
 
   return (
     <div className="relative min-h-screen">
-      {/* Banner Section with Improved Fade Effect */}
+      {/* Fixed Background with Stars - GitHub Universe style */}
+      <div className="fixed inset-0 bg-gradient-to-b from-[#90278E] via-[#B252B0] to-[#5E1A5C] z-0 pointer-events-none">
+        {createBackgroundStars()}
+      </div>
+
+      {/* Banner Section with Fade Effect - GitHub style */}
       <motion.div
-        animate={bannerControls}
-        initial={{ opacity: 1 }}
-        className="w-full h-screen flex items-center justify-center fixed top-0 left-0 right-0 z-0"
-        style={{ 
-          pointerEvents: bannerOpacity > 0.1 ? "auto" : "none",
-        }}
+        style={{ opacity: bannerOpacity }}
+        className="w-full h-screen flex items-center justify-center fixed top-0 left-0 right-0 z-10"
       >
         <Banner />
       </motion.div>
 
-      {/* Content Container */}
-      <motion.div
-        animate={workControls}
-        initial={{ opacity: 0, y: 50 }}
-        className="relative mt-screen z-10 bg-white pt-16"
+      {/* Fixed Navigation Sidebar - GitHub style */}
+      <NavigationSidebar 
+        scrollToSection={scrollToSection} 
+        refs={{ courseWorkRef, competitionRef, academicRef }}
+      />
+
+      {/* Main Content Sections with GitHub-style glass morphism */}
+      <motion.div 
+        className="relative z-30"
         style={{ 
-          marginTop: `${window.innerHeight - 100}px`,
-          borderRadius: '40px 40px 0 0',
-          boxShadow: '0 -20px 50px rgba(0,0,0,0.1)'
+          opacity: contentOpacity,
+          y: contentY,
+          marginTop: windowHeight * 0.9
         }}
       >
-        <div className="max-w-screen-xl mx-auto px-6 pb-20">
-          {/* Section Header for Popular Projects */}
-          <motion.div 
-            className="mb-10 text-center"
-            variants={sectionVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <Space direction="vertical" size="small" className="w-full">
-              <div className="flex items-center justify-center gap-2">
-                <FireOutlined className="text-red-500 text-2xl" />
-                <Title level={2} style={{ margin: 0 }}>ผลงานยอดนิยม</Title>
-              </div>
-              <Text type="secondary" className="text-lg">
-                ผลงานที่ได้รับความนิยมสูงสุดจากผู้ชมทั้งหมด
-              </Text>
-            </Space>
-          </motion.div>
+        {/* CourseWork Section - ปรับให้มีสไตล์คล้าย GitHub */}
+        <section 
+          ref={courseWorkRef} 
+          className="relative min-h-screen"
+          style={{ 
+            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(245, 234, 255, 0.9))',
+            borderRadius: '40px 40px 0 0',
+            boxShadow: '0 -10px 30px rgba(144, 39, 142, 0.2)'
+          }}
+        >
+          <div className="container mx-auto px-4">
+            <CourseWorkSection 
+              loading={isLoading}
+              courseWorkProjects={getCourseWorkProjects()}
+              courseWorkPage={courseWorkPage}
+              setCourseWorkPage={setCourseWorkPage}
+              scrollToSection={scrollToSection}
+              competitionRef={competitionRef}
+            />
+          </div>
+        </section>
 
-          {/* Category Tabs */}
-          <motion.div 
-            className="mb-8"
-            variants={sectionVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <Tabs 
-              defaultActiveKey="all"
-              onChange={handleCategoryChange}
-              centered
-              size="large"
-              className="custom-tabs"
-            >
-              {categories.map(category => (
-                <TabPane 
-                  tab={
-                    <span className="flex items-center gap-1">
-                      {category.icon} {category.label}
-                    </span>
-                  } 
-                  key={category.key}
-                />
-              ))}
-            </Tabs>
-          </motion.div>
+        {/* Competition Section - ปรับให้มีสไตล์คล้าย GitHub */}
+        <section 
+          ref={competitionRef} 
+          className="relative min-h-screen py-16"
+          style={{ 
+            background: 'linear-gradient(to bottom, rgba(245, 234, 255, 0.9), rgba(224, 209, 255, 0.9))',
+          }}
+        >
+          <div className="container mx-auto px-4">
+            <CompetitionSection 
+              loading={isLoading}
+              competitionProjects={getCompetitionProjects()}
+              competitionPage={competitionPage}
+              setCompetitionPage={setCompetitionPage}
+              scrollToSection={scrollToSection}
+              academicRef={academicRef}
+            />
+          </div>
+        </section>
 
-          {/* Top Projects Content */}
-          {loadingTop ? (
-            <div className="py-10 flex justify-center">
-              <LoadingSpinner tip="กำลังโหลดผลงานยอดนิยม..." />
-            </div>
-          ) : topProjects.length > 0 ? (
-            <WorkGrid
-              items={topProjects}
-              displayMode={'column'}
-              side="center"
-              autoPlay={false} />
-          ) : (
-            <div className="py-10">
-              {renderEmptyState()}
-            </div>
-          )}
-
-          <Divider className="my-16" />
-
-          {/* Section Header for Latest Projects */}
-          <motion.div 
-            className="mb-10 text-center"
-            variants={sectionVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <Space direction="vertical" size="small" className="w-full">
-              <div className="flex items-center justify-center gap-2">
-                <ClockCircleOutlined className="text-blue-500 text-2xl" />
-                <Title level={2} style={{ margin: 0 }}>ผลงานล่าสุด</Title>
-              </div>
-              <Text type="secondary" className="text-lg">
-                ผลงานที่เพิ่งเผยแพร่ล่าสุดจากนักศึกษา CSI
-              </Text>
-            </Space>
-          </motion.div>
-
-          {/* Latest Projects Content */}
-          <motion.div
-            variants={sectionVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="min-h-[40vh]"
-          >
-            {loadingLatest ? (
-              <div className="py-10 flex justify-center">
-                <LoadingSpinner tip="กำลังโหลดผลงานล่าสุด..." />
-              </div>
-            ) : latestProjects.length > 0 ? (
-              <WorkGrid  title="ผลงานอัพเดทล่าสุด"
-              description="Latest updated work"
-              items={latestProjects}
-              displayMode={'row'}
-              side="right"
-              autoPlay={false} />
-            ) : (
-              <div className="py-10">
-                {renderEmptyState()}
-              </div>
-            )}
-          </motion.div>
-        </div>
+        {/* Academic Section - ปรับให้มีสไตล์คล้าย GitHub */}
+        <section 
+          ref={academicRef} 
+          className="relative min-h-screen py-16"
+          style={{ 
+            background: 'linear-gradient(to bottom, rgba(224, 209, 255, 0.9), rgba(144, 39, 142, 0.9))',
+          }}
+        >
+          <div className="container mx-auto px-4">
+            <AcademicSection 
+              loading={isLoading}
+              academicProjects={getAcademicProjects()}
+              academicPage={academicPage}
+              setAcademicPage={setAcademicPage}
+            />
+          </div>
+        </section>
+        
       </motion.div>
 
-      {/* Back to Top Button */}
+      {/* Back to Top Button - GitHub style */}
       <BackTop>
-        <div className="flex items-center justify-center w-10 h-10 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors">
+        <div className="flex items-center justify-center w-12 h-12 bg-[#90278E] text-white rounded-full shadow-lg hover:bg-[#B252B0] transition-colors">
           <UpOutlined />
         </div>
       </BackTop>

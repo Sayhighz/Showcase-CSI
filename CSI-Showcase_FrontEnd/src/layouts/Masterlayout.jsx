@@ -7,20 +7,21 @@ const { Content } = Layout; // Destructure the Content component from Layout
 
 const MasterLayout = ({ children }) => {
   return (
-    <Layout className="min-h-screen">
+    <Layout className="flex flex-col min-h-screen">
       {/* Navbar (Top Navigation Bar) */}
       <Navbar />
 
       {/* Main content section */}
-      <Content className="p-0 w-full">
-        {/* ไม่จำกัดขนาด container สำหรับ Banner */}
+      <Content className="flex-grow p-0 w-full">
         <div className="w-full">
           {children} {/* Render the page-specific content passed as children */}
         </div>
       </Content>
 
-      {/* Footer (Bottom Section) */}
-      <Footer />
+      {/* Footer (Bottom Section) - ตรวจสอบให้แน่ใจว่า Footer ไม่ถูกบดบัง */}
+      <div className="z-30 relative">
+        <Footer />
+      </div>
     </Layout>
   );
 };

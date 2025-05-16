@@ -54,16 +54,16 @@ const ProjectContributors = ({ author, contributors = [] }) => {
 
   // สร้างสีจากชื่อผู้ใช้ (ทำให้อวาตาร์แต่ละคนมีสีที่ต่างกัน แต่คงที่)
   const getColorFromName = (name) => {
-    if (!name) return '#1890ff';
+    if (!name) return '#90278E';
     
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
     
-    // Galaxy theme colors
+    // ใช้สีตามธีม
     const colors = [
-      '#90278E', '#7b1f79', '#a447a2', '#b76ab5', '#722ed1', 
+      '#90278E', '#B252B0', '#5E1A5C', '#722ed1', 
       '#9254de', '#d3adf7', '#efdbff', '#551a8b', '#702963'
     ];
     
@@ -80,21 +80,23 @@ const ProjectContributors = ({ author, contributors = [] }) => {
           size={size} 
           src={imageUrl} 
           alt={user.fullName || user.full_name || user.username}
-          className="border-2 border-purple-100 shadow-md"
+          className="border border-[#90278E] border-opacity-20 shadow-md"
         />
       );
     }
     
     // ถ้าไม่มีรูป ให้แสดงอักษรย่อชื่อ
     const nameInitial = getNameInitial(user.fullName || user.full_name || user.username);
+    const mainColor = getColorFromName(user.username);
+    const secondColor = getColorFromName(user.username+'a');
+    
     return (
       <Avatar 
         size={size} 
         style={{ 
-          backgroundColor: getColorFromName(user.username),
-          background: `linear-gradient(135deg, ${getColorFromName(user.username)} 0%, ${getColorFromName(user.username+'a')} 100%)`,
+          background: `linear-gradient(135deg, ${mainColor} 0%, ${secondColor} 100%)`,
         }}
-        className="border-2 border-purple-100 shadow-md"
+        className="border border-white border-opacity-20 shadow-md"
       >
         {nameInitial}
       </Avatar>
@@ -134,13 +136,13 @@ const ProjectContributors = ({ author, contributors = [] }) => {
 
   // คอมโพเนนต์สำหรับแสดงข้อมูลคนเดียว (ใช้ซ้ำในหน้าหลักและใน Modal)
   const ContributorCard = ({ user, isAuthor = false }) => (
-    <div className="flex p-3 rounded-lg transition-all hover:bg-purple-50 h-full">
+    <div className="flex p-3 rounded-lg transition-all hover:bg-[#F5EAFF] h-full">
       <div className="mr-3 flex-shrink-0">
         {renderAvatar(user)}
       </div>
       <div className="min-w-0 flex-1">
         <Tooltip title={getDisplayName(user)} placement="topLeft">
-          <h3 className="text-base font-medium text-gray-800 truncate mb-0 max-w-[150px]">
+          <h3 className="text-base font-medium text-[#24292f] truncate mb-0 max-w-[150px]">
             {getDisplayName(user)}
           </h3>
         </Tooltip>
@@ -149,11 +151,11 @@ const ProjectContributors = ({ author, contributors = [] }) => {
             <CrownOutlined className="mr-1" /> เจ้าของโปรเจค
           </span>
         ) : (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 mt-1">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#F5EAFF] text-[#90278E] mt-1">
             <TeamOutlined className="mr-1" /> {getRoleDisplay(user.role)}
           </span>
         )}
-        <div className="text-sm text-gray-500 mt-1 truncate max-w-[150px]">@{user.username}</div>
+        <div className="text-sm text-[#8b949e] mt-1 truncate max-w-[150px]">@{user.username}</div>
       </div>
     </div>
   );
@@ -164,8 +166,8 @@ const ProjectContributors = ({ author, contributors = [] }) => {
       <div className="text-center p-4 cursor-pointer" onClick={() => setShowAllModal(true)}>
         <Avatar 
           size={60}
-          style={{ background: 'linear-gradient(135deg, #90278E 0%, #a447a2 100%)' }}
-          className="border-2 border-purple-100 shadow-md flex items-center justify-center"
+          style={{ background: 'linear-gradient(135deg, #90278E 0%, #B252B0 100%)' }}
+          className="border border-white border-opacity-20 shadow-md flex items-center justify-center"
           icon={<TeamOutlined />}
         />
         <div className="mt-2 text-[#90278E] font-medium text-sm">
@@ -181,22 +183,22 @@ const ProjectContributors = ({ author, contributors = [] }) => {
       title={
         <div className="flex items-center">
           <span className="w-1 h-6 bg-[#90278E] mr-2 rounded inline-block"></span>
-          <span className="text-xl font-semibold text-[#90278E]">ผู้จัดทำโปรเจคทั้งหมด ({uniqueContributors.length + 1} คน)</span>
+          <span className="text-xl font-bold text-[#90278E]">ผู้จัดทำโปรเจคทั้งหมด ({uniqueContributors.length + 1} คน)</span>
         </div>
       }
       open={showAllModal}
       onCancel={() => setShowAllModal(false)}
       footer={[
-        <Button key="close" onClick={() => setShowAllModal(false)} className="bg-[#90278E] text-white hover:bg-[#7b1f79]">
+        <Button key="close" onClick={() => setShowAllModal(false)} className="bg-[#90278E] text-white hover:bg-[#5E1A5C]">
           ปิด
         </Button>
       ]}
       width={800}
       bodyStyle={{ maxHeight: '70vh', overflow: 'auto' }}
-      className="contributor-modal"
+      className="contributor-modal backdrop-filter backdrop-blur-md"
     >
       <div className="py-4">
-        <h3 className="text-lg font-medium text-[#90278E] mb-3">เจ้าของโปรเจค</h3>
+        <h3 className="text-lg font-bold text-[#90278E] mb-3">เจ้าของโปรเจค</h3>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={8}>
             <ContributorCard user={author} isAuthor={true} />
@@ -205,7 +207,7 @@ const ProjectContributors = ({ author, contributors = [] }) => {
 
         {uniqueContributors.length > 0 && (
           <>
-            <h3 className="text-lg font-medium text-[#90278E] mt-6 mb-3">ผู้ร่วมโปรเจค</h3>
+            <h3 className="text-lg font-bold text-[#90278E] mt-6 mb-3">ผู้ร่วมโปรเจค</h3>
             <Row gutter={[16, 16]}>
               {uniqueContributors.map((contributor, index) => (
                 <Col xs={24} sm={12} md={8} key={`modal-contributor-${index}`}>
@@ -220,8 +222,8 @@ const ProjectContributors = ({ author, contributors = [] }) => {
   );
 
   return (
-    <div className="mb-6">
-      <h2 className="text-xl font-semibold text-[#90278E] mb-4 flex items-center justify-between">
+    <div className="mb-8">
+      <h2 className="text-xl font-bold text-[#90278E] mb-4 flex items-center justify-between">
         <div className="flex items-center">
           <span className="w-1 h-6 bg-[#90278E] mr-2 rounded inline-block"></span>
           ผู้จัดทำโปรเจค
@@ -230,24 +232,26 @@ const ProjectContributors = ({ author, contributors = [] }) => {
           <Button 
             type="link" 
             onClick={() => setShowAllModal(true)}
-            className="text-[#90278E] flex items-center"
+            className="text-[#90278E] flex items-center hover:text-[#B252B0]"
           >
             ดูทั้งหมด <EllipsisOutlined />
           </Button>
         )}
       </h2>
-      <Card className="rounded-xl shadow-lg border border-purple-100 relative overflow-hidden">
-        {/* Galaxy decorative elements */}
-        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500 opacity-5 rounded-full blur-xl -mr-8 -mt-8"></div>
-        <div className="absolute bottom-0 left-0 w-20 h-20 bg-purple-600 opacity-5 rounded-full blur-xl -ml-6 -mb-6"></div>
-        <div className="absolute bottom-10 right-20 w-16 h-16 bg-purple-800 opacity-5 rounded-full blur-xl"></div>
+      <Card 
+        className="rounded-xl shadow-lg border border-[#90278E] border-opacity-20 relative overflow-hidden bg-white bg-opacity-80 backdrop-filter backdrop-blur-md hover:shadow-xl transition-all duration-300"
+      >
+        {/* Galaxy decorative elements ปรับสีตามธีม */}
+        <div className="absolute top-0 right-0 w-24 h-24 bg-[#B252B0] opacity-10 rounded-full blur-xl -mr-8 -mt-8"></div>
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-[#90278E] opacity-10 rounded-full blur-xl -ml-6 -mb-6"></div>
+        <div className="absolute bottom-10 right-20 w-16 h-16 bg-[#5E1A5C] opacity-10 rounded-full blur-xl"></div>
         
         <Row gutter={[20, 24]} className="relative z-10">
           {/* แสดงเจ้าของโปรเจค */}
           <Col xs={12} sm={8} md={6} lg={4} xl={4}>
             <div className="flex justify-center items-center flex-col text-center h-full">
               {renderAvatar(author)}
-              <div className="mt-2 text-sm font-medium truncate w-full">
+              <div className="mt-2 text-sm font-medium truncate w-full text-[#24292f]">
                 {getDisplayName(author)}
               </div>
               <div className="text-xs text-[#90278E]">เจ้าของ</div>
@@ -259,10 +263,10 @@ const ProjectContributors = ({ author, contributors = [] }) => {
             <Col xs={12} sm={8} md={6} lg={4} xl={4} key={`contributor-${index}`}>
               <div className="flex justify-center items-center flex-col text-center h-full">
                 {renderAvatar(contributor)}
-                <div className="mt-2 text-sm font-medium truncate w-full">
+                <div className="mt-2 text-sm font-medium truncate w-full text-[#24292f]">
                   {getDisplayName(contributor)}
                 </div>
-                <div className="text-xs text-gray-500">{getRoleDisplay(contributor.role)}</div>
+                <div className="text-xs text-[#8b949e]">{getRoleDisplay(contributor.role)}</div>
               </div>
             </Col>
           ))}
@@ -278,7 +282,7 @@ const ProjectContributors = ({ author, contributors = [] }) => {
           <div className="mt-4 text-center">
             <Button 
               onClick={() => setShowAllModal(true)}
-              className="border-[#90278E] text-[#90278E] hover:border-[#7b1f79] hover:text-[#7b1f79]"
+              className="border-[#90278E] text-[#90278E] hover:border-[#B252B0] hover:text-[#B252B0] hover:bg-[#F5EAFF] transition-all duration-300"
             >
               ดูผู้ร่วมโปรเจคทั้งหมด
             </Button>

@@ -51,6 +51,17 @@ const FilterPanel = ({
     localStorage.setItem('filterPanelCollapsed', String(collapsed));
   }, [collapsed]);
 
+  // CSS Variables for theme colors
+  const themeColors = {
+    primary: '#90278E',       // สีม่วงเข้ม (primary)
+    secondary: '#B252B0',     // สีม่วงอ่อน (secondary)
+    dark: '#5E1A5C',          // สีม่วงเข้มมาก (dark variant)
+    lightPurple: '#F5EAFF',   // สีม่วงอ่อนมาก (background)
+    mediumPurple: '#E0D1FF',  // สีม่วงกลาง
+    textLight: '#FFE6FF',     // สีตัวอักษรบนพื้นเข้ม
+    textSecondary: '#F8CDFF'  // สีตัวอักษรรอง
+  };
+
   // ตรวจสอบว่ามีตัวกรองที่ใช้งานอยู่หรือไม่
   const hasActiveFilters = Object.keys(activeFilters).length > 0 && 
     Object.values(activeFilters).some(value => 
@@ -120,6 +131,9 @@ const FilterPanel = ({
           studyYear: 'ชั้นปี',
           keyword: 'คำค้นหา',
           tags: 'แท็ก',
+          category: 'หมวดหมู่',
+          level: 'ระดับ',
+          status: 'สถานะ',
           // เพิ่มเติมตามต้องการ
         };
         
@@ -129,15 +143,19 @@ const FilterPanel = ({
       // ฟังก์ชันเพื่อกำหนดสีของ tag ตาม key
       const getTagColor = (key) => {
         const colorMap = {
-          type: 'blue',
-          year: 'green',
-          studyYear: 'purple',
-          keyword: 'magenta',
-          tags: 'orange',
+          type: '#90278E',         // สีม่วงเข้ม (primary)
+          year: '#B252B0',         // สีม่วงอ่อน (secondary)
+          studyYear: '#5E1A5C',    // สีม่วงเข้มมาก
+          keyword: '#B252B0',      // สีม่วงอ่อน
+          tags: '#90278E',         // สีม่วงเข้ม
+          category: '#5E1A5C',     // สีม่วงเข้มมาก
+          level: '#B252B0',        // สีม่วงอ่อน
+          status: '#90278E',       // สีม่วงเข้ม
           // เพิ่มเติมตามต้องการ
         };
         
-        return colorMap[key] || 'blue';
+        // Default color if not specified
+        return colorMap[key] || '#90278E';
       };
 
       return (
@@ -158,13 +176,16 @@ const FilterPanel = ({
               padding: '4px 10px', 
               display: 'flex', 
               alignItems: 'center',
-              gap: '4px'
+              gap: '4px',
+              backgroundColor: getTagColor(key),
+              color: '#FFFFFF',
+              boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
             }}
           >
-            <Text strong style={{ color: 'inherit', fontSize: '12px' }}>
+            <Text strong style={{ color: '#FFFFFF', fontSize: '12px' }}>
               {getDisplayKey(key)}:
             </Text>
-            <Text style={{ color: 'inherit', fontSize: '12px' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: '12px' }}>
               {getFilterValue()}
             </Text>
           </Tag>
@@ -188,10 +209,9 @@ const FilterPanel = ({
         alignItems: 'center',
         marginBottom: 8
       }}>
-        <Text strong style={{ fontSize: '14px' }}>ตัวกรองที่ใช้งาน</Text>
+        <Text strong style={{ fontSize: '14px', color: themeColors.dark }}>ตัวกรองที่ใช้งาน</Text>
         <Button 
           type="primary"
-          ghost
           icon={<ReloadOutlined />}
           onClick={handleClearFilters}
           disabled={loading}
@@ -200,7 +220,10 @@ const FilterPanel = ({
             borderRadius: '20px', 
             display: 'flex', 
             alignItems: 'center',
-            gap: '4px'
+            gap: '4px',
+            backgroundColor: themeColors.primary,
+            borderColor: themeColors.primary,
+            boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
           }}
         >
           ล้างทั้งหมด
@@ -220,34 +243,45 @@ const FilterPanel = ({
       case 'dark':
         return {
           card: {
-            backgroundColor: '#1f1f1f',
-            color: '#fff',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+            backgroundColor: '#2B1A2B',  // สีพื้นหลังเข้ม
+            color: themeColors.textLight,
+            boxShadow: '0 4px 12px rgba(94, 26, 92, 0.25)'
           },
           header: {
-            color: '#fff'
+            color: themeColors.textLight
+          },
+          divider: {
+            backgroundColor: 'rgba(255, 255, 255, 0.1)'
           }
         };
       case 'gradient':
         return {
           card: {
-            background: 'linear-gradient(135deg, #f7f9fc 0%, #eef1f5 100%)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
+            background: `linear-gradient(135deg, ${themeColors.lightPurple} 0%, white 100%)`,
+            boxShadow: '0 4px 16px rgba(144, 39, 142, 0.12)'
           },
           header: {
-            background: 'linear-gradient(90deg, #1890ff 0%, #52c41a 100%)',
+            background: `linear-gradient(90deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
+          },
+          divider: {
+            background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`,
+            height: '2px'
           }
         };
       default: // light
         return {
           card: {
-            backgroundColor: '#fff',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+            backgroundColor: '#FFFFFF',
+            boxShadow: '0 4px 12px rgba(144, 39, 142, 0.06)',
+            border: '1px solid rgba(144, 39, 142, 0.1)'
           },
           header: {
-            color: 'inherit'
+            color: themeColors.primary
+          },
+          divider: {
+            backgroundColor: 'rgba(144, 39, 142, 0.1)'
           }
         };
     }
@@ -255,173 +289,233 @@ const FilterPanel = ({
 
   const themeStyles = getThemeStyles();
   
+  // Animation variants for hover effect on card
+  const cardHoverAnimation = {
+    hover: {
+      boxShadow: '0 8px 24px rgba(144, 39, 142, 0.15)',
+      y: -3,
+      transition: { duration: 0.3 }
+    },
+    initial: {
+      boxShadow: themeStyles.card.boxShadow,
+      y: 0,
+      transition: { duration: 0.3 }
+    }
+  };
+  
   // แสดงผลในรูปแบบที่พับเก็บได้
   if (collapsible) {
     return (
-      <Card 
-        style={{ 
-          marginBottom: 16, 
-          borderRadius: '12px', 
-          overflow: 'hidden',
-          transition: 'all 0.3s ease',
-          ...themeStyles.card,
-          ...style 
-        }}
-        bodyStyle={{ padding: '12px 16px' }}
-        bordered={false}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+      <motion.div
+        initial="initial"
+        animate={isHovered ? "hover" : "initial"}
+        variants={cardHoverAnimation}
       >
-        {/* Custom Collapse Header */}
-        <div 
-          onClick={toggleCollapse}
+        <Card 
           style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            cursor: 'pointer',
-            padding: '8px 0',
-            userSelect: 'none'
+            marginBottom: 16, 
+            borderRadius: '12px', 
+            overflow: 'hidden',
+            transition: 'all 0.3s ease',
+            ...themeStyles.card,
+            ...style 
           }}
+          bodyStyle={{ padding: '16px 20px' }}
+          bordered={false}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <FilterOutlined
-              style={{ 
-                marginRight: 8, 
-                fontSize: '16px',
-                color: hasActiveFilters ? '#1890ff' : 'inherit'
-              }} 
-            />
-            <Title 
-              level={5} 
-              style={{ 
-                margin: 0,
-                fontWeight: hasActiveFilters ? 600 : 500,
-                ...themeStyles.header
-              }}
-            >
-              {title}
-            </Title>
-            {hasActiveFilters && (
-              <Badge 
-                count={countActiveFilters()} 
+          {/* Custom Collapse Header */}
+          <div 
+            onClick={toggleCollapse}
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              cursor: 'pointer',
+              padding: '8px 0',
+              userSelect: 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <FilterOutlined
                 style={{ 
-                  backgroundColor: '#1890ff',
-                  marginLeft: '8px'
-                }}
+                  marginRight: 10, 
+                  fontSize: '18px',
+                  color: hasActiveFilters ? themeColors.primary : 'inherit'
+                }} 
               />
-            )}
-          </div>
-          {collapsed ? 
-            <RightOutlined style={{ transition: 'transform 0.3s' }} /> : 
-            <DownOutlined style={{ transition: 'transform 0.3s' }} />
-          }
-        </div>
-        
-        {/* Custom Collapse Content */}
-        <AnimatePresence>
-          {!collapsed && (
+              <Title 
+                level={5} 
+                style={{ 
+                  margin: 0,
+                  fontWeight: hasActiveFilters ? 600 : 500,
+                  ...themeStyles.header
+                }}
+              >
+                {title}
+              </Title>
+              {hasActiveFilters && (
+                <Badge 
+                  count={countActiveFilters()} 
+                  style={{ 
+                    backgroundColor: themeColors.primary,
+                    boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)',
+                    marginLeft: '8px'
+                  }}
+                />
+              )}
+            </div>
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
+              animate={{ rotate: collapsed ? 0 : 180 }}
               transition={{ duration: 0.3 }}
-              style={{ overflow: 'hidden' }}
             >
-              <Divider style={{ margin: '12px 0' }} />
-              <div className="filter-panel-content">
-                {children}
-                {activeFiltersContent}
-              </div>
+              <DownOutlined 
+                style={{ 
+                  color: hasActiveFilters ? themeColors.primary : 'inherit',
+                  fontSize: '14px'
+                }} 
+              />
             </motion.div>
-          )}
-        </AnimatePresence>
-      </Card>
+          </div>
+          
+          {/* Custom Collapse Content */}
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <Divider 
+                  style={{ 
+                    margin: '12px 0',
+                    ...themeStyles.divider
+                  }} 
+                />
+                <div className="filter-panel-content">
+                  {children}
+                  {activeFiltersContent}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Card>
+      </motion.div>
     );
   }
 
   // แสดงผลในรูปแบบปกติ (ไม่พับเก็บ)
   return (
-    <Card 
-      title={
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <FilterOutlined 
-            style={{ 
-              marginRight: 8, 
-              color: hasActiveFilters ? '#1890ff' : 'inherit'
-            }} 
-          />
-          <span style={{ ...themeStyles.header }}>{title}</span>
-          {hasActiveFilters && (
-            <Badge 
-              count={countActiveFilters()} 
-              style={{ 
-                backgroundColor: '#1890ff',
-                marginLeft: '8px'
-              }}
-            />
-          )}
-        </div>
-      }
-      style={{ 
-        marginBottom: 16, 
-        borderRadius: '12px', 
-        overflow: 'hidden',
-        ...themeStyles.card,
-        ...style 
-      }}
-      bodyStyle={{ padding: layout === 'horizontal' ? '16px' : '16px 24px' }}
-      bordered={false}
+    <motion.div
+      initial="initial"
+      animate={isHovered ? "hover" : "initial"}
+      variants={cardHoverAnimation}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {layout === 'horizontal' ? (
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={24} md={24} lg={24} xl={24}>
-            <div className="filter-panel-content">{children}</div>
-          </Col>
-          {hasActiveFilters && (
+      <Card 
+        title={
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <FilterOutlined 
+              style={{ 
+                marginRight: 10, 
+                fontSize: '18px',
+                color: hasActiveFilters ? themeColors.primary : 'inherit'
+              }} 
+            />
+            <span style={{ 
+              ...themeStyles.header,
+              fontWeight: hasActiveFilters ? 600 : 500,
+              fontSize: '16px'
+            }}>
+              {title}
+            </span>
+            {hasActiveFilters && (
+              <Badge 
+                count={countActiveFilters()} 
+                style={{ 
+                  backgroundColor: themeColors.primary,
+                  boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)',
+                  marginLeft: '8px'
+                }}
+              />
+            )}
+          </div>
+        }
+        style={{ 
+          marginBottom: 16, 
+          borderRadius: '12px', 
+          overflow: 'hidden',
+          ...themeStyles.card,
+          ...style 
+        }}
+        bodyStyle={{ padding: layout === 'horizontal' ? '16px 20px' : '16px 24px' }}
+        bordered={false}
+        headStyle={{
+          backgroundColor: theme === 'dark' ? '#221122' : theme === 'gradient' ? 'transparent' : '#F5EAFF',
+          borderBottom: '1px solid rgba(144, 39, 142, 0.1)'
+        }}
+      >
+        {layout === 'horizontal' ? (
+          <Row gutter={[16, 16]}>
             <Col xs={24} sm={24} md={24} lg={24} xl={24}>
-              <Divider style={{ margin: '12px 0' }} />
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: 8,
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}>
-                <Text strong style={{ fontSize: '14px' }}>ตัวกรองที่ใช้งาน</Text>
-                <Button 
-                  type="primary"
-                  ghost
-                  icon={<ReloadOutlined />}
-                  onClick={handleClearFilters}
-                  disabled={loading}
-                  size="small"
-                  style={{ 
-                    borderRadius: '20px', 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  ล้างทั้งหมด
-                </Button>
-              </div>
-              <AnimatePresence>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {renderActiveFilterTags()}
-                </div>
-              </AnimatePresence>
+              <div className="filter-panel-content">{children}</div>
             </Col>
-          )}
-        </Row>
-      ) : (
-        <>
-          <div className="filter-panel-content">{children}</div>
-          {activeFiltersContent}
-        </>
-      )}
-    </Card>
+            {hasActiveFilters && (
+              <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                <Divider 
+                  style={{ 
+                    margin: '12px 0',
+                    ...themeStyles.divider
+                  }} 
+                />
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: 8,
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <Text strong style={{ fontSize: '14px', color: themeColors.dark }}>ตัวกรองที่ใช้งาน</Text>
+                  <Button 
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    onClick={handleClearFilters}
+                    disabled={loading}
+                    size="small"
+                    style={{ 
+                      borderRadius: '20px', 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: themeColors.primary,
+                      borderColor: themeColors.primary,
+                      boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
+                    }}
+                  >
+                    ล้างทั้งหมด
+                  </Button>
+                </div>
+                <AnimatePresence>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {renderActiveFilterTags()}
+                  </div>
+                </AnimatePresence>
+              </Col>
+            )}
+          </Row>
+        ) : (
+          <>
+            <div className="filter-panel-content">{children}</div>
+            {activeFiltersContent}
+          </>
+        )}
+      </Card>
+    </motion.div>
   );
 };
 

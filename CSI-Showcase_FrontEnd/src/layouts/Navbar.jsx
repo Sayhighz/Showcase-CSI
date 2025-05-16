@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Layout,
-  Input,
   Dropdown,
   Menu,
   Drawer,
@@ -13,11 +12,9 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import {
   UserOutlined,
-  GiftOutlined,
   LogoutOutlined,
   MenuOutlined,
   BellOutlined,
-  SearchOutlined,
   HomeOutlined,
   ProjectOutlined,
   SettingOutlined,
@@ -31,19 +28,16 @@ import LogoCSI from "../assets/Logo_CSI.png";
 import { API_ENDPOINTS } from "../constants";
 
 const { Header } = Layout;
-const { Search } = Input;
 
 const Navbar = () => {
   const { isAuthenticated, user } = useAuth();
-  const { fullName, image } = user || {}; // ใช้ optional chaining เพื่อป้องกันกรณี authData เป็น null
-  console.log(API_ENDPOINTS.BASE + "/" + image);
+  const { fullName, image } = user || {}; 
   const location = useLocation();
 
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [isOverlay, setIsOverlay] = useState(location.pathname === "/");
+  const [isAtTop, setIsAtTop] = useState(true);
   const [visible, setVisible] = useState(false);
-  const [searchExpanded, setSearchExpanded] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
   // Handle logout
@@ -52,41 +46,28 @@ const Navbar = () => {
     window.location.href = "/login";
   };
 
-  // Toggle search field expansion
-  const toggleSearch = () => {
-    setSearchExpanded(!searchExpanded);
-  };
-
-  // Track scroll position to show/hide Navbar and set overlay
+  // Track scroll position to show/hide Navbar and set transparency state
   useEffect(() => {
     const handleScroll = () => {
+      // Hide/show navbar based on scroll direction
       if (window.scrollY > lastScrollY && window.scrollY > 100) {
         setIsVisible(false); // Hide Navbar when scrolling down and not at top
       } else {
         setIsVisible(true); // Show Navbar when scrolling up or at top
       }
       setLastScrollY(window.scrollY);
-
-      // Set overlay only on Home page and when at the very top
-      if (location.pathname === "/") {
-        setIsOverlay(window.scrollY === 0);
-      } else {
-        setIsOverlay(false);
-      }
+      
+      // Check if we're at the top of the page (less than 20px to allow small movement)
+      setIsAtTop(window.scrollY < 20);
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY, location.pathname]);
 
-  // Ensure overlay resets when navigating to a different page
+  // Reset isAtTop when navigating to different pages
   useEffect(() => {
-    // Set isOverlay to true only if we're on the home page and at the top
-    if (location.pathname === "/") {
-      setIsOverlay(window.scrollY === 0);
-    } else {
-      setIsOverlay(false);
-    }
+    setIsAtTop(window.scrollY < 20);
   }, [location.pathname]);
 
   // Dropdown menu items with icons and animations
@@ -94,7 +75,7 @@ const Navbar = () => {
     {
       key: "1",
       label: (
-        <Link to="/projects/my" className="flex items-center space-x-2 p-1">
+        <Link to="/projects/my" className="flex items-center space-x-2 p-2">
           <ProjectOutlined />
           <span>ผลงานของฉัน</span>
         </Link>
@@ -103,7 +84,7 @@ const Navbar = () => {
     {
       key: "2",
       label: (
-        <Link to="/settings" className="flex items-center space-x-2 p-1">
+        <Link to="/settings" className="flex items-center space-x-2 p-2">
           <SettingOutlined />
           <span>ตั้งค่าโปรไฟล์</span>
         </Link>
@@ -117,7 +98,7 @@ const Navbar = () => {
       label: (
         <div
           onClick={handleLogout}
-          className="flex items-center space-x-2 text-red-500 p-1"
+          className="flex items-center space-x-2 text-red-500 p-2"
         >
           <LogoutOutlined />
           <span>ออกจากระบบ</span>
@@ -135,7 +116,7 @@ const Navbar = () => {
     setVisible(false);
   };
 
-  // Animation variants
+  // Animation variants - Github style with smooth transitions
   const navbarVariants = {
     visible: {
       y: 0,
@@ -156,10 +137,18 @@ const Navbar = () => {
     normal: { y: 0 },
     hover: { y: -2, transition: { duration: 0.2 } },
   };
+  
+  // Generate notification dot
+  const NotificationDot = () => (
+    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+  );
+
+  // ตรวจสอบว่าเป็นหน้า Home และอยู่ที่ด้านบนของหน้าเว็บหรือไม่
+  const isHomeAndAtTop = location.pathname === "/" && isAtTop;
 
   return (
     <>
-      {/* Sidebar (Drawer) with enhanced design */}
+      {/* Sidebar (Drawer) with updated theme styling */}
       <Drawer
         title={
           <div className="flex justify-between items-center">
@@ -168,7 +157,7 @@ const Navbar = () => {
               type="text"
               onClick={closeDrawer}
               icon={<CloseOutlined />}
-              className="border-none text-gray-600"
+              className="border-none text-[#90278E]"
             />
           </div>
         }
@@ -178,18 +167,32 @@ const Navbar = () => {
         open={visible}
         width={280}
         bodyStyle={{ padding: 0 }}
+        styles={{
+          header: { 
+            borderBottom: '1px solid rgba(144, 39, 142, 0.2)',
+            padding: '16px 24px' 
+          },
+          body: {
+            background: 'linear-gradient(135deg, rgba(245, 234, 255, 0.8), rgba(255, 255, 255, 0.9))'
+          },
+          mask: {
+            background: 'rgba(94, 26, 92, 0.2)',
+            backdropFilter: 'blur(2px)'
+          }
+        }}
       >
         <div className="p-4">
           {isAuthenticated && (
-            <div className="flex items-center space-x-3 mb-6 p-3 bg-purple-50 rounded-lg">
+            <div className="flex items-center space-x-3 mb-6 p-3 bg-[#90278E] bg-opacity-5 rounded-lg border border-[#90278E] border-opacity-10">
               <Avatar
-                src={API_ENDPOINTS.BASE + "/" + image}
+                src={image ? API_ENDPOINTS.BASE + "/" + image : null}
+                icon={!image && <UserOutlined />}
                 className="bg-[#90278E]"
                 size="large"
               />
               <div>
                 <div className="font-medium text-[#90278E]">{fullName}</div>
-                <div className="text-xs text-gray-500">นักศึกษา CSI</div>
+                <div className="text-xs text-[#8b949e]">นักศึกษา CSI</div>
               </div>
             </div>
           )}
@@ -197,7 +200,7 @@ const Navbar = () => {
 
         <Menu
           mode="inline"
-          className="border-none custom-drawer-menu"
+          className="border-none custom-drawer-menu bg-transparent"
           items={[
             {
               key: "home",
@@ -263,7 +266,7 @@ const Navbar = () => {
         />
       </Drawer>
 
-      {/* Navbar Header with animations */}
+      {/* Navbar Header with updated theme styling */}
       <AnimatePresence>
         <motion.div
           variants={navbarVariants}
@@ -273,63 +276,25 @@ const Navbar = () => {
         >
           <Header
             className={`px-4 md:px-8 flex justify-between items-center h-16 transition-all duration-500 ${
-              isOverlay
-                ? "bg-transparent"
-                : "bg-gradient-to-r from-[#90278E] to-[#1F1F5C] shadow-md"
+              isHomeAndAtTop 
+                ? "bg-transparent shadow-none" 
+                : "bg-[#90278E] shadow-md backdrop-filter backdrop-blur-md bg-opacity-90"
             }`}
           >
-            {/* Logo with hover animation */}
-            <motion.div
-              className="flex items-center"
-              variants={logoVariants}
-              initial="normal"
-              whileHover="hover"
-            >
-              <Link to="/">
-                <img src={LogoCSI} alt="CSI Logo" className="h-10 md:h-12" />
-              </Link>
-            </motion.div>
-
-            {/* Right Section - Menu & Search */}
-            <div className="flex items-center ml-auto space-x-3 md:space-x-6 text-white">
-              {/* Search Button (Mobile) / Search Bar (Desktop) */}
-              <AnimatePresence>
-                {searchExpanded ? (
-                  <motion.div
-                    initial={{ width: 40, opacity: 0 }}
-                    animate={{ width: 200, opacity: 1 }}
-                    exit={{ width: 40, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="md:hidden"
-                  >
-                    <Search
-                      placeholder="ค้นหา..."
-                      allowClear
-                      onBlur={() => setSearchExpanded(false)}
-                      className="searchbar-custom"
-                      autoFocus
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div whileTap={{ scale: 0.9 }} className="md:hidden">
-                    <Button
-                      type="text"
-                      icon={<SearchOutlined className="text-white text-xl" />}
-                      onClick={toggleSearch}
-                      className="flex items-center justify-center"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Mobile Menu Button */}
-              <Button
-                type="text"
-                className="text-white md:hidden"
-                icon={<MenuOutlined className="text-xl" />}
-                onClick={showDrawer}
-              />
-
+            {/* Left Section - Logo & Navigation */}
+            <div className="flex items-center space-x-8">
+              {/* Logo with hover animation */}
+              <motion.div
+                className="flex items-center"
+                variants={logoVariants}
+                initial="normal"
+                whileHover="hover"
+              >
+                <Link to="/">
+                  <img src={LogoCSI} alt="CSI Logo" className="h-10 md:h-12" />
+                </Link>
+              </motion.div>
+              
               {/* Desktop Navigation Links */}
               <div className="hidden md:flex items-center space-x-6">
                 <motion.div
@@ -342,7 +307,7 @@ const Navbar = () => {
                     className={`hover:text-white transition-colors ${
                       location.pathname === "/"
                         ? "text-white font-medium"
-                        : "text-gray-200"
+                        : "text-[#FFE6FF]"
                     }`}
                   >
                     หน้าแรก
@@ -365,7 +330,7 @@ const Navbar = () => {
                     className={`hover:text-white transition-colors ${
                       location.pathname === "/projects/all"
                         ? "text-white font-medium"
-                        : "text-gray-200"
+                        : "text-[#FFE6FF]"
                     }`}
                   >
                     ผลงานทั้งหมด
@@ -389,7 +354,7 @@ const Navbar = () => {
                       className={`hover:text-white transition-colors ${
                         location.pathname === "/projects/my"
                           ? "text-white font-medium"
-                          : "text-gray-200"
+                          : "text-[#FFE6FF]"
                       }`}
                     >
                       ผลงานของฉัน
@@ -403,6 +368,23 @@ const Navbar = () => {
                   </motion.div>
                 )}
               </div>
+            </div>
+
+            {/* Right Section - Action Buttons & User Profile */}
+            <div className="flex items-center space-x-3 md:space-x-4">
+              {/* Mobile Menu Button */}
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="md:hidden"
+              >
+                <Button
+                  type="text"
+                  className="text-white flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 border-0 rounded-full w-9 h-9"
+                  icon={<MenuOutlined />}
+                  onClick={showDrawer}
+                />
+              </motion.div>
 
               {/* User Profile / Login Button */}
               {isAuthenticated ? (
@@ -415,28 +397,29 @@ const Navbar = () => {
                   <motion.div
                     onMouseEnter={() => setIsHovering(true)}
                     onMouseLeave={() => setIsHovering(false)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center cursor-pointer space-x-2 bg-white/10 px-3 py-1.5 rounded-full transition-all hover:bg-white/20"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center cursor-pointer space-x-2 bg-white bg-opacity-10 px-3 py-1.5 rounded-full border border-white border-opacity-10 transition-all hover:bg-opacity-20"
                   >
                     <Avatar
-                      src={API_ENDPOINTS.BASE + "/" + image}
-                      className="bg-[#90278E]"
-                      size="large"
+                      src={image ? API_ENDPOINTS.BASE + "/" + image : null}
+                      icon={!image && <UserOutlined />}
+                      className="bg-[#B252B0]"
+                      size="small"
                     />
-                    <span className="hidden md:inline">{fullName}</span>
+                    <span className="hidden md:inline max-w-24 truncate text-sm text-white">{fullName}</span>
                   </motion.div>
                 </Dropdown>
               ) : (
                 <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Link
                     to="/login"
-                    className="hidden md:flex items-center space-x-1 bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all"
+                    className="flex items-center space-x-1 bg-white hover:bg-[#F5EAFF] text-[#90278E] font-medium px-4 py-1.5 rounded-full transition-all duration-300 border border-transparent shadow-sm"
                   >
-                    <UserOutlined />
+                    <UserOutlined className="mr-1" />
                     <span>เข้าสู่ระบบ</span>
                   </Link>
                 </motion.div>
@@ -447,7 +430,7 @@ const Navbar = () => {
       </AnimatePresence>
 
       {/* Spacer for content below the fixed navbar */}
-      <div className="h-16"></div>
+      <div className={isHomeAndAtTop ? "h-0" : "h-16"}></div>
     </>
   );
 };

@@ -7,7 +7,6 @@ import { useProject } from '../../hooks';
 import { PROJECT_TYPES } from '../../constants/projectTypes';
 
 // นำเข้า components ของโปรเจค
-import Work_Row from '../../components/Work/Work_Row';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ProjectFilter from '../../components/Project/ProjectFilter';
 import FilterPanel from '../../components/common/FilterPanel';
@@ -16,6 +15,17 @@ import WorkGrid from '../../components/Work/WorkGrid';
 const { Option } = Select;
 
 const AllProject = () => {
+  // CSS Variables สำหรับสีหลักตามธีม
+  const themeColors = {
+    primary: '#90278E',        // สีม่วงเข้ม
+    secondary: '#B252B0',      // สีม่วงอ่อน
+    dark: '#5E1A5C',           // สีม่วงเข้มมาก
+    lightPurple: '#F5EAFF',    // สีม่วงอ่อนมาก (background)
+    mediumPurple: '#E0D1FF',   // สีม่วงกลาง
+    textLight: '#FFE6FF',      // สีตัวอักษรบนพื้นเข้ม
+    textSecondary: '#F8CDFF'   // สีตัวอักษรรอง
+  };
+
   // ใช้ useProject hook แทนการเรียก axios โดยตรง
   const { 
     projects, 
@@ -32,7 +42,6 @@ const AllProject = () => {
   } = useProject();
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-
 
   // ใช้ useEffect เรียกฟังก์ชันจาก hook เมื่อโหลดคอมโพเนนต์ครั้งแรก
   useEffect(() => {
@@ -65,12 +74,22 @@ const AllProject = () => {
     changePage(page, pageSize);
   };
 
+  // กำหนด styles สำหรับ gradient text
+  const headingGradient = {
+    background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    display: 'inline-block',
+    textShadow: '0 0 20px rgba(144,39,142,0.1)'
+  };
+
   return (
-    <div className="flex flex-col items-center w-full py-20 px-4 min-h-screen bg-gradient-to-b from-[#F9F2FF] to-white relative overflow-hidden">
+    <div className="flex flex-col items-center w-full py-20 px-4 min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white relative overflow-hidden">
       {/* Background decoration elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <motion.div 
-          className="absolute top-20 left-0 w-64 h-64 rounded-full bg-gradient-to-r from-purple-200 to-purple-300 opacity-30 blur-3xl"
+          className="absolute top-20 left-0 w-64 h-64 rounded-full opacity-30 blur-3xl"
+          style={{ background: `radial-gradient(circle, rgba(144,39,142,0.3) 0%, rgba(144,39,142,0) 70%)` }}
           animate={{ 
             x: [0, 50, 0], 
             y: [0, 30, 0],
@@ -83,7 +102,8 @@ const AllProject = () => {
           }}
         />
         <motion.div 
-          className="absolute top-40 right-20 w-96 h-96 rounded-full bg-gradient-to-r from-blue-200 to-indigo-200 opacity-20 blur-3xl"
+          className="absolute top-40 right-20 w-96 h-96 rounded-full opacity-20 blur-3xl"
+          style={{ background: `radial-gradient(circle, rgba(178,82,176,0.3) 0%, rgba(94,26,92,0) 70%)` }}
           animate={{ 
             x: [0, -70, 0], 
             y: [0, 50, 0],
@@ -95,6 +115,34 @@ const AllProject = () => {
             repeatType: "reverse"
           }}
         />
+        
+        {/* เพิ่มดาวกระพริบเบาๆ ในฉากหลัง */}
+        {Array.from({ length: 30 }).map((_, i) => {
+          const size = Math.random() * 3 + 1;
+          const opacity = Math.random() * 0.5 + 0.3;
+          
+          return (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: size,
+                height: size,
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                backgroundColor: '#90278E',
+                boxShadow: `0 0 ${parseInt(size) * 2}px rgba(144, 39, 142, ${opacity})`
+              }}
+              animate={{ 
+                opacity: [opacity * 0.7, opacity, opacity * 0.7] 
+              }}
+              transition={{ 
+                duration: Math.random() * 3 + 2,
+                repeat: Infinity
+              }}
+            />
+          );
+        })}
       </div>
 
       <motion.div
@@ -104,15 +152,17 @@ const AllProject = () => {
         className="text-center mb-8"
       >
         <motion.h1
-          className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-700 text-transparent bg-clip-text inline-block"
+          className="text-4xl font-bold"
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
+          style={headingGradient}
         >
           ผลงานทั้งหมด
         </motion.h1>
         <motion.div
-          className="h-1 w-24 bg-gradient-to-r from-purple-500 to-blue-500 mx-auto mt-2 rounded-full"
+          className="h-1 w-24 mx-auto mt-2 rounded-full"
+          style={{ background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})` }}
           initial={{ width: 0 }}
           animate={{ width: 96 }}
           transition={{ duration: 0.8, delay: 0.5 }}
@@ -143,6 +193,7 @@ const AllProject = () => {
           collapsible={true}
           defaultCollapsed={true}
           loading={isLoading}
+          theme="gradient" // ใช้ธีม gradient ที่เราปรับแต่งไว้ใน FilterPanel
         >
           <ProjectFilter
             projectTypes={projectTypes.length > 0 ? projectTypes : PROJECT_TYPES}
@@ -163,6 +214,12 @@ const AllProject = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.6 }}
         className="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-6 min-h-[300px]"
+        style={{ 
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(144, 39, 142, 0.1)',
+          boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
+        }}
       >
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
@@ -177,8 +234,15 @@ const AllProject = () => {
             />
             <motion.button
               onClick={handleResetFilters}
-              className="mt-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full shadow-md"
-              whileHover={{ scale: 1.05 }}
+              className="mt-4 px-6 py-2 text-white rounded-full shadow-md"
+              style={{ 
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`,
+                boxShadow: '0 4px 12px rgba(144, 39, 142, 0.3)'
+              }}
+              whileHover={{ 
+                scale: 1.05,
+                boxShadow: '0 6px 15px rgba(144, 39, 142, 0.4)' 
+              }}
               whileTap={{ scale: 0.95 }}
             >
               ล้างตัวกรองและลองใหม่
@@ -193,13 +257,20 @@ const AllProject = () => {
           <div className="flex justify-center items-center h-64 flex-col">
             <Empty 
               description={
-                <span className="text-gray-500 text-lg">ไม่พบผลงานที่ตรงกับเงื่อนไขที่เลือก</span>
+                <span style={{ color: themeColors.dark }} className="text-lg">ไม่พบผลงานที่ตรงกับเงื่อนไขที่เลือก</span>
               }
             />
             <motion.button
               onClick={handleResetFilters}
-              className="mt-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full shadow-md"
-              whileHover={{ scale: 1.05 }}
+              className="mt-4 px-6 py-2 text-white rounded-full shadow-md"
+              style={{ 
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`,
+                boxShadow: '0 4px 12px rgba(144, 39, 142, 0.3)'
+              }}
+              whileHover={{ 
+                scale: 1.05,
+                boxShadow: '0 6px 15px rgba(144, 39, 142, 0.4)' 
+              }}
               whileTap={{ scale: 0.95 }}
             >
               ล้างตัวกรอง
@@ -216,7 +287,7 @@ const AllProject = () => {
           className="mt-8 w-full max-w-6xl"
         >
           <div className="flex flex-col items-center">
-            <div className="mb-4 text-gray-500">
+            <div className="mb-4" style={{ color: themeColors.dark }}>
               แสดงผลงานลำดับที่ {(pagination.current - 1) * pagination.pageSize + 1}-
               {Math.min(pagination.current * pagination.pageSize, pagination.total)} จากทั้งหมด {pagination.total} ชิ้น
             </div>
@@ -224,6 +295,7 @@ const AllProject = () => {
           </div>
         </motion.div>
       )}
+      
     </div>
   );
 };
