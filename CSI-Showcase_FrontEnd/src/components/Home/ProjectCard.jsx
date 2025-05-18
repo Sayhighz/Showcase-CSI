@@ -32,23 +32,23 @@ const ProjectCard = ({ project, colorScheme = 'light' }) => {
       transition={{ duration: 0.5 }}
     >
       {/* Card Header */}
-      <div className="p-5 border-b border-gray-100">
+      <div className="p-3 sm:p-5 border-b border-gray-100">
         <div className="flex justify-between items-start mb-2">
-          <Tag color="#90278E" className="mb-2">{project.level}</Tag>
-          <div className="flex items-center space-x-2">
+          <Tag color="#90278E" className="mb-2 text-xs">{project.level}</Tag>
+          <div className="flex items-center space-x-2 text-xs sm:text-sm">
             <Text type="secondary" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'inherit' }}>
               <EyeOutlined /> {project.viewsCount}
             </Text>
           </div>
         </div>
         
-        <Title level={3} style={{ color: textColor, marginTop: 0 }}>{project.title}</Title>
+        <Title level={3} className="text-base sm:text-lg md:text-xl" style={{ color: textColor, marginTop: 0 }}>{project.title}</Title>
       </div>
       
       {/* Card Content */}
-      <div className="p-5">
+      <div className="p-3 sm:p-5">
         <Paragraph 
-          className="text-base mb-6" 
+          className="text-xs sm:text-sm md:text-base mb-4 sm:mb-6" 
           style={{ 
             color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.8)' : 'inherit',
             height: '4.5em',
@@ -67,18 +67,18 @@ const ProjectCard = ({ project, colorScheme = 'light' }) => {
             <img 
               src={`${API_ENDPOINTS.BASE}/${project.userImage}`} 
               alt={project.student}
-              className="w-10 h-10 rounded-full object-cover border-2 border-purple-100" 
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-purple-100" 
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-[#90278E] flex items-center justify-center text-white font-bold">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#90278E] flex items-center justify-center text-white font-bold">
               {project.student.charAt(0)}
             </div>
           )}
           <div>
-            <Text className="font-medium block" style={{ color: colorScheme === 'dark' ? 'white' : 'inherit' }}>
+            <Text className="font-medium block text-sm sm:text-base" style={{ color: colorScheme === 'dark' ? 'white' : 'inherit' }}>
               {project.student}
             </Text>
-            <Text type="secondary" className="text-sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'inherit' }}>
+            <Text type="secondary" className="text-xs sm:text-sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'inherit' }}>
               {project.username}
             </Text>
           </div>
@@ -86,17 +86,18 @@ const ProjectCard = ({ project, colorScheme = 'light' }) => {
       </div>
       
       {/* Card Footer - GitHub style */}
-      <div className="p-5 bg-gray-50 border-t border-gray-100">
+      <div className="p-3 sm:p-5 bg-gray-50 border-t border-gray-100">
         <div className="flex justify-between items-center">
-          <Text type="secondary" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'inherit' }}>
+          <Text type="secondary" className="text-xs sm:text-sm" style={{ color: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.6)' : 'inherit' }}>
             {new Date(project.createdAt).toLocaleDateString('th-TH')}
           </Text>
           <Button 
             type="default"
+            size="small"
             icon={<ArrowRightOutlined />}
-            className={colorScheme === 'light' ? 
+            className={`text-xs sm:text-sm ${colorScheme === 'light' ? 
               "border border-[#90278E] text-[#90278E] hover:bg-[#90278E] hover:text-white" : 
-              "bg-white text-[#90278E] hover:bg-gray-100 border-none"}
+              "bg-white text-[#90278E] hover:bg-gray-100 border-none"}`}
             href={project.projectLink}
           >
             ดูรายละเอียด

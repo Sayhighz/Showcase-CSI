@@ -1,6 +1,6 @@
 // src/components/ManageProject/steps/MediaUploadStep.jsx
 import React from "react";
-import { Upload, message, Form } from "antd";
+import { Upload, message, Form, Typography } from "antd";
 import {
   FileTextOutlined,
   PictureOutlined,
@@ -15,6 +15,7 @@ import {
 } from "../../../utils/fileUtils";
 
 const { Dragger } = Upload;
+const { Text } = Typography;
 
 /**
  * MediaUploadStep - ขั้นตอนการอัปโหลดไฟล์ที่เกี่ยวข้องกับโปรเจค
@@ -22,9 +23,11 @@ const { Dragger } = Upload;
  * @param {string} props.projectType - ประเภทของโปรเจค
  * @param {Object} props.fileList - รายการไฟล์ที่อัปโหลด
  * @param {Function} props.onFileChange - ฟังก์ชันสำหรับจัดการการเปลี่ยนแปลงของไฟล์
+ * @param {boolean} props.isMobile - บอกว่าเป็นหน้าจอขนาดเล็กหรือไม่
+ * @param {boolean} props.isTablet - บอกว่าเป็นหน้าจอขนาดกลางหรือไม่
  * @returns {JSX.Element} - MediaUploadStep component
  */
-const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
+const MediaUploadStep = ({ projectType, fileList, onFileChange, isMobile, isTablet }) => {
   // ตรวจสอบไฟล์ก่อนอัปโหลด
   const beforeUpload = (file, fileType) => {
     // ตรวจสอบประเภทไฟล์
@@ -80,17 +83,17 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
 
   if (!projectType) {
     return (
-      <div className="py-4 text-center text-gray-500">
+      <div className="py-2 sm:py-4 text-center text-gray-500">
         กรุณาเลือกประเภทโปรเจคก่อน
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8">
       {projectType === PROJECT_TYPE.ACADEMIC && (
         <div>
-          <h3 className="text-lg font-medium mb-2">
+          <h3 className={`${isMobile ? "text-base" : "text-lg"} font-medium mb-1 sm:mb-2`}>
             อัปโหลดบทความวิชาการ
           </h3>
           <Form.Item label="ไฟล์บทความ (PDF)" required={true}>
@@ -102,14 +105,15 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
               accept=".pdf"
               maxCount={1}
               multiple={false}
+              height={isMobile ? 120 : 160}
             >
               <p className="ant-upload-drag-icon">
-                <FileTextOutlined />
+                <FileTextOutlined style={{ fontSize: isMobile ? 24 : 36 }} />
               </p>
-              <p className="ant-upload-text">
+              <p className={`ant-upload-text ${isMobile ? "text-sm" : ""}`}>
                 คลิกหรือลากไฟล์มาที่นี่เพื่ออัปโหลด
               </p>
-              <p className="ant-upload-hint">
+              <p className={`ant-upload-hint ${isMobile ? "text-xs" : ""}`}>
                 รองรับเฉพาะไฟล์ PDF ขนาดไม่เกิน 10MB
               </p>
             </Dragger>
@@ -118,9 +122,9 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
       )}
 
       {projectType === PROJECT_TYPE.COURSEWORK && (
-        <div className="space-y-8">
+        <div className="space-y-4 sm:space-y-6 md:space-y-8">
           <div>
-            <h3 className="text-lg font-medium mb-2">
+            <h3 className={`${isMobile ? "text-base" : "text-lg"} font-medium mb-1 sm:mb-2`}>
               อัปโหลดโปสเตอร์งานในชั้นเรียน
             </h3>
             <Form.Item label="รูปโปสเตอร์" required={true}>
@@ -136,14 +140,15 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
                 accept=".jpg,.jpeg,.png,.gif,.webp"
                 maxCount={1}
                 multiple={false}
+                height={isMobile ? 120 : 160}
               >
                 <p className="ant-upload-drag-icon">
-                  <PictureOutlined />
+                  <PictureOutlined style={{ fontSize: isMobile ? 24 : 36 }} />
                 </p>
-                <p className="ant-upload-text">
+                <p className={`ant-upload-text ${isMobile ? "text-sm" : ""}`}>
                   คลิกหรือลากรูปภาพมาที่นี่เพื่ออัปโหลด
                 </p>
-                <p className="ant-upload-hint">
+                <p className={`ant-upload-hint ${isMobile ? "text-xs" : ""}`}>
                   รองรับไฟล์รูปภาพ JPG, PNG, GIF, WebP ขนาดไม่เกิน 5MB
                 </p>
               </Dragger>
@@ -151,7 +156,7 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
           </div>
 
           <div>
-            <h3 className="text-lg font-medium mb-2">
+            <h3 className={`${isMobile ? "text-base" : "text-lg"} font-medium mb-1 sm:mb-2`}>
               อัปโหลดรูปภาพเพิ่มเติม (ถ้ามี)
             </h3>
             <Form.Item label="รูปภาพเพิ่มเติม">
@@ -171,19 +176,19 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
               >
                 {fileList.courseworkImage.length >= 3 ? null : (
                   <div>
-                    <UploadOutlined />
-                    <div style={{ marginTop: 8 }}>อัปโหลด</div>
+                    <UploadOutlined style={{ fontSize: isMobile ? 16 : 20 }} />
+                    <div style={{ marginTop: 8 }} className={isMobile ? "text-xs" : ""}>อัปโหลด</div>
                   </div>
                 )}
               </Upload>
-              <p className="text-xs text-gray-500">
+              <p className={`text-gray-500 ${isMobile ? "text-xs" : "text-sm"}`}>
                 อัปโหลดได้สูงสุด 3 รูป
               </p>
             </Form.Item>
           </div>
 
           <div>
-            <h3 className="text-lg font-medium mb-2">
+            <h3 className={`${isMobile ? "text-base" : "text-lg"} font-medium mb-1 sm:mb-2`}>
               อัปโหลดวิดีโอ (ถ้ามี)
             </h3>
             <Form.Item label="ไฟล์วิดีโอ">
@@ -199,14 +204,15 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
                 accept=".mp4,.webm,.mov"
                 maxCount={1}
                 multiple={false}
+                height={isMobile ? 120 : 160}
               >
                 <p className="ant-upload-drag-icon">
-                  <VideoCameraOutlined />
+                  <VideoCameraOutlined style={{ fontSize: isMobile ? 24 : 36 }} />
                 </p>
-                <p className="ant-upload-text">
+                <p className={`ant-upload-text ${isMobile ? "text-sm" : ""}`}>
                   คลิกหรือลากไฟล์วิดีโอมาที่นี่เพื่ออัปโหลด
                 </p>
-                <p className="ant-upload-hint">
+                <p className={`ant-upload-hint ${isMobile ? "text-xs" : ""}`}>
                   รองรับไฟล์วิดีโอ MP4, WebM, QuickTime ขนาดไม่เกิน 50MB
                 </p>
               </Dragger>
@@ -217,7 +223,7 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
 
       {projectType === PROJECT_TYPE.COMPETITION && (
         <div>
-          <h3 className="text-lg font-medium mb-2">
+          <h3 className={`${isMobile ? "text-base" : "text-lg"} font-medium mb-1 sm:mb-2`}>
             อัปโหลดโปสเตอร์การแข่งขัน
           </h3>
           <Form.Item label="รูปโปสเตอร์" required={true}>
@@ -229,14 +235,15 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
               accept=".jpg,.jpeg,.png,.gif,.webp"
               maxCount={1}
               multiple={false}
+              height={isMobile ? 120 : 160}
             >
               <p className="ant-upload-drag-icon">
-                <PictureOutlined />
+                <PictureOutlined style={{ fontSize: isMobile ? 24 : 36 }} />
               </p>
-              <p className="ant-upload-text">
+              <p className={`ant-upload-text ${isMobile ? "text-sm" : ""}`}>
                 คลิกหรือลากรูปภาพมาที่นี่เพื่ออัปโหลด
               </p>
-              <p className="ant-upload-hint">
+              <p className={`ant-upload-hint ${isMobile ? "text-xs" : ""}`}>
                 รองรับไฟล์รูปภาพ JPG, PNG, GIF, WebP ขนาดไม่เกิน 5MB
               </p>
             </Dragger>

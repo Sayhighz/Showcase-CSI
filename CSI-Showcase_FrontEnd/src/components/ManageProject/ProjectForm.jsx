@@ -15,6 +15,7 @@ import SpecificInfoStep from "./steps/SpecificInfoStep";
 import MediaUploadStep from "./steps/MediaUploadStep";
 import ContributorsStep from "./steps/ContributorsStep";
 import ReviewStep from "./steps/ReviewStep";
+import { useMediaQuery } from 'react-responsive';
 
 const { Step } = Steps;
 
@@ -64,6 +65,10 @@ const ProjectForm = ({
   });
   const [contributors, setContributors] = useState(initialValues.contributors || []);
   const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // ตรวจสอบขนาดหน้าจอ
+  const isMobile = useMediaQuery({ maxWidth: 767 });
+  const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 991 });
 
   // ปรับค่าเริ่มต้น
   useEffect(() => {
@@ -354,6 +359,8 @@ const ProjectForm = ({
           <BasicInfoStep 
             form={form} 
             onProjectTypeChange={handleProjectTypeChange} 
+            isMobile={isMobile}
+            isTablet={isTablet}
           />
         );
 
@@ -362,6 +369,8 @@ const ProjectForm = ({
           <SpecificInfoStep 
             form={form} 
             projectType={projectType} 
+            isMobile={isMobile}
+            isTablet={isTablet}
           />
         );
         
@@ -370,6 +379,8 @@ const ProjectForm = ({
           <ContributorsStep 
             contributors={contributors} 
             onChange={handleContributorsChange} 
+            isMobile={isMobile}
+            isTablet={isTablet}
           />
         );
 
@@ -379,6 +390,8 @@ const ProjectForm = ({
             projectType={projectType} 
             fileList={fileList} 
             onFileChange={handleFileChange} 
+            isMobile={isMobile}
+            isTablet={isTablet}
           />
         );
 
@@ -389,6 +402,8 @@ const ProjectForm = ({
             validatedValues={validatedValues} 
             fileList={fileList} 
             contributors={contributors}
+            isMobile={isMobile}
+            isTablet={isTablet}
           />
         );
 
@@ -397,21 +412,51 @@ const ProjectForm = ({
     }
   };
 
+  // กำหนดขนาด responsive ของ Steps
+  const getStepsSize = () => {
+    if (isMobile) return 'small';
+    return 'default';
+  };
+
+  // กำหนดรูปแบบการแสดงผลของ Steps ตามขนาดหน้าจอ
+  const getStepsDirection = () => {
+    if (isMobile || isTablet) return 'vertical';
+    return 'horizontal';
+  };
+
   return (
     <Spin spinning={isLoading}>
-      <Card className="w-full">
+      <Card className="w-full px-2 sm:px-4 md:px-6" bodyStyle={{ padding: isMobile ? '12px' : '24px' }}>
         <Steps
           current={currentStep}
+          direction={getStepsDirection()}
+          size={getStepsSize()}
+          className="mb-4 sm:mb-6"
           items={[
-            { title: "ข้อมูลทั่วไป", description: "ข้อมูลเบื้องต้นของโปรเจค" },
-            { title: "ข้อมูลเฉพาะ", description: "รายละเอียดตามประเภทโปรเจค" },
-            { title: "ผู้ร่วมโปรเจค", description: "เพิ่มผู้ร่วมสร้างโปรเจค" },
-            { title: "อัปโหลดไฟล์", description: "อัปโหลดไฟล์ที่เกี่ยวข้อง" },
-            { title: "ตรวจสอบ", description: "ตรวจสอบข้อมูลก่อนบันทึก" },
+            { 
+              title: isMobile ? "ข้อมูลทั่วไป" : "ข้อมูลทั่วไป", 
+              description: !isMobile && "ข้อมูลเบื้องต้นของโปรเจค" 
+            },
+            { 
+              title: isMobile ? "ข้อมูลเฉพาะ" : "ข้อมูลเฉพาะ", 
+              description: !isMobile && "รายละเอียดตามประเภทโปรเจค" 
+            },
+            { 
+              title: isMobile ? "ผู้ร่วมโปรเจค" : "ผู้ร่วมโปรเจค", 
+              description: !isMobile && "เพิ่มผู้ร่วมสร้างโปรเจค" 
+            },
+            { 
+              title: isMobile ? "อัปโหลดไฟล์" : "อัปโหลดไฟล์", 
+              description: !isMobile && "อัปโหลดไฟล์ที่เกี่ยวข้อง" 
+            },
+            { 
+              title: isMobile ? "ตรวจสอบ" : "ตรวจสอบ", 
+              description: !isMobile && "ตรวจสอบข้อมูลก่อนบันทึก" 
+            },
           ]}
         />
 
-        <Divider />
+        <Divider className="my-2 sm:my-4" />
 
         <Form
           form={form}
@@ -420,14 +465,28 @@ const ProjectForm = ({
             visibility: 1,
             ...(initialValues || {}),
           }}
+          className="w-full"
         >
-          <div className="min-h-80 py-4">{renderStepContent()}</div>
+          <div className="min-h-80 py-2 sm:py-4">{renderStepContent()}</div>
 
-          <div className="flex justify-between mt-8">
-            {currentStep > 0 && <Button onClick={prev}>ย้อนกลับ</Button>}
-            <div className="ml-auto">
+          <div className="flex flex-wrap justify-between mt-4 sm:mt-6 md:mt-8 gap-2">
+            {currentStep > 0 && (
+              <Button 
+                onClick={prev}
+                size={isMobile ? 'small' : 'middle'}
+                className="min-w-[80px]"
+              >
+                ย้อนกลับ
+              </Button>
+            )}
+            <div className={`${currentStep > 0 ? 'ml-auto' : 'w-full flex justify-end'}`}>
               {currentStep < STEPS.REVIEW && (
-                <Button type="primary" onClick={next}>
+                <Button 
+                  type="primary" 
+                  onClick={next}
+                  size={isMobile ? 'small' : 'middle'}
+                  className="min-w-[80px]"
+                >
                   ถัดไป
                 </Button>
               )}
@@ -436,6 +495,8 @@ const ProjectForm = ({
                   type="primary"
                   onClick={handleSubmit}
                   loading={confirmLoading}
+                  size={isMobile ? 'small' : 'middle'}
+                  className="min-w-[120px]"
                 >
                   {isEdit ? "บันทึกการแก้ไข" : "บันทึกโปรเจค"}
                 </Button>

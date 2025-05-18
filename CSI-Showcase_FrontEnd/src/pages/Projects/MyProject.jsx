@@ -73,6 +73,21 @@ const MyProject = () => {
   
   // ใช้ navigate
   const navigate = useNavigate();
+  
+  // ตรวจสอบขนาดหน้าจอ
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isTablet, setIsTablet] = useState(window.innerWidth > 768 && window.innerWidth <= 1024);
+
+  // สร้าง useEffect สำหรับตรวจสอบขนาดหน้าจอ
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      setIsTablet(window.innerWidth > 768 && window.innerWidth <= 1024);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ใช้ useState สำหรับ local filters แทนที่จะใช้จาก useProject โดยตรง
   // เพื่อหลีกเลี่ยงการ update state ซ้อนกัน
@@ -199,21 +214,21 @@ const MyProject = () => {
   // กรณียังไม่ได้เข้าสู่ระบบ
   if (!isAuthenticated && !isAuthLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 bg-gradient-to-b from-[#F5EAFF] to-white">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-4 sm:p-8 bg-gradient-to-b from-[#F5EAFF] to-white">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="bg-white p-8 rounded-xl shadow-lg border border-[rgba(144,39,142,0.1)] backdrop-filter backdrop-blur-sm bg-opacity-80 max-w-md w-full text-center"
+          className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-[rgba(144,39,142,0.1)] backdrop-filter backdrop-blur-sm bg-opacity-80 max-w-md w-full text-center"
         >
           <Empty
             description={
-              <span style={{ color: themeColors.dark, fontSize: '16px' }}>
+              <span style={{ color: themeColors.dark, fontSize: isMobile ? '14px' : '16px' }}>
                 กรุณาเข้าสู่ระบบเพื่อดูผลงานของคุณ
               </span>
             }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            imageStyle={{ height: 80 }}
+            imageStyle={{ height: isMobile ? 60 : 80 }}
           />
           <motion.div 
             whileHover={{ scale: 1.05 }} 
@@ -223,7 +238,7 @@ const MyProject = () => {
             <Button
               type="primary"
               onClick={() => navigate("/login")}
-              className="mt-4 rounded-full shadow-md h-10 px-6"
+              className="mt-4 rounded-full shadow-md h-8 sm:h-10 px-4 sm:px-6 text-sm sm:text-base"
               style={{ 
                 background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`,
                 border: 'none',
@@ -241,7 +256,7 @@ const MyProject = () => {
   // สร้าง components เป็นแบบ pure function เพื่อหลีกเลี่ยงการ re-render
   function StatCards() {
     return (
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]} className="w-full">
         <Col xs={24} sm={12} md={6}>
           <motion.div variants={itemVariants}>
             <Card 
@@ -255,13 +270,13 @@ const MyProject = () => {
             >
               <div className="relative">
                 <Statistic
-                  title={<span style={{ fontSize: '1rem', color: themeColors.dark }}>ผลงานทั้งหมด</span>}
+                  title={<span style={{ fontSize: isMobile ? '0.85rem' : '1rem', color: themeColors.dark }}>ผลงานทั้งหมด</span>}
                   value={myProjects.length}
                   prefix={<AppstoreOutlined style={{ color: themeColors.primary }} />}
-                  valueStyle={{ color: themeColors.primary, fontWeight: 'bold' }}
+                  valueStyle={{ color: themeColors.primary, fontWeight: 'bold', fontSize: isMobile ? '1.5rem' : '2rem' }}
                 />
                 <div 
-                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-32 h-32" 
+                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-24 sm:w-32 h-24 sm:h-32" 
                   style={{ background: `radial-gradient(circle, ${themeColors.primary} 0%, rgba(144,39,142,0) 70%)` }}
                 />
               </div>
@@ -281,13 +296,13 @@ const MyProject = () => {
             >
               <div className="relative">
                 <Statistic
-                  title={<span style={{ fontSize: '1rem', color: themeColors.dark }}>บทความวิชาการ</span>}
+                  title={<span style={{ fontSize: isMobile ? '0.85rem' : '1rem', color: themeColors.dark }}>บทความวิชาการ</span>}
                   value={projectStats.academicProjects.length}
                   prefix={<BookOutlined style={{ color: '#3D7FF7' }} />}
-                  valueStyle={{ color: '#3D7FF7', fontWeight: 'bold' }}
+                  valueStyle={{ color: '#3D7FF7', fontWeight: 'bold', fontSize: isMobile ? '1.5rem' : '2rem' }}
                 />
                 <div 
-                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-32 h-32" 
+                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-24 sm:w-32 h-24 sm:h-32" 
                   style={{ background: 'radial-gradient(circle, #3D7FF7 0%, rgba(61,127,247,0) 70%)' }}
                 />
               </div>
@@ -307,13 +322,13 @@ const MyProject = () => {
             >
               <div className="relative">
                 <Statistic
-                  title={<span style={{ fontSize: '1rem', color: themeColors.dark }}>งานในชั้นเรียน</span>}
+                  title={<span style={{ fontSize: isMobile ? '0.85rem' : '1rem', color: themeColors.dark }}>งานในชั้นเรียน</span>}
                   value={projectStats.courseworkProjects.length}
                   prefix={<AppstoreOutlined style={{ color: '#52C41A' }} />}
-                  valueStyle={{ color: '#52C41A', fontWeight: 'bold' }}
+                  valueStyle={{ color: '#52C41A', fontWeight: 'bold', fontSize: isMobile ? '1.5rem' : '2rem' }}
                 />
                 <div 
-                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-32 h-32" 
+                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-24 sm:w-32 h-24 sm:h-32" 
                   style={{ background: 'radial-gradient(circle, #52C41A 0%, rgba(82,196,26,0) 70%)' }}
                 />
               </div>
@@ -333,13 +348,13 @@ const MyProject = () => {
             >
               <div className="relative">
                 <Statistic
-                  title={<span style={{ fontSize: '1rem', color: themeColors.dark }}>การแข่งขัน</span>}
+                  title={<span style={{ fontSize: isMobile ? '0.85rem' : '1rem', color: themeColors.dark }}>การแข่งขัน</span>}
                   value={projectStats.competitionProjects.length}
                   prefix={<TrophyOutlined style={{ color: '#FAAD14' }} />}
-                  valueStyle={{ color: '#FAAD14', fontWeight: 'bold' }}
+                  valueStyle={{ color: '#FAAD14', fontWeight: 'bold', fontSize: isMobile ? '1.5rem' : '2rem' }}
                 />
                 <div 
-                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-32 h-32" 
+                  className="absolute -bottom-10 -right-10 rounded-full opacity-10 w-24 sm:w-32 h-24 sm:h-32" 
                   style={{ background: 'radial-gradient(circle, #FAAD14 0%, rgba(250,173,20,0) 70%)' }}
                 />
               </div>
@@ -353,7 +368,7 @@ const MyProject = () => {
   // แยกส่วนต่างๆ เป็น Pure Function Components เพื่อหลีกเลี่ยง re-renders
   function BreadcrumbNav() {
     return (
-      <div className="mb-4">
+      <div className="mb-2 sm:mb-4 text-sm sm:text-base">
         <motion.div whileHover={{ scale: 1.02 }} className="inline-block">
           <div
             className="text-gray-500 hover:text-[#90278E] cursor-pointer flex items-center"
@@ -373,26 +388,26 @@ const MyProject = () => {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
         <div className="mb-4 sm:mb-0 text-center sm:text-left">
           <Title
-            level={2}
-            className="flex items-center gap-2 mb-1"
+            level={isMobile ? 3 : 2}
+            className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2 mb-1"
             style={headingGradient}
           >
-            <ProjectOutlined className="mr-2" />
+            <ProjectOutlined className="mr-1 sm:mr-2" />
             ผลงานของฉัน
           </Title>
 
-          <Text type="secondary" className="text-lg">
+          <Text type="secondary" className="text-sm sm:text-base md:text-lg block">
             เรียกดูและจัดการผลงานทั้งหมดของคุณในที่เดียว
           </Text>
         </div>
 
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleAddProject}
-            size="large"
-            className="rounded-full shadow-md"
+            size={isMobile ? "middle" : "large"}
+            className="rounded-full shadow-md w-full sm:w-auto"
             style={{ 
               background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`,
               border: 'none',
@@ -417,7 +432,7 @@ const MyProject = () => {
             border: '1px solid rgba(144, 39, 142, 0.1)',
             boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
           }}
-          className="p-8"
+          className="p-4 sm:p-8"
         >
           <LoadingSpinner tip="กำลังโหลดผลงานของคุณ..." />
         </div>
@@ -434,7 +449,7 @@ const MyProject = () => {
             border: '1px solid rgba(144, 39, 142, 0.1)',
             boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
           }}
-          className="p-8"
+          className="p-4 sm:p-8"
         >
           <ErrorMessage
             title="เกิดข้อผิดพลาด"
@@ -456,26 +471,26 @@ const MyProject = () => {
             border: '1px solid rgba(144, 39, 142, 0.1)',
             boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
           }}
-          className="p-8"
+          className="p-4 sm:p-8"
         >
           <Empty
             description={
-              <span style={{ color: themeColors.dark }}>
+              <span style={{ color: themeColors.dark, fontSize: isMobile ? '14px' : '16px' }}>
                 ยังไม่มีผลงานในประเภทที่คุณเลือก
               </span>
             }
-            className="py-8"
+            className="py-4 sm:py-8"
           />
           <motion.div 
             whileHover={{ scale: 1.05 }} 
             whileTap={{ scale: 0.95 }}
-            className="mt-6 flex justify-center"
+            className="mt-4 sm:mt-6 flex justify-center"
           >
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleAddProject}
-              className="rounded-full shadow-md h-10 px-6"
+              className="rounded-full shadow-md h-8 sm:h-10 px-4 sm:px-6 text-sm sm:text-base"
               style={{ 
                 background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`,
                 border: 'none',
@@ -513,7 +528,7 @@ const MyProject = () => {
             border: '1px solid rgba(144, 39, 142, 0.1)',
             boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
           }}
-          className="p-8 text-center mt-8"
+          className="p-4 sm:p-8 text-center mt-6 sm:mt-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
@@ -521,11 +536,11 @@ const MyProject = () => {
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
-              <div className="space-y-2">
-                <Text strong className="block text-lg" style={{ color: themeColors.dark }}>
+              <div className="space-y-1 sm:space-y-2">
+                <Text strong className="block text-base sm:text-lg" style={{ color: themeColors.dark }}>
                   คุณยังไม่มีผลงานในระบบ
                 </Text>
-                <Text type="secondary">
+                <Text type="secondary" className="text-xs sm:text-sm">
                   เริ่มสร้างผลงานแรกของคุณเพื่อจัดเก็บและแชร์ให้ผู้อื่นได้ชม
                 </Text>
               </div>
@@ -534,13 +549,13 @@ const MyProject = () => {
           <motion.div 
             whileHover={{ scale: 1.05 }} 
             whileTap={{ scale: 0.95 }}
-            className="mt-6"
+            className="mt-4 sm:mt-6"
           >
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleAddProject}
-              className="rounded-full shadow-md h-10 px-6"
+              className="rounded-full shadow-md h-8 sm:h-10 px-4 sm:px-6 text-sm sm:text-base"
               style={{ 
                 background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`,
                 border: 'none',
@@ -556,7 +571,7 @@ const MyProject = () => {
     return null;
   }
 
-  // style ที่ใช้ตั้งแต่แรกไม่เปลี่ยนแปลง
+  // style ที่ใช้ตั้งแต่แรกไม่เปลี่ยนแปลง แต่ปรับขนาดตามอุปกรณ์
   const globalStyle = `
     .ant-statistic-content {
       display: flex;
@@ -565,13 +580,13 @@ const MyProject = () => {
     }
     
     .ant-statistic-content-value {
-      font-size: 2rem !important;
+      font-size: ${isMobile ? '1.5rem' : '2rem'} !important;
       line-height: 1.2;
     }
     
     .ant-statistic-content-prefix {
-      margin-right: 8px;
-      font-size: 1.5rem !important;
+      margin-right: ${isMobile ? '6px' : '8px'};
+      font-size: ${isMobile ? '1.2rem' : '1.5rem'} !important;
     }
     
     .ant-card-hoverable:hover {
@@ -581,7 +596,7 @@ const MyProject = () => {
     }
     
     .ant-empty-image {
-      height: 100px !important;
+      height: ${isMobile ? '80px' : '100px'} !important;
     }
     
     .ant-spin-dot i {
@@ -592,16 +607,27 @@ const MyProject = () => {
       transform: translateY(-2px);
       box-shadow: 0 8px 15px rgba(144, 39, 142, 0.3);
     }
+    
+    @media (max-width: 640px) {
+      .ant-card-body {
+        padding: 16px 12px;
+      }
+      
+      .ant-statistic-title {
+        font-size: 0.85rem !important;
+        margin-bottom: 4px;
+      }
+    }
   `;
 
   return (
-    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8" style={{ 
+    <div className="min-h-screen py-4 sm:py-6 md:py-8 px-3 sm:px-6 lg:px-8" style={{ 
       background: 'linear-gradient(to bottom, rgba(245, 234, 255, 0.5), rgba(255, 255, 255, 1))' 
     }}>
       <div className="max-w-7xl mx-auto">
         {/* หัวข้อ */}
         <motion.div 
-          className="mb-8"
+          className="mb-4 sm:mb-6 md:mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -615,7 +641,7 @@ const MyProject = () => {
 
         {/* สถิติโปรเจค */}
         <motion.div 
-          className="mb-8"
+          className="mb-4 sm:mb-6 md:mb-8"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -625,7 +651,7 @@ const MyProject = () => {
 
         {/* ใช้ ProjectFilter */}
         <motion.div 
-          className="mb-8"
+          className="mb-4 sm:mb-6 md:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -640,7 +666,7 @@ const MyProject = () => {
             onReset={handleReset}
             loading={isLoading}
             showSearch={true}
-            layout="horizontal"
+            layout={isMobile ? "vertical" : "horizontal"}
           />
         </motion.div>
 

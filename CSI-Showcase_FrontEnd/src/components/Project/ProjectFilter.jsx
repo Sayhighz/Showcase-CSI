@@ -82,9 +82,45 @@ const ProjectFilter = ({
   const [searchKeyword, setSearchKeyword] = useState(initialValues.keyword || '');
   const [currentFilters, setCurrentFilters] = useState(initialValues);
   const [isHovered, setIsHovered] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   
   // ใช้ useRef เพื่อเก็บค่า initialValues ล่าสุด และป้องกันการทำงานที่ไม่จำเป็น
   const previousInitialValues = React.useRef(initialValues);
+
+  // ตรวจสอบขนาดหน้าจอและอัปเดต state
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
+
+  // ปรับการแสดงผลตามขนาดหน้าจอ
+  const getResponsiveSize = () => {
+    if (windowWidth < 576) return 'xs';
+    if (windowWidth < 768) return 'sm';
+    if (windowWidth < 992) return 'md';
+    if (windowWidth < 1200) return 'lg';
+    return 'xl';
+  };
+
+  const responsiveSize = getResponsiveSize();
+  const isMobile = responsiveSize === 'xs';
+  const isTablet = responsiveSize === 'sm' || responsiveSize === 'md';
+
+  // ตรวจสอบว่าควรใช้ vertical layout หรือไม่
+  useEffect(() => {
+    if (window.innerWidth < 768 && layout !== 'vertical') {
+      // ถ้าหน้าจอเล็กและไม่ได้กำหนด layout เป็น vertical
+      console.log('Auto switch to vertical layout on small screen');
+    }
+  }, [layout]);
 
   // รีเซ็ตค่าฟอร์มเมื่อ initialValues เปลี่ยนแปลง
   useEffect(() => {
@@ -215,357 +251,402 @@ const ProjectFilter = ({
     }
     
     // จัดการกับ year และ keyword
-    if (values.year) {
-      filters.year = values.year;
-    }
-    
-    filters.keyword = searchKeyword;
-    
-    // อัปเดต state
-    setCurrentFilters(filters);
-    
-    // แจ้ง parent component
-    if (onSearch) {
-      onSearch(filters);
-    }
-  }, [loading, form, currentFilters, searchKeyword, onSearch]);
+    // จัดการกับ year และ keyword
+   if (values.year) {
+    filters.year = values.year;
+  }
+  
+  filters.keyword = searchKeyword;
+  
+  // อัปเดต state
+  setCurrentFilters(filters);
+  
+  // แจ้ง parent component
+  if (onSearch) {
+    onSearch(filters);
+  }
+}, [loading, form, currentFilters, searchKeyword, onSearch]);
 
-  // ฟังก์ชันสำหรับการรีเซ็ตฟิลเตอร์
-  const handleReset = useCallback(() => {
-    if (loading) return;
-    
-    form.resetFields();
-    setSearchKeyword('');
-    
-    const resetFilters = {
-      category: null,
-      type: null,
-      year: null,
-      level: null,
-      studyYear: null,
-      keyword: ''
-    };
-    
-    setCurrentFilters(resetFilters);
-    
-    if (onReset) {
-      onReset();
-    }
-  }, [loading, form, onReset]);
+// ฟังก์ชันสำหรับการรีเซ็ตฟิลเตอร์
+const handleReset = useCallback(() => {
+  if (loading) return;
+  
+  form.resetFields();
+  setSearchKeyword('');
+  
+  const resetFilters = {
+    category: null,
+    type: null,
+    year: null,
+    level: null,
+    studyYear: null,
+    keyword: ''
+  };
+  
+  setCurrentFilters(resetFilters);
+  
+  if (onReset) {
+    onReset();
+  }
+}, [loading, form, onReset]);
 
-  // สร้างรายการตัวเลือกปีโปรเจค
-  const yearOptions = useMemo(() => {
-    if (projectYears.length > 0) {
-      return projectYears.map(year => (
-        <Option key={year} value={year}>{year}</Option>
-      ));
-    } else {
-      return Array.from({ length: 5 }, (_, i) => {
-        const year = new Date().getFullYear() - i;
-        return <Option key={year} value={year}>{year}</Option>;
-      });
-    }
-  }, [projectYears]);
+// สร้างรายการตัวเลือกปีโปรเจค
+const yearOptions = useMemo(() => {
+  if (projectYears.length > 0) {
+    return projectYears.map(year => (
+      <Option key={year} value={year}>{year}</Option>
+    ));
+  } else {
+    return Array.from({ length: 5 }, (_, i) => {
+      const year = new Date().getFullYear() - i;
+      return <Option key={year} value={year}>{year}</Option>;
+    });
+  }
+}, [projectYears]);
 
-  // สร้างรายการตัวเลือกชั้นปีของผู้สร้าง
-  const studyYearOptions = useMemo(() => {
-    if (studyYears.length > 0) {
-      return studyYears.map(year => (
-        <Option key={year} value={year}>ปี {year}</Option>
-      ));
-    } else {
-      return [1, 2, 3, 4].map(year => (
-        <Option key={year} value={year}>ปี {year}</Option>
-      ));
-    }
-  }, [studyYears]);
+// สร้างรายการตัวเลือกชั้นปีของผู้สร้าง
+const studyYearOptions = useMemo(() => {
+  if (studyYears.length > 0) {
+    return studyYears.map(year => (
+      <Option key={year} value={year}>ปี {year}</Option>
+    ));
+  } else {
+    return [1, 2, 3, 4].map(year => (
+      <Option key={year} value={year}>ปี {year}</Option>
+    ));
+  }
+}, [studyYears]);
 
-  // Layout สำหรับฟอร์มที่แตกต่างกัน
-  const formLayout = useMemo(() => {
-    switch (layout) {
-      case 'inline':
-        return {
-          layout: 'inline',
-          labelCol: undefined,
-          wrapperCol: undefined
-        };
-      case 'vertical':
-        return {
-          layout: 'vertical',
-          labelCol: undefined,
-          wrapperCol: undefined
-        };
-      case 'horizontal':
-      default:
-        return {
-          layout: 'horizontal',
-          labelCol: { span: 8 },
-          wrapperCol: { span: 16 }
-        };
-    }
-  }, [layout]);
+// Layout สำหรับฟอร์มที่แตกต่างกัน
+const formLayout = useMemo(() => {
+  // ใช้ vertical layout โดยอัตโนมัติสำหรับหน้าจอขนาดเล็ก
+  const autoLayout = windowWidth < 768 ? 'vertical' : layout;
+  
+  switch (autoLayout) {
+    case 'inline':
+      return {
+        layout: 'inline',
+        labelCol: undefined,
+        wrapperCol: undefined
+      };
+    case 'vertical':
+      return {
+        layout: 'vertical',
+        labelCol: undefined,
+        wrapperCol: undefined
+      };
+    case 'horizontal':
+    default:
+      return {
+        layout: 'horizontal',
+        labelCol: { span: windowWidth < 992 ? 6 : 8 },
+        wrapperCol: { span: windowWidth < 992 ? 18 : 16 }
+      };
+  }
+}, [layout, windowWidth]);
 
-  // Handle toggle expanded
-  const toggleExpanded = useCallback(() => {
-    setExpanded(prev => !prev);
-  }, []);
+// Handle toggle expanded
+const toggleExpanded = useCallback(() => {
+  setExpanded(prev => !prev);
+}, []);
 
-  return (
-    <>
-      <style>{styleOverrides}</style>
-      <motion.div
-        initial="initial"
-        animate={isHovered ? "hover" : "initial"}
-        variants={cardHoverAnimation}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+return (
+  <>
+    <style>{styleOverrides}</style>
+    <motion.div
+      initial="initial"
+      animate={isHovered ? "hover" : "initial"}
+      variants={cardHoverAnimation}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <Card 
+        className="project-filter-card" 
+        bordered={false} 
+        style={{ 
+          boxShadow: '0 4px 12px rgba(144, 39, 142, 0.06)',
+          borderRadius: isMobile ? '8px' : '12px',
+          border: '1px solid rgba(144, 39, 142, 0.1)',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(12px)'
+        }}
+        bodyStyle={{ 
+          padding: isMobile ? '12px' : (isTablet ? '16px' : '20px') 
+        }}
       >
-        <Card 
-          className="project-filter-card" 
-          bordered={false} 
+        <Title 
+          level={isMobile ? 5 : 4} 
           style={{ 
-            boxShadow: '0 4px 12px rgba(144, 39, 142, 0.06)',
-            borderRadius: '12px',
-            border: '1px solid rgba(144, 39, 142, 0.1)',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(12px)'
+            marginBottom: isMobile ? 12 : 16, 
+            display: 'flex', 
+            alignItems: 'center',
+            background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontSize: isMobile ? '16px' : (isTablet ? '18px' : '20px')
           }}
         >
-          <Title 
-            level={4} 
+          <FilterOutlined style={{ 
+            marginRight: isMobile ? 6 : 8, 
+            color: themeColors.primary, 
+            fontSize: isMobile ? '14px' : (isTablet ? '16px' : '18px')
+          }} /> 
+          ตัวกรองโปรเจค
+          <Tooltip title="เลือกตัวกรองเพื่อค้นหาโปรเจคที่ต้องการ">
+            <InfoCircleOutlined style={{ 
+              marginLeft: isMobile ? 6 : 8, 
+              color: themeColors.secondary, 
+              fontSize: isMobile ? '12px' : '16px' 
+            }} />
+          </Tooltip>
+        </Title>
+        
+        {showSearch && (
+          <Input.Search
+            placeholder="ค้นหาโปรเจค"
+            allowClear
+            enterButton={
+              <Button 
+                type="primary" 
+                icon={<SearchOutlined />}
+                style={{ 
+                  backgroundColor: themeColors.primary,
+                  borderColor: themeColors.primary,
+                  boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
+                }}
+              >
+                {!isMobile && "ค้นหา"}
+              </Button>
+            }
+            size={isMobile ? "middle" : "large"}
+            loading={loading}
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            onSearch={() => handleSearch()}
             style={{ 
-              marginBottom: 16, 
-              display: 'flex', 
-              alignItems: 'center',
-              background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              marginBottom: isMobile ? 12 : 16,
+              boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)',
+              borderRadius: isMobile ? '6px' : '8px'
             }}
-          >
-            <FilterOutlined style={{ marginRight: 8, color: themeColors.primary }} /> 
-            ตัวกรองโปรเจค
-            <Tooltip title="เลือกตัวกรองเพื่อค้นหาโปรเจคที่ต้องการ">
-              <InfoCircleOutlined style={{ marginLeft: 8, color: themeColors.secondary, fontSize: 16 }} />
-            </Tooltip>
-          </Title>
+          />
+        )}
+        
+        <Form
+          form={form}
+          {...formLayout}
+          onValuesChange={handleFilterChange}
+          className="project-filter-form"
+        >
+          <Row gutter={[isMobile ? 8 : (isTablet ? 12 : 16), isMobile ? 8 : (isTablet ? 12 : 16)]}>
+            <Col xs={24} sm={expanded ? 12 : 24} md={expanded ? 8 : 12} lg={expanded ? 6 : 8}>
+              <Form.Item
+                name="type"
+                label={
+                  <span style={{ 
+                    color: themeColors.dark, 
+                    fontWeight: 500,
+                    fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
+                  }}>
+                    ประเภทโปรเจค
+                  </span>
+                }
+                labelCol={formLayout.layout === 'horizontal' ? { span: formLayout.labelCol.span } : undefined}
+                wrapperCol={formLayout.layout === 'horizontal' ? { span: formLayout.wrapperCol.span } : undefined}
+              >
+                <Select
+                  placeholder="เลือกประเภทโปรเจค"
+                  allowClear
+                  loading={loading}
+                  showSearch
+                  optionFilterProp="children"
+                  className="custom-select"
+                  disabled={loading}
+                  dropdownStyle={{ boxShadow: '0 3px 6px rgba(144, 39, 142, 0.15)' }}
+                  style={{ borderColor: 'rgba(144, 39, 142, 0.2)' }}
+                  size={isMobile ? "middle" : "large"}
+                >
+                  {projectTypes.map(type => (
+                    <Option key={type.value} value={type.value}>
+                      {type.emoji} {type.label}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            
+            <Col xs={24} sm={expanded ? 12 : 24} md={expanded ? 8 : 12} lg={expanded ? 6 : 8}>
+              <Form.Item
+                name="year"
+                label={
+                  <span style={{ 
+                    color: themeColors.dark, 
+                    fontWeight: 500,
+                    fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
+                  }}>
+                    ปีของโปรเจค
+                  </span>
+                }
+                labelCol={formLayout.layout === 'horizontal' ? { span: formLayout.labelCol.span } : undefined}
+                wrapperCol={formLayout.layout === 'horizontal' ? { span: formLayout.wrapperCol.span } : undefined}
+              >
+                <Select
+                  placeholder="เลือกปีของโปรเจค"
+                  allowClear
+                  loading={loading}
+                  showSearch
+                  optionFilterProp="children"
+                  className="custom-select"
+                  disabled={loading}
+                  dropdownStyle={{ boxShadow: '0 3px 6px rgba(144, 39, 142, 0.15)' }}
+                  style={{ borderColor: 'rgba(144, 39, 142, 0.2)' }}
+                  size={isMobile ? "middle" : "large"}
+                >
+                  {yearOptions}
+                </Select>
+              </Form.Item>
+            </Col>
+            
+            <AnimatePresence>
+              {expanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ width: '100%' }}
+                >
+                  <Col xs={24} sm={12} md={8} lg={6}>
+                    <Form.Item
+                      name="studyYear"
+                      label={
+                        <span style={{ 
+                          color: themeColors.dark, 
+                          fontWeight: 500,
+                          fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
+                        }}>
+                          ชั้นปีของผู้สร้าง
+                        </span>
+                      }
+                      labelCol={formLayout.layout === 'horizontal' ? { span: formLayout.labelCol.span } : undefined}
+                      wrapperCol={formLayout.layout === 'horizontal' ? { span: formLayout.wrapperCol.span } : undefined}
+                    >
+                      <Select
+                        placeholder="เลือกชั้นปีของผู้สร้าง"
+                        allowClear
+                        loading={loading}
+                        className="custom-select"
+                        disabled={loading}
+                        dropdownStyle={{ boxShadow: '0 3px 6px rgba(144, 39, 142, 0.15)' }}
+                        style={{ borderColor: 'rgba(144, 39, 142, 0.2)' }}
+                        size={isMobile ? "middle" : "large"}
+                      >
+                        {studyYearOptions}
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Row>
           
-          {showSearch && (
-            <Input.Search
-              placeholder="ค้นหาโปรเจค"
-              allowClear
-              enterButton={
-                <Button 
-                  type="primary" 
-                  icon={<SearchOutlined />}
-                  style={{ 
+          <div style={{ 
+            marginTop: isMobile ? 12 : 16, 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            borderTop: '1px solid rgba(144, 39, 142, 0.1)',
+            paddingTop: isMobile ? 12 : 16,
+            flexWrap: isMobile ? 'wrap' : 'nowrap',
+            gap: isMobile ? '8px' : '0'
+          }}>
+            <motion.button
+              type="button"
+              onClick={toggleExpanded}
+              style={{ 
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                color: themeColors.primary,
+                fontSize: isMobile ? '12px' : '14px',
+                padding: 0,
+                order: isMobile ? 3 : 1,
+                width: isMobile ? '100%' : 'auto',
+                justifyContent: isMobile ? 'center' : 'flex-start',
+                marginTop: isMobile ? '8px' : 0
+              }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              {expanded ? (
+                <>
+                  <UpOutlined style={{ marginRight: 8, fontSize: isMobile ? 10 : 12 }} />
+                  ซ่อนตัวกรองเพิ่มเติม
+                </>
+              ) : (
+                <>
+                  <DownOutlined style={{ marginRight: 8, fontSize: isMobile ? 10 : 12 }} />
+                  แสดงตัวกรองเพิ่มเติม
+                </>
+              )}
+            </motion.button>
+            
+            <Space size={isMobile ? 'small' : 'middle'} style={{
+              order: isMobile ? 2 : 2,
+              width: isMobile ? '100%' : 'auto',
+              justifyContent: isMobile ? 'space-between' : 'flex-end'
+            }}>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={handleReset}
+                  disabled={loading}
+                  style={{
+                    borderColor: themeColors.primary,
+                    color: themeColors.primary,
+                    borderRadius: isMobile ? '6px' : '8px',
+                    fontSize: isMobile ? '12px' : 'inherit'
+                  }}
+                  size={isMobile ? "middle" : "large"}
+                >
+                  รีเซ็ต
+                </Button>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  type="primary"
+                  icon={<FilterOutlined />}
+                  onClick={handleSearch}
+                  loading={loading}
+                  style={{
                     backgroundColor: themeColors.primary,
                     borderColor: themeColors.primary,
-                    boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
+                    boxShadow: '0 2px 6px rgba(144, 39, 142, 0.2)',
+                    borderRadius: isMobile ? '6px' : '8px',
+                    fontSize: isMobile ? '12px' : 'inherit'
                   }}
+                  size={isMobile ? "middle" : "large"}
                 >
-                  ค้นหา
+                  กรอง
                 </Button>
-              }
-              size="large"
-              loading={loading}
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              onSearch={() => handleSearch()}
-              style={{ 
-                marginBottom: 16,
-                boxShadow: '0 2px 6px rgba(144, 39, 142, 0.1)',
-                borderRadius: '8px'
-              }}
-            />
-          )}
-          
-          <Form
-            form={form}
-            {...formLayout}
-            onValuesChange={handleFilterChange}
-            className="project-filter-form"
-          >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} sm={expanded ? 12 : 24} md={expanded ? 8 : 12} lg={expanded ? 6 : 8}>
-                <Form.Item
-                  name="type"
-                  label={
-                    <span style={{ color: themeColors.dark, fontWeight: 500 }}>
-                      ประเภทโปรเจค
-                    </span>
-                  }
-                  labelCol={layout === 'horizontal' ? { span: 8 } : undefined}
-                  wrapperCol={layout === 'horizontal' ? { span: 16 } : undefined}
-                >
-                  <Select
-                    placeholder="เลือกประเภทโปรเจค"
-                    allowClear
-                    loading={loading}
-                    showSearch
-                    optionFilterProp="children"
-                    className="custom-select"
-                    disabled={loading}
-                    dropdownStyle={{ boxShadow: '0 3px 6px rgba(144, 39, 142, 0.15)' }}
-                    style={{ borderColor: 'rgba(144, 39, 142, 0.2)' }}
-                  >
-                    {projectTypes.map(type => (
-                      <Option key={type.value} value={type.value}>
-                        {type.emoji} {type.label}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              
-              <Col xs={24} sm={expanded ? 12 : 24} md={expanded ? 8 : 12} lg={expanded ? 6 : 8}>
-                <Form.Item
-                  name="year"
-                  label={
-                    <span style={{ color: themeColors.dark, fontWeight: 500 }}>
-                      ปีของโปรเจค
-                    </span>
-                  }
-                  labelCol={layout === 'horizontal' ? { span: 8 } : undefined}
-                  wrapperCol={layout === 'horizontal' ? { span: 16 } : undefined}
-                >
-                  <Select
-                    placeholder="เลือกปีของโปรเจค"
-                    allowClear
-                    loading={loading}
-                    showSearch
-                    optionFilterProp="children"
-                    className="custom-select"
-                    disabled={loading}
-                    dropdownStyle={{ boxShadow: '0 3px 6px rgba(144, 39, 142, 0.15)' }}
-                    style={{ borderColor: 'rgba(144, 39, 142, 0.2)' }}
-                  >
-                    {yearOptions}
-                  </Select>
-                </Form.Item>
-              </Col>
-              
-              <AnimatePresence>
-                {expanded && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    style={{ width: '100%' }}
-                  >
-                    <Col xs={24} sm={12} md={8} lg={6}>
-                      <Form.Item
-                        name="studyYear"
-                        label={
-                          <span style={{ color: themeColors.dark, fontWeight: 500 }}>
-                            ชั้นปีของผู้สร้าง
-                          </span>
-                        }
-                        labelCol={layout === 'horizontal' ? { span: 8 } : undefined}
-                        wrapperCol={layout === 'horizontal' ? { span: 16 } : undefined}
-                      >
-                        <Select
-                          placeholder="เลือกชั้นปีของผู้สร้าง"
-                          allowClear
-                          loading={loading}
-                          className="custom-select"
-                          disabled={loading}
-                          dropdownStyle={{ boxShadow: '0 3px 6px rgba(144, 39, 142, 0.15)' }}
-                          style={{ borderColor: 'rgba(144, 39, 142, 0.2)' }}
-                        >
-                          {studyYearOptions}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Row>
-            
-            <div style={{ 
-              marginTop: 16, 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              borderTop: '1px solid rgba(144, 39, 142, 0.1)',
-              paddingTop: 16
-            }}>
-              <motion.button
-                type="button"
-                onClick={toggleExpanded}
-                style={{ 
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: themeColors.primary,
-                  fontSize: '14px',
-                  padding: 0
-                }}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                {expanded ? (
-                  <>
-                    <UpOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                    ซ่อนตัวกรองเพิ่มเติม
-                  </>
-                ) : (
-                  <>
-                    <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                    แสดงตัวกรองเพิ่มเติม
-                  </>
-                )}
-              </motion.button>
-              
-              <Space>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    icon={<ReloadOutlined />}
-                    onClick={handleReset}
-                    disabled={loading}
-                    style={{
-                      borderColor: themeColors.primary,
-                      color: themeColors.primary,
-                      borderRadius: '8px'
-                    }}
-                  >
-                    รีเซ็ต
-                  </Button>
-                </motion.div>
-                
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    type="primary"
-                    icon={<FilterOutlined />}
-                    onClick={handleSearch}
-                    loading={loading}
-                    style={{
-                      backgroundColor: themeColors.primary,
-                      borderColor: themeColors.primary,
-                      boxShadow: '0 2px 6px rgba(144, 39, 142, 0.2)',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    กรอง
-                  </Button>
-                </motion.div>
-              </Space>
-            </div>
+              </motion.div>
+            </Space>
+          </div>
 
-            {/* Hidden form fields to maintain state compatibility with both naming conventions */}
-            <Form.Item name="category" hidden={true}>
-              <Input />
-            </Form.Item>
-            <Form.Item name="level" hidden={true}>
-              <Input />
-            </Form.Item>
-          </Form>
-        </Card>
-      </motion.div>
-    </>
-  );
+          {/* Hidden form fields to maintain state compatibility with both naming conventions */}
+          <Form.Item name="category" hidden={true}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="level" hidden={true}>
+            <Input />
+          </Form.Item>
+        </Form>
+      </Card>
+    </motion.div>
+  </>
+);
 };
 
 export default React.memo(ProjectFilter);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Spin, Space, Typography } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
 
@@ -20,21 +20,60 @@ const LoadingSpinner = ({
   fullPage = false,
   style
 }) => {
-  // กำหนดขนาดของไอคอนตาม size ที่ระบุ
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // ตรวจสอบขนาดหน้าจอและอัปเดต state
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
+
+  // ปรับขนาดตาม responsive
+  const getResponsiveSize = () => {
+    if (windowWidth < 576) return 'xs';
+    if (windowWidth < 768) return 'sm';
+    if (windowWidth < 992) return 'md';
+    if (windowWidth < 1200) return 'lg';
+    return 'xl';
+  };
+
+  const responsiveSize = getResponsiveSize();
+
+  // กำหนดขนาดของไอคอนตาม size ที่ระบุและขนาดหน้าจอ
   const getIconSize = () => {
+    // ปรับตาม responsive
+    const responsiveFactor = responsiveSize === 'xs' ? 0.7 : 
+                            (responsiveSize === 'sm' ? 0.8 : 
+                            (responsiveSize === 'md' ? 0.9 : 1));
+    
+    // ปรับตาม size ที่กำหนด
     switch (size) {
       case 'small':
-        return 24;
+        return 24 * responsiveFactor;
       case 'large':
-        return 48;
+        return 48 * responsiveFactor;
       case 'default':
       default:
-        return 32;
+        return 32 * responsiveFactor;
     }
   };
 
   // สร้างไอคอนการโหลดด้วยขนาดที่กำหนด
   const loadingIcon = <LoadingOutlined style={{ fontSize: getIconSize() }} spin />;
+
+  // ปรับขนาดฟ้อนต์ตาม responsive
+  const getFontSize = () => {
+    return responsiveSize === 'xs' ? '12px' : 
+           (responsiveSize === 'sm' ? '13px' : '14px');
+  };
 
   // แสดงแบบเต็มหน้าจอ
   if (fullPage) {
@@ -56,7 +95,10 @@ const LoadingSpinner = ({
       >
         <Space direction="vertical" align="center">
           <Spin indicator={loadingIcon} />
-          {tip && <Text style={{ marginTop: 16 }}>{tip}</Text>}
+          {tip && <Text style={{ 
+            marginTop: responsiveSize === 'xs' ? 8 : 16, 
+            fontSize: getFontSize() 
+          }}>{tip}</Text>}
         </Space>
       </div>
     );
@@ -69,13 +111,16 @@ const LoadingSpinner = ({
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: responsiveSize === 'xs' ? 12 : (responsiveSize === 'sm' ? 16 : 24),
         ...style
       }}
     >
       <Space direction="vertical" align="center">
         <Spin indicator={loadingIcon} />
-        {tip && <Text style={{ marginTop: 8 }}>{tip}</Text>}
+        {tip && <Text style={{ 
+          marginTop: responsiveSize === 'xs' ? 4 : 8, 
+          fontSize: getFontSize() 
+        }}>{tip}</Text>}
       </Space>
     </div>
   );

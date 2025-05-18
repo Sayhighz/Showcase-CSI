@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Alert, Breadcrumb, Spin, Modal } from 'antd';
+import { Card, Typography, Alert, Breadcrumb, Spin, Modal, Button } from 'antd';
 import useAuth from '../../hooks/useAuth';
 import useProject from '../../hooks/useProject';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import ProjectForm from '../../components/ManageProject/ProjectForm';
 import { PROJECT } from '../../constants/routes';
-import { ExclamationCircleOutlined, HomeOutlined, ProjectOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, HomeOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useMediaQuery } from 'react-responsive';
 
 const { Title, Paragraph } = Typography;
 const { confirm } = Modal;
@@ -21,6 +22,10 @@ const EditProject = () => {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [initialValues, setInitialValues] = useState(null);
+
+  // ตรวจสอบขนาดหน้าจอ
+  const isMobile = useMediaQuery({ maxWidth: 767 });
+  const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 991 });
 
   // ตรวจสอบว่ามีผู้ใช้งานหรือไม่
   useEffect(() => {
@@ -110,39 +115,38 @@ const EditProject = () => {
   }, [project, user, projectId, navigate]);
 
   // จัดการการส่งฟอร์ม
-  // จัดการการส่งฟอร์ม
-const handleSubmit = async (formData) => {
-  try {
-    setError(null);
-    
-    if (!projectId) {
-      throw new Error('ไม่พบข้อมูล ID ของโปรเจค');
+  const handleSubmit = async (formData) => {
+    try {
+      setError(null);
+      
+      if (!projectId) {
+        throw new Error('ไม่พบข้อมูล ID ของโปรเจค');
+      }
+      
+      // ตรวจสอบและจัดการข้อมูลไฟล์
+      const { data, files } = formData;
+      
+      // ตรวจสอบความถูกต้องของข้อมูล
+      if (!data || !data.title) {
+        throw new Error('กรุณากรอกชื่อโปรเจค');
+      }
+      
+      // แสดงข้อมูลที่จะส่ง
+      console.log('Project data to update:', data);
+      console.log('Files to update:', files);
+      
+      // เรียกใช้ API อัปเดตโปรเจค
+      const response = await updateProject(projectId, data, files);
+      
+      if (response) {
+        // นำทางไปยังหน้ารายละเอียดโปรเจค
+        navigate(PROJECT.VIEW(projectId));
+      }
+    } catch (err) {
+      console.error('เกิดข้อผิดพลาดในการแก้ไขโปรเจค:', err);
+      setError(err.message || 'เกิดข้อผิดพลาดในการแก้ไขโปรเจค');
     }
-    
-    // ตรวจสอบและจัดการข้อมูลไฟล์
-    const { data, files } = formData;
-    
-    // ตรวจสอบความถูกต้องของข้อมูล
-    if (!data || !data.title) {
-      throw new Error('กรุณากรอกชื่อโปรเจค');
-    }
-    
-    // แสดงข้อมูลที่จะส่ง
-    console.log('Project data to update:', data);
-    console.log('Files to update:', files);
-    
-    // เรียกใช้ API อัปเดตโปรเจค
-    const response = await updateProject(projectId, data, files);
-    
-    if (response) {
-      // นำทางไปยังหน้ารายละเอียดโปรเจค
-      navigate(PROJECT.VIEW(projectId));
-    }
-  } catch (err) {
-    console.error('เกิดข้อผิดพลาดในการแก้ไขโปรเจค:', err);
-    setError(err.message || 'เกิดข้อผิดพลาดในการแก้ไขโปรเจค');
-  }
-};
+  };
 
   // แสดงกล่องยืนยันการลบโปรเจค
   const showDeleteConfirm = () => {
@@ -153,9 +157,13 @@ const handleSubmit = async (formData) => {
       okText: 'ใช่ ลบโปรเจค',
       okType: 'danger',
       cancelText: 'ยกเลิก',
+      okButtonProps: { size: isMobile ? 'small' : 'middle' },
+      cancelButtonProps: { size: isMobile ? 'small' : 'middle' },
       onOk() {
         handleDeleteProject();
       },
+      className: isMobile ? 'delete-confirm-modal-mobile' : '',
+      width: isMobile ? 300 : 416,
     });
   };
 
@@ -177,60 +185,64 @@ const handleSubmit = async (formData) => {
   if (isLoading || !project) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spin tip="กำลังโหลดข้อมูลโปรเจค..." size="large" />
+        <Spin tip={<span className={isMobile ? "text-sm" : ""}>กำลังโหลดข้อมูลโปรเจค...</span>} size={isMobile ? "small" : "large"} />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <Breadcrumb className="mb-4">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <Breadcrumb className="mb-2 sm:mb-4 text-xs sm:text-sm overflow-x-auto whitespace-nowrap">
         <Breadcrumb.Item>
           <Link to="/">
-            <HomeOutlined /> หน้าหลัก
+            <HomeOutlined className="mr-1" /> <span className={isMobile ? "hidden sm:inline" : ""}>หน้าหลัก</span>
           </Link>
         </Breadcrumb.Item>
         <Breadcrumb.Item>
           <Link to={PROJECT.MY_PROJECTS}>
-            <ProjectOutlined /> โปรเจคของฉัน
+            <ProjectOutlined className="mr-1" /> <span className={isMobile ? "hidden sm:inline" : ""}>โปรเจคของฉัน</span>
           </Link>
         </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <Link to={PROJECT.VIEW(projectId)}>
-            {project.title}
+        <Breadcrumb.Item className="truncate max-w-[120px] sm:max-w-[200px] md:max-w-none">
+          <Link to={PROJECT.VIEW(projectId)} className="truncate">
+            {project.title.length > 30 && isMobile ? project.title.substring(0, 30) + '...' : project.title}
           </Link>
         </Breadcrumb.Item>
         <Breadcrumb.Item>แก้ไขโปรเจค</Breadcrumb.Item>
       </Breadcrumb>
 
-      <div className="flex justify-between items-center mb-6">
-        <Title level={2}>แก้ไขโปรเจค</Title>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 sm:mb-6 gap-2 sm:gap-0">
+        <Title level={isMobile ? 3 : 2} className="mb-1 sm:mb-0">แก้ไขโปรเจค</Title>
         <div>
-          <button
+          <Button
+            type="primary"
+            danger
+            icon={<DeleteOutlined />}
             onClick={showDeleteConfirm}
-            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition duration-200"
+            size={isMobile ? "small" : "middle"}
+            className="w-full sm:w-auto"
           >
             ลบโปรเจค
-          </button>
+          </Button>
         </div>
       </div>
 
-      <Paragraph className="mb-6">
+      <Paragraph className="mb-3 sm:mb-6 text-xs sm:text-sm">
         แก้ไขข้อมูลและไฟล์ของโปรเจค "{project.title}" การแก้ไขจะถูกบันทึกและอาจต้องได้รับการอนุมัติก่อนแสดงผลสู่สาธารณะ
       </Paragraph>
 
       {error && (
         <Alert
-          message="เกิดข้อผิดพลาด"
-          description={error}
+          message={<span className={isMobile ? "text-sm" : ""}>เกิดข้อผิดพลาด</span>}
+          description={<span className={isMobile ? "text-xs" : "text-sm"}>{error}</span>}
           type="error"
           showIcon
-          className="mb-6"
+          className="mb-3 sm:mb-6"
           closable
         />
       )}
 
-      <Card className="mb-6">
+      <Card className="mb-4 sm:mb-6" size={isMobile ? "small" : "default"} bodyStyle={{ padding: isMobile ? '12px' : '24px' }}>
         {initialValues && (
           <ProjectForm 
             isEdit={true}
@@ -240,6 +252,26 @@ const handleSubmit = async (formData) => {
           />
         )}
       </Card>
+
+      {/* Custom styles for modals */}
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          .delete-confirm-modal-mobile .ant-modal-body {
+            padding: 12px;
+            font-size: 14px;
+          }
+          .delete-confirm-modal-mobile .ant-modal-confirm-title {
+            font-size: 16px;
+          }
+          .delete-confirm-modal-mobile .ant-modal-confirm-content {
+            font-size: 12px;
+            margin-top: 8px;
+          }
+          .delete-confirm-modal-mobile .ant-modal-confirm-btns {
+            margin-top: 16px;
+          }
+        }
+      `}</style>
     </div>
   );
 };

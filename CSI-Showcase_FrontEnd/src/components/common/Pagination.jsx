@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pagination as AntPagination, Select, Space, Typography } from 'antd';
 
 const { Text } = Typography;
@@ -38,8 +38,31 @@ const Pagination = ({
   pageSizeOptions = ['10', '20', '50', '100'],
   style
 }) => {
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // ตรวจสอบขนาดหน้าจอและอัปเดต state
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
+
+  // ปรับการแสดงผลตามขนาดหน้าจอ
+  const isMobile = windowWidth < 576;
+  const isTablet = windowWidth >= 576 && windowWidth < 992;
+
   // ฟังก์ชันสำหรับแสดงจำนวนรายการทั้งหมด
   const showTotalFunc = (total, range) => {
+    if (isMobile) {
+      return `${range[0]}-${range[1]} / ${total}`;
+    }
     return `${range[0]}-${range[1]} จาก ${total} รายการ`;
   };
 
@@ -75,7 +98,7 @@ const Pagination = ({
   return (
     <div style={{ 
       display: 'flex', 
-      margin: '16px 0',
+      margin: isMobile ? '12px 0' : '16px 0',
       ...getPositionStyle(),
       ...style 
     }}>
@@ -85,13 +108,16 @@ const Pagination = ({
         pageSize={pageSize}
         onChange={handleChange}
         onShowSizeChange={handlePageSizeChange}
-        showSizeChanger={showSizeChanger}
-        showQuickJumper={showQuickJumper}
+        showSizeChanger={!isMobile && showSizeChanger}
+        showQuickJumper={!isMobile && showQuickJumper}
         showTotal={showTotal ? showTotalFunc : undefined}
-        simple={simple}
+        simple={isMobile || simple}
         disabled={disabled}
         pageSizeOptions={pageSizeOptions}
-        size={simple ? 'small' : 'default'}
+        size={isMobile || isTablet ? 'small' : 'default'}
+        style={{
+          fontSize: isMobile ? '12px' : (isTablet ? '13px' : '14px')
+        }}
       />
     </div>
   );

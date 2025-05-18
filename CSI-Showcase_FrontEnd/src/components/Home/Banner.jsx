@@ -43,8 +43,18 @@ const Banner = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   // State สำหรับขนาดของ container
   const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
+  // State สำหรับตรวจสอบว่าเป็นอุปกรณ์มือถือหรือไม่
+  const [isMobile, setIsMobile] = useState(false);
   
   useEffect(() => {
+    // ตรวจสอบว่าเป็นอุปกรณ์มือถือหรือไม่
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
     // กำหนดค่าเริ่มต้นของอนิเมชันข้อความเมื่อโหลด
     textControls.start({ y: 0, opacity: 1 });
     
@@ -69,7 +79,10 @@ const Banner = () => {
     handleScroll();
     
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', checkMobile);
+    };
   }, [textControls]);
   
   // ตั้งค่าการติดตามเมาส์
@@ -84,7 +97,7 @@ const Banner = () => {
     
     // ฟังก์ชันจัดการการเคลื่อนไหวของเมาส์
     const handleMouseMove = (e) => {
-      if (containerRef.current) {
+      if (containerRef.current && !isMobile) {
         const rect = containerRef.current.getBoundingClientRect();
         // คำนวณตำแหน่งเมาส์เทียบกับกึ่งกลาง container
         const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2; // ช่วง: -1 ถึง 1
@@ -104,7 +117,9 @@ const Banner = () => {
     };
     
     // เพิ่ม event listeners
-    window.addEventListener('mousemove', handleMouseMove);
+    if (!isMobile) {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
     window.addEventListener('resize', handleResize);
     
     // ตั้งค่าเริ่มต้น
@@ -115,10 +130,12 @@ const Banner = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [isMobile]);
   
   // คำนวณ 3D transform ตามตำแหน่งเมาส์
   const calculateTransform = (depth = 50) => {
+    if (isMobile) return { translateX: 0, translateY: 0 };
+    
     const maxMovement = 30; // การเคลื่อนไหวสูงสุดในหน่วยพิกเซล
     const moveFactor = maxMovement * (depth / 100); // ปรับขนาดการเคลื่อนไหวตามความลึก
     const translateX = -mousePosition.x * moveFactor;
@@ -126,12 +143,26 @@ const Banner = () => {
     return { translateX, translateY };
   };
 
+  // คำนวณความกว้างของ SearchBar container ตามขนาดหน้าจอ
+  const getSearchContainerWidth = () => {
+    // บนมือถือ
+    if (window.innerWidth <= 640) return '95%';
+    // บนแท็บเล็ต
+    if (window.innerWidth <= 1024) return '90%';
+    // บนเดสก์ท็อปขนาดกลาง
+    if (window.innerWidth <= 1440) return '75%';
+    // บนเดสก์ท็อปขนาดใหญ่
+    if (window.innerWidth > 1440) return '100%';
+    
+    return '90%'; // ค่าเริ่มต้น
+  };
+
   return (
     <div 
       ref={containerRef}
       className="w-full h-screen flex flex-col items-center justify-center text-center text-white relative overflow-hidden"
       style={{ 
-        perspective: '1000px', // เพิ่ม perspective สำหรับเอฟเฟกต์ 3D
+        perspective: isMobile ? 'none' : '1000px', // เพิ่ม perspective สำหรับเอฟเฟกต์ 3D เฉพาะบนเดสก์ท็อป
         background: `linear-gradient(to bottom, #90278E, #B252B0, #5E1A5C)` // ใช้ #90278E เป็นสีหลัก
       }}
     >
@@ -140,7 +171,7 @@ const Banner = () => {
         className="absolute inset-0 pointer-events-none opacity-20"
         style={{ 
           backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '30px 30px',
+          backgroundSize: isMobile ? '20px 20px' : '30px 30px',
         }}
       />
       
@@ -169,7 +200,7 @@ const Banner = () => {
       <motion.img 
         src={RocketIcon} 
         alt="Rocket" 
-        className="absolute top-1/4 left-40 w-48 md:w-64 opacity-90 z-10"
+        className="absolute top-1/4 left-10 md:left-40 w-24 sm:w-32 md:w-48 lg:w-64 opacity-90 z-10"
         initial={{ y: 0, rotate: 0, filter: "drop-shadow(0 0 8px rgba(144,39,142,0.3))" }}
         animate={{ 
           y: [-20, 20, -20], 
@@ -191,7 +222,7 @@ const Banner = () => {
       <motion.img 
         src={StarsIcon} 
         alt="Earth" 
-        className="absolute bottom-1/4 right-40 w-48 md:w-64 opacity-90 z-10"
+        className="absolute bottom-1/4 right-10 md:right-40 w-24 sm:w-32 md:w-48 lg:w-64 opacity-90 z-10"
         initial={{ rotate: 0, filter: "drop-shadow(0 0 8px rgba(144,39,142,0.5))" }}
         animate={{ 
           rotate: 360,
@@ -209,7 +240,7 @@ const Banner = () => {
       
       {/* Star Points with 3D Effect - ใช้แสงสีขาวอมม่วง */}
       <div className="absolute inset-0 pointer-events-none" style={{ transformStyle: 'preserve-3d' }}>
-        {stars.map(star => {
+        {stars.slice(0, isMobile ? 30 : 100).map(star => {
           const { translateX, translateY } = calculateTransform(star.depth);
           return (
             <motion.div 
@@ -218,10 +249,10 @@ const Banner = () => {
               style={{ 
                 top: star.top, 
                 left: star.left, 
-                width: star.size, 
-                height: star.size, 
+                width: isMobile ? `${parseInt(star.size) * 0.8}px` : star.size, 
+                height: isMobile ? `${parseInt(star.size) * 0.8}px` : star.size, 
                 opacity: star.opacity,
-                boxShadow: `0 0 ${parseInt(star.size) * 2}px rgba(255, 230, 255, ${star.opacity})`,
+                boxShadow: `0 0 ${parseInt(star.size) * (isMobile ? 1 : 2)}px rgba(255, 230, 255, ${star.opacity})`,
                 zIndex: Math.floor(star.depth / 10),
               }}
               initial={{ opacity: star.opacity * 0.7, scale: 1 }}
@@ -242,9 +273,9 @@ const Banner = () => {
         })}
       </div>
 
-      {/* Enhanced Comets with 3D Effect - สีม่วงอมชมพู */}
+      {/* Enhanced Comets with 3D Effect - สีม่วงอมชมพู - ลดจำนวนบนมือถือ */}
       <div className="absolute inset-0 pointer-events-none" style={{ transformStyle: 'preserve-3d' }}>
-        {comets.map(comet => {
+        {comets.slice(0, isMobile ? 2 : 5).map(comet => {
           const { translateX: mouseX, translateY: mouseY } = calculateTransform(comet.depth);
           return (
             <motion.div
@@ -253,8 +284,8 @@ const Banner = () => {
               style={{
                 top: comet.top,
                 left: comet.left,
-                width: comet.size,
-                height: comet.size,
+                width: isMobile ? `${parseInt(comet.size) * 0.8}px` : comet.size,
+                height: isMobile ? `${parseInt(comet.size) * 0.8}px` : comet.size,
                 opacity: comet.opacity,
                 background: 'linear-gradient(45deg, rgba(255,255,255,1), rgba(255,200,255,0.8))',
                 boxShadow: '0 0 20px 5px rgba(255, 200, 255, 0.8)',
@@ -294,7 +325,7 @@ const Banner = () => {
 
       {/* Main Text with Depth Effect - เนื้อหาเดิมแต่ปรับสไตล์และใช้สี #90278E */}
       <motion.div 
-        className="z-20 flex flex-col items-center py-8 px-12 rounded-xl" 
+        className="z-20 flex flex-col items-center py-4 sm:py-6 md:py-8 px-4 sm:px-8 md:px-12 rounded-xl" 
         initial={{ opacity: 1, y: 0 }}
         animate={{
           ...textControls,
@@ -309,7 +340,7 @@ const Banner = () => {
         }}
         style={{ transformStyle: 'preserve-3d' }}
       >
-        <Space direction="vertical" size="large" className="text-center">
+        <Space direction="vertical" size="large" className="text-center w-full">
           <motion.div
             initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
@@ -318,7 +349,7 @@ const Banner = () => {
             <Title level={1} style={{ 
               color: 'white', 
               marginBottom: 0, 
-              fontSize: '3.5rem', 
+              fontSize: isMobile ? '2rem' : '3.5rem', 
               textShadow: '0 0 20px rgba(144,39,142,0.5)',
               transform: `perspective(1000px) translateZ(10px)`, // เพิ่มความลึกเล็กน้อย
               fontWeight: 'bold',
@@ -328,7 +359,7 @@ const Banner = () => {
             <Title level={1} style={{ 
               color: 'white', 
               marginTop: 0, 
-              fontSize: '3.5rem', 
+              fontSize: isMobile ? '2rem' : '3.5rem', 
               textShadow: '0 0 20px rgba(144,39,142,0.5)',
               transform: `perspective(1000px) translateZ(5px)`, // เพิ่มความลึกเล็กน้อย
               fontWeight: 'bold',
@@ -344,7 +375,7 @@ const Banner = () => {
           >
             <Text style={{ 
               color: '#FFE6FF', 
-              fontSize: '1.5rem', 
+              fontSize: isMobile ? '1.1rem' : '1.5rem', 
               display: 'block', 
               marginBottom: '1.5rem',
               textShadow: '0 0 15px rgba(255,230,255,0.3)',
@@ -353,31 +384,17 @@ const Banner = () => {
             </Text>
           </motion.div>
           
-          <motion.div 
-            initial={{ opacity: 1, scale: 1 }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1,
-              translateX: calculateTransform(90).translateX * 0.2, // ละเอียดอ่อนมากสำหรับช่องค้นหา
-              translateY: calculateTransform(90).translateY * 0.2,
-            }}
-            transition={{ 
-              duration: 0.5,
-              translateX: { duration: 0.1, ease: "easeOut" },
-              translateY: { duration: 0.1, ease: "easeOut" }
-            }}
-            className="w-full"
-            style={{ transformStyle: 'preserve-3d', transform: `perspective(1000px) translateZ(20px)` }}
-          >
+          {/* ปรับ SearchBar container */}
+          <div style={{ width: getSearchContainerWidth() }} className="mx-auto">
             <SearchBar />
-          </motion.div>
+          </div>
           
           <motion.div
             initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Text italic style={{ color: '#F8CDFF', fontSize: '1rem' }}>
+            <Text italic style={{ color: '#F8CDFF', fontSize: isMobile ? '0.9rem' : '1rem' }}>
               ค้นพบไอเดียใหม่ และผลงานที่น่าสนใจ
             </Text>
           </motion.div>
@@ -401,7 +418,7 @@ const Banner = () => {
         onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
       >
         <div className="flex flex-col items-center">
-          <div className="text-[#FFE6FF] text-sm mb-2">Scroll to explore</div>
+          <div className="text-[#FFE6FF] text-xs sm:text-sm mb-2">Scroll to explore</div>
           <svg width="16" height="10" viewBox="0 0 16 10" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 1L8 8L15 1" stroke="#FFE6FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

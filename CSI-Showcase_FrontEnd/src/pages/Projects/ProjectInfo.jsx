@@ -75,6 +75,34 @@ const ProjectInfo = () => {
   const { isAuthenticated, user, hasPermission } = useAuth();
   const { project, isLoading, error, fetchProjectDetails, deleteProject, fetchTopProjects } = useProject(projectId);
   const [isOwner, setIsOwner] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // ตรวจสอบขนาดหน้าจอและอัปเดต state
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
+
+  // ฟังก์ชันเพื่อระบุขนาดหน้าจอ
+  const getResponsiveSize = () => {
+    if (windowWidth < 576) return 'xs';
+    if (windowWidth < 768) return 'sm';
+    if (windowWidth < 992) return 'md';
+    if (windowWidth < 1200) return 'lg';
+    return 'xl';
+  };
+
+  const responsiveSize = getResponsiveSize();
+  const isMobile = responsiveSize === 'xs';
+  const isTablet = responsiveSize === 'sm' || responsiveSize === 'md';
 
   // ดึงโปรเจค
   useEffect(() => {
@@ -119,9 +147,16 @@ const ProjectInfo = () => {
     }
   }, [project, user, hasPermission]);
 
+  // ลดจำนวนดาวพื้นหลังบนหน้าจอเล็ก
+  const getStarsCount = () => {
+    if (isMobile) return 15;
+    if (isTablet) return 20;
+    return 30;
+  };
+
   // สร้าง background stars สำหรับพื้นหลัง
   const backgroundStars = useMemo(() => {
-    return Array.from({ length: 30 }).map((_, i) => {
+    return Array.from({ length: getStarsCount() }).map((_, i) => {
       const size = Math.random() * 2 + 1;
       const opacity = Math.random() * 0.4 + 0.1;
       const left = Math.random() * 100;
@@ -143,15 +178,15 @@ const ProjectInfo = () => {
         />
       );
     });
-  }, []);
+  }, [isMobile, isTablet]);
 
   // แสดง loading
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white py-12 px-4">
+      <div className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-[#E0D1FF] backdrop-filter backdrop-blur-md bg-opacity-80">
-            <Skeleton active paragraph={{ rows: 10 }} />
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-3 sm:p-4 md:p-6 border border-[#E0D1FF] backdrop-filter backdrop-blur-md bg-opacity-80">
+            <Skeleton active paragraph={{ rows: isMobile ? 6 : (isTablet ? 8 : 10) }} />
           </div>
         </div>
       </div>
@@ -161,16 +196,16 @@ const ProjectInfo = () => {
   // แสดงข้อความถ้ามี error
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white py-12 px-4">
-        <div className="max-w-2xl mx-auto text-center">
+      <div className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6">
+        <div className="max-w-xl sm:max-w-2xl mx-auto text-center">
           <motion.div 
-            className="bg-white rounded-xl shadow-lg p-8 border border-red-100 backdrop-filter backdrop-blur-md bg-opacity-80"
+            className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 md:p-8 border border-red-100 backdrop-filter backdrop-blur-md bg-opacity-80"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-2xl font-bold text-red-600 mb-4">เกิดข้อผิดพลาด</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-red-600 mb-2 sm:mb-4">เกิดข้อผิดพลาด</h2>
+            <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">{error}</p>
             <motion.div whileHover="hover" whileTap="tap" variants={buttonAnimation}>
               <Button 
                 type="primary" 
@@ -180,7 +215,7 @@ const ProjectInfo = () => {
                   border: 'none',
                   boxShadow: '0 4px 12px rgba(144, 39, 142, 0.2)'
                 }}
-                className="rounded-full h-10 px-6"
+                className="rounded-full h-8 sm:h-10 px-4 sm:px-6 text-xs sm:text-sm"
               >
                 กลับไปหน้ารวมโปรเจค
               </Button>
@@ -194,16 +229,16 @@ const ProjectInfo = () => {
   // แสดงข้อความถ้าไม่พบโปรเจค
   if (!project) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white py-12 px-4">
-        <div className="max-w-2xl mx-auto text-center">
+      <div className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6">
+        <div className="max-w-xl sm:max-w-2xl mx-auto text-center">
           <motion.div 
-            className="bg-white rounded-xl shadow-lg p-8 border border-[#E0D1FF] backdrop-filter backdrop-blur-md bg-opacity-80"
+            className="bg-white rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-4 sm:p-6 md:p-8 border border-[#E0D1FF] backdrop-filter backdrop-blur-md bg-opacity-80"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-2xl font-bold" style={headingGradient}>ไม่พบโปรเจค</h2>
-            <p className="text-gray-600 mb-6">ไม่พบข้อมูลโปรเจคที่คุณต้องการดู</p>
+            <h2 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4" style={headingGradient}>ไม่พบโปรเจค</h2>
+            <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">ไม่พบข้อมูลโปรเจคที่คุณต้องการดู</p>
             <motion.div whileHover="hover" whileTap="tap" variants={buttonAnimation}>
               <Button 
                 type="primary" 
@@ -213,7 +248,7 @@ const ProjectInfo = () => {
                   border: 'none',
                   boxShadow: '0 4px 12px rgba(144, 39, 142, 0.2)'
                 }}
-                className="rounded-full h-10 px-6"
+                className="rounded-full h-8 sm:h-10 px-4 sm:px-6 text-xs sm:text-sm"
               >
                 กลับไปหน้ารวมโปรเจค
               </Button>
@@ -277,6 +312,11 @@ const ProjectInfo = () => {
   };
 
   const getProjectTypeTag = () => {
+    // ปรับขนาด tag ตามขนาดหน้าจอ
+    const tagHeight = isMobile ? '24px' : '28px';
+    const tagPadding = isMobile ? '0 8px' : '0 12px';
+    const fontSize = isMobile ? '12px' : '14px';
+    
     switch (project.type) {
       case 'coursework':
         return (
@@ -285,8 +325,9 @@ const ProjectInfo = () => {
             icon={<TeamOutlined />}
             style={{ 
               borderRadius: '16px', 
-              padding: '0 12px',
-              height: '28px',
+              padding: tagPadding,
+              height: tagHeight,
+              fontSize: fontSize,
               display: 'inline-flex',
               alignItems: 'center',
               boxShadow: '0 2px 6px rgba(82, 196, 26, 0.2)'
@@ -302,8 +343,9 @@ const ProjectInfo = () => {
             icon={<BookOutlined />}
             style={{ 
               borderRadius: '16px', 
-              padding: '0 12px',
-              height: '28px',
+              padding: tagPadding,
+              height: tagHeight,
+              fontSize: fontSize,
               display: 'inline-flex',
               alignItems: 'center',
               boxShadow: '0 2px 6px rgba(24, 144, 255, 0.2)'
@@ -319,8 +361,9 @@ const ProjectInfo = () => {
             icon={<TrophyOutlined />}
             style={{ 
               borderRadius: '16px', 
-              padding: '0 12px',
-              height: '28px',
+              padding: tagPadding,
+              height: tagHeight,
+              fontSize: fontSize,
               display: 'inline-flex',
               alignItems: 'center',
               boxShadow: '0 2px 6px rgba(250, 173, 20, 0.2)'
@@ -335,8 +378,9 @@ const ProjectInfo = () => {
             color={themeColors.primary}
             style={{ 
               borderRadius: '16px', 
-              padding: '0 12px',
-              height: '28px',
+              padding: tagPadding,
+              height: tagHeight,
+              fontSize: fontSize,
               display: 'inline-flex',
               alignItems: 'center',
               boxShadow: '0 2px 6px rgba(144, 39, 142, 0.2)'
@@ -359,9 +403,9 @@ const ProjectInfo = () => {
       <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-50">
         {backgroundStars}
         
-        {/* Decorative blobs */}
+        {/* Decorative blobs - ปรับขนาดตามหน้าจอ */}
         <motion.div 
-          className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-20 blur-3xl bg-[#B252B0]"
+          className={`absolute -top-20 sm:-top-32 -right-20 sm:-right-32 w-64 sm:w-80 md:w-96 h-64 sm:h-80 md:h-96 rounded-full opacity-20 blur-3xl bg-[#B252B0]`}
           animate={{ 
             y: [0, 15, 0],
             scale: [1, 1.05, 1],
@@ -373,7 +417,7 @@ const ProjectInfo = () => {
           }}
         />
         <motion.div 
-          className="absolute top-1/3 -left-32 w-96 h-96 rounded-full opacity-20 blur-3xl bg-[#90278E]"
+          className={`absolute top-1/3 -left-20 sm:-left-32 w-64 sm:w-80 md:w-96 h-64 sm:h-80 md:h-96 rounded-full opacity-20 blur-3xl bg-[#90278E]`}
           animate={{ 
             y: [0, -15, 0],
             scale: [1, 1.05, 1],
@@ -387,66 +431,66 @@ const ProjectInfo = () => {
         />
       </div>
       
-      <div className="max-w-6xl mx-auto px-4 py-8 relative z-10">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 relative z-10">
         {/* Breadcrumb */}
         <motion.div 
-          className="mb-4"
+          className="mb-2 sm:mb-4"
           variants={itemAnimation}
         >
-          <div className="flex items-center text-sm text-gray-500 mb-6">
-            <motion.div whileHover={{ scale: 1.02 }} className="cursor-pointer flex items-center">
+          <div className="flex items-center text-xs sm:text-sm text-gray-500 mb-3 sm:mb-6 overflow-x-auto">
+            <motion.div whileHover={{ scale: 1.02 }} className="cursor-pointer flex items-center whitespace-nowrap">
               <HomeOutlined className="mr-1" />
               <span onClick={() => navigate(HOME)}>หน้าหลัก</span>
             </motion.div>
-            <span className="mx-2 text-gray-400"><RightOutlined style={{ fontSize: '10px' }}/></span>
-            <motion.div whileHover={{ scale: 1.02 }} className="cursor-pointer">
+            <span className="mx-1 sm:mx-2 text-gray-400"><RightOutlined style={{ fontSize: isMobile ? '8px' : '10px' }}/></span>
+            <motion.div whileHover={{ scale: 1.02 }} className="cursor-pointer whitespace-nowrap">
               <span onClick={() => navigate('/projects/all')}>ผลงานทั้งหมด</span>
             </motion.div>
-            <span className="mx-2 text-gray-400"><RightOutlined style={{ fontSize: '10px' }}/></span>
-            <span className="text-[#90278E]">รายละเอียดผลงาน</span>
+            <span className="mx-1 sm:mx-2 text-gray-400"><RightOutlined style={{ fontSize: isMobile ? '8px' : '10px' }}/></span>
+            <span className="text-[#90278E] whitespace-nowrap">รายละเอียดผลงาน</span>
           </div>
         </motion.div>
         
         {/* Header section with galaxy theme */}
         <motion.div 
-          className="mb-8 rounded-xl shadow-lg p-6 relative overflow-hidden"
+          className="mb-4 sm:mb-6 md:mb-8 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-3 sm:p-4 md:p-6 relative overflow-hidden"
           variants={itemAnimation}
           style={{ 
             backgroundColor: 'rgba(255, 255, 255, 0.8)', 
             backdropFilter: 'blur(12px)',
             border: '1px solid rgba(144, 39, 142, 0.1)',
-            boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
+            boxShadow: '0 4px 16px sm:0 6px 24px md:0 8px 32px rgba(144, 39, 142, 0.08)'
           }}
         >
           {/* Galaxy decorative elements */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#90278E] opacity-5 rounded-full blur-xl -mr-10 -mt-10"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-[#B252B0] opacity-5 rounded-full blur-xl -ml-6 -mb-6"></div>
+          <div className="absolute top-0 right-0 w-20 sm:w-32 h-20 sm:h-32 bg-[#90278E] opacity-5 rounded-full blur-xl -mr-6 sm:-mr-10 -mt-6 sm:-mt-10"></div>
+          <div className="absolute bottom-0 left-0 w-16 sm:w-24 h-16 sm:h-24 bg-[#B252B0] opacity-5 rounded-full blur-xl -ml-4 sm:-ml-6 -mb-4 sm:-mb-6"></div>
           
           <div className="relative z-10">
             <h1 
-              className="text-3xl font-bold mb-4"
+              className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-4"
               style={headingGradient}
             >
               {project.title}
             </h1>
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex flex-wrap gap-1 sm:gap-2 md:gap-3 mb-3 sm:mb-4 md:mb-6">
               {getProjectTypeTag()}
-              <span className="inline-flex items-center text-gray-500 text-sm bg-gray-50 px-3 py-1 rounded-full">
+              <span className="inline-flex items-center text-gray-500 text-xs sm:text-sm bg-gray-50 px-2 sm:px-3 py-1 rounded-full">
                 <HistoryOutlined className="mr-1" style={{ color: themeColors.primary }} /> อัปเดตล่าสุด: {formatThaiDate(project.updatedAt)}
               </span>
-              <span className="inline-flex items-center text-gray-500 text-sm bg-gray-50 px-3 py-1 rounded-full">
+              <span className="inline-flex items-center text-gray-500 text-xs sm:text-sm bg-gray-50 px-2 sm:px-3 py-1 rounded-full">
                 <EyeOutlined className="mr-1" style={{ color: themeColors.primary }} /> {project.viewsCount} ครั้ง
               </span>
-              <span className="inline-flex items-center text-gray-500 text-sm bg-gray-50 px-3 py-1 rounded-full">
+              <span className="inline-flex items-center text-gray-500 text-xs sm:text-sm bg-gray-50 px-2 sm:px-3 py-1 rounded-full">
                 <CalendarOutlined className="mr-1" style={{ color: themeColors.primary }} /> ปีการศึกษา {project.year} / {project.semester}
               </span>
-              <span className="inline-flex items-center text-gray-500 text-sm bg-gray-50 px-3 py-1 rounded-full">
+              <span className="inline-flex items-center text-gray-500 text-xs sm:text-sm bg-gray-50 px-2 sm:px-3 py-1 rounded-full">
                 <TeamOutlined className="mr-1" style={{ color: themeColors.primary }} /> ชั้นปีที่ {project.studyYear}
               </span>
             </div>
 
             {isOwner && (
-              <div className="flex gap-3 mb-2">
+              <div className="flex gap-2 sm:gap-3 mb-1 sm:mb-2">
                 <motion.div whileHover="hover" whileTap="tap" variants={buttonAnimation}>
                   <Button 
                     type="primary" 
@@ -455,8 +499,11 @@ const ProjectInfo = () => {
                     style={{ 
                       background: `linear-gradient(135deg, ${themeColors.primary}, ${themeColors.secondary})`,
                       border: 'none',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 12px rgba(144, 39, 142, 0.2)'
+                      borderRadius: '6px sm:8px',
+                      boxShadow: '0 4px 12px rgba(144, 39, 142, 0.2)',
+                      fontSize: isMobile ? '12px' : undefined,
+                      height: isMobile ? '30px' : undefined,
+                      padding: isMobile ? '0 8px' : undefined
                     }}
                     className="transition-all"
                   >
@@ -469,8 +516,11 @@ const ProjectInfo = () => {
                     icon={<DeleteOutlined />} 
                     onClick={handleDelete}
                     style={{ 
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 12px rgba(255, 77, 79, 0.15)'
+                      borderRadius: '6px sm:8px',
+                      boxShadow: '0 4px 12px rgba(255, 77, 79, 0.15)',
+                      fontSize: isMobile ? '12px' : undefined,
+                      height: isMobile ? '30px' : undefined,
+                      padding: isMobile ? '0 8px' : undefined
                     }}
                     className="transition-all"
                   >
@@ -482,7 +532,7 @@ const ProjectInfo = () => {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {/* Media section - takes 2/3 of space on large screens */}
           <motion.div 
             className="lg:col-span-2"
@@ -491,29 +541,29 @@ const ProjectInfo = () => {
             <ProjectMediaDisplay project={project} />
             
             <motion.div 
-              className="mb-6 rounded-xl shadow-lg p-6 relative"
+              className="mb-4 sm:mb-6 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg p-3 sm:p-4 md:p-6 relative"
               variants={itemAnimation}
               style={{ 
                 backgroundColor: 'rgba(255, 255, 255, 0.8)', 
                 backdropFilter: 'blur(12px)',
                 border: '1px solid rgba(144, 39, 142, 0.1)',
-                boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
+                boxShadow: '0 4px 16px sm:0 6px 24px md:0 8px 32px rgba(144, 39, 142, 0.08)'
               }}
             >
               <h2 
-                className="text-xl font-semibold mb-4 flex items-center"
+                className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4 flex items-center"
                 style={headingGradient}
               >
-                <span className="w-1 h-6 bg-gradient-to-b from-[#90278E] to-[#B252B0] mr-2 rounded inline-block"></span>
+                <span className="w-1 h-4 sm:h-6 bg-gradient-to-b from-[#90278E] to-[#B252B0] mr-2 rounded inline-block"></span>
                 รายละเอียดโปรเจค
               </h2>
-              <div className="text-gray-700 whitespace-pre-line">{project.description}</div>
+              <div className="text-gray-700 whitespace-pre-line text-sm sm:text-base">{project.description}</div>
             </motion.div>
           </motion.div>
 
           {/* Details section - takes 1/3 of space on large screens */}
           <motion.div 
-            className="space-y-8"
+            className="space-y-4 sm:space-y-6 md:space-y-8"
             variants={itemAnimation}
           >
             <ProjectDetailsCard project={project} />
@@ -573,9 +623,50 @@ const ProjectInfo = () => {
             background-position: 0 50%;
           }
         }
-      `}</style>
-    </motion.div>
-  );
+        
+        /* Responsive adjustments */
+       @media (max-width: 576px) {
+         .ant-modal-title {
+           font-size: 16px;
+         }
+         
+         .ant-modal-body {
+           padding: 12px;
+           font-size: 14px;
+         }
+         
+         .ant-modal-footer .ant-btn {
+           font-size: 12px;
+           height: 28px;
+           padding: 0 8px;
+         }
+         
+         .ant-message-notice-content {
+           padding: 8px 12px;
+           font-size: 12px;
+         }
+       }
+       
+       /* ทำให้ tag รองรับการแสดงผลบนมือถือได้ดีขึ้น */
+       @media (max-width: 576px) {
+         .ant-tag {
+           font-size: 12px;
+           padding: 0 8px;
+           margin-right: 4px;
+           margin-bottom: 4px;
+         }
+       }
+       
+       /* ปรับ modal size บนมือถือ */
+       @media (max-width: 576px) {
+         .ant-modal {
+           max-width: calc(100vw - 32px) !important;
+           margin: 0 auto;
+         }
+       }
+     `}</style>
+   </motion.div>
+ );
 };
 
 export default ProjectInfo;

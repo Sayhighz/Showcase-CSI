@@ -10,11 +10,13 @@ const { TextArea } = Input;
  * @param {Object} props - Component properties
  * @param {Object} props.form - Form instance จาก Form.useForm()
  * @param {Function} props.onProjectTypeChange - Function สำหรับการเปลี่ยนแปลงประเภทโปรเจค
+ * @param {boolean} props.isMobile - บอกว่าเป็นหน้าจอขนาดเล็กหรือไม่
+ * @param {boolean} props.isTablet - บอกว่าเป็นหน้าจอขนาดกลางหรือไม่
  * @returns {JSX.Element} - BasicInfoStep component
  */
-const BasicInfoStep = ({ form, onProjectTypeChange }) => {
+const BasicInfoStep = ({ form, onProjectTypeChange, isMobile, isTablet }) => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Form.Item
         name="title"
         label="ชื่อโปรเจค"
@@ -26,7 +28,11 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
           },
         ]}
       >
-        <Input placeholder="ระบุชื่อโปรเจค" maxLength={100} />
+        <Input 
+          placeholder="ระบุชื่อโปรเจค" 
+          maxLength={100}
+          size={isMobile ? 'small' : 'middle'}
+        />
       </Form.Item>
 
       <Form.Item
@@ -42,9 +48,10 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
       >
         <TextArea
           placeholder="อธิบายรายละเอียดของโปรเจค"
-          autoSize={{ minRows: 4, maxRows: 8 }}
+          autoSize={{ minRows: isMobile ? 3 : 4, maxRows: isMobile ? 6 : 8 }}
           maxLength={2000}
           showCount
+          size={isMobile ? 'small' : 'middle'}
         />
       </Form.Item>
 
@@ -60,10 +67,11 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
             value: type.value,
             label: type.label,
           }))}
+          size={isMobile ? 'small' : 'middle'}
         />
       </Form.Item>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         <Form.Item
           name="study_year"
           label="ชั้นปี"
@@ -77,6 +85,7 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
               { value: 3, label: "ปี 3" },
               { value: 4, label: "ปี 4" },
             ]}
+            size={isMobile ? 'small' : 'middle'}
           />
         </Form.Item>
 
@@ -90,6 +99,7 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
             max={2600}
             placeholder="เช่น 2566"
             style={{ width: "100%" }}
+            size={isMobile ? 'small' : 'middle'}
           />
         </Form.Item>
       </div>
@@ -106,6 +116,7 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
             { value: "2", label: "ภาคเรียนที่ 2" },
             { value: "3", label: "ภาคฤดูร้อน" },
           ]}
+          size={isMobile ? 'small' : 'middle'}
         />
       </Form.Item>
 
@@ -116,6 +127,7 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
             { value: 1, label: "สาธารณะ" },
             { value: 0, label: "ส่วนตัว" },
           ]}
+          size={isMobile ? 'small' : 'middle'}
         />
       </Form.Item>
     </div>

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import ProjectForm from '../../components/ManageProject/ProjectForm';
 import { PROJECT_TYPE } from '../../constants/projectTypes';
 import { PROJECT } from '../../constants/routes';
+import { useMediaQuery } from 'react-responsive';
 
 const { Title, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -22,6 +23,10 @@ const UploadProject = () => {
   const [activeTab, setActiveTab] = useState(PROJECT_TYPE.COURSEWORK);
   const [error, setError] = useState(null);
 
+  // ตรวจสอบขนาดหน้าจอ
+  const isMobile = useMediaQuery({ maxWidth: 767 });
+  const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 991 });
+
   // ตรวจสอบว่ามีผู้ใช้งานหรือไม่
   useEffect(() => {
     if (!user) {
@@ -35,8 +40,6 @@ const UploadProject = () => {
   };
 
   // จัดการการส่งฟอร์ม
-  // UploadProject.jsx
-
   const handleSubmit = async (formInput) => {
     try {
       setError(null);
@@ -65,25 +68,28 @@ const UploadProject = () => {
     }
   };
 
-
   if (!user) {
-    return <Spin tip="กำลังตรวจสอบข้อมูลผู้ใช้..." />;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spin tip="กำลังตรวจสอบข้อมูลผู้ใช้..." size={isMobile ? "small" : "default"} />
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <Title level={2}>อัปโหลดโปรเจคใหม่</Title>
-      <Paragraph>
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <Title level={isMobile ? 3 : 2} className="mb-2 sm:mb-3">อัปโหลดโปรเจคใหม่</Title>
+      <Paragraph className="text-sm sm:text-base">
         เพิ่มโปรเจคใหม่เข้าสู่ระบบ โดยเลือกประเภทโปรเจคที่ต้องการอัปโหลด และกรอกข้อมูลให้ครบถ้วน
       </Paragraph>
 
       {error && (
         <Alert
-          message="เกิดข้อผิดพลาด"
-          description={error}
+          message={<span className={isMobile ? "text-sm" : ""}>เกิดข้อผิดพลาด</span>}
+          description={<span className={isMobile ? "text-xs" : "text-sm"}>{error}</span>}
           type="error"
           showIcon
-          className="mb-6"
+          className="mb-4 sm:mb-6"
           closable
         />
       )}
@@ -91,21 +97,24 @@ const UploadProject = () => {
       <Tabs 
         activeKey={activeTab} 
         onChange={handleTabChange}
-        className="mb-6"
+        className="mb-4 sm:mb-6"
+        size={isMobile ? "small" : "middle"}
+        tabPosition={isMobile ? "top" : "top"}
         items={[
           {
             key: PROJECT_TYPE.COURSEWORK,
             label: (
-              <span>
-                <TeamOutlined />
-                งานในชั้นเรียน
+              <span className={isMobile ? "text-xs sm:text-sm" : ""}>
+                <TeamOutlined className="mr-1" />
+                {!isMobile && "งานในชั้นเรียน"}
+                {isMobile && "ชั้นเรียน"}
               </span>
             ),
             children: (
-              <Card className="mb-6">
-                <div className="mb-6">
-                  <Title level={4}>อัปโหลดผลงานในชั้นเรียน</Title>
-                  <Paragraph>
+              <Card className="mb-4 sm:mb-6" size={isMobile ? "small" : "default"} bodyStyle={{ padding: isMobile ? '12px' : '24px' }}>
+                <div className="mb-3 sm:mb-6">
+                  <Title level={isMobile ? 4 : 4} className="mb-1 sm:mb-2">อัปโหลดผลงานในชั้นเรียน</Title>
+                  <Paragraph className="text-xs sm:text-sm">
                     สำหรับผลงานที่ทำในรายวิชาต่างๆ เช่น โปรเจคในวิชาเฉพาะด้าน งานกลุ่ม หรือชิ้นงานที่ได้รับมอบหมายในชั้นเรียน
                   </Paragraph>
                 </div>
@@ -122,16 +131,17 @@ const UploadProject = () => {
           {
             key: PROJECT_TYPE.ACADEMIC,
             label: (
-              <span>
-                <BookOutlined />
-                บทความวิชาการ
+              <span className={isMobile ? "text-xs sm:text-sm" : ""}>
+                <BookOutlined className="mr-1" />
+                {!isMobile && "บทความวิชาการ"}
+                {isMobile && "บทความ"}
               </span>
             ),
             children: (
-              <Card className="mb-6">
-                <div className="mb-6">
-                  <Title level={4}>อัปโหลดบทความวิชาการ</Title>
-                  <Paragraph>
+              <Card className="mb-4 sm:mb-6" size={isMobile ? "small" : "default"} bodyStyle={{ padding: isMobile ? '12px' : '24px' }}>
+                <div className="mb-3 sm:mb-6">
+                  <Title level={isMobile ? 4 : 4} className="mb-1 sm:mb-2">อัปโหลดบทความวิชาการ</Title>
+                  <Paragraph className="text-xs sm:text-sm">
                     สำหรับบทความวิชาการ, งานวิจัย, หรือเอกสารทางวิชาการต่างๆ ที่ได้รับการตีพิมพ์หรือเผยแพร่
                   </Paragraph>
                 </div>
@@ -148,16 +158,17 @@ const UploadProject = () => {
           {
             key: PROJECT_TYPE.COMPETITION,
             label: (
-              <span>
-                <TrophyOutlined />
-                การแข่งขัน
+              <span className={isMobile ? "text-xs sm:text-sm" : ""}>
+                <TrophyOutlined className="mr-1" />
+                {!isMobile && "การแข่งขัน"}
+                {isMobile && "แข่งขัน"}
               </span>
             ),
             children: (
-              <Card className="mb-6">
-                <div className="mb-6">
-                  <Title level={4}>อัปโหลดผลงานการแข่งขัน</Title>
-                  <Paragraph>
+              <Card className="mb-4 sm:mb-6" size={isMobile ? "small" : "default"} bodyStyle={{ padding: isMobile ? '12px' : '24px' }}>
+                <div className="mb-3 sm:mb-6">
+                  <Title level={isMobile ? 4 : 4} className="mb-1 sm:mb-2">อัปโหลดผลงานการแข่งขัน</Title>
+                  <Paragraph className="text-xs sm:text-sm">
                     สำหรับผลงานที่ส่งเข้าประกวดหรือแข่งขันในเวทีต่างๆ ทั้งระดับท้องถิ่น ระดับประเทศ หรือระดับนานาชาติ
                   </Paragraph>
                 </div>

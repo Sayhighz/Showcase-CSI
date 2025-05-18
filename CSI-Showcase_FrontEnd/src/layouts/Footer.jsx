@@ -29,9 +29,9 @@ const Footer = () => {
   };
 
   return (
-    <footer className="bg-gradient-to-b from-[#90278E] to-[#5E1A5C] text-white py-12">
+    <footer className="bg-gradient-to-b from-[#90278E] to-[#5E1A5C] text-white py-8 sm:py-12">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
           {/* Column 1 - Logo and info */}
           <motion.div
             variants={columnVariants}
@@ -40,35 +40,35 @@ const Footer = () => {
             viewport={{ once: true, amount: 0.3 }}
             className="col-span-1 md:col-span-1"
           >
-            <img src={LogoCSI} alt="CSI Logo" className="h-12 mb-4" />
-            <p className="text-gray-200 mb-4">แหล่งรวมผลงานและนวัตกรรมจากนักศึกษา CSI ที่พร้อมแบ่งปันความรู้และความคิดสร้างสรรค์</p>
-            <div className="flex space-x-4 mt-4">
+            <img src={LogoCSI} alt="CSI Logo" className="h-10 sm:h-12 mb-4" />
+            <p className="text-gray-200 text-sm sm:text-base mb-4">แหล่งรวมผลงานและนวัตกรรมจากนักศึกษา CSI ที่พร้อมแบ่งปันความรู้และความคิดสร้างสรรค์</p>
+            <div className="flex space-x-3 sm:space-x-4 mt-4">
               <motion.a 
                 href="#" 
                 variants={iconVariants}
                 initial="initial"
                 whileHover="hover"
-                className="bg-white bg-opacity-10 p-2 rounded-full hover:bg-opacity-20"
+                className="bg-white bg-opacity-10 p-1.5 sm:p-2 rounded-full hover:bg-opacity-20"
               >
-                <FacebookOutlined className="text-white text-xl" />
+                <FacebookOutlined className="text-white text-base sm:text-xl" />
               </motion.a>
               <motion.a 
                 href="#" 
                 variants={iconVariants}
                 initial="initial"
                 whileHover="hover"
-                className="bg-white bg-opacity-10 p-2 rounded-full hover:bg-opacity-20"
+                className="bg-white bg-opacity-10 p-1.5 sm:p-2 rounded-full hover:bg-opacity-20"
               >
-                <InstagramOutlined className="text-white text-xl" />
+                <InstagramOutlined className="text-white text-base sm:text-xl" />
               </motion.a>
               <motion.a 
                 href="#" 
                 variants={iconVariants}
                 initial="initial"
                 whileHover="hover"
-                className="bg-white bg-opacity-10 p-2 rounded-full hover:bg-opacity-20"
+                className="bg-white bg-opacity-10 p-1.5 sm:p-2 rounded-full hover:bg-opacity-20"
               >
-                <GithubOutlined className="text-white text-xl" />
+                <GithubOutlined className="text-white text-base sm:text-xl" />
               </motion.a>
             </div>
           </motion.div>
@@ -81,8 +81,8 @@ const Footer = () => {
             viewport={{ once: true, amount: 0.3 }}
             className="col-span-1"
           >
-            <h3 className="text-xl font-bold mb-4 border-b border-white border-opacity-20 pb-2">เมนูลัด</h3>
-            <ul className="space-y-2">
+            <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 border-b border-white border-opacity-20 pb-2">เมนูลัด</h3>
+            <ul className="space-y-1.5 sm:space-y-2 text-sm sm:text-base">
               <li><Link to="/" className="text-gray-200 hover:text-white hover:underline transition">หน้าแรก</Link></li>
               <li><Link to="/projects/all" className="text-gray-200 hover:text-white hover:underline transition">ผลงานทั้งหมด</Link></li>
               <li><Link to="/projects/my" className="text-gray-200 hover:text-white hover:underline transition">ผลงานของฉัน</Link></li>
@@ -98,8 +98,8 @@ const Footer = () => {
             viewport={{ once: true, amount: 0.3 }}
             className="col-span-1"
           >
-            <h3 className="text-xl font-bold mb-4 border-b border-white border-opacity-20 pb-2">หมวดหมู่</h3>
-            <ul className="space-y-2">
+            <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 border-b border-white border-opacity-20 pb-2">หมวดหมู่</h3>
+            <ul className="space-y-1.5 sm:space-y-2 text-sm sm:text-base">
               <li><Link to="#" className="text-gray-200 hover:text-white hover:underline transition">ผลงานวิชาเรียน</Link></li>
               <li><Link to="#" className="text-gray-200 hover:text-white hover:underline transition">ผลงานแข่งขัน</Link></li>
               <li><Link to="#" className="text-gray-200 hover:text-white hover:underline transition">ผลงานวิชาการ</Link></li>
@@ -114,21 +114,21 @@ const Footer = () => {
             viewport={{ once: true, amount: 0.3 }}
             className="col-span-1"
           >
-            <h3 className="text-xl font-bold mb-4 border-b border-white border-opacity-20 pb-2">ติดต่อเรา</h3>
-            <p className="text-gray-200 mb-2">คณะเทคโนโลยีสารสนเทศ สาขาวิทยาการคอมพิวเตอร์และนวัตกรรมพัฒนาซอฟต์แวร์</p>
-            <p className="text-gray-200 mb-2">มหาวิทยาลัยศรีปทุม</p>
-            <p className="text-gray-200 mb-2">Email: pratan.nil@spumail.net</p>
-            <p className="text-gray-200">โทร: 02-123-4567</p>
+            <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 border-b border-white border-opacity-20 pb-2">ติดต่อเรา</h3>
+            <p className="text-gray-200 mb-2 text-sm sm:text-base">คณะเทคโนโลยีสารสนเทศ สาขาวิทยาการคอมพิวเตอร์และนวัตกรรมพัฒนาซอฟต์แวร์</p>
+            <p className="text-gray-200 mb-2 text-sm sm:text-base">มหาวิทยาลัยศรีปทุม</p>
+            <p className="text-gray-200 mb-2 text-sm sm:text-base">Email: pratan.nil@spumail.net</p>
+            <p className="text-gray-200 text-sm sm:text-base">โทร: 02-123-4567</p>
           </motion.div>
         </div>
 
         {/* Copyright section - GitHub style */}
-        <div className="border-t border-white border-opacity-20 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-sm text-gray-300">© 2025 CSI Showcase. All rights reserved.</p>
-          <div className="flex space-x-4 mt-4 md:mt-0">
-            <Link to="#" className="text-sm text-gray-300 hover:text-white hover:underline">นโยบายความเป็นส่วนตัว</Link>
-            <Link to="#" className="text-sm text-gray-300 hover:text-white hover:underline">เงื่อนไขการใช้งาน</Link>
-            <Link to="#" className="text-sm text-gray-300 hover:text-white hover:underline">คำถามที่พบบ่อย</Link>
+        <div className="border-t border-white border-opacity-20 mt-6 sm:mt-8 pt-4 sm:pt-6 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-xs sm:text-sm text-gray-300">© 2025 CSI Showcase. All rights reserved.</p>
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 md:mt-0">
+            <Link to="#" className="text-xs sm:text-sm text-gray-300 hover:text-white hover:underline">นโยบายความเป็นส่วนตัว</Link>
+            <Link to="#" className="text-xs sm:text-sm text-gray-300 hover:text-white hover:underline">เงื่อนไขการใช้งาน</Link>
+            <Link to="#" className="text-xs sm:text-sm text-gray-300 hover:text-white hover:underline">คำถามที่พบบ่อย</Link>
           </div>
         </div>
       </div>

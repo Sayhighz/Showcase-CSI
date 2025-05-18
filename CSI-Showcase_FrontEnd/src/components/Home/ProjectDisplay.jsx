@@ -40,7 +40,7 @@ const ProjectDisplay = ({
   
   // ตัวบอกตำแหน่งของโปรเจค (เช่น 2/5)
   const ProjectCounter = () => (
-    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-80 backdrop-filter backdrop-blur-md px-4 py-2 rounded-full border border-[#90278E] border-opacity-20">
+    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-80 backdrop-filter backdrop-blur-md px-3 sm:px-4 py-1 sm:py-2 rounded-full border border-[#90278E] border-opacity-20 text-xs sm:text-sm">
       <motion.span
         key={`counter-${currentPage}`}
         initial={{ opacity: 0, y: 10 }}
@@ -56,29 +56,29 @@ const ProjectDisplay = ({
   return (
     <div className="relative">
       {/* Navigation arrows - GitHub styled with depth effect */}
-      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10">
+      <div className="absolute -left-2 sm:left-0 top-1/2 transform -translate-y-1/2 z-10">
         <motion.button
-          className={`w-12 h-12 rounded-full ${buttonBgColor} ${buttonTextColor} flex items-center justify-center shadow-lg mx-4`}
+          className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full ${buttonBgColor} ${buttonTextColor} flex items-center justify-center shadow-lg mx-1 sm:mx-4`}
           whileHover={{ scale: 1.1, backgroundColor: buttonHoverBg }}
           whileTap={{ scale: 0.95 }}
           onClick={onPrev}
           disabled={!currentProject}
           style={{ boxShadow: '0 4px 14px rgba(144, 39, 142, 0.15)' }}
         >
-          <LeftOutlined />
+          <LeftOutlined className="text-xs sm:text-base" />
         </motion.button>
       </div>
       
-      <div className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10">
+      <div className="absolute -right-2 sm:right-0 top-1/2 transform -translate-y-1/2 z-10">
         <motion.button
-          className={`w-12 h-12 rounded-full ${buttonBgColor} ${buttonTextColor} flex items-center justify-center shadow-lg mx-4`}
+          className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full ${buttonBgColor} ${buttonTextColor} flex items-center justify-center shadow-lg mx-1 sm:mx-4`}
           whileHover={{ scale: 1.1, backgroundColor: buttonHoverBg }}
           whileTap={{ scale: 0.95 }}
           onClick={onNext}
           disabled={!currentProject}
           style={{ boxShadow: '0 4px 14px rgba(144, 39, 142, 0.15)' }}
         >
-          <RightOutlined />
+          <RightOutlined className="text-xs sm:text-base" />
         </motion.button>
       </div>
 

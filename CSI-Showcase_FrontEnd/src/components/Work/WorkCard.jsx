@@ -48,7 +48,7 @@ const WorkCard = ({
   };
 
   // Card styles based on display mode
-  const cardHeight = displayMode === "column" ? "auto" : "260px";
+  const cardHeight = displayMode === "column" ? "auto" : "auto sm:h-[260px]";
   const imageHeight = displayMode === "column" ? "auto" : "100%";
 
   // Animation styles for hover effects
@@ -94,13 +94,13 @@ const WorkCard = ({
       return (
         <div className={`w-full h-full flex flex-col items-center justify-center bg-[#F5EAFF] ${getImageAspectRatio()}`}>
           <FilePdfOutlined style={{ 
-            fontSize: displayMode === "column" ? '48px' : '64px', 
+            fontSize: displayMode === "column" ? '36px' : '48px', 
             color: '#90278E' 
           }} />
-          <div className="mt-3 text-center text-gray-500 px-4">
-            <p className="text-sm truncate max-w-full">{item.title}</p>
+          <div className="mt-2 sm:mt-3 text-center text-gray-500 px-2 sm:px-4">
+            <p className="text-xs sm:text-sm truncate max-w-full">{item.title}</p>
             {displayMode === "row" && (
-              <p className="text-xs text-[#8b949e] mt-1">ไม่มีภาพประกอบ</p>
+              <p className="text-xs text-[#8b949e] mt-1 hidden sm:block">ไม่มีภาพประกอบ</p>
             )}
           </div>
           
@@ -147,23 +147,23 @@ const WorkCard = ({
               {/* Category tag */}
               <Tag 
                 color={getTagColor(item.category)} 
-                className="absolute top-4 left-4 rounded-full px-2 sm:px-3 py-1 border-0 text-white font-medium shadow-md z-10 text-xs sm:text-sm"
+                className="absolute top-2 sm:top-4 left-2 sm:left-4 rounded-full px-1.5 sm:px-3 py-0.5 sm:py-1 border-0 text-white font-medium shadow-md z-10 text-xs"
                 icon={getCategoryIcon(item.category)}
               >
-                {getTypeLabel(item.category)}
+                <span className="hidden xs:inline">{getTypeLabel(item.category)}</span>
               </Tag>
               
               {/* Year badge */}
               <Badge 
                 count={
-                  <span className="flex items-center text-white text-xs sm:text-sm">
-                    <CalendarOutlined className="mr-1" /> {item.year}
+                  <span className="flex items-center text-white text-xs">
+                    <CalendarOutlined className="mr-0.5 sm:mr-1" /> {item.year}
                   </span>
                 } 
-                className="absolute top-4 right-4 z-10"
+                className="absolute top-2 sm:top-4 right-2 sm:right-4 z-10"
                 style={{ 
                   backgroundColor: 'rgba(144, 39, 142, 0.9)',
-                  padding: '2px 8px',
+                  padding: '1px 6px sm:2px 8px',
                   borderRadius: '20px',
                   boxShadow: '0 3px 10px rgba(144, 39, 142, 0.15)'
                 }}
@@ -171,7 +171,7 @@ const WorkCard = ({
               
               {/* Hover overlay with info */}
               <motion.div 
-                className="absolute inset-0 bg-gradient-to-t from-[#5E1A5C]/80 via-[#90278E]/30 to-transparent flex flex-col justify-end p-4 sm:p-5"
+                className="absolute inset-0 bg-gradient-to-t from-[#5E1A5C]/80 via-[#90278E]/30 to-transparent flex flex-col justify-end p-2 sm:p-4 md:p-5"
                 initial={{ opacity: 0 }}
                 animate={{ 
                   opacity: isHovering === item.id ? 1 : 0,
@@ -181,7 +181,7 @@ const WorkCard = ({
               >
                 <Link to={item.projectLink} className="text-[#FFE6FF] hover:text-white">
                   <motion.h2 
-                    className="text-base sm:text-xl font-semibold mb-2"
+                    className="text-sm sm:text-base md:text-xl font-semibold mb-1 sm:mb-2"
                     initial={{ y: 20 }}
                     animate={{ y: isHovering === item.id ? 0 : 20 }}
                     transition={{ duration: 0.4 }}
@@ -210,15 +210,15 @@ const WorkCard = ({
               </motion.div>
             </div>
           }
-          bodyStyle={{ padding: '16px' }}
+          bodyStyle={{ padding: '12px 16px' }}
         >
           <Link to={item.projectLink} className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300">
             <Tooltip title={item.title}>
-              <h3 className="text-base sm:text-lg font-semibold truncate mb-2">{item.title}</h3>
+              <h3 className="text-sm sm:text-base font-semibold truncate mb-1 sm:mb-2">{item.title}</h3>
             </Tooltip>
           </Link>
           
-          <div className="flex justify-between items-center text-xs sm:text-sm text-[#8b949e] mb-3">
+          <div className="flex justify-between items-center text-xs sm:text-sm text-[#8b949e] mb-2 sm:mb-3">
             <div className="flex-1">
               <p className="m-0 truncate">ปี {item.year} | ระดับ: {item.level}</p>
             </div>
@@ -240,17 +240,17 @@ const WorkCard = ({
           </div>
           
           {/* เจ้าของผลงาน */}
-          <div className="flex items-center mb-3">
+          <div className="flex items-center mb-2 sm:mb-3">
             {item.userImage ? (
               <motion.img 
                 src={`${API_ENDPOINTS.BASE}/${item.userImage}`}
                 alt={item.student}
-                className="w-6 h-6 rounded-full mr-2 object-cover"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full mr-1.5 sm:mr-2 object-cover"
                 whileHover={{ scale: 1.1 }}
               />
             ) : (
               <motion.div 
-                className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 text-xs"
+                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gray-100 flex items-center justify-center mr-1.5 sm:mr-2 text-xs"
                 style={{
                   background: 'rgba(144, 39, 142, 0.1)',
                   color: '#90278E'
@@ -267,7 +267,7 @@ const WorkCard = ({
           
           {/* ปุ่มดูเพิ่มเติม */}
           <motion.div 
-            className="mt-2"
+            className="mt-1 sm:mt-2"
             initial={{ opacity: 0.7 }}
             animate={{ opacity: isHovering === item.id ? 1 : 0.7 }}
             whileHover={{ scale: 1.05 }}
@@ -313,20 +313,20 @@ const WorkCard = ({
         >
           <div className="flex flex-col lg:flex-row h-full">
             {/* Project Image Section - Adjusted for different aspect ratios */}
-            <div className={`relative w-full lg:w-2/5 overflow-hidden flex items-center justify-center bg-[#F5EAFF]`}>
+            <div className={`relative w-full lg:w-2/5 overflow-hidden flex items-center justify-center bg-[#F5EAFF] min-h-[200px] lg:min-h-0`}>
               {renderCoverImage()}
               
               {/* Year Badge */}
               <Badge 
                 count={
-                  <span className="flex items-center text-white">
-                    <CalendarOutlined className="mr-1" /> {item.year}
+                  <span className="flex items-center text-white text-xs sm:text-sm">
+                    <CalendarOutlined className="mr-0.5 sm:mr-1" /> {item.year}
                   </span>
                 } 
-                className="absolute top-4 right-4 z-10"
+                className="absolute top-2 sm:top-4 right-2 sm:right-4 z-10"
                 style={{ 
                   backgroundColor: 'rgba(144, 39, 142, 0.9)',
-                  padding: '2px 10px',
+                  padding: '1px 6px sm:2px 10px',
                   borderRadius: '20px',
                   boxShadow: '0 3px 10px rgba(144, 39, 142, 0.15)'
                 }}
@@ -335,7 +335,7 @@ const WorkCard = ({
               {/* Hover Overlay with animation effect */}
               {item.image && (
                 <motion.div 
-                  className="absolute inset-0 bg-gradient-to-t from-[#5E1A5C]/80 via-[#90278E]/30 to-transparent flex flex-col justify-end p-4 sm:p-6"
+                  className="absolute inset-0 bg-gradient-to-t from-[#5E1A5C]/80 via-[#90278E]/30 to-transparent flex flex-col justify-end p-3 sm:p-4 md:p-6"
                   initial={{ opacity: 0 }}
                   animate={{ 
                     opacity: isHovering === item.id ? 1 : 0,
@@ -345,7 +345,7 @@ const WorkCard = ({
                 >
                   <div className="text-[#FFE6FF]">
                     <motion.h3 
-                      className="text-lg sm:text-xl font-semibold mb-2"
+                      className="text-base sm:text-lg md:text-xl font-semibold mb-1 sm:mb-2"
                       initial={{ y: 20 }}
                       animate={{ y: isHovering === item.id ? 0 : 20 }}
                       transition={{ duration: 0.4 }}
@@ -361,8 +361,8 @@ const WorkCard = ({
                       animate={{ y: isHovering === item.id ? 0 : 20 }}
                       transition={{ duration: 0.4, delay: 0.1 }}
                     >
-                      <span className="flex items-center text-sm sm:text-base">
-                        <EyeOutlined className="mr-2" /> 
+                      <span className="flex items-center text-xs sm:text-sm md:text-base">
+                        <EyeOutlined className="mr-1 sm:mr-2" /> 
                         {item.viewsCount || 0} เข้าชม
                       </span>
                     </motion.div>
@@ -372,23 +372,23 @@ const WorkCard = ({
             </div>
             
             {/* Project Details Section */}
-            <div className="w-full lg:w-3/5 p-5 sm:p-6 lg:p-8 flex flex-col h-full">
+            <div className="w-full lg:w-3/5 p-4 sm:p-5 lg:p-6 xl:p-8 flex flex-col h-full">
               <div className="flex flex-col h-full">
                 <div>
                   <Link
                     to={item.projectLink}
                     className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300"
                   >
-                    <h2 className="text-xl sm:text-2xl font-semibold mb-3 line-clamp-1">{item.title}</h2>
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-2 sm:mb-3 line-clamp-1">{item.title}</h2>
                   </Link>
                   
                   {/* Tags with animated effects */}
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                       <Tag
                         icon={getCategoryIcon(item.category)}
                         color={getTagColor(item.category)}
-                        className="px-2 sm:px-3 py-1 rounded-full border-0 font-medium text-xs sm:text-sm"
+                        className="px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full border-0 font-medium text-xs sm:text-sm"
                       >
                         {getTypeLabel(item.category)}
                       </Tag>
@@ -397,7 +397,7 @@ const WorkCard = ({
                     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                       <Tag 
                         color="default" 
-                        className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-[#F5EAFF] text-[#90278E] border-0"
+                        className="px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm bg-[#F5EAFF] text-[#90278E] border-0"
                       >
                         ระดับ: {item.level}
                       </Tag>
@@ -408,7 +408,7 @@ const WorkCard = ({
                         <Tag 
                           icon={<EyeOutlined />} 
                           color="default"
-                          className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-[#F5EAFF] text-[#90278E] border-0"
+                          className="px-1.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm bg-[#F5EAFF] text-[#90278E] border-0"
                         >
                           {item.viewsCount} ครั้ง
                         </Tag>
@@ -418,9 +418,9 @@ const WorkCard = ({
                 </div>
                 
                 {/* Project Description with scroll effect */}
-                <div className="flex-grow overflow-hidden relative" style={{ maxHeight: "90px" }}>
+                <div className="flex-grow overflow-hidden relative" style={{ maxHeight: "60px", minHeight: "40px" }}>
                   <motion.p 
-                    className="text-[#24292f] text-sm sm:text-base leading-relaxed line-clamp-3"
+                    className="text-[#24292f] text-xs sm:text-sm md:text-base leading-relaxed line-clamp-2 sm:line-clamp-3"
                     animate={{
                       y: isHovering === item.id ? -5 : 0,
                       opacity: isHovering === item.id ? 1 : 0.9
@@ -431,15 +431,15 @@ const WorkCard = ({
                   </motion.p>
                   
                   {/* Gradient fade-out effect at bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 right-0 h-6 sm:h-8 bg-gradient-to-t from-white to-transparent"></div>
                 </div>
                 
                 {/* Student Information & CTA Button */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-auto pt-4 border-t border-gray-100">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mt-auto pt-3 sm:pt-4 border-t border-gray-100">
                   <div className="flex items-center">
                     {item.userImage ? (
                       <motion.div 
-                        className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-white shadow-sm"
                         whileHover={{ scale: 1.1 }}
                       >
                         <img 
@@ -450,15 +450,15 @@ const WorkCard = ({
                       </motion.div>
                     ) : (
                       <motion.div 
-                        className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm bg-[rgba(144,39,142,0.15)] flex items-center justify-center"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-white shadow-sm bg-[rgba(144,39,142,0.15)] flex items-center justify-center"
                         style={{ color: '#90278E' }}
                         whileHover={{ scale: 1.1 }}
                       >
                         {item.student ? item.student.charAt(0).toUpperCase() : <UserOutlined />}
                       </motion.div>
                     )}
-                    <div className="ml-3">
-                      <p className="text-sm sm:text-base font-medium text-[#24292f] m-0">
+                    <div className="ml-2 sm:ml-3">
+                      <p className="text-xs sm:text-sm md:text-base font-medium text-[#24292f] m-0">
                         {item.student || "ชื่อนักศึกษา"}
                       </p>
                       <p className="text-xs text-[#8b949e] m-0">
@@ -474,7 +474,7 @@ const WorkCard = ({
                   >
                     <Link 
                       to={item.projectLink}
-                      className="inline-flex items-center px-4 py-2 rounded-full text-white font-medium text-sm bg-gradient-to-r from-[#90278E] to-[#B252B0] hover:from-[#B252B0] hover:to-[#90278E] shadow-md transition-all duration-300"
+                      className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-white font-medium text-xs sm:text-sm bg-gradient-to-r from-[#90278E] to-[#B252B0] hover:from-[#B252B0] hover:to-[#90278E] shadow-md transition-all duration-300"
                     >
                       ดูเพิ่มเติม <ArrowRightOutlined className="ml-1" />
                     </Link>

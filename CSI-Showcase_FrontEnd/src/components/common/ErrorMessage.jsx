@@ -97,15 +97,28 @@ const ErrorMessage = ({
   return (
     <Result
       status={statusProps.status}
-      title={statusProps.title}
-      subTitle={statusProps.subTitle}
-      style={{ ...style }}
+      title={
+        <div className="text-base sm:text-lg md:text-xl lg:text-2xl">
+          {statusProps.title}
+        </div>
+      }
+      subTitle={
+        <div className="text-xs sm:text-sm md:text-base px-2 sm:px-4">
+          {statusProps.subTitle}
+        </div>
+      }
+      style={{ 
+        padding: '1rem',
+        ...style 
+      }}
       extra={
-        <Space size="middle">
+        <Space size="small" className="flex flex-wrap justify-center gap-2">
           {showBackButton && (
             <Button 
               icon={<ArrowLeftOutlined />} 
               onClick={handleBackClick}
+              size={window.innerWidth < 768 ? "small" : "middle"}
+              className="flex items-center"
             >
               ย้อนกลับ
             </Button>
@@ -114,6 +127,8 @@ const ErrorMessage = ({
             <Button 
               icon={<HomeOutlined />} 
               onClick={handleHomeClick}
+              size={window.innerWidth < 768 ? "small" : "middle"}
+              className="flex items-center"
             >
               หน้าหลัก
             </Button>
@@ -123,6 +138,8 @@ const ErrorMessage = ({
               type="primary" 
               icon={<ReloadOutlined />} 
               onClick={handleReloadClick}
+              size={window.innerWidth < 768 ? "small" : "middle"}
+              className="flex items-center"
             >
               ลองอีกครั้ง
             </Button>

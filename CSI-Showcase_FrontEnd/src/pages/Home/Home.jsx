@@ -21,6 +21,7 @@ const Home = () => {
   const [courseWorkPage, setCourseWorkPage] = useState(1);
   const [competitionPage, setCompetitionPage] = useState(1);
   const [academicPage, setAcademicPage] = useState(1);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Use the project hook
   const { 
@@ -31,6 +32,17 @@ const Home = () => {
   
   // State for storing projects
   const [topProjects, setTopProjects] = useState([]);
+  
+  // ตรวจสอบขนาดหน้าจอ
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Load top projects on mount
   useEffect(() => {
@@ -56,6 +68,7 @@ const Home = () => {
   };
   
   // Refs for scrolling sections
+  const homeRef = useRef(null); // เพิ่ม ref สำหรับส่วน Banner/Home
   const courseWorkRef = useRef(null);
   const competitionRef = useRef(null);
   const academicRef = useRef(null);
@@ -109,9 +122,14 @@ const Home = () => {
     }
   };
 
-  // สร้างฟังก์ชันสำหรับการสร้าง stars ในพื้นหลัง
+  // ฟังก์ชันเลื่อนไปยังส่วน Banner/Home
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // สร้างฟังก์ชันสำหรับการสร้าง stars ในพื้นหลัง - จำนวนน้อยลงสำหรับมือถือ
   const createBackgroundStars = () => {
-    return Array.from({ length: 50 }).map((_, i) => (
+    return Array.from({ length: isMobile ? 20 : 50 }).map((_, i) => (
       <motion.div
         key={`bg-star-${i}`}
         className="absolute rounded-full"
@@ -163,6 +181,7 @@ const Home = () => {
 
       {/* Banner Section with Fade Effect - GitHub style */}
       <motion.div
+        ref={homeRef} // เพิ่ม ref ที่ Banner section
         style={{ opacity: bannerOpacity }}
         className="w-full h-screen flex items-center justify-center fixed top-0 left-0 right-0 z-10"
       >
@@ -172,7 +191,12 @@ const Home = () => {
       {/* Fixed Navigation Sidebar - GitHub style */}
       <NavigationSidebar 
         scrollToSection={scrollToSection} 
-        refs={{ courseWorkRef, competitionRef, academicRef }}
+        refs={{ 
+          homeRef, // ส่ง ref ของ Banner/Home ไปด้วย
+          courseWorkRef, 
+          competitionRef, 
+          academicRef
+        }}
       />
 
       {/* Main Content Sections with GitHub-style glass morphism */}
@@ -187,6 +211,7 @@ const Home = () => {
         {/* CourseWork Section - ปรับให้มีสไตล์คล้าย GitHub */}
         <section 
           ref={courseWorkRef} 
+          id="courseWork" // เพิ่ม id สำหรับการเชื่อมโยง
           className="relative min-h-screen"
           style={{ 
             background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(245, 234, 255, 0.9))',
@@ -209,7 +234,8 @@ const Home = () => {
         {/* Competition Section - ปรับให้มีสไตล์คล้าย GitHub */}
         <section 
           ref={competitionRef} 
-          className="relative min-h-screen py-16"
+          id="competition" // เพิ่ม id สำหรับการเชื่อมโยง
+          className="relative min-h-screen py-8 md:py-16"
           style={{ 
             background: 'linear-gradient(to bottom, rgba(245, 234, 255, 0.9), rgba(224, 209, 255, 0.9))',
           }}
@@ -229,7 +255,8 @@ const Home = () => {
         {/* Academic Section - ปรับให้มีสไตล์คล้าย GitHub */}
         <section 
           ref={academicRef} 
-          className="relative min-h-screen py-16"
+          id="academic" // เพิ่ม id สำหรับการเชื่อมโยง
+          className="relative min-h-screen py-8 md:py-16"
           style={{ 
             background: 'linear-gradient(to bottom, rgba(224, 209, 255, 0.9), rgba(144, 39, 142, 0.9))',
           }}
@@ -248,7 +275,10 @@ const Home = () => {
 
       {/* Back to Top Button - GitHub style */}
       <BackTop>
-        <div className="flex items-center justify-center w-12 h-12 bg-[#90278E] text-white rounded-full shadow-lg hover:bg-[#B252B0] transition-colors">
+        <div 
+          className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-[#90278E] text-white rounded-full shadow-lg hover:bg-[#B252B0] transition-colors"
+          onClick={scrollToTop} // เพิ่ม event handler สำหรับเลื่อนกลับไปด้านบน
+        >
           <UpOutlined />
         </div>
       </BackTop>

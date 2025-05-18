@@ -8,19 +8,21 @@ import { PROJECT_TYPE } from "../../../constants/projectTypes";
  * @param {Object} props - Component properties
  * @param {Object} props.form - Form instance จาก Form.useForm()
  * @param {string} props.projectType - ประเภทของโปรเจค
+ * @param {boolean} props.isMobile - บอกว่าเป็นหน้าจอขนาดเล็กหรือไม่
+ * @param {boolean} props.isTablet - บอกว่าเป็นหน้าจอขนาดกลางหรือไม่
  * @returns {JSX.Element} - SpecificInfoStep component
  */
-const SpecificInfoStep = ({ form, projectType }) => {
+const SpecificInfoStep = ({ form, projectType, isMobile, isTablet }) => {
   if (!projectType) {
     return (
-      <div className="py-4 text-center text-gray-500">
+      <div className="py-2 sm:py-4 text-center text-gray-500">
         กรุณาเลือกประเภทโปรเจคก่อน
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {projectType === PROJECT_TYPE.ACADEMIC && (
         <>
           <Form.Item
@@ -33,6 +35,7 @@ const SpecificInfoStep = ({ form, projectType }) => {
               max={2600}
               placeholder="เช่น 2566"
               style={{ width: "100%" }}
+              size={isMobile ? 'small' : 'middle'}
             />
           </Form.Item>
 
@@ -43,7 +46,11 @@ const SpecificInfoStep = ({ form, projectType }) => {
               { required: true, message: "กรุณาเลือกวันที่ตีพิมพ์" },
             ]}
           >
-            <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
+            <DatePicker 
+              style={{ width: "100%" }} 
+              format="DD/MM/YYYY" 
+              size={isMobile ? 'small' : 'middle'}
+            />
           </Form.Item>
         </>
       )}
@@ -57,7 +64,10 @@ const SpecificInfoStep = ({ form, projectType }) => {
               { required: true, message: "กรุณากรอกชื่อการแข่งขัน" },
             ]}
           >
-            <Input placeholder="ระบุชื่อการแข่งขัน" />
+            <Input 
+              placeholder="ระบุชื่อการแข่งขัน" 
+              size={isMobile ? 'small' : 'middle'}
+            />
           </Form.Item>
 
           <Form.Item
@@ -70,6 +80,7 @@ const SpecificInfoStep = ({ form, projectType }) => {
               max={2600}
               placeholder="เช่น 2566"
               style={{ width: "100%" }}
+              size={isMobile ? 'small' : 'middle'}
             />
           </Form.Item>
         </>
@@ -90,7 +101,10 @@ const SpecificInfoStep = ({ form, projectType }) => {
               },
             ]}
           >
-            <Input placeholder="URL จาก YouTube, Facebook หรือ TikTok" />
+            <Input 
+              placeholder="URL จาก YouTube, Facebook หรือ TikTok" 
+              size={isMobile ? 'small' : 'middle'}
+            />
           </Form.Item>
         </>
       )}

@@ -25,7 +25,8 @@ const WorkGrid = ({
   const [loading, setLoading] = useState(false);
   const [isAutoPlay, setIsAutoPlay] = useState(autoPlay);
   const [itemsPerPage, setItemsPerPage] = useState(
-    displayMode === "column" ? getItemsPerPage() : 3
+    displayMode === "column" ? getItemsPerPage() : 
+    window.innerWidth <= 640 ? 1 : window.innerWidth <= 1024 ? 2 : 3
   );
   
   // Scroll animation
@@ -34,15 +35,27 @@ const WorkGrid = ({
   const sectionY = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [20, 0, 0, 20]);
 
   // ข้อมูลต้องไม่เป็น null หรือ undefined
+  // ต่อจาก WorkGrid.jsx ที่ยังไม่สมบูรณ์
+
+  // ข้อมูลต้องไม่เป็น null หรือ undefined
   const safeItems = items || [];
   const totalPages = Math.ceil(safeItems.length / itemsPerPage);
 
-  // อัปเดตจำนวนไอเทมต่อหน้าเมื่อขนาดหน้าจอเปลี่ยน (เฉพาะโหมด column)
+  // อัปเดตจำนวนไอเทมต่อหน้าเมื่อขนาดหน้าจอเปลี่ยน
   useEffect(() => {
-    if (displayMode !== "column") return;
-
     const handleResize = () => {
-      setItemsPerPage(getItemsPerPage());
+      if (displayMode === "column") {
+        setItemsPerPage(getItemsPerPage());
+      } else {
+        // สำหรับ row mode ปรับตามขนาดหน้าจอ
+        if (window.innerWidth <= 640) {
+          setItemsPerPage(1);
+        } else if (window.innerWidth <= 1024) {
+          setItemsPerPage(2);
+        } else {
+          setItemsPerPage(3);
+        }
+      }
     };
 
     window.addEventListener("resize", handleResize);
@@ -97,9 +110,11 @@ const WorkGrid = ({
     }, 300);
   };
 
-  // สร้างดาวประกอบฉากหลัง
+  // สร้างดาวประกอบฉากหลัง - ปรับให้มีจำนวนน้อยลงบนอุปกรณ์มือถือ
   const renderStars = () => {
-    return Array.from({ length: 30 }).map((_, i) => {
+    const starCount = window.innerWidth <= 768 ? 15 : 30;
+    
+    return Array.from({ length: starCount }).map((_, i) => {
       const size = Math.random() * 3 + 1;
       const opacity = Math.random() * 0.5 + 0.3;
       
@@ -169,17 +184,17 @@ const WorkGrid = ({
             key={index} 
             className="w-full shadow-sm rounded-xl overflow-hidden border-0 bg-white"
             style={{ 
-              height: "260px",
+              height: window.innerWidth <= 1024 ? "auto" : "260px",
               boxShadow: "0 5px 15px rgba(144, 39, 142, 0.05)",
               border: "1px solid rgba(144, 39, 142, 0.1)"
             }}
           >
-            <div className="flex flex-col lg:flex-row gap-6 h-full">
-              <div className="w-full lg:w-2/5 h-full">
-                <Skeleton.Image active style={{ width: '100%', height: '240px', borderRadius: '8px' }} />
+            <div className={`flex flex-col ${window.innerWidth <= 1024 ? '' : 'lg:flex-row'} gap-4 h-full`}>
+              <div className={`w-full ${window.innerWidth <= 1024 ? '' : 'lg:w-2/5'} h-[180px] lg:h-full`}>
+                <Skeleton.Image active style={{ width: '100%', height: '100%', borderRadius: '8px' }} />
               </div>
-              <div className="w-full lg:w-3/5">
-                <Skeleton active title={{ width: '60%' }} paragraph={{ rows: 4, width: ['90%', '80%', '70%', '60%'] }} />
+              <div className={`w-full ${window.innerWidth <= 1024 ? '' : 'lg:w-3/5'}`}>
+                <Skeleton active title={{ width: '60%' }} paragraph={{ rows: window.innerWidth <= 768 ? 2 : 4, width: ['90%', '80%', '70%', '60%'] }} />
               </div>
             </div>
           </Card>
@@ -198,21 +213,21 @@ const WorkGrid = ({
           onClick={() => onEdit && onEdit(item)}
           icon={<EditOutlined />}
           type="primary"
-          size="middle"
+          size={window.innerWidth <= 768 ? "small" : "middle"}
           className="bg-[#90278E] hover:bg-[#B252B0] rounded-full text-xs sm:text-sm border-0"
           style={{ backgroundColor: '#90278E', borderColor: '#90278E' }}
         >
-          แก้ไข
+          <span className="hidden xs:inline">แก้ไข</span>
         </Button>
         <Button
           onClick={() => onDelete && onDelete(item)}
           icon={<DeleteOutlined />}
           type="primary"
           danger
-          size="middle"
+          size={window.innerWidth <= 768 ? "small" : "middle"}
           className="rounded-full text-xs sm:text-sm"
         >
-          ลบ
+          <span className="hidden xs:inline">ลบ</span>
         </Button>
       </Space>
     );
@@ -227,9 +242,16 @@ const WorkGrid = ({
     }
   };
 
+  // Responsive grid columns based on screen size for column display mode
+  const getGridColumns = () => {
+    if (displayMode !== "column") return "grid-cols-1 gap-6";
+    
+    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8";
+  };
+
   return (
     <motion.div 
-      className={`work-section py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative ${getSectionBackground()}`}
+      className={`work-section py-8 sm:py-12 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto relative ${getSectionBackground()}`}
       style={{ 
         opacity: sectionOpacity,
         y: sectionY
@@ -253,22 +275,19 @@ const WorkGrid = ({
         className={`text-${side} max-w-3xl mx-auto lg:mx-0`}
       >
         <h1 
-          className={`text-2xl sm:text-3xl font-bold mb-3`}
+          className={`text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3`}
           style={getHeadingGradient()}
         >
           {title}
         </h1>
-        <p className="text-[#8b949e] mb-8 text-base sm:text-lg">{description}</p>
+        <p className="text-[#8b949e] mb-6 sm:mb-8 text-sm sm:text-base md:text-lg">{description}</p>
       </motion.div>
 
       {/* Grid or List Layout */}
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={currentPage}
-          className={displayMode === "column" ? 
-            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8 mt-6" :
-            "grid grid-cols-1 gap-8"
-          }
+          className={getGridColumns()}
           variants={containerVariants}
           initial={{ opacity: 0, x: direction * 50 }}
           animate={{ opacity: 1, x: 0 }}

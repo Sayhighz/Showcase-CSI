@@ -15,8 +15,6 @@ const { Title, Text, Paragraph } = Typography;
 
 // สัดส่วนของ A3 คือ 1:1.414 (297mm x 420mm)
 const A3_RATIO = 1 / 1.414;
-const POSTER_HEIGHT = 650; // พิกเซล
-const POSTER_WIDTH = POSTER_HEIGHT * A3_RATIO;
 
 const CourseWorkSection = ({ 
   loading, 
@@ -74,10 +72,21 @@ const CourseWorkSection = ({
   const primaryColor = '#90278E';
   const secondaryColor = '#B252B0';
 
+  // Calculate poster dimensions based on screen size
+  const calculatePosterDimensions = () => {
+    const baseHeight = window.innerWidth < 768 ? 350 : 650;
+    return {
+      height: baseHeight,
+      width: baseHeight * A3_RATIO
+    };
+  };
+
+  const posterDimensions = calculatePosterDimensions();
+
   return (
     <section 
       ref={sectionRef}
-      className="min-h-screen py-16 relative overflow-hidden flex flex-col items-center justify-center"
+      className="min-h-screen py-8 md:py-16 relative overflow-hidden flex flex-col items-center justify-center"
       style={{ 
         marginTop: `${window.innerHeight - 100}px`,
         background: 'linear-gradient(to bottom, #FFFFFF, #F5EAFF)',
@@ -93,9 +102,9 @@ const CourseWorkSection = ({
         height={80}
       />
       
-      {/* Animated StarField Background */}
+      {/* Animated StarField Background - Reduced on mobile */}
       <div className="absolute inset-0 pointer-events-none">
-        {Array.from({ length: 50 }).map((_, i) => (
+        {Array.from({ length: window.innerWidth < 768 ? 20 : 50 }).map((_, i) => (
           <motion.div
             key={`star-coursework-${i}`}
             className="absolute rounded-full bg-white"
@@ -119,7 +128,7 @@ const CourseWorkSection = ({
         ))}
       </div>
 
-      <div className="container mx-auto px-6 py-16">
+      <div className="container mx-auto px-4 sm:px-6 py-8 md:py-16">
         <SectionHeader
           icon={<BulbOutlined />}
           title="ผลงานวิชาเรียน"
@@ -155,7 +164,7 @@ const CourseWorkSection = ({
               {currentProject && (
                 <div className="max-w-6xl mx-auto">
                   {/* Enhanced Project Display Layout with Glass Effect */}
-                  <div className="flex flex-col lg:flex-row gap-10 bg-white bg-opacity-80 backdrop-filter backdrop-blur-md p-8 rounded-2xl shadow-xl border border-purple-100">
+                  <div className="flex flex-col lg:flex-row gap-5 md:gap-10 bg-white bg-opacity-80 backdrop-filter backdrop-blur-md p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl border border-purple-100">
                     
                     {/* Left Side - Project Image with 3D Effect */}
                     <div className="lg:w-1/2 flex justify-center">
@@ -166,7 +175,7 @@ const CourseWorkSection = ({
                             initial={{ scale: 0, rotate: -10 }}
                             animate={{ scale: 1, rotate: 0 }}
                             transition={{ delay: 0.5, type: "spring", stiffness: 260 }}
-                            className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-4 py-1 rounded-full shadow-lg"
+                            className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-2 sm:px-4 py-1 rounded-full shadow-lg text-xs sm:text-sm"
                           >
                             <Text className="font-bold text-white">{currentProject.level}</Text>
                           </motion.div>
@@ -176,15 +185,17 @@ const CourseWorkSection = ({
                           <Image3DEffect
                             className="overflow-hidden flex items-center justify-center shadow-2xl rounded-xl"
                             style={{
-                              width: `${POSTER_WIDTH}px`,
-                              height: `${POSTER_HEIGHT}px`,
-                              maxWidth: '100%'
+                              width: `${posterDimensions.width}px`,
+                              height: `${posterDimensions.height}px`,
+                              maxWidth: '100%',
+                              maxHeight: window.innerWidth < 768 ? '300px' : 'auto'
                             }}
                             depth={15}
                             glareEnabled={true}
                             glareOpacity={0.3}
                           >
                             {currentProject.image ? (
+                              // ต่อจาก CourseWorkSection.jsx
                               <img 
                                 alt={currentProject.title} 
                                 src={`${API_ENDPOINTS.BASE}/${currentProject.image}`} 
@@ -192,8 +203,8 @@ const CourseWorkSection = ({
                               />
                             ) : (
                               <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-b from-[#90278E] to-[#B252B0] text-white">
-                                <BulbOutlined style={{ fontSize: '80px', marginBottom: '16px' }} />
-                                <Text className="text-white text-xl font-medium">รูปภาพโปรเจค</Text>
+                                <BulbOutlined style={{ fontSize: window.innerWidth < 768 ? '40px' : '80px', marginBottom: '16px' }} />
+                                <Text className="text-white text-sm sm:text-xl font-medium">รูปภาพโปรเจค</Text>
                               </div>
                             )}
                           </Image3DEffect>
@@ -202,18 +213,18 @@ const CourseWorkSection = ({
                     </div>
                     
                     {/* Right Side - Project Details with Card Design */}
-                    <div className="lg:w-1/2">
+                    <div className="lg:w-1/2 mt-4 lg:mt-0">
                       <div className="h-full flex flex-col">
                         {/* Project Title */}
                         <AnimatedText type="heading" delay={0.1}>
-                          <div className="mb-6">
+                          <div className="mb-4 sm:mb-6">
                             <Title 
                               level={2} 
+                              className="text-xl sm:text-2xl md:text-3xl"
                               style={{ 
                                 margin: 0, 
                                 color: primaryColor,
                                 fontWeight: 700,
-                                fontSize: '2.2rem',
                                 lineHeight: 1.2,
                                 backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
                                 WebkitBackgroundClip: 'text',
@@ -227,22 +238,22 @@ const CourseWorkSection = ({
                         
                         {/* Student Information */}
                         <AnimatedText type="badge" delay={0.2}>
-                          <div className="flex items-center mb-6 bg-purple-50 p-4 rounded-xl">
+                          <div className="flex items-center mb-4 sm:mb-6 bg-purple-50 p-3 sm:p-4 rounded-xl">
                             {currentProject.userImage ? (
                               <img 
                                 src={`${API_ENDPOINTS.BASE}/${currentProject.userImage}`} 
                                 alt={currentProject.student} 
-                                className="w-14 h-14 rounded-full object-cover border-2 border-purple-500 mr-4"
+                                className="w-10 h-10 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-purple-500 mr-3 sm:mr-4"
                               />
                             ) : (
-                              <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#90278E] to-[#B252B0] flex items-center justify-center text-white text-xl font-bold mr-4">
+                              <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-[#90278E] to-[#B252B0] flex items-center justify-center text-white text-xl font-bold mr-3 sm:mr-4">
                                 <UserOutlined />
                               </div>
                             )}
                             <div>
-                              <Text className="text-lg font-medium block">{currentProject.student}</Text>
+                              <Text className="text-base sm:text-lg font-medium block">{currentProject.student}</Text>
                               {currentProject.username && (
-                                <Text type="secondary">@{currentProject.username}</Text>
+                                <Text type="secondary" className="text-xs sm:text-sm">@{currentProject.username}</Text>
                               )}
                             </div>
                           </div>
@@ -250,15 +261,15 @@ const CourseWorkSection = ({
                         
                         {/* Project Description */}
                         <AnimatedText type="paragraph" delay={0.3}>
-                          <div className="mb-6">
+                          <div className="mb-4 sm:mb-6">
                             <Divider orientation="left">
-                              <Text strong style={{ color: primaryColor, fontSize: '1.1rem' }}>
+                              <Text strong style={{ color: primaryColor, fontSize: '0.9rem', sm: '1.1rem' }}>
                                 รายละเอียดโปรเจค
                               </Text>
                             </Divider>
-                            <div className="bg-white bg-opacity-70 p-5 rounded-xl border-l-4 border-purple-400">
+                            <div className="bg-white bg-opacity-70 p-3 sm:p-5 rounded-xl border-l-4 border-purple-400">
                               <Paragraph 
-                                className="text-lg" 
+                                className="text-sm sm:text-lg" 
                                 style={{ 
                                   margin: 0,
                                   lineHeight: 1.8,
@@ -273,33 +284,33 @@ const CourseWorkSection = ({
                         
                         {/* Project Stats */}
                         <AnimatedText type="badge" delay={0.4}>
-                          <div className="mb-6">
+                          <div className="mb-4 sm:mb-6">
                             <Divider orientation="left">
-                              <Text strong style={{ color: primaryColor, fontSize: '1.1rem' }}>
+                              <Text strong style={{ color: primaryColor, fontSize: '0.9rem', sm: '1.1rem' }}>
                                 ข้อมูลโปรเจค
                               </Text>
                             </Divider>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-3 gap-2 sm:gap-4">
                               <Tooltip title="ปีที่จัดทำ">
-                                <div className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
-                                  <CalendarOutlined style={{ color: primaryColor, fontSize: '1.5rem' }} />
-                                  <Text strong className="text-lg">{currentProject.year}</Text>
+                                <div className="bg-white p-2 sm:p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
+                                  <CalendarOutlined style={{ color: primaryColor, fontSize: '1rem', sm: '1.5rem' }} />
+                                  <Text strong className="text-sm sm:text-lg">{currentProject.year}</Text>
                                   <Text type="secondary" className="text-xs">ปีที่จัดทำ</Text>
                                 </div>
                               </Tooltip>
                               
                               <Tooltip title="จำนวนผู้เข้าชม">
-                                <div className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
-                                  <EyeOutlined style={{ color: primaryColor, fontSize: '1.5rem' }} />
-                                  <Text strong className="text-lg">{currentProject.viewsCount}</Text>
+                                <div className="bg-white p-2 sm:p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
+                                  <EyeOutlined style={{ color: primaryColor, fontSize: '1rem', sm: '1.5rem' }} />
+                                  <Text strong className="text-sm sm:text-lg">{currentProject.viewsCount}</Text>
                                   <Text type="secondary" className="text-xs">ผู้เข้าชม</Text>
                                 </div>
                               </Tooltip>
                               
                               <Tooltip title="หมวดหมู่">
-                                <div className="bg-white p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
-                                  <BulbOutlined style={{ color: primaryColor, fontSize: '1.5rem' }} />
-                                  <Text strong className="text-lg">วิชาเรียน</Text>
+                                <div className="bg-white p-2 sm:p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
+                                  <BulbOutlined style={{ color: primaryColor, fontSize: '1rem', sm: '1.5rem' }} />
+                                  <Text strong className="text-sm sm:text-lg">วิชาเรียน</Text>
                                   <Text type="secondary" className="text-xs">{currentProject.category}</Text>
                                 </div>
                               </Tooltip>
@@ -309,28 +320,28 @@ const CourseWorkSection = ({
                         
                         {/* วันที่สร้าง */}
                         <AnimatedText type="badge" delay={0.5}>
-                          <div className="mb-6">
-                            <div className="flex justify-between items-center text-gray-500">
+                          <div className="mb-4 sm:mb-6">
+                            <div className="flex justify-between items-center text-gray-500 text-xs sm:text-sm">
                               <Text>วันที่เผยแพร่: {new Date(currentProject.createdAt).toLocaleDateString('th-TH', {
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
                               })}</Text>
-                              <Tag color={primaryColor}>ID: {currentProject.id}</Tag>
+                              <Tag color={primaryColor} className="text-xs">ID: {currentProject.id}</Tag>
                             </div>
                           </div>
                         </AnimatedText>
                         
                         {/* Call to Action */}
                         <AnimatedText type="badge" delay={0.6}>
-                          <div className="mt-auto pt-4">
+                          <div className="mt-auto pt-2 sm:pt-4">
                             <motion.div
                               whileHover={{ scale: 1.03, boxShadow: '0 10px 25px rgba(144, 39, 142, 0.3)' }}
                               whileTap={{ scale: 0.97 }}
-                              className="flex justify-between items-center bg-gradient-to-r from-[#90278E] to-[#B252B0] p-5 rounded-xl text-white overflow-hidden relative"
+                              className="flex flex-col sm:flex-row justify-between items-center bg-gradient-to-r from-[#90278E] to-[#B252B0] p-3 sm:p-5 rounded-xl text-white overflow-hidden relative"
                             >
                               {/* Animated background particles */}
-                              {[...Array(5)].map((_, i) => (
+                              {[...Array(3)].map((_, i) => (
                                 <motion.div
                                   key={i}
                                   className="absolute bg-white rounded-full opacity-10"
@@ -352,15 +363,15 @@ const CourseWorkSection = ({
                                 />
                               ))}
                               
-                              <div className="z-10">
-                                <Text className="text-white text-xl font-bold block">สนใจโปรเจคนี้?</Text>
-                                <Text className="text-white text-opacity-80">ดูรายละเอียดเพิ่มเติมได้ที่นี่</Text>
+                              <div className="z-10 mb-3 sm:mb-0 text-center sm:text-left">
+                                <Text className="text-white text-base sm:text-xl font-bold block">สนใจโปรเจคนี้?</Text>
+                                <Text className="text-white text-opacity-80 text-xs sm:text-base">ดูรายละเอียดเพิ่มเติมได้ที่นี่</Text>
                               </div>
                               <Button 
                                 type="default" 
-                                size="large"
+                                size="middle"
                                 icon={<LinkOutlined />}
-                                className="bg-white text-[#90278E] hover:bg-gray-100 border-none font-medium z-10"
+                                className="bg-white text-[#90278E] hover:bg-gray-100 border-none font-medium z-10 text-xs sm:text-sm"
                                 href={currentProject.projectLink}
                               >
                                 ดูโปรเจคเต็มรูปแบบ

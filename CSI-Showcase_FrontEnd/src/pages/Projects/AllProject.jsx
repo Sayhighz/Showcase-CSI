@@ -84,11 +84,12 @@ const AllProject = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full py-20 px-4 min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white relative overflow-hidden">
+    <div className="flex flex-col items-center w-full py-8 md:py-16 lg:py-20 px-3 sm:px-4 min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white relative overflow-hidden">
       {/* Background decoration elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        {/* ลดขนาดของพื้นหลังแบบ Responsive */}
         <motion.div 
-          className="absolute top-20 left-0 w-64 h-64 rounded-full opacity-30 blur-3xl"
+          className="absolute top-20 left-0 w-32 sm:w-48 md:w-64 h-32 sm:h-48 md:h-64 rounded-full opacity-30 blur-3xl"
           style={{ background: `radial-gradient(circle, rgba(144,39,142,0.3) 0%, rgba(144,39,142,0) 70%)` }}
           animate={{ 
             x: [0, 50, 0], 
@@ -102,11 +103,11 @@ const AllProject = () => {
           }}
         />
         <motion.div 
-          className="absolute top-40 right-20 w-96 h-96 rounded-full opacity-20 blur-3xl"
+          className="absolute top-40 right-0 sm:right-10 md:right-20 w-40 sm:w-64 md:w-96 h-40 sm:h-64 md:h-96 rounded-full opacity-20 blur-3xl"
           style={{ background: `radial-gradient(circle, rgba(178,82,176,0.3) 0%, rgba(94,26,92,0) 70%)` }}
           animate={{ 
-            x: [0, -70, 0], 
-            y: [0, 50, 0],
+            x: [0, -40, 0], 
+            y: [0, 30, 0],
             scale: [1, 1.3, 1]
           }}
           transition={{ 
@@ -116,8 +117,8 @@ const AllProject = () => {
           }}
         />
         
-        {/* เพิ่มดาวกระพริบเบาๆ ในฉากหลัง */}
-        {Array.from({ length: 30 }).map((_, i) => {
+        {/* ลดจำนวนดาวในหน้าจอขนาดเล็ก */}
+        {Array.from({ length: window.innerWidth < 768 ? 15 : 30 }).map((_, i) => {
           const size = Math.random() * 3 + 1;
           const opacity = Math.random() * 0.5 + 0.3;
           
@@ -149,10 +150,10 @@ const AllProject = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-center mb-8"
+        className="text-center mb-4 sm:mb-6 md:mb-8"
       >
         <motion.h1
-          className="text-4xl font-bold"
+          className="text-3xl sm:text-4xl font-bold"
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
@@ -161,10 +162,10 @@ const AllProject = () => {
           ผลงานทั้งหมด
         </motion.h1>
         <motion.div
-          className="h-1 w-24 mx-auto mt-2 rounded-full"
+          className="h-1 w-16 sm:w-20 md:w-24 mx-auto mt-2 rounded-full"
           style={{ background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})` }}
           initial={{ width: 0 }}
-          animate={{ width: 96 }}
+          animate={{ width: '6rem' }}
           transition={{ duration: 0.8, delay: 0.5 }}
         />
       </motion.div>
@@ -173,7 +174,7 @@ const AllProject = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.2 }}
-        className="w-full max-w-2xl mb-12"
+        className="w-full max-w-2xl mb-6 sm:mb-8 md:mb-12 px-3 sm:px-4"
       >
         {/* <SearchBar onSearch={handleSearch} defaultValue={filters.keyword || ''} /> */}
       </motion.div>
@@ -182,7 +183,7 @@ const AllProject = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.4 }}
-        className="w-full max-w-6xl mb-8"
+        className="w-full max-w-6xl mb-4 sm:mb-6 md:mb-8 px-3 sm:px-4"
       >
         {/* ใช้ FilterPanel component ที่มีอยู่ในโปรเจค */}
         <FilterPanel
@@ -191,7 +192,7 @@ const AllProject = () => {
           onClearFilters={handleResetFilters}
           onRemoveFilter={(key) => updateFilters({ [key]: null })}
           collapsible={true}
-          defaultCollapsed={true}
+          defaultCollapsed={window.innerWidth < 768} // จอเล็กทำ collapse ไว้ก่อน
           loading={isLoading}
           theme="gradient" // ใช้ธีม gradient ที่เราปรับแต่งไว้ใน FilterPanel
         >
@@ -204,7 +205,7 @@ const AllProject = () => {
             onSearch={handleFilterChange}
             onReset={handleResetFilters}
             loading={isLoading}
-            layout="horizontal"
+            layout={window.innerWidth < 768 ? "vertical" : "horizontal"} // ปรับ layout ตามขนาดหน้าจอ
           />
         </FilterPanel>
       </motion.div>
@@ -213,28 +214,28 @@ const AllProject = () => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.6 }}
-        className="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-6 min-h-[300px]"
+        className="w-full max-w-6xl bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg md:shadow-xl p-3 sm:p-4 md:p-6 min-h-[200px] sm:min-h-[250px] md:min-h-[300px] mx-3 sm:mx-4"
         style={{ 
           backgroundColor: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(12px)',
           border: '1px solid rgba(144, 39, 142, 0.1)',
-          boxShadow: '0 8px 32px rgba(144, 39, 142, 0.08)'
+          boxShadow: '0 4px 16px sm:0 6px 24px md:0 8px 32px rgba(144, 39, 142, 0.08)'
         }}
       >
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex justify-center items-center h-40 sm:h-48 md:h-64">
             <LoadingSpinner tip="กำลังโหลดข้อมูล..." />
           </div>
         ) : error ? (
-          <div className="flex justify-center items-center h-64 flex-col">
+          <div className="flex justify-center items-center h-40 sm:h-48 md:h-64 flex-col">
             <Empty 
               description={
-                <span className="text-gray-500 text-lg">เกิดข้อผิดพลาด: {error}</span>
+                <span className="text-gray-500 text-base sm:text-lg">เกิดข้อผิดพลาด: {error}</span>
               }
             />
             <motion.button
               onClick={handleResetFilters}
-              className="mt-4 px-6 py-2 text-white rounded-full shadow-md"
+              className="mt-4 px-4 sm:px-5 md:px-6 py-1.5 sm:py-2 text-white text-sm sm:text-base rounded-full shadow-md"
               style={{ 
                 background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`,
                 boxShadow: '0 4px 12px rgba(144, 39, 142, 0.3)'
@@ -251,18 +252,18 @@ const AllProject = () => {
         ) : projects.length > 0 ? (
           <WorkGrid
             items={projects}
-            displayMode='row'
+            displayMode={window.innerWidth < 640 ? 'column' : 'row'} // ปรับ layout ตามขนาดหน้าจอ
             side='left'/>
         ) : (
-          <div className="flex justify-center items-center h-64 flex-col">
+          <div className="flex justify-center items-center h-40 sm:h-48 md:h-64 flex-col">
             <Empty 
               description={
-                <span style={{ color: themeColors.dark }} className="text-lg">ไม่พบผลงานที่ตรงกับเงื่อนไขที่เลือก</span>
+                <span style={{ color: themeColors.dark }} className="text-base sm:text-lg">ไม่พบผลงานที่ตรงกับเงื่อนไขที่เลือก</span>
               }
             />
             <motion.button
               onClick={handleResetFilters}
-              className="mt-4 px-6 py-2 text-white rounded-full shadow-md"
+              className="mt-4 px-4 sm:px-5 md:px-6 py-1.5 sm:py-2 text-white text-sm sm:text-base rounded-full shadow-md"
               style={{ 
                 background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`,
                 boxShadow: '0 4px 12px rgba(144, 39, 142, 0.3)'
@@ -284,10 +285,10 @@ const AllProject = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.7, delay: 1 }}
-          className="mt-8 w-full max-w-6xl"
+          className="mt-4 sm:mt-6 md:mt-8 w-full max-w-6xl px-3 sm:px-4"
         >
           <div className="flex flex-col items-center">
-            <div className="mb-4" style={{ color: themeColors.dark }}>
+            <div className="mb-2 sm:mb-4 text-xs sm:text-sm md:text-base text-center" style={{ color: themeColors.dark }}>
               แสดงผลงานลำดับที่ {(pagination.current - 1) * pagination.pageSize + 1}-
               {Math.min(pagination.current * pagination.pageSize, pagination.total)} จากทั้งหมด {pagination.total} ชิ้น
             </div>

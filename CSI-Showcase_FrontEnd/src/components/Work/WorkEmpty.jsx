@@ -13,7 +13,7 @@ const WorkEmpty = ({ title, description }) => {
   };
 
   return (
-    <div className="work-section py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="work-section py-8 sm:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -21,23 +21,23 @@ const WorkEmpty = ({ title, description }) => {
         className="text-center max-w-3xl mx-auto"
       >
         <h1 
-          className="text-2xl sm:text-3xl font-bold mb-3"
+          className="text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3"
           style={headingGradient}
         >
           {title}
         </h1>
-        <p className="text-[#8b949e] mb-8 text-base sm:text-lg">{description}</p>
+        <p className="text-[#8b949e] mb-6 sm:mb-8 text-sm sm:text-base md:text-lg">{description}</p>
       </motion.div>
       
       <motion.div 
-        className="p-8 sm:p-12 bg-gradient-to-b from-[#F5EAFF] to-white rounded-xl shadow-sm border border-[rgba(144,39,142,0.1)] backdrop-filter backdrop-blur-md bg-opacity-80"
+        className="p-6 sm:p-8 md:p-12 bg-gradient-to-b from-[#F5EAFF] to-white rounded-xl shadow-sm border border-[rgba(144,39,142,0.1)] backdrop-filter backdrop-blur-md bg-opacity-80"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <Empty 
           description={
-            <span className="text-[#8b949e] text-lg">ไม่มีผลงานที่จะแสดงในขณะนี้</span>
+            <span className="text-[#8b949e] text-base sm:text-lg">ไม่มีผลงานที่จะแสดงในขณะนี้</span>
           }
           image={Empty.PRESENTED_IMAGE_SIMPLE} 
         />

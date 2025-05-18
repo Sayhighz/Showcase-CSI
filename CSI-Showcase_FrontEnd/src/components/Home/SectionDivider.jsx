@@ -20,27 +20,30 @@ const SectionDivider = ({
   const translateY = useTransform(scrollYProgress, [0, 1], [0, -30]);
   const opacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.8, 1, 0.8]);
 
+  // ปรับความสูงตามขนาดหน้าจอ
+  const responsiveHeight = window.innerWidth < 768 ? height * 0.6 : height;
+
   // ฟังก์ชันสร้างรูปแบบ GitHub-style divider
   const createGithubStyleDivider = () => {
     return (
       <div 
         className="w-full overflow-hidden" 
-        style={{ height: `${height}px` }}
+        style={{ height: `${responsiveHeight}px` }}
       >
         <svg 
           width="100%" 
-          height={height} 
-          viewBox={`0 0 1440 ${height}`} 
+          height={responsiveHeight} 
+          viewBox={`0 0 1440 ${responsiveHeight}`} 
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
           preserveAspectRatio="none"
         >
           <path 
-            d={`M0,0 L1440,0 L1440,${height * 0.7} C1080,${height * 1.1} 360,${height * 0.3} 0,${height * 0.8} L0,0 Z`} 
+            d={`M0,0 L1440,0 L1440,${responsiveHeight * 0.7} C1080,${responsiveHeight * 1.1} 360,${responsiveHeight * 0.3} 0,${responsiveHeight * 0.8} L0,0 Z`} 
             fill={`url(#divider-gradient-${colorFrom.replace('#', '')})`}
           />
           <defs>
-            <linearGradient id={`divider-gradient-${colorFrom.replace('#', '')}`} x1="720" y1="0" x2="720" y2={height} gradientUnits="userSpaceOnUse">
+            <linearGradient id={`divider-gradient-${colorFrom.replace('#', '')}`} x1="720" y1="0" x2="720" y2={responsiveHeight} gradientUnits="userSpaceOnUse">
               <stop stopColor={colorFrom} />
               <stop offset="1" stopColor={colorTo} />
             </linearGradient>
@@ -86,10 +89,10 @@ const SectionDivider = ({
               }
             }}
           >
-            <div className="px-4 py-2 bg-[#90278E] text-white rounded-full shadow-lg">
+            <div className="px-3 sm:px-4 py-1 sm:py-2 bg-[#90278E] text-white rounded-full shadow-lg text-xs sm:text-sm">
               {scrollToTop ? "↑" : "↓"}
             </div>
-            <div className="text-[#90278E] mt-2 font-medium text-sm">
+            <div className="text-[#90278E] mt-2 font-medium text-xs sm:text-sm">
               {scrollToTop ? "Back to Top" : "Explore More"}
             </div>
           </motion.div>

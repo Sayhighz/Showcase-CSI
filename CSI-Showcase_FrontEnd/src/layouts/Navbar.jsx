@@ -39,6 +39,21 @@ const Navbar = () => {
   const [isAtTop, setIsAtTop] = useState(true);
   const [visible, setVisible] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // ตรวจสอบขนาดหน้าจอว่าเป็นโมบายหรือไม่
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Handle logout
   const handleLogout = () => {
@@ -82,19 +97,10 @@ const Navbar = () => {
       ),
     },
     {
-      key: "2",
-      label: (
-        <Link to="/settings" className="flex items-center space-x-2 p-2">
-          <SettingOutlined />
-          <span>ตั้งค่าโปรไฟล์</span>
-        </Link>
-      ),
-    },
-    {
       type: "divider",
     },
     {
-      key: "3",
+      key: "2",
       label: (
         <div
           onClick={handleLogout}
@@ -152,7 +158,6 @@ const Navbar = () => {
       <Drawer
         title={
           <div className="flex justify-between items-center">
-            <img src={LogoCSI} alt="CSI Logo" className="h-10" />
             <Button
               type="text"
               onClick={closeDrawer}
@@ -165,7 +170,7 @@ const Navbar = () => {
         closable={false}
         onClose={closeDrawer}
         open={visible}
-        width={280}
+        width={isMobile ? "80%" : 280}
         bodyStyle={{ padding: 0 }}
         styles={{
           header: { 
@@ -188,10 +193,10 @@ const Navbar = () => {
                 src={image ? API_ENDPOINTS.BASE + "/" + image : null}
                 icon={!image && <UserOutlined />}
                 className="bg-[#90278E]"
-                size="large"
+                size={isMobile ? "default" : "large"}
               />
               <div>
-                <div className="font-medium text-[#90278E]">{fullName}</div>
+                <div className="font-medium text-[#90278E] text-sm sm:text-base truncate max-w-[150px]">{fullName}</div>
                 <div className="text-xs text-[#8b949e]">นักศึกษา CSI</div>
               </div>
             </div>
@@ -232,15 +237,6 @@ const Navbar = () => {
                     ),
                   },
                   {
-                    key: "settings",
-                    icon: <SettingOutlined />,
-                    label: (
-                      <Link to="/settings" onClick={closeDrawer}>
-                        ตั้งค่าโปรไฟล์
-                      </Link>
-                    ),
-                  },
-                  {
                     key: "logout",
                     icon: <LogoutOutlined />,
                     label: (
@@ -275,14 +271,14 @@ const Navbar = () => {
           className={`fixed top-0 left-0 w-full z-50`}
         >
           <Header
-            className={`px-4 md:px-8 flex justify-between items-center h-16 transition-all duration-500 ${
+            className={`px-2 sm:px-4 md:px-8 flex justify-between items-center h-14 sm:h-16 transition-all duration-500 ${
               isHomeAndAtTop 
                 ? "bg-transparent shadow-none" 
                 : "bg-[#90278E] shadow-md backdrop-filter backdrop-blur-md bg-opacity-90"
             }`}
           >
             {/* Left Section - Logo & Navigation */}
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-3 sm:space-x-8">
               {/* Logo with hover animation */}
               <motion.div
                 className="flex items-center"
@@ -291,7 +287,7 @@ const Navbar = () => {
                 whileHover="hover"
               >
                 <Link to="/">
-                  <img src={LogoCSI} alt="CSI Logo" className="h-10 md:h-12" />
+                  <img src={LogoCSI} alt="CSI Logo" className="h-8 sm:h-10 md:h-12" />
                 </Link>
               </motion.div>
               
@@ -371,7 +367,7 @@ const Navbar = () => {
             </div>
 
             {/* Right Section - Action Buttons & User Profile */}
-            <div className="flex items-center space-x-3 md:space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
               {/* Mobile Menu Button */}
               <motion.div
                 whileHover={{ scale: 1.05 }}
@@ -380,7 +376,7 @@ const Navbar = () => {
               >
                 <Button
                   type="text"
-                  className="text-white flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 border-0 rounded-full w-9 h-9"
+                  className="text-white flex items-center justify-center bg-white bg-opacity-10 hover:bg-opacity-20 border-0 rounded-full w-8 h-8 sm:w-9 sm:h-9"
                   icon={<MenuOutlined />}
                   onClick={showDrawer}
                 />
@@ -399,7 +395,7 @@ const Navbar = () => {
                     onMouseLeave={() => setIsHovering(false)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="flex items-center cursor-pointer space-x-2 bg-white bg-opacity-10 px-3 py-1.5 rounded-full border border-white border-opacity-10 transition-all hover:bg-opacity-20"
+                    className="flex items-center cursor-pointer space-x-2 bg-white bg-opacity-10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white border-opacity-10 transition-all hover:bg-opacity-20"
                   >
                     <Avatar
                       src={image ? API_ENDPOINTS.BASE + "/" + image : null}
@@ -407,7 +403,7 @@ const Navbar = () => {
                       className="bg-[#B252B0]"
                       size="small"
                     />
-                    <span className="hidden md:inline max-w-24 truncate text-sm text-white">{fullName}</span>
+                    <span className="hidden sm:inline max-w-16 md:max-w-24 truncate text-xs sm:text-sm text-white">{fullName}</span>
                   </motion.div>
                 </Dropdown>
               ) : (
@@ -417,10 +413,10 @@ const Navbar = () => {
                 >
                   <Link
                     to="/login"
-                    className="flex items-center space-x-1 bg-white hover:bg-[#F5EAFF] text-[#90278E] font-medium px-4 py-1.5 rounded-full transition-all duration-300 border border-transparent shadow-sm"
+                    className="flex items-center space-x-1 bg-white hover:bg-[#F5EAFF] text-[#90278E] font-medium px-2 sm:px-4 py-1 sm:py-1.5 rounded-full transition-all duration-300 border border-transparent shadow-sm text-xs sm:text-sm"
                   >
-                    <UserOutlined className="mr-1" />
-                    <span>เข้าสู่ระบบ</span>
+                    <UserOutlined className="mr-0 sm:mr-1" />
+                    <span className="hidden xs:inline">เข้าสู่ระบบ</span>
                   </Link>
                 </motion.div>
               )}
@@ -430,7 +426,7 @@ const Navbar = () => {
       </AnimatePresence>
 
       {/* Spacer for content below the fixed navbar */}
-      <div className={isHomeAndAtTop ? "h-0" : "h-16"}></div>
+      <div className={isHomeAndAtTop ? "h-0" : "h-14 sm:h-16"}></div>
     </>
   );
 };

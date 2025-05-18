@@ -109,7 +109,7 @@ const AcademicSection = ({
   return (
     <section 
       ref={sectionRef}
-      className="min-h-screen py-16 relative overflow-hidden flex flex-col items-center justify-center"
+      className="min-h-screen py-8 md:py-16 relative overflow-hidden flex flex-col items-center justify-center"
       style={{ 
         background: 'linear-gradient(to bottom, #E0D1FF, #90278E)'
       }}
@@ -122,32 +122,34 @@ const AcademicSection = ({
         height={80}
       />
 
-      {/* Animated Space Objects */}
-      {Array.from({ length: 5 }).map((_, i) => (
-        <motion.div
-          key={`comet-${i}`}
-          className="absolute opacity-20 rounded-full bg-white"
-          style={{
-            top: `${Math.random() * 80 + 10}%`,
-            left: `-50px`,
-            width: `${Math.random() * 4 + 2}px`,
-            height: `${Math.random() * 4 + 2}px`,
-            boxShadow: `0 0 10px 4px rgba(255, 255, 255, 0.8)`
-          }}
-          animate={{
-            x: [0, window.innerWidth + 100],
-            opacity: [0, 0.8, 0]
-          }}
-          transition={{
-            duration: Math.random() * 10 + 10,
-            repeat: Infinity,
-            ease: "linear",
-            delay: Math.random() * 5
-          }}
-        />
-      ))}
+      {/* Animated Space Objects - Hide on small screens */}
+      <div className="hidden md:block">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <motion.div
+            key={`comet-${i}`}
+            className="absolute opacity-20 rounded-full bg-white"
+            style={{
+              top: `${Math.random() * 80 + 10}%`,
+              left: `-50px`,
+              width: `${Math.random() * 4 + 2}px`,
+              height: `${Math.random() * 4 + 2}px`,
+              boxShadow: `0 0 10px 4px rgba(255, 255, 255, 0.8)`
+            }}
+            animate={{
+              x: [0, window.innerWidth + 100],
+              opacity: [0, 0.8, 0]
+            }}
+            transition={{
+              duration: Math.random() * 10 + 10,
+              repeat: Infinity,
+              ease: "linear",
+              delay: Math.random() * 5
+            }}
+          />
+        ))}
+      </div>
 
-      <div className="container mx-auto px-6 py-16">
+      <div className="container mx-auto px-4 sm:px-6 py-8 md:py-16">
         <SectionHeader
           icon={<ReadOutlined />}
           title="ผลงานวิชาการ"
@@ -185,30 +187,32 @@ const AcademicSection = ({
                       depth={1}
                       glareEnabled={true}
                     >
-                      <div className="bg-white bg-opacity-90 backdrop-filter backdrop-blur-sm p-8 rounded-2xl">
-                        <div className="flex justify-between items-start mb-6">
+                      <div className="bg-white bg-opacity-90 backdrop-filter backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl">
+                        <div className="flex flex-col sm:flex-row justify-between items-start mb-4 sm:mb-6">
                           <div>
                             <Text className="text-[#90278E] font-bold mb-1">{getCurrentProject().level}</Text>
-                            <Title level={2} style={{ marginTop: 0, marginBottom: '16px' }}>{getCurrentProject().title}</Title>
+                            <Title level={2} className="mt-0 mb-2 sm:mb-4 text-xl sm:text-2xl md:text-3xl" style={{ marginTop: 0, marginBottom: '16px' }}>
+                              {getCurrentProject().title}
+                            </Title>
                             <div className="flex items-center space-x-3 mb-4">
                               {getCurrentProject().userImage ? (
                                 <img 
                                   src={`${API_ENDPOINTS.BASE}/${getCurrentProject().userImage}`} 
                                   alt={getCurrentProject().student}
-                                  className="w-10 h-10 rounded-full object-cover" 
+                                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover" 
                                 />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-[#90278E] flex items-center justify-center text-white">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#90278E] flex items-center justify-center text-white">
                                   {getCurrentProject().student.charAt(0)}
                                 </div>
                               )}
                               <div>
-                                <Text className="font-medium block">{getCurrentProject().student}</Text>
-                                <Text type="secondary" className="text-sm">{getCurrentProject().username}</Text>
+                                <Text className="font-medium block text-sm sm:text-base">{getCurrentProject().student}</Text>
+                                <Text type="secondary" className="text-xs sm:text-sm">{getCurrentProject().username}</Text>
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 mt-2 sm:mt-0 text-xs sm:text-sm">
                             <Text type="secondary">ปีที่เผยแพร่: {getCurrentProject().year || new Date(getCurrentProject().createdAt).getFullYear()}</Text>
                             <Text type="secondary">
                               <FireOutlined /> {getCurrentProject().viewsCount}
@@ -216,35 +220,35 @@ const AcademicSection = ({
                           </div>
                         </div>
 
-                        <div className="my-8 p-6 bg-gray-50 rounded-xl">
-                          <Title level={4} style={{ marginTop: 0 }}>บทคัดย่อ</Title>
-                          <Paragraph className="text-lg">
+                        <div className="my-4 sm:my-6 md:my-8 p-3 sm:p-4 md:p-6 bg-gray-50 rounded-xl">
+                          <Title level={4} className="mt-0 text-lg sm:text-xl" style={{ marginTop: 0 }}>บทคัดย่อ</Title>
+                          <Paragraph className="text-sm sm:text-base md:text-lg">
                             {getCurrentProject().description}
                           </Paragraph>
                         </div>
 
                         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-between items-center pt-4 border-t border-gray-200">
-                          <div className="flex items-center space-x-2">
-                            <ReadOutlined className="text-[#90278E] text-xl" />
+                          <div className="flex items-center space-x-2 text-sm sm:text-base">
+                            <ReadOutlined className="text-[#90278E] text-lg sm:text-xl" />
                             <Text>ประเภทเอกสาร: งานวิจัย</Text>
                           </div>
                           <Button 
                             type="primary" 
-                            size="large"
-                            className="bg-[#90278E] hover:bg-[#B252B0] border-none"
+                            size="middle"
+                            className="bg-[#90278E] hover:bg-[#B252B0] border-none w-full sm:w-auto"
                             href={getCurrentProject().projectLink}
                           >
                             อ่านฉบับเต็ม
                           </Button>
                         </div>
 
-                        <div className="mt-10 text-center">
-                          <Title level={5} style={{ marginBottom: '16px' }}>แนะนำบทความเพิ่มเติมในหัวข้อที่เกี่ยวข้อง</Title>
+                        <div className="mt-6 sm:mt-8 md:mt-10 text-center">
+                          <Title level={5} className="mb-2 sm:mb-4 text-base sm:text-lg" style={{ marginBottom: '16px' }}>แนะนำบทความเพิ่มเติมในหัวข้อที่เกี่ยวข้อง</Title>
                           <div className="flex flex-wrap justify-center gap-2">
-                            <Button type="default">Machine Learning</Button>
-                            <Button type="default">Data Science</Button>
-                            <Button type="default">อาคารอัจฉริยะ</Button>
-                            <Button type="default">การวิเคราะห์พลังงาน</Button>
+                            <Button type="default" size="small" className="text-xs sm:text-sm">Machine Learning</Button>
+                            <Button type="default" size="small" className="text-xs sm:text-sm">Data Science</Button>
+                            <Button type="default" size="small" className="text-xs sm:text-sm">อาคารอัจฉริยะ</Button>
+                            <Button type="default" size="small" className="text-xs sm:text-sm">การวิเคราะห์พลังงาน</Button>
                           </div>
                         </div>
                       </div>
@@ -284,6 +288,30 @@ const AcademicSection = ({
         
         .academic-pagination .ant-pagination-item-active a {
           color: white;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 768px) {
+          .academic-pagination .ant-pagination-item {
+            margin: 0 2px;
+            min-width: 28px;
+            height: 28px;
+            line-height: 26px;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .academic-pagination {
+            display: flex;
+            justify-content: center;
+          }
+          
+          .academic-pagination .ant-pagination-item {
+            margin: 0 1px;
+            min-width: 24px;
+            height: 24px;
+            line-height: 22px;
+          }
         }
       `}</style>
     </section>

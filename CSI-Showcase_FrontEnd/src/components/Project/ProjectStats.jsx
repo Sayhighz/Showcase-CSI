@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Statistic, Row, Col, Typography, Tooltip } from 'antd';
 import { EyeOutlined, LikeOutlined, MessageOutlined, UserOutlined, CalendarOutlined, TagOutlined } from '@ant-design/icons';
 
@@ -65,6 +65,35 @@ const ProjectStats = ({
   size = 'default',
   style
 }) => {
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // ตรวจสอบขนาดหน้าจอและอัปเดต state
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
+
+  // ปรับขนาดตาม responsive
+  const getResponsiveSize = () => {
+    if (windowWidth < 576) return 'xs';
+    if (windowWidth < 768) return 'sm';
+    if (windowWidth < 992) return 'md';
+    if (windowWidth < 1200) return 'lg';
+    return 'xl';
+  };
+
+  const responsiveSize = getResponsiveSize();
+  const isMobile = responsiveSize === 'xs';
+  const isTablet = responsiveSize === 'sm' || responsiveSize === 'md';
+
   if (!project) return null;
 
   const { 
@@ -77,89 +106,121 @@ const ProjectStats = ({
     updatedAt 
   } = project;
 
-  // กำหนดขนาดของไอคอนตาม size ที่ระบุ
+  // กำหนดขนาดของไอคอนตาม size ที่ระบุและ responsive
   const getIconSize = () => {
+    // ปรับตาม responsive
+    const responsiveFactor = isMobile ? 0.8 : (isTablet ? 0.9 : 1);
+    
+    // ปรับตาม size ที่กำหนด
     switch (size) {
       case 'small':
-        return 16;
+        return Math.round(16 * responsiveFactor);
       case 'large':
-        return 24;
+        return Math.round(24 * responsiveFactor);
       case 'default':
       default:
-        return 20;
+        return Math.round(20 * responsiveFactor);
     }
   };
 
   const iconSize = getIconSize();
 
+  // กำหนดขนาดของฟอนต์สำหรับ title และ value ตาม size และขนาดหน้าจอ
+  const getTitleFontSize = () => {
+    if (isMobile) return '12px';
+    if (isTablet) return size === 'small' ? '13px' : '14px';
+    return size === 'small' ? '14px' : (size === 'large' ? '16px' : '15px');
+  };
+
+  const getValueFontSize = () => {
+    if (isMobile) return size === 'small' ? '14px' : '16px';
+    if (isTablet) return size === 'small' ? '16px' : '18px';
+    return size === 'small' ? '18px' : (size === 'large' ? '22px' : '20px');
+  };
+
   return (
     <Card
-      style={{ ...style }}
+      style={{ 
+        ...style,
+        padding: isMobile ? '8px' : (isTablet ? '12px' : '16px'),
+        borderRadius: isMobile ? '8px' : '12px'
+      }}
       loading={loading}
+      bodyStyle={{ padding: isMobile ? '8px' : (isTablet ? '12px' : '16px') }}
     >
-      <Title level={4} style={{ marginBottom: 16 }}>สถิติโปรเจค</Title>
-      <Row gutter={[16, 16]}>
+      <Title level={isMobile ? 5 : 4} style={{ 
+        marginBottom: isMobile ? 10 : 16,
+        fontSize: isMobile ? '16px' : (isTablet ? '18px' : '20px')
+      }}>
+        สถิติโปรเจค
+      </Title>
+      <Row gutter={[isMobile ? 8 : 16, isMobile ? 12 : 16]}>
         <Col xs={12} md={8} lg={6}>
           <Tooltip title="จำนวนการเข้าชม">
             <Statistic
-              title="การเข้าชม"
+              title={<span style={{ fontSize: getTitleFontSize() }}>การเข้าชม</span>}
               value={views}
               formatter={(value) => formatCompactNumber(value)}
               prefix={<EyeOutlined style={{ fontSize: iconSize }} />}
               loading={loading}
+              valueStyle={{ fontSize: getValueFontSize() }}
             />
           </Tooltip>
         </Col>
         <Col xs={12} md={8} lg={6}>
           <Tooltip title="จำนวนการถูกใจ">
             <Statistic
-              title="ถูกใจ"
+              title={<span style={{ fontSize: getTitleFontSize() }}>ถูกใจ</span>}
               value={likes}
               formatter={(value) => formatCompactNumber(value)}
               prefix={<LikeOutlined style={{ fontSize: iconSize }} />}
               loading={loading}
+              valueStyle={{ fontSize: getValueFontSize() }}
             />
           </Tooltip>
         </Col>
         <Col xs={12} md={8} lg={6}>
           <Tooltip title="จำนวนความคิดเห็น">
             <Statistic
-              title="ความคิดเห็น"
+              title={<span style={{ fontSize: getTitleFontSize() }}>ความคิดเห็น</span>}
               value={comments}
               formatter={(value) => formatCompactNumber(value)}
               prefix={<MessageOutlined style={{ fontSize: iconSize }} />}
               loading={loading}
+              valueStyle={{ fontSize: getValueFontSize() }}
             />
           </Tooltip>
         </Col>
         <Col xs={12} md={8} lg={6}>
           <Tooltip title="จำนวนผู้มีส่วนร่วม">
             <Statistic
-              title="ผู้มีส่วนร่วม"
+              title={<span style={{ fontSize: getTitleFontSize() }}>ผู้มีส่วนร่วม</span>}
               value={contributors}
               formatter={(value) => formatCompactNumber(value)}
               prefix={<UserOutlined style={{ fontSize: iconSize }} />}
               loading={loading}
+              valueStyle={{ fontSize: getValueFontSize() }}
             />
           </Tooltip>
         </Col>
         <Col xs={12} md={8} lg={6}>
           <Tooltip title="จำนวนแท็ก">
             <Statistic
-              title="แท็ก"
+              title={<span style={{ fontSize: getTitleFontSize() }}>แท็ก</span>}
               value={Array.isArray(tags) ? tags.length : 0}
               formatter={(value) => formatCompactNumber(value)}
               prefix={<TagOutlined style={{ fontSize: iconSize }} />}
               loading={loading}
+              valueStyle={{ fontSize: getValueFontSize() }}
             />
           </Tooltip>
         </Col>
         <Col xs={12} md={8} lg={6}>
           <Tooltip title="วันที่สร้าง">
             <Statistic
-              title="สร้างเมื่อ"
+              title={<span style={{ fontSize: getTitleFontSize() }}>สร้างเมื่อ</span>}
               value={formatDate(createdAt) || 'ไม่ระบุ'}
-              valueStyle={{ fontSize: size === 'small' ? 14 : size === 'large' ? 18 : 16 }}
+              valueStyle={{ fontSize: getValueFontSize() }}
               prefix={<CalendarOutlined style={{ fontSize: iconSize }} />}
               loading={loading}
             />

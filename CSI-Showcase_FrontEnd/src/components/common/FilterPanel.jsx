@@ -38,6 +38,21 @@ const FilterPanel = ({
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [isHovered, setIsHovered] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // ตรวจสอบขนาดหน้าจอและอัปเดต state
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
 
   // เก็บการตั้งค่าพับเก็บไว้ใน localStorage
   useEffect(() => {
@@ -50,6 +65,13 @@ const FilterPanel = ({
   useEffect(() => {
     localStorage.setItem('filterPanelCollapsed', String(collapsed));
   }, [collapsed]);
+
+  // ตรวจสอบอัตโนมัติว่าควรเริ่มต้นในโหมดพับ
+  useEffect(() => {
+    if (windowWidth < 768) {
+      setCollapsed(true);
+    }
+  }, [windowWidth]);
 
   // CSS Variables for theme colors
   const themeColors = {
@@ -96,6 +118,17 @@ const FilterPanel = ({
     ).length;
   };
 
+  // ปรับขนาดตาม responsive
+  const getResponsiveSize = () => {
+    if (windowWidth < 576) return 'xs';
+    if (windowWidth < 768) return 'sm';
+    if (windowWidth < 992) return 'md';
+    if (windowWidth < 1200) return 'lg';
+    return 'xl';
+  };
+
+  const responsiveSize = getResponsiveSize();
+
   // แปลง activeFilters เป็น tags
   const renderActiveFilterTags = () => {
     return Object.entries(activeFilters).map(([key, value]) => {
@@ -118,7 +151,9 @@ const FilterPanel = ({
         } else {
           // ถ้าค่าเป็นข้อความยาวเกินไป ให้ย่อ
           const strValue = value.toString();
-          return strValue.length > 20 ? strValue.substring(0, 20) + '...' : strValue;
+          // แสดงข้อความสั้นลงสำหรับหน้าจอเล็ก
+          const maxLength = responsiveSize === 'xs' ? 10 : (responsiveSize === 'sm' ? 15 : 20);
+          return strValue.length > maxLength ? strValue.substring(0, maxLength) + '...' : strValue;
         }
       };
 
@@ -165,7 +200,10 @@ const FilterPanel = ({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.2 }}
-          style={{ display: 'inline-block', margin: '4px' }}
+          style={{ 
+            display: 'inline-block', 
+            margin: responsiveSize === 'xs' ? '2px' : '4px'
+          }}
         >
           <Tag
             closable
@@ -173,19 +211,25 @@ const FilterPanel = ({
             color={getTagColor(key)}
             style={{ 
               borderRadius: '16px', 
-              padding: '4px 10px', 
+              padding: responsiveSize === 'xs' ? '2px 6px' : '4px 10px', 
               display: 'flex', 
               alignItems: 'center',
-              gap: '4px',
+              gap: responsiveSize === 'xs' ? '2px' : '4px',
               backgroundColor: getTagColor(key),
               color: '#FFFFFF',
               boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
             }}
           >
-            <Text strong style={{ color: '#FFFFFF', fontSize: '12px' }}>
+            <Text strong style={{ 
+              color: '#FFFFFF', 
+              fontSize: responsiveSize === 'xs' ? '10px' : (responsiveSize === 'sm' ? '11px' : '12px')
+            }}>
               {getDisplayKey(key)}:
             </Text>
-            <Text style={{ color: '#FFFFFF', fontSize: '12px' }}>
+            <Text style={{ 
+              color: '#FFFFFF', 
+              fontSize: responsiveSize === 'xs' ? '10px' : (responsiveSize === 'sm' ? '11px' : '12px') 
+            }}>
               {getFilterValue()}
             </Text>
           </Tag>
@@ -201,21 +245,28 @@ const FilterPanel = ({
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.3 }}
-      style={{ marginTop: 16 }}
+      style={{ marginTop: responsiveSize === 'xs' ? 8 : 16 }}
     >
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        marginBottom: 8
+        marginBottom: responsiveSize === 'xs' ? 4 : 8,
+        flexWrap: 'wrap',
+        gap: '8px'
       }}>
-        <Text strong style={{ fontSize: '14px', color: themeColors.dark }}>ตัวกรองที่ใช้งาน</Text>
+        <Text strong style={{ 
+          fontSize: responsiveSize === 'xs' ? '12px' : (responsiveSize === 'sm' ? '13px' : '14px'), 
+          color: themeColors.dark 
+        }}>
+          ตัวกรองที่ใช้งาน
+        </Text>
         <Button 
           type="primary"
           icon={<ReloadOutlined />}
           onClick={handleClearFilters}
           disabled={loading}
-          size="small"
+          size={responsiveSize === 'xs' || responsiveSize === 'sm' ? 'small' : 'middle'}
           style={{ 
             borderRadius: '20px', 
             display: 'flex', 
@@ -223,14 +274,19 @@ const FilterPanel = ({
             gap: '4px',
             backgroundColor: themeColors.primary,
             borderColor: themeColors.primary,
-            boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
+            boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)',
+            padding: responsiveSize === 'xs' ? '0 8px' : undefined
           }}
         >
           ล้างทั้งหมด
         </Button>
       </div>
       <AnimatePresence>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+        <div style={{ 
+          display: 'flex', 
+          flexWrap: 'wrap', 
+          gap: responsiveSize === 'xs' ? '2px' : '4px' 
+        }}>
           {renderActiveFilterTags()}
         </div>
       </AnimatePresence>
@@ -313,14 +369,16 @@ const FilterPanel = ({
       >
         <Card 
           style={{ 
-            marginBottom: 16, 
-            borderRadius: '12px', 
+            marginBottom: responsiveSize === 'xs' ? 8 : 16, 
+            borderRadius: responsiveSize === 'xs' ? '8px' : '12px', 
             overflow: 'hidden',
             transition: 'all 0.3s ease',
             ...themeStyles.card,
             ...style 
           }}
-          bodyStyle={{ padding: '16px 20px' }}
+          bodyStyle={{ 
+            padding: responsiveSize === 'xs' ? '12px 14px' : (responsiveSize === 'sm' ? '14px 16px' : '16px 20px') 
+          }}
           bordered={false}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -333,15 +391,15 @@ const FilterPanel = ({
               justifyContent: 'space-between', 
               alignItems: 'center',
               cursor: 'pointer',
-              padding: '8px 0',
+              padding: responsiveSize === 'xs' ? '4px 0' : '8px 0',
               userSelect: 'none'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <FilterOutlined
                 style={{ 
-                  marginRight: 10, 
-                  fontSize: '18px',
+                  marginRight: responsiveSize === 'xs' ? 6 : 10, 
+                  fontSize: responsiveSize === 'xs' ? '14px' : '18px',
                   color: hasActiveFilters ? themeColors.primary : 'inherit'
                 }} 
               />
@@ -350,6 +408,7 @@ const FilterPanel = ({
                 style={{ 
                   margin: 0,
                   fontWeight: hasActiveFilters ? 600 : 500,
+                  fontSize: responsiveSize === 'xs' ? '14px' : (responsiveSize === 'sm' ? '15px' : '16px'),
                   ...themeStyles.header
                 }}
               >
@@ -361,7 +420,8 @@ const FilterPanel = ({
                   style={{ 
                     backgroundColor: themeColors.primary,
                     boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)',
-                    marginLeft: '8px'
+                    marginLeft: '8px',
+                    transform: responsiveSize === 'xs' ? 'scale(0.8)' : 'scale(1)'
                   }}
                 />
               )}
@@ -373,7 +433,7 @@ const FilterPanel = ({
               <DownOutlined 
                 style={{ 
                   color: hasActiveFilters ? themeColors.primary : 'inherit',
-                  fontSize: '14px'
+                  fontSize: responsiveSize === 'xs' ? '12px' : '14px'
                 }} 
               />
             </motion.div>
@@ -391,7 +451,7 @@ const FilterPanel = ({
               >
                 <Divider 
                   style={{ 
-                    margin: '12px 0',
+                    margin: responsiveSize === 'xs' ? '8px 0' : '12px 0',
                     ...themeStyles.divider
                   }} 
                 />
@@ -421,15 +481,15 @@ const FilterPanel = ({
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <FilterOutlined 
               style={{ 
-                marginRight: 10, 
-                fontSize: '18px',
+                marginRight: responsiveSize === 'xs' ? 6 : 10, 
+                fontSize: responsiveSize === 'xs' ? '14px' : '18px',
                 color: hasActiveFilters ? themeColors.primary : 'inherit'
               }} 
             />
             <span style={{ 
               ...themeStyles.header,
               fontWeight: hasActiveFilters ? 600 : 500,
-              fontSize: '16px'
+              fontSize: responsiveSize === 'xs' ? '14px' : '16px'
             }}>
               {title}
             </span>
@@ -439,84 +499,101 @@ const FilterPanel = ({
                 style={{ 
                   backgroundColor: themeColors.primary,
                   boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)',
-                  marginLeft: '8px'
+                  marginLeft: '8px',
+                  transform: responsiveSize === 'xs' ? 'scale(0.8)' : 'scale(1)'
                 }}
               />
             )}
           </div>
         }
         style={{ 
-          marginBottom: 16, 
-          borderRadius: '12px', 
+          marginBottom: responsiveSize === 'xs' ? 8 : 16, 
+          borderRadius: responsiveSize === 'xs' ? '8px' : '12px', 
           overflow: 'hidden',
           ...themeStyles.card,
           ...style 
         }}
-        bodyStyle={{ padding: layout === 'horizontal' ? '16px 20px' : '16px 24px' }}
+        bodyStyle={{ 
+          padding: responsiveSize === 'xs' 
+            ? '12px' 
+            : (responsiveSize === 'sm' 
+                ? (layout === 'horizontal' ? '14px 16px' : '14px 18px') 
+                : (layout === 'horizontal' ? '16px 20px' : '16px 24px'))
+        }}
         bordered={false}
         headStyle={{
           backgroundColor: theme === 'dark' ? '#221122' : theme === 'gradient' ? 'transparent' : '#F5EAFF',
-          borderBottom: '1px solid rgba(144, 39, 142, 0.1)'
+          borderBottom: '1px solid rgba(144, 39, 142, 0.1)',
+          padding: responsiveSize === 'xs' ? '8px 12px' : undefined
         }}
       >
         {layout === 'horizontal' ? (
-          <Row gutter={[16, 16]}>
+          <Row gutter={[responsiveSize === 'xs' ? 8 : 16, responsiveSize === 'xs' ? 8 : 16]}>
             <Col xs={24} sm={24} md={24} lg={24} xl={24}>
-              <div className="filter-panel-content">{children}</div>
-            </Col>
-            {hasActiveFilters && (
-              <Col xs={24} sm={24} md={24} lg={24} xl={24}>
-                <Divider 
-                  style={{ 
-                    margin: '12px 0',
-                    ...themeStyles.divider
-                  }} 
-                />
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginBottom: 8,
-                  flexWrap: 'wrap',
-                  gap: '8px'
-                }}>
-                  <Text strong style={{ fontSize: '14px', color: themeColors.dark }}>ตัวกรองที่ใช้งาน</Text>
-                  <Button 
-                    type="primary"
-                    icon={<ReloadOutlined />}
-                    onClick={handleClearFilters}
-                    disabled={loading}
-                    size="small"
-                    style={{ 
-                      borderRadius: '20px', 
-                      display: 'flex', 
-                      alignItems: 'center',
-                      gap: '4px',
-                      backgroundColor: themeColors.primary,
-                      borderColor: themeColors.primary,
-                      boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
-                    }}
-                  >
-                    ล้างทั้งหมด
-                  </Button>
-                </div>
-                <AnimatePresence>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {renderActiveFilterTags()}
-                  </div>
-                </AnimatePresence>
-              </Col>
-            )}
-          </Row>
-        ) : (
-          <>
-            <div className="filter-panel-content">{children}</div>
-            {activeFiltersContent}
-          </>
-        )}
-      </Card>
-    </motion.div>
-  );
+             <div className="filter-panel-content">{children}</div>
+           </Col>
+           {hasActiveFilters && (
+             <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+               <Divider 
+                 style={{ 
+                   margin: responsiveSize === 'xs' ? '8px 0' : '12px 0',
+                   ...themeStyles.divider
+                 }} 
+               />
+               <div style={{ 
+                 display: 'flex', 
+                 justifyContent: 'space-between', 
+                 alignItems: 'center',
+                 marginBottom: responsiveSize === 'xs' ? 4 : 8,
+                 flexWrap: 'wrap',
+                 gap: '8px'
+               }}>
+                 <Text strong style={{ 
+                   fontSize: responsiveSize === 'xs' ? '12px' : '14px', 
+                   color: themeColors.dark 
+                 }}>
+                   ตัวกรองที่ใช้งาน
+                 </Text>
+                 <Button 
+                   type="primary"
+                   icon={<ReloadOutlined />}
+                   onClick={handleClearFilters}
+                   disabled={loading}
+                   size={responsiveSize === 'xs' || responsiveSize === 'sm' ? 'small' : 'middle'}
+                   style={{ 
+                     borderRadius: '20px', 
+                     display: 'flex', 
+                     alignItems: 'center',
+                     gap: '4px',
+                     backgroundColor: themeColors.primary,
+                     borderColor: themeColors.primary,
+                     boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
+                   }}
+                 >
+                   ล้างทั้งหมด
+                 </Button>
+               </div>
+               <AnimatePresence>
+                 <div style={{ 
+                   display: 'flex', 
+                   flexWrap: 'wrap', 
+                   gap: responsiveSize === 'xs' ? '2px' : '4px' 
+                 }}>
+                   {renderActiveFilterTags()}
+                 </div>
+               </AnimatePresence>
+             </Col>
+           )}
+         </Row>
+       ) : (
+         <>
+           <div className="filter-panel-content">{children}</div>
+           {activeFiltersContent}
+         </>
+       )}
+     </Card>
+   </motion.div>
+ );
 };
 
 export default FilterPanel;

@@ -67,7 +67,7 @@ const CompetitionSection = ({
   return (
     <section 
       ref={sectionRef}
-      className="min-h-screen py-16 relative overflow-hidden flex flex-col items-center justify-center"
+      className="min-h-screen py-8 md:py-16 relative overflow-hidden flex flex-col items-center justify-center"
       style={{ 
         background: 'linear-gradient(to bottom, #F5EAFF, #E0D1FF)'
       }}
@@ -80,9 +80,9 @@ const CompetitionSection = ({
         height={80}
       />
 
-      {/* Animated Planet Background */}
+      {/* Animated Planet Background - Hidden on small screens */}
       <motion.div 
-        className="absolute right-10 bottom-10 w-64 h-64 rounded-full bg-gradient-to-br from-[#90278E] to-[#5E1A5C] opacity-20"
+        className="absolute right-0 md:right-10 bottom-0 md:bottom-10 w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-[#90278E] to-[#5E1A5C] opacity-20"
         animate={{ 
           scale: [1, 1.05, 1],
           boxShadow: [
@@ -98,7 +98,7 @@ const CompetitionSection = ({
         }}
       />
 
-      <div className="container mx-auto px-6 py-16">
+      <div className="container mx-auto px-4 sm:px-6 py-8 md:py-16">
         <SectionHeader
           icon={<TrophyOutlined />}
           title="ผลงานการแข่งขัน"
@@ -133,12 +133,12 @@ const CompetitionSection = ({
             >
               {currentProject && (
                 <div className="max-w-6xl mx-auto">
-                  <div className="flex flex-col lg:flex-row gap-8 bg-white bg-opacity-80 backdrop-filter backdrop-blur-sm p-8 rounded-2xl shadow-xl">
+                  <div className="flex flex-col lg:flex-row gap-4 md:gap-8 bg-white bg-opacity-80 backdrop-filter backdrop-blur-sm p-4 md:p-8 rounded-2xl shadow-xl">
                     {/* Left Side - Project Image */}
                     <div className="lg:w-1/2">
                       <AnimatedText type="heading" delay={0.3}>
                         <Image3DEffect
-                          className="h-[450px] rounded-xl overflow-hidden flex items-center justify-center"
+                          className="h-[250px] sm:h-[350px] md:h-[450px] rounded-xl overflow-hidden flex items-center justify-center"
                           depth={12}
                           glareEnabled={true}
                         >
@@ -158,18 +158,19 @@ const CompetitionSection = ({
                       
                       {/* Tags */}
                       <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                        <Tag color="#90278E" className="px-3 py-1">{currentProject.level || 'ปี 3'}</Tag>
-                        <Tag color="#B252B0" className="px-3 py-1">{`ปี ${currentProject.year || new Date(currentProject.createdAt).getFullYear()}`}</Tag>
-                        <Tag color="#90278E" className="px-3 py-1">{`${currentProject.viewsCount || 0} views`}</Tag>
+                        <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{currentProject.level || 'ปี 3'}</Tag>
+                        <Tag color="#B252B0" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{`ปี ${currentProject.year || new Date(currentProject.createdAt).getFullYear()}`}</Tag>
+                        <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{`${currentProject.viewsCount || 0} views`}</Tag>
                       </div>
                     </div>
                     
                     {/* Right Side - Project Details */}
-                    <div className="lg:w-1/2">
+                    <div className="lg:w-1/2 mt-4 lg:mt-0">
                       <AnimatedText type="heading" delay={0.1}>
                         <div>
                           <Title 
                             level={2} 
+                            className="text-xl sm:text-2xl md:text-3xl"
                             style={{ 
                               color: '#90278E', 
                               marginTop: 0, 
@@ -181,32 +182,32 @@ const CompetitionSection = ({
                           </Title>
                           
                           {/* Student Information */}
-                          <div className="flex items-center space-x-3 mb-5">
+                          <div className="flex items-center space-x-3 mb-3 sm:mb-5">
                             {currentProject.userImage ? (
                               <motion.img 
                                 src={`${API_ENDPOINTS.BASE}/${currentProject.userImage}`} 
                                 alt={currentProject.student}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-[#90278E]" 
+                                className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-[#90278E]" 
                                 whileHover={{ scale: 1.1 }}
                               />
                             ) : (
                               <motion.div 
-                                className="w-12 h-12 rounded-full bg-[#90278E] flex items-center justify-center text-white text-xl font-bold"
+                                className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-[#90278E] flex items-center justify-center text-white text-base sm:text-lg md:text-xl font-bold"
                                 whileHover={{ scale: 1.1 }}
                               >
                                 {currentProject.student ? currentProject.student.charAt(0) : ""}
                               </motion.div>
                             )}
                             <div>
-                              <Text className="font-medium block text-lg">{currentProject.student}</Text>
+                              <Text className="font-medium block text-base sm:text-lg">{currentProject.student}</Text>
                               {currentProject.username && (
-                                <Text type="secondary" className="text-sm">@{currentProject.username}</Text>
+                                <Text type="secondary" className="text-xs sm:text-sm">@{currentProject.username}</Text>
                               )}
                             </div>
                           </div>
                           
                           {/* Date and Views */}
-                          <div className="flex items-center space-x-4 mb-6 text-gray-500">
+                          <div className="flex items-center space-x-4 mb-4 sm:mb-6 text-gray-500 text-xs sm:text-sm">
                             <div className="flex items-center">
                               <CalendarOutlined className="mr-2" />
                               <span>{currentProject.year || new Date(currentProject.createdAt).getFullYear()}</span>
@@ -221,12 +222,12 @@ const CompetitionSection = ({
                       
                       {/* Project Description */}
                       <AnimatedText type="paragraph" delay={0.3}>
-                        <div className="mt-5 mb-8">
+                        <div className="mt-3 sm:mt-5 mb-4 sm:mb-8">
                           <Divider orientation="left">
-                            <Text strong className="text-[#90278E]">รายละเอียดโปรเจค</Text>
+                            <Text strong className="text-[#90278E] text-sm sm:text-base">รายละเอียดโปรเจค</Text>
                           </Divider>
                           <Paragraph 
-                            className="text-lg" 
+                            className="text-sm sm:text-base md:text-lg" 
                             style={{ 
                               lineHeight: 1.8,
                               textAlign: 'justify' 
@@ -239,10 +240,10 @@ const CompetitionSection = ({
                       
                       {/* Call to Action */}
                       <AnimatedText type="badge" delay={0.7}>
-                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 sm:mt-8">
                           <div className="text-center sm:text-left">
-                            <Text className="text-gray-500 block">สนใจในผลงานนี้?</Text>
-                            <Text strong className="text-[#90278E] text-lg">ดูรายละเอียดเพิ่มเติมได้ที่นี่</Text>
+                            <Text className="text-gray-500 block text-xs sm:text-sm">สนใจในผลงานนี้?</Text>
+                            <Text strong className="text-[#90278E] text-base sm:text-lg">ดูรายละเอียดเพิ่มเติมได้ที่นี่</Text>
                           </div>
                           <motion.div
                             whileHover={{ scale: 1.05 }}
@@ -250,9 +251,9 @@ const CompetitionSection = ({
                           >
                             <Button 
                               type="primary" 
-                              size="large"
+                              size="middle"
                               icon={<LinkOutlined />}
-                              className="bg-gradient-to-r from-[#90278E] to-[#B252B0] border-none px-6 h-12"
+                              className="bg-gradient-to-r from-[#90278E] to-[#B252B0] border-none px-3 sm:px-6 h-8 sm:h-12 text-xs sm:text-sm"
                               href={currentProject.projectLink || '#'}
                             >
                               ดูผลงานแข่งขันเต็มรูปแบบ

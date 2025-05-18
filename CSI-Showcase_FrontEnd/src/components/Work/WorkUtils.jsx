@@ -58,14 +58,16 @@ export const getTagColor = (type) => {
   }
 };
 
-// ฟังก์ชันคำนวณจำนวน items ต่อหน้าตามขนาดหน้าจอ
+// ฟังก์ชันคำนวณจำนวน items ต่อหน้าตามขนาดหน้าจอ - ปรับปรุงให้ responsive มากขึ้น
 export const getItemsPerPage = () => {
   if (typeof window === "undefined") return 4; // สำหรับ SSR
   
-  // ปรับตามขนาดหน้าจอ
-  if (window.innerWidth < 640) return 1;
+  // ปรับตามขนาดหน้าจอให้ละเอียดมากขึ้น
+  if (window.innerWidth < 480) return 1;
+  if (window.innerWidth < 640) return 2;
   if (window.innerWidth < 768) return 2;
   if (window.innerWidth < 1024) return 3;
+  if (window.innerWidth < 1280) return 3;
   return 4;
 };
 
@@ -92,6 +94,9 @@ export const handlePageChange = (page, setCurrentPage, setLoading, setDirection,
 
 // ฟังก์ชันคำนวณ transform สำหรับ Parallax
 export const calculateParallaxTransform = (depth, mouseX, mouseY) => {
+  // ไม่ใช้ Parallax effect บนอุปกรณ์มือถือเพื่อประสิทธิภาพ
+  if (window.innerWidth <= 768) return 'translate3d(0, 0, 0)';
+  
   const x = (mouseX / window.innerWidth - 0.5) * depth;
   const y = (mouseY / window.innerHeight - 0.5) * depth;
   return `translate3d(${x}px, ${y}px, 0)`;
@@ -99,6 +104,9 @@ export const calculateParallaxTransform = (depth, mouseX, mouseY) => {
 
 // Background decoration blob
 export const getRenderDecorationBlob = (position = 'left') => {
+  // ปรับขนาดตามหน้าจอ
+  const size = window.innerWidth <= 768 ? "50%" : "40%";
+  
   const transformValue = position === 'left' 
     ? "translate(-30%, -20%)" 
     : "translate(20%, -30%)";
@@ -107,8 +115,8 @@ export const getRenderDecorationBlob = (position = 'left') => {
     <div 
       className={`absolute -z-10 top-0 ${position}-0 opacity-20 blur-3xl`} 
       style={{
-        width: "40%",
-        height: "40%",
+        width: size,
+        height: size,
         background: "radial-gradient(circle, rgba(144,39,142,0.5) 0%, rgba(144,39,142,0) 70%)",
         borderRadius: "50%",
         transform: transformValue
@@ -141,4 +149,21 @@ export const gradients = {
   coursework: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(245, 234, 255, 0.9))',
   competition: 'linear-gradient(to bottom, rgba(245, 234, 255, 0.9), rgba(224, 209, 255, 0.9))',
   academic: 'linear-gradient(to bottom, rgba(224, 209, 255, 0.9), rgba(144, 39, 142, 0.9))'
+};
+
+// ฟังก์ชันกำหนดความกว้างของ Container ตามขนาดหน้าจอ
+export const getResponsiveContainer = () => {
+  if (window.innerWidth <= 480) return "container mx-auto px-3";
+  if (window.innerWidth <= 768) return "container mx-auto px-4";
+  if (window.innerWidth <= 1024) return "container mx-auto px-6";
+  return "container mx-auto px-8";
+};
+
+// ปรับขนาดตัวอักษรตามหน้าจอ
+export const getResponsiveFontSize = (baseSizes) => {
+  const { mobile, tablet, desktop } = baseSizes;
+  
+  if (window.innerWidth <= 480) return mobile;
+  if (window.innerWidth <= 1024) return tablet;
+  return desktop;
 };

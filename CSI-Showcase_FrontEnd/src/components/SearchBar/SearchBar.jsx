@@ -1,4 +1,4 @@
-// src/components/SearchBar.jsx
+// src/components/SearchBar.jsx - แก้ไขให้มีขนาดเต็มพื้นที่บนหน้าจอใหญ่และตำแหน่ง dropdown ถูกต้อง
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +24,7 @@ const SearchBar = () => {
   const navigate = useNavigate();
   const debounceTimeout = useRef(null);
   const searchInputRef = useRef(null);
+  const autocompleteRef = useRef(null);
   const {
     keyword,
     searchResults,
@@ -36,6 +37,22 @@ const SearchBar = () => {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  // ตรวจสอบขนาดหน้าจอ
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // เมื่อข้อความค้นหาเปลี่ยน ทำการค้นหาอัตโนมัติหลังจาก debounce
   const handleSearch = (value) => {
@@ -74,6 +91,11 @@ const SearchBar = () => {
     }
   };
 
+  // เพิ่มฟังก์ชันจัดการการแสดง dropdown
+  const onDropdownVisibleChange = (visible) => {
+    setDropdownVisible(visible);
+  };
+
   // รีเซ็ต selectedIndex เมื่อ searchResults เปลี่ยน
   useEffect(() => {
     setSelectedIndex(0);
@@ -88,17 +110,17 @@ const SearchBar = () => {
           <motion.div
             key={`${project.id}-${index}`}
             onClick={() => handleSelect(project.id)}
-            className={`flex items-start p-4 cursor-pointer rounded-xl transition-all duration-200 ${index === selectedIndex ? 'bg-purple-50' : ''}`}
+            className={`flex items-start p-2 sm:p-4 cursor-pointer rounded-xl transition-all duration-200 ${index === selectedIndex ? 'bg-purple-50' : ''}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
             whileHover={{ backgroundColor: '#f5eaff', boxShadow: '0 4px 12px rgba(144, 39, 142, 0.1)' }}
           >
-            <div className="relative mr-4">
+            <div className="relative mr-2 sm:mr-4">
               <div className="relative">
                 <Avatar 
                   src={project.image ? (API_ENDPOINTS.BASE + '/' + project.image) : null} 
-                  size={56} 
+                  size={isMobile ? 40 : 56} 
                   shape="square"
                   className="shadow-md rounded-xl"
                   style={{ border: `2px solid ${colors.primary}` }}
@@ -114,24 +136,24 @@ const SearchBar = () => {
                     project.category === 'coursework' ? 'green' : 
                     'purple'
                   } 
-                  className="absolute -top-2 -right-2 rounded-full shadow-sm border-white border-2"
+                  className="absolute -top-2 -right-2 rounded-full shadow-sm border-white border-2 text-xs"
                 >
                   {categoryIcons[project.category] || <StarOutlined className="text-purple-500" />}
                 </Tag>
               </div>
             </div>
-            <div className="flex-1 overflow-hidden ml-2">
-              <div className="font-bold text-base text-purple-900 truncate max-w-xs">
-                {truncateText(project.title, 50)}
+            <div className="flex-1 overflow-hidden ml-1 sm:ml-2">
+              <div className="font-bold text-sm sm:text-base text-purple-900 truncate max-w-[180px] sm:max-w-xs">
+                {truncateText(project.title, isMobile ? 30 : 50)}
               </div>
-              <div className="text-sm text-gray-600 flex flex-wrap gap-2 mt-1">
+              <div className="text-xs sm:text-sm text-gray-600 flex flex-wrap gap-1 sm:gap-2 mt-0.5 sm:mt-1">
                 <span className="font-medium">{project.student || project.author?.fullName || 'ไม่ระบุผู้สร้าง'}</span>
-                {project.level && <span className="text-purple-600">• ชั้นปี {project.level}</span>}
-                {project.year && <span className="text-purple-600">• ปี {project.year}</span>}
+                {project.level && <span className="text-purple-600 hidden xs:inline">• ชั้นปี {project.level}</span>}
+                {project.year && <span className="text-purple-600 hidden xs:inline">• ปี {project.year}</span>}
               </div>
               {project.description && (
-                <div className="text-sm text-gray-500 mt-2 line-clamp-2 pr-4">
-                  {truncateText(project.description, 100)}
+                <div className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2 line-clamp-2 pr-2 sm:pr-4 hidden xs:block">
+                  {truncateText(project.description, isMobile ? 60 : 100)}
                 </div>
               )}
             </div>
@@ -150,9 +172,10 @@ const SearchBar = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-2xl px-4 relative">
+    // ลบ max-width ออกและปรับให้ใช้ width: 100% เพื่อให้เต็มพื้นที่แพเรนต์
+    <div className="w-full px-2 sm:px-4 relative">
       <motion.div
-        className={`bg-white bg-opacity-20 backdrop-filter backdrop-blur-xl rounded-xl flex items-center pl-5 pr-3 py-3 w-full shadow-lg border-2 transition-all duration-300 ${isFocused ? 'border-white' : 'border-white border-opacity-30'}`}
+        className={`bg-white bg-opacity-20 backdrop-filter backdrop-blur-xl rounded-xl flex items-center pl-3 sm:pl-5 pr-2 sm:pr-3 py-2 sm:py-3 w-full shadow-lg border-2 transition-all duration-300 ${isFocused ? 'border-white' : 'border-white border-opacity-30'}`}
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
@@ -178,91 +201,104 @@ const SearchBar = () => {
             onClick={handleSubmitSearch}
             className="cursor-pointer"
           >
-            <SearchOutlined className="text-white text-xl mr-3" />
+            <SearchOutlined className="text-white text-base sm:text-xl mr-2 sm:mr-3" />
           </motion.div>
         </div>
         
-        <AutoComplete
-          ref={searchInputRef}
-          options={getOptions()}
-          onSearch={handleSearch}
-          value={keyword}
-          onChange={handleSearch}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className="w-full text-lg"
-          popupClassName="cosmic-search-dropdown"
-          dropdownStyle={{ 
-            borderRadius: '16px', 
-            overflow: 'hidden', 
-            boxShadow: '0 8px 32px rgba(144, 39, 142, 0.25)', 
-            border: `1px solid rgba(145, 107, 216, 0.3)`,
-            marginTop: '10px',
-            padding: '8px'
-          }}
-          notFoundContent={
-            isSearching ? (
-              <div className="flex justify-center items-center py-10">
-                <Spin size="large" />
-              </div>
-            ) : keyword ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <div className="text-purple-700 py-4">
-                    <div className="text-lg font-medium mb-2">ไม่พบข้อมูลที่ตรงกับคำค้นหา</div>
-                    <div className="mt-2">
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Tag 
-                          color="purple" 
-                          className="cursor-pointer px-3 py-1 text-base"
-                          onClick={handleSubmitSearch}
-                        >
-                          <SearchOutlined className="mr-1" /> ค้นหา "{keyword}" แบบละเอียด
-                        </Tag>
-                      </motion.div>
-                    </div>
-                  </div>
-                }
-                className="py-8"
-              />
-            ) : null
-          }
-        >
-          <Input
-            placeholder="ค้นหาโปรเจค ชื่อนักศึกษา หรือคำสำคัญ..."
-            className="flex-1 border-none focus:outline-none text-lg"
-            style={{ 
-              backgroundColor: 'transparent', 
-              color: 'white',
-              caretColor: 'white',
-              textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
+        <div className="w-full relative">
+          <AutoComplete
+            ref={(ref) => {
+              searchInputRef.current = ref;
+              autocompleteRef.current = ref;
             }}
-            onPressEnter={handleSubmitSearch}
-            suffix={
+            options={getOptions()}
+            onSearch={handleSearch}
+            value={keyword}
+            onChange={handleSearch}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className="w-full text-base sm:text-lg"
+            popupClassName="cosmic-search-dropdown"
+            onDropdownVisibleChange={onDropdownVisibleChange}
+            getPopupContainer={(trigger) => trigger.parentElement}
+            dropdownAlign={{
+              offset: [0, 10], // ปรับระยะห่างของ dropdown จากข้อความค้นหา
+            }}
+            dropdownStyle={{ 
+              borderRadius: '16px', 
+              overflow: 'hidden', 
+              boxShadow: '0 8px 32px rgba(144, 39, 142, 0.25)', 
+              border: `1px solid rgba(145, 107, 216, 0.3)`,
+              padding: '8px',
+              maxWidth: '100%', 
+              width: 'min(800px, 100%)',
+              position: 'absolute',
+              zIndex: 1050
+            }}
+            notFoundContent={
               isSearching ? (
-                <Spin size="small" style={{ color: 'white' }} /> 
-              ) : isFocused ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <RocketOutlined className="text-white text-lg" />
-                </motion.div>
+                <div className="flex justify-center items-center py-6 sm:py-10">
+                  <Spin size={isMobile ? "default" : "large"} />
+                </div>
+              ) : keyword ? (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={
+                    <div className="text-purple-700 py-2 sm:py-4">
+                      <div className="text-sm sm:text-lg font-medium mb-1 sm:mb-2">ไม่พบข้อมูลที่ตรงกับคำค้นหา</div>
+                      <div className="mt-1 sm:mt-2">
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Tag 
+                            color="purple" 
+                            className="cursor-pointer px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-base"
+                            onClick={handleSubmitSearch}
+                          >
+                            <SearchOutlined className="mr-1" /> ค้นหา "{keyword}" แบบละเอียด
+                          </Tag>
+                        </motion.div>
+                      </div>
+                    </div>
+                  }
+                  className="py-4 sm:py-8"
+                />
               ) : null
             }
-          />
-        </AutoComplete>
+          >
+            <Input
+              placeholder="ค้นหาโปรเจค ชื่อนักศึกษา หรือคำสำคัญ..."
+              className="flex-1 border-none focus:outline-none text-sm sm:text-lg"
+              style={{ 
+                backgroundColor: 'transparent', 
+                color: 'white',
+                caretColor: 'white',
+                textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
+              }}
+              onPressEnter={handleSubmitSearch}
+              suffix={
+                isSearching ? (
+                  <Spin size="small" style={{ color: 'white' }} /> 
+                ) : isFocused ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <RocketOutlined className="text-white text-base sm:text-lg" />
+                  </motion.div>
+                ) : null
+              }
+            />
+          </AutoComplete>
+        </div>
       </motion.div>
       
       {/* Suggested searches */}
       <motion.div 
-        className="flex flex-wrap gap-2 mt-3 justify-center"
+        className="flex flex-wrap gap-1.5 sm:gap-2 mt-2 sm:mt-3 justify-center"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
@@ -277,7 +313,7 @@ const SearchBar = () => {
             transition={{ delay: 0.4 + (index * 0.1), duration: 0.3 }}
           >
             <Tag 
-              className="cursor-pointer px-3 py-1 text-sm rounded-full border-white border-opacity-30 text-white bg-white bg-opacity-20 backdrop-filter backdrop-blur-md hover:bg-white hover:bg-opacity-30 transition-all duration-200"
+              className="cursor-pointer px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm rounded-full border-white border-opacity-30 text-white bg-white bg-opacity-20 backdrop-filter backdrop-blur-md hover:bg-white hover:bg-opacity-30 transition-all duration-200"
               onClick={() => {
                 handleKeywordChange(tag);
                 searchProjects(tag, { limit: 5 });
@@ -294,6 +330,14 @@ const SearchBar = () => {
       
       {/* Cosmic search style */}
       <style jsx global>{`
+        .cosmic-search-dropdown {
+          z-index: 1050 !important;
+        }
+        
+        .cosmic-search-dropdown .ant-select-dropdown {
+          position: absolute !important;
+        }
+        
         .cosmic-search-dropdown .ant-select-item {
           padding: 0 !important;
           border-radius: 16px !important;
@@ -309,6 +353,30 @@ const SearchBar = () => {
         .ant-input::placeholder {
           color: rgba(255, 255, 255, 0.8) !important;
           opacity: 0.8;
+        }
+        
+        /* เพิ่ม style สำหรับ dropdown container เพื่อให้แน่ใจว่าจะไม่ทับกับองค์ประกอบอื่น */
+        .ant-select-dropdown-placement-bottomLeft {
+          left: 0 !important;
+          top: 100% !important;
+          position: absolute !important;
+        }
+        
+        /* Responsive styles */
+        @media (max-width: 640px) {
+          .cosmic-search-dropdown .ant-select-item {
+            padding: 0 !important;
+            margin-bottom: 4px !important;
+          }
+          
+          .cosmic-search-dropdown .ant-empty-image {
+            margin-bottom: 4px !important;
+            height: 40px !important;
+          }
+          
+          .cosmic-search-dropdown .ant-empty-description {
+            font-size: 12px !important;
+          }
         }
       `}</style>
     </div>

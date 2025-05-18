@@ -32,12 +32,13 @@ const SectionHeader = ({
     ? 'bg-gradient-to-br from-white to-[#F5EAFF] border border-[#90278E] border-opacity-20' 
     : 'bg-gradient-to-br from-[#90278E] to-[#B252B0] border border-white border-opacity-20';
   
+  // ต่อจาก SectionHeader.jsx
   const iconColor = colorScheme === 'light' ? '#90278E' : 'white';
   
   return (
     <motion.div
       ref={ref}
-      className={`mb-16 text-center relative z-10 ${className}`}
+      className={`mb-8 md:mb-16 text-center relative z-10 ${className}`}
       style={{
         scale,
         y,
@@ -49,7 +50,7 @@ const SectionHeader = ({
         <div className="flex flex-col items-center">
           {/* Icon with GitHub-style shadow and gradient */}
           <motion.div
-            className={`w-16 h-16 rounded-full ${iconBg} flex items-center justify-center mx-auto mb-4 shadow-lg`}
+            className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full ${iconBg} flex items-center justify-center mx-auto mb-4 shadow-lg`}
             whileHover={{ 
               scale: 1.1,
               boxShadow: '0 8px 30px rgba(144, 39, 142, 0.3)'
@@ -57,14 +58,14 @@ const SectionHeader = ({
             transition={{ duration: 0.3 }}
           >
             {React.cloneElement(icon, { 
-              className: `text-${iconColor} text-3xl`,
+              className: `text-${iconColor} text-xl sm:text-3xl`,
             })}
           </motion.div>
           
           {/* GitHub-style label */}
           <div className="mb-4">
             <motion.div
-              className="bg-[#90278E] bg-opacity-10 px-3 py-1 rounded-full border border-[#90278E] border-opacity-20"
+              className="bg-[#90278E] bg-opacity-10 px-2 sm:px-3 py-1 rounded-full border border-[#90278E] border-opacity-20 text-xs sm:text-sm"
               whileHover={{ backgroundColor: 'rgba(144, 39, 142, 0.2)' }}
             >
               <Text style={{ color: '#90278E', fontWeight: 500 }}>EXPLORE PROJECTS</Text>
@@ -77,13 +78,12 @@ const SectionHeader = ({
           <div className="relative inline-block">
             <Title 
               level={2} 
+              className="text-xl sm:text-2xl md:text-3xl drop-shadow-sm"
               style={{ 
                 margin: 0, 
                 color: titleColor,
-                fontSize: '2.5rem',
                 fontWeight: 700
               }}
-              className="drop-shadow-sm"
             >
               {title}
             </Title>
@@ -98,10 +98,10 @@ const SectionHeader = ({
         
         {/* Subtitle with GitHub-style glass background */}
         <AnimatedText type="paragraph" delay={0.2}>
-          <div className="max-w-2xl mx-auto px-6 py-3 rounded-xl bg-white bg-opacity-5 backdrop-filter backdrop-blur-sm border border-white border-opacity-10">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-white bg-opacity-5 backdrop-filter backdrop-blur-sm border border-white border-opacity-10">
             <Text 
               style={{ color: subtitleColor }}
-              className="text-lg block"
+              className="text-sm sm:text-base md:text-lg block"
             >
               {subtitle}
             </Text>
@@ -119,7 +119,7 @@ const SectionHeader = ({
           {[1, 2, 3, 4, 5].map((_, index) => (
             <motion.div
               key={`dot-${index}`}
-              className={`w-2 h-2 rounded-full ${index === 2 ? 'bg-[#90278E]' : 'bg-[#90278E] bg-opacity-30'}`}
+              className={`w-1 h-1 sm:w-2 sm:h-2 rounded-full ${index === 2 ? 'bg-[#90278E]' : 'bg-[#90278E] bg-opacity-30'}`}
               animate={index === 2 ? { scale: [1, 1.2, 1] } : {}}
               transition={{
                 duration: 1.5,
