@@ -296,37 +296,7 @@ const SearchBar = () => {
         </div>
       </motion.div>
       
-      {/* Suggested searches */}
-      <motion.div 
-        className="flex flex-wrap gap-1.5 sm:gap-2 mt-2 sm:mt-3 justify-center"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        {['Machine Learning', 'ปี 2024', 'IoT', 'การแข่งขัน', 'Blockchain'].map((tag, index) => (
-          <motion.div
-            key={tag}
-            whileHover={{ scale: 1.1, y: -3 }}
-            whileTap={{ scale: 0.95 }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 + (index * 0.1), duration: 0.3 }}
-          >
-            <Tag 
-              className="cursor-pointer px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm rounded-full border-white border-opacity-30 text-white bg-white bg-opacity-20 backdrop-filter backdrop-blur-md hover:bg-white hover:bg-opacity-30 transition-all duration-200"
-              onClick={() => {
-                handleKeywordChange(tag);
-                searchProjects(tag, { limit: 5 });
-                if (searchInputRef.current) {
-                  searchInputRef.current.focus();
-                }
-              }}
-            >
-              {tag}
-            </Tag>
-          </motion.div>
-        ))}
-      </motion.div>
+      
       
       {/* Cosmic search style */}
       <style jsx global>{`
