@@ -129,102 +129,217 @@ export const getProjectDetails = async (req, res) => {
   }
 };
 
-/**
+// เพิ่ม retry mechanism ก่อน
+const executeWithRetryInTransaction = async (operation, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const connection = await pool.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+      
+      const result = await operation(connection);
+      
+      await connection.commit();
+      return result;
+      
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        logger.error('Rollback error:', rollbackError);
+      }
+      
+      if (error.code === 'ER_LOCK_WAIT_TIMEOUT' && attempt < maxRetries) {
+        // Exponential backoff: 200ms, 400ms, 800ms
+        const delay = 200 * Math.pow(2, attempt - 1);
+        logger.warn(`Lock timeout attempt ${attempt}/${maxRetries}, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+ };
+ 
+ /**
  * อนุมัติหรือปฏิเสธโครงการสำหรับผู้ดูแลระบบ
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const reviewProject = async (req, res) => {
+ export const reviewProject = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
       return forbiddenResponse(res, getErrorMessage('AUTH.ADMIN_REQUIRED'));
     }
-
+ 
     const { projectId } = req.params;
     const { status, comment } = req.body;
-
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+ 
     // ตรวจสอบข้อมูลที่จำเป็น
     if (!projectId || !status) {
       return res.status(STATUS_CODES.BAD_REQUEST).json(
         errorResponse('Project ID and status are required', STATUS_CODES.BAD_REQUEST)
       );
     }
-
+ 
     // ตรวจสอบสถานะที่ถูกต้อง
     if (!isValidStatus(status)) {
       return res.status(STATUS_CODES.UNPROCESSABLE_ENTITY).json(
         errorResponse(getErrorMessage('PROJECT.INVALID_STATUS'), STATUS_CODES.UNPROCESSABLE_ENTITY)
       );
     }
-
-    // เริ่มการทำงานกับฐานข้อมูล
-    const connection = await beginTransaction();
-
-    try {
-      // ดึงข้อมูลโครงการปัจจุบัน
-      const [projects] = await connection.execute(`
-        SELECT p.*, u.user_id, u.username, u.full_name, u.email 
-        FROM projects p
-        JOIN users u ON p.user_id = u.user_id
-        WHERE p.project_id = ?
-      `, [projectId]);
-
-      if (projects.length === 0) {
-        await rollbackTransaction(connection);
-        return notFoundResponse(res, getErrorMessage('PROJECT.NOT_FOUND'));
-      }
-
-      const project = projects[0];
-
+ 
+    // ตรวจสอบว่าโครงการมีอยู่จริงและดึงข้อมูลเบื้องต้น (ไม่ล็อก)
+    const [currentProject] = await pool.execute(`
+      SELECT p.*, u.user_id, u.username, u.full_name, u.email 
+      FROM projects p
+      JOIN users u ON p.user_id = u.user_id
+      WHERE p.project_id = ?
+    `, [projectId]);
+ 
+    if (currentProject.length === 0) {
+      return notFoundResponse(res, getErrorMessage('PROJECT.NOT_FOUND'));
+    }
+ 
+    const project = currentProject[0];
+    const oldStatus = project.status;
+ 
+    // ตรวจสอบว่าสถานะใหม่แตกต่างจากสถานะปัจจุบันหรือไม่
+    if (oldStatus === status) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse(`Project is already ${status}`, STATUS_CODES.BAD_REQUEST)
+      );
+    }
+ 
+    // Execute transaction with retry mechanism
+    const transactionResult = await executeWithRetryInTransaction(async (connection) => {
       // อัปเดตสถานะโครงการ
-      await connection.execute(`
+      const [updateResult] = await connection.execute(`
         UPDATE projects 
         SET status = ?, updated_at = NOW() 
         WHERE project_id = ?
       `, [status, projectId]);
-
+ 
+      if (updateResult.affectedRows === 0) {
+        throw new Error('Failed to update project status');
+      }
+ 
       // บันทึกประวัติการตรวจสอบ
-      await connection.execute(`
+      const [reviewResult] = await connection.execute(`
         INSERT INTO project_reviews (project_id, admin_id, status, review_comment, reviewed_at) 
         VALUES (?, ?, ?, ?, NOW())
       `, [projectId, req.user.id, status, comment || null]);
-
-      // ยืนยัน transaction
-      await commitTransaction(connection);
-
-      // แจ้งเตือนผู้ใช้
-      try {
-        await notificationService.notifyProjectReview(
-          project.user_id,
-          projectId,
-          project.title,
-          status,
-          comment || ''
-        );
-      } catch (notificationError) {
-        logger.error('Error sending notification:', notificationError);
-        // ไม่จำเป็นต้องล้มเหลวทั้งกระบวนการหากการแจ้งเตือนล้มเหลว
-      }
-
-      // ส่งการตอบกลับ
-      return res.json(successResponse({
+ 
+      return {
+        reviewId: reviewResult.insertId,
+        updatedRows: updateResult.affectedRows
+      };
+    });
+ 
+    logger.info(`Project ${projectId} reviewed successfully: ${status}`);
+ 
+    // ========== Post-transaction operations (ไม่กระทบ main flow) ==========
+    
+    // ใช้ setImmediate เพื่อให้ response ออกไปก่อน แล้วค่อยทำงานเหล่านี้
+    setImmediate(() => {
+      // 1. บันทึกการเปลี่ยนแปลงสถานะในประวัติ
+      notificationService.logProjectChange(
         projectId,
+        'updated',
+        'status',
+        oldStatus,
         status,
-        comment,
-        reviewedAt: formatToISODateTime(new Date())
-      }, `Project ${status === PROJECT_STATUSES.APPROVED ? 'approved' : 'rejected'} successfully`));
-
-    } catch (error) {
-      // ยกเลิก transaction หากมีข้อผิดพลาด
-      await rollbackTransaction(connection);
-      throw error;
+        req.user.id,
+        `Admin review: ${comment || 'No comment provided'}`,
+        ipAddress,
+        userAgent
+      ).catch(error => {
+        logger.error('Error logging project change:', error);
+      });
+ 
+      // 2. แจ้งเตือนผู้ใช้เกี่ยวกับการตรวจสอบ
+      notificationService.notifyProjectReview(
+        project.user_id,
+        projectId,
+        project.title,
+        status,
+        comment || ''
+      ).catch(error => {
+        logger.error('Error sending notification:', error);
+      });
+ 
+      // 3. ถ้าโครงการได้รับการอนุมัติ ให้เพิ่มการนับจำนวนการดู
+      if (status === PROJECT_STATUSES.APPROVED) {
+        pool.execute(`
+          UPDATE projects 
+          SET views_count = COALESCE(views_count, 0)
+          WHERE project_id = ?
+        `, [projectId]).catch(error => {
+          logger.warn('Error initializing view count:', error);
+        });
+      }
+    });
+ 
+    // ========== ดึงข้อมูลเพิ่มเติมสำหรับ response ==========
+    
+    let reviewData = null;
+    try {
+      const [newReview] = await pool.execute(`
+        SELECT r.*, a.username as admin_username, a.full_name as admin_name
+        FROM project_reviews r
+        JOIN users a ON r.admin_id = a.user_id
+        WHERE r.review_id = ?
+      `, [transactionResult.reviewId]);
+ 
+      reviewData = newReview.length > 0 ? newReview[0] : null;
+    } catch (reviewFetchError) {
+      logger.warn('Error fetching review data:', reviewFetchError);
     }
+ 
+    // ========== ส่งการตอบกลับ ==========
+    return res.json(successResponse({
+      projectId: parseInt(projectId),
+      oldStatus,
+      newStatus: status,
+      comment: comment || null,
+      reviewedAt: formatToISODateTime(new Date()),
+      reviewId: transactionResult.reviewId,
+      reviewer: {
+        id: req.user.id,
+        username: req.user.username,
+        fullName: req.user.fullName
+      },
+      project: {
+        id: project.project_id,
+        title: project.title,
+        owner: {
+          id: project.user_id,
+          username: project.username,
+          fullName: project.full_name
+        }
+      },
+      review: reviewData
+    }, `Project ${status === PROJECT_STATUSES.APPROVED ? 'approved' : status === PROJECT_STATUSES.REJECTED ? 'rejected' : 'status updated'} successfully`));
+ 
   } catch (error) {
     logger.error(`Error reviewing project ${req.params.projectId}:`, error);
+    
+    // ให้ error message ที่เข้าใจง่ายสำหรับ lock timeout
+    if (error.code === 'ER_LOCK_WAIT_TIMEOUT') {
+      return res.status(429).json(
+        errorResponse('The system is currently busy. Please try again in a moment.', 429)
+      );
+    }
+    
     return handleServerError(res, error);
   }
-};
+ };
 
 /**
  * ลบโครงการสำหรับผู้ดูแลระบบ

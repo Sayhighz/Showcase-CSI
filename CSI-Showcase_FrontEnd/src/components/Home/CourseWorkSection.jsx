@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Typography, Space, Empty, Tag, Divider, Button, Tooltip } from 'antd';
-import { BulbOutlined, CalendarOutlined, EyeOutlined, LinkOutlined, UserOutlined } from '@ant-design/icons';
+import { Typography, Space, Empty, Tag, Divider, Button, Tooltip, Avatar } from 'antd';
+import { BulbOutlined, CalendarOutlined, EyeOutlined, LinkOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import ProjectDisplay from './ProjectDisplay';
 import ScrollIndicator from './ScrollIndicator';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -82,6 +82,58 @@ const CourseWorkSection = ({
   };
 
   const posterDimensions = calculatePosterDimensions();
+
+  // Function to render collaborators
+  const renderCollaborators = (collaborators) => {
+    if (!collaborators || collaborators.length === 0) return null;
+
+    return (
+      <div className="mb-4 sm:mb-6">
+        <Divider orientation="left">
+          <Text strong style={{ color: primaryColor, fontSize: '0.9rem' }}>
+            <TeamOutlined className="mr-2" />
+            ผู้ร่วมพัฒนา ({collaborators.length + 1} คน)
+          </Text>
+        </Divider>
+        <div className="bg-purple-50 p-3 sm:p-4 rounded-xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {collaborators.map((collaborator, index) => (
+              <motion.div
+                key={collaborator.userId}
+                className="flex items-center space-x-3 bg-white p-2 sm:p-3 rounded-lg shadow-sm"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                {collaborator.image ? (
+                  <img 
+                    src={`${API_ENDPOINTS.BASE}/${collaborator.image}`} 
+                    alt={collaborator.fullName}
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-purple-300" 
+                  />
+                ) : (
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-purple-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                    {collaborator.fullName.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <Text className="text-sm sm:text-base font-medium block truncate">
+                    {collaborator.fullName}
+                  </Text>
+                  <Text type="secondary" className="text-xs sm:text-sm">
+                    @{collaborator.username}
+                  </Text>
+                </div>
+                <Tag size="small" color="purple" className="text-xs">
+                  {collaborator.role === 'contributor' ? 'ผู้ร่วมพัฒนา' : collaborator.role}
+                </Tag>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <section 
@@ -195,7 +247,6 @@ const CourseWorkSection = ({
                             glareOpacity={0.3}
                           >
                             {currentProject.image ? (
-                              // ต่อจาก CourseWorkSection.jsx
                               <img 
                                 alt={currentProject.title} 
                                 src={`${API_ENDPOINTS.BASE}/${currentProject.image}`} 
@@ -255,8 +306,16 @@ const CourseWorkSection = ({
                               {currentProject.username && (
                                 <Text type="secondary" className="text-xs sm:text-sm">@{currentProject.username}</Text>
                               )}
+                              <Tag size="small" color="blue" className="mt-1">
+                                หัวหน้าโปรเจค
+                              </Tag>
                             </div>
                           </div>
+                        </AnimatedText>
+                        
+                        {/* Collaborators Section */}
+                        <AnimatedText type="badge" delay={0.25}>
+                          {renderCollaborators(currentProject.collaborators)}
                         </AnimatedText>
                         
                         {/* Project Description */}
@@ -273,7 +332,7 @@ const CourseWorkSection = ({
                                 style={{ 
                                   margin: 0,
                                   lineHeight: 1.8,
-                                  textAlign: 'justify' 
+                                  textAlign: 'l' 
                                 }}
                               >
                                 {currentProject.description}
@@ -307,11 +366,13 @@ const CourseWorkSection = ({
                                 </div>
                               </Tooltip>
                               
-                              <Tooltip title="หมวดหมู่">
+                              <Tooltip title="จำนวนสมาชิก">
                                 <div className="bg-white p-2 sm:p-3 rounded-lg shadow-md flex flex-col items-center space-y-1">
-                                  <BulbOutlined style={{ color: primaryColor, fontSize: '1rem', sm: '1.5rem' }} />
-                                  <Text strong className="text-sm sm:text-lg">วิชาเรียน</Text>
-                                  <Text type="secondary" className="text-xs">{currentProject.category}</Text>
+                                  <TeamOutlined style={{ color: primaryColor, fontSize: '1rem', sm: '1.5rem' }} />
+                                  <Text strong className="text-sm sm:text-lg">
+                                    {(currentProject.collaborators?.length || 0) + 1}
+                                  </Text>
+                                  <Text type="secondary" className="text-xs">คน</Text>
                                 </div>
                               </Tooltip>
                             </div>

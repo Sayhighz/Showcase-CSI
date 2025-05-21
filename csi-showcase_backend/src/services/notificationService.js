@@ -1,50 +1,31 @@
 // services/notificationService.js
 import pool from '../config/database.js';
 import logger from '../config/logger.js';
-import emailService from './emailService.js';
+import { PROJECT_STATUSES } from '../constants/projectStatuses.js';
 
 /**
- * ประเภทการแจ้งเตือน
+ * Notification Service
+ * จัดการระบบการแจ้งเตือนและการส่งอีเมล
  */
-export const NOTIFICATION_TYPES = {
-  PROJECT_APPROVED: 'project_approved',         // โครงการได้รับการอนุมัติ
-  PROJECT_REJECTED: 'project_rejected',         // โครงการถูกปฏิเสธ
-  NEW_PROJECT_PENDING: 'new_project_pending',   // มีโครงการใหม่รอการอนุมัติ
-  COMPANY_VIEW: 'company_view',                 // มีบริษัทเข้าชมโครงการ
-  COMMENT_ADDED: 'comment_added',               // มีความคิดเห็นใหม่
-  ACCOUNT_CREATED: 'account_created',           // สร้างบัญชีผู้ใช้ใหม่
-  PASSWORD_RESET: 'password_reset',             // รีเซ็ตรหัสผ่าน
-  SYSTEM_NOTIFICATION: 'system_notification'    // การแจ้งเตือนจากระบบ
-};
 
 /**
- * สร้างการแจ้งเตือนใหม่
- * @param {number} userId - ID ของผู้ใช้ที่จะรับการแจ้งเตือน
+ * สร้างการแจ้งเตือนทั่วไป
+ * @param {number} userId - ID ของผู้ใช้ที่จะได้รับการแจ้งเตือน
  * @param {string} type - ประเภทการแจ้งเตือน
+ * @param {string} title - หัวข้อการแจ้งเตือน
  * @param {string} message - ข้อความแจ้งเตือน
  * @param {Object} data - ข้อมูลเพิ่มเติม
- * @returns {Promise<Object>} - ข้อมูลการแจ้งเตือนที่สร้าง
+ * @returns {Promise<number>} ID ของการแจ้งเตือนที่สร้าง
  */
-export const createNotification = async (userId, type, message, data = {}) => {
+export const createNotification = async (userId, type, title, message, data = {}) => {
   try {
-    // บันทึกการแจ้งเตือนลงในฐานข้อมูล
     const [result] = await pool.execute(`
-      INSERT INTO notifications (user_id, type, message, data)
-      VALUES (?, ?, ?, ?)
-    `, [userId, type, message, JSON.stringify(data)]);
+      INSERT INTO notifications (user_id, type, title, message, data, is_read, created_at)
+      VALUES (?, ?, ?, ?, ?, 0, NOW())
+    `, [userId, type, title, message, JSON.stringify(data)]);
     
-    const notificationId = result.insertId;
-    
-    logger.info(`Notification created for user ${userId}`, { type, notificationId });
-    
-    return {
-      id: notificationId,
-      userId,
-      type,
-      message,
-      data,
-      createdAt: new Date()
-    };
+    logger.info(`Notification created: ${result.insertId} for user ${userId}`);
+    return result.insertId;
   } catch (error) {
     logger.error('Error creating notification:', error);
     throw error;
@@ -52,38 +33,255 @@ export const createNotification = async (userId, type, message, data = {}) => {
 };
 
 /**
+ * แจ้งเตือนผู้ดูแลระบบเมื่อมีโครงการใหม่
+ * @param {number} projectId - ID ของโครงการ
+ * @param {string} projectTitle - หัวข้อโครงการ
+ * @param {string} studentName - ชื่อนักศึกษา
+ * @param {string} projectType - ประเภทโครงการ
+ */
+export const notifyAdminsNewProject = async (projectId, projectTitle, studentName, projectType) => {
+  try {
+    // ดึงรายชื่อผู้ดูแลระบบทั้งหมด
+    const [admins] = await pool.execute(`
+      SELECT user_id FROM users WHERE role = 'admin'
+    `);
+    
+    const title = 'โครงการใหม่รอการอนุมัติ';
+    const message = `นักศึกษา ${studentName} ได้ส่งโครงการ "${projectTitle}" (ประเภท: ${projectType}) เพื่อรอการอนุมัติ`;
+    
+    // ส่งการแจ้งเตือนให้ผู้ดูแลระบบทุกคน
+    for (const admin of admins) {
+      await createNotification(
+        admin.user_id,
+        'project_submitted',
+        title,
+        message,
+        { projectId, projectTitle, studentName, projectType }
+      );
+    }
+    
+    logger.info(`Notified ${admins.length} admins about new project ${projectId}`);
+  } catch (error) {
+    logger.error('Error notifying admins about new project:', error);
+    throw error;
+  }
+};
+
+/**
+ * แจ้งเตือนผู้ใช้เกี่ยวกับผลการตรวจสอบโครงการ
+ * @param {number} userId - ID ของผู้ใช้
+ * @param {number} projectId - ID ของโครงการ
+ * @param {string} projectTitle - หัวข้อโครงการ
+ * @param {string} status - สถานะใหม่ของโครงการ
+ * @param {string} comment - ความเห็นจากผู้ตรวจสอบ
+ */
+export const notifyProjectReview = async (userId, projectId, projectTitle, status, comment = '') => {
+  try {
+    let title, message;
+    
+    if (status === PROJECT_STATUSES.APPROVED) {
+      title = 'โครงการได้รับการอนุมัติแล้ว';
+      message = `โครงการ "${projectTitle}" ของคุณได้รับการอนุมัติแล้ว`;
+    } else if (status === PROJECT_STATUSES.REJECTED) {
+      title = 'โครงการไม่ได้รับการอนุมัติ';
+      message = `โครงการ "${projectTitle}" ของคุณไม่ได้รับการอนุมัติ`;
+    } else {
+      title = 'สถานะโครงการมีการเปลี่ยนแปลง';
+      message = `สถานะของโครงการ "${projectTitle}" มีการเปลี่ยนแปลงเป็น ${status}`;
+    }
+    
+    if (comment) {
+      message += `\nความเห็น: ${comment}`;
+    }
+    
+    await createNotification(
+      userId,
+      'project_reviewed',
+      title,
+      message,
+      { projectId, projectTitle, status, comment }
+    );
+    
+    logger.info(`Notified user ${userId} about project review ${projectId}`);
+  } catch (error) {
+    logger.error('Error notifying project review:', error);
+    throw error;
+  }
+};
+
+/**
+ * แจ้งเตือนเมื่อโครงการถูกแก้ไข
+ * @param {number} userId - ID ของผู้ใช้
+ * @param {number} projectId - ID ของโครงการ
+ * @param {string} projectTitle - หัวข้อโครงการ
+ * @param {string} adminName - ชื่อผู้ดูแลระบบที่แก้ไข
+ */
+export const notifyProjectUpdated = async (userId, projectId, projectTitle, adminName) => {
+  try {
+    const title = 'โครงการของคุณถูกแก้ไข';
+    const message = `โครงการ "${projectTitle}" ของคุณถูกแก้ไขโดย ${adminName}`;
+    
+    await createNotification(
+      userId,
+      'project_updated',
+      title,
+      message,
+      { projectId, projectTitle, adminName }
+    );
+    
+    logger.info(`Notified user ${userId} about project update ${projectId}`);
+  } catch (error) {
+    logger.error('Error notifying project update:', error);
+    throw error;
+  }
+};
+
+/**
+ * แจ้งเตือนเมื่อโครงการถูกลบ
+ * @param {number} userId - ID ของผู้ใช้
+ * @param {string} projectTitle - หัวข้อโครงการ
+ * @param {string} reason - เหตุผลในการลบ
+ */
+export const notifyProjectDeleted = async (userId, projectTitle, reason = '') => {
+  try {
+    const title = 'โครงการของคุณถูกลบ';
+    let message = `โครงการ "${projectTitle}" ของคุณถูกลบออกจากระบบ`;
+    
+    if (reason) {
+      message += `\nเหตุผล: ${reason}`;
+    }
+    
+    await createNotification(
+      userId,
+      'project_deleted',
+      title,
+      message,
+      { projectTitle, reason }
+    );
+    
+    logger.info(`Notified user ${userId} about project deletion`);
+  } catch (error) {
+    logger.error('Error notifying project deletion:', error);
+    throw error;
+  }
+};
+
+/**
+ * บันทึกการเปลี่ยนแปลงโครงการ
+ * @param {number} projectId - ID ของโครงการ
+ * @param {string} changeType - ประเภทการเปลี่ยนแปลง
+ * @param {string} fieldChanged - ฟิลด์ที่เปลี่ยน
+ * @param {any} oldValue - ค่าเดิม
+ * @param {any} newValue - ค่าใหม่
+ * @param {number} changedBy - ID ของผู้ที่ทำการเปลี่ยนแปลง
+ * @param {string} reason - เหตุผลในการเปลี่ยนแปลง
+ * @param {string} ipAddress - IP Address ของผู้ใช้
+ * @param {string} userAgent - User Agent ของผู้ใช้
+ */
+export const logProjectChange = async (
+  projectId, 
+  changeType, 
+  fieldChanged, 
+  oldValue, 
+  newValue, 
+  changedBy, 
+  reason = null,
+  ipAddress = null,
+  userAgent = null
+) => {
+  try {
+    await pool.execute(`
+      INSERT INTO project_changes (
+        project_id, change_type, field_changed, old_value, new_value, 
+        changed_by, reason, ip_address, user_agent, changed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `, [
+      projectId,
+      changeType,
+      fieldChanged,
+      JSON.stringify(oldValue),
+      JSON.stringify(newValue),
+      changedBy,
+      reason,
+      ipAddress,
+      userAgent
+    ]);
+    
+    logger.info(`Project change logged: ${changeType} for project ${projectId}`);
+  } catch (error) {
+    logger.error('Error logging project change:', error);
+    throw error;
+  }
+};
+
+/**
+ * บันทึกการเข้าสู่ระบบ
+ * @param {number} userId - ID ของผู้ใช้
+ * @param {string} ipAddress - IP Address
+ * @param {string} deviceType - ประเภทอุปกรณ์
+ * @param {string} os - ระบบปฏิบัติการ
+ * @param {string} browser - เบราว์เซอร์
+ * @param {string} userAgent - User Agent
+ */
+export const logUserLogin = async (userId, ipAddress, deviceType, os, browser, userAgent) => {
+  try {
+    await pool.execute(`
+      INSERT INTO login_logs (user_id, login_time, ip_address, device_type, os, browser, user_agent)
+      VALUES (?, NOW(), ?, ?, ?, ?, ?)
+    `, [userId, ipAddress, deviceType, os, browser, userAgent]);
+    
+    logger.info(`Login logged for user ${userId} from ${ipAddress}`);
+  } catch (error) {
+    logger.error('Error logging user login:', error);
+    throw error;
+  }
+};
+
+/**
+ * บันทึกการเข้าชมโครงการ
+ * @param {number} projectId - ID ของโครงการ
+ * @param {string} ipAddress - IP Address ของผู้เข้าชม
+ * @param {string} userAgent - User Agent ของผู้เข้าชม
+ */
+export const logProjectView = async (projectId, ipAddress, userAgent) => {
+  try {
+    await pool.execute(`
+      INSERT INTO visitor_views (project_id, ip_address, user_agent, viewed_at)
+      VALUES (?, ?, ?, NOW())
+    `, [projectId, ipAddress, userAgent]);
+    
+    logger.info(`Project view logged: project ${projectId} from ${ipAddress}`);
+  } catch (error) {
+    logger.error('Error logging project view:', error);
+    throw error;
+  }
+};
+
+/**
  * ดึงการแจ้งเตือนของผู้ใช้
  * @param {number} userId - ID ของผู้ใช้
- * @param {boolean} unreadOnly - ดึงเฉพาะการแจ้งเตือนที่ยังไม่ได้อ่าน
  * @param {number} limit - จำนวนการแจ้งเตือนที่ต้องการ
- * @returns {Promise<Array>} - รายการการแจ้งเตือน
+ * @param {boolean} onlyUnread - แสดงเฉพาะที่ยังไม่อ่าน
+ * @returns {Promise<Array>} รายการการแจ้งเตือน
  */
-export const getUserNotifications = async (userId, unreadOnly = false, limit = 20) => {
+export const getUserNotifications = async (userId, limit = 20, onlyUnread = false) => {
   try {
-    // สร้าง query พื้นฐาน
     let query = `
-      SELECT * FROM notifications
+      SELECT * FROM notifications 
       WHERE user_id = ?
     `;
     
-    if (unreadOnly) {
-      query += ' AND read_at IS NULL';
+    if (onlyUnread) {
+      query += ` AND is_read = 0`;
     }
     
-    query += ' ORDER BY created_at DESC LIMIT ?';
+    query += ` ORDER BY created_at DESC LIMIT ?`;
     
-    // ดึงข้อมูลการแจ้งเตือน
     const [notifications] = await pool.execute(query, [userId, limit]);
     
-    // จัดรูปแบบข้อมูลการแจ้งเตือน
     return notifications.map(notification => ({
-      id: notification.notification_id,
-      userId: notification.user_id,
-      type: notification.type,
-      message: notification.message,
-      data: JSON.parse(notification.data || '{}'),
-      createdAt: notification.created_at,
-      readAt: notification.read_at
+      ...notification,
+      data: notification.data ? JSON.parse(notification.data) : {}
     }));
   } catch (error) {
     logger.error('Error getting user notifications:', error);
@@ -92,318 +290,74 @@ export const getUserNotifications = async (userId, unreadOnly = false, limit = 2
 };
 
 /**
- * ทำเครื่องหมายว่าอ่านการแจ้งเตือนแล้ว
+ * ทำเครื่องหมายการแจ้งเตือนว่าอ่านแล้ว
  * @param {number} notificationId - ID ของการแจ้งเตือน
- * @param {number} userId - ID ของผู้ใช้ (สำหรับตรวจสอบสิทธิ์)
- * @returns {Promise<boolean>} - ผลการทำเครื่องหมาย
+ * @param {number} userId - ID ของผู้ใช้
  */
 export const markNotificationAsRead = async (notificationId, userId) => {
   try {
-    // อัปเดตสถานะการอ่านการแจ้งเตือน
-    const [result] = await pool.execute(`
-      UPDATE notifications
-      SET read_at = NOW()
+    await pool.execute(`
+      UPDATE notifications 
+      SET is_read = 1 
       WHERE notification_id = ? AND user_id = ?
     `, [notificationId, userId]);
     
-    return result.affectedRows > 0;
+    logger.info(`Notification ${notificationId} marked as read for user ${userId}`);
   } catch (error) {
     logger.error('Error marking notification as read:', error);
-    return false;
+    throw error;
   }
 };
 
 /**
- * ทำเครื่องหมายว่าอ่านการแจ้งเตือนทั้งหมดแล้ว
+ * ทำเครื่องหมายการแจ้งเตือนทั้งหมดว่าอ่านแล้ว
  * @param {number} userId - ID ของผู้ใช้
- * @returns {Promise<number>} - จำนวนการแจ้งเตือนที่ถูกทำเครื่องหมาย
  */
 export const markAllNotificationsAsRead = async (userId) => {
   try {
-    // อัปเดตสถานะการอ่านการแจ้งเตือนทั้งหมด
-    const [result] = await pool.execute(`
-      UPDATE notifications
-      SET read_at = NOW()
-      WHERE user_id = ? AND read_at IS NULL
+    await pool.execute(`
+      UPDATE notifications 
+      SET is_read = 1 
+      WHERE user_id = ? AND is_read = 0
     `, [userId]);
     
-    return result.affectedRows;
+    logger.info(`All notifications marked as read for user ${userId}`);
   } catch (error) {
     logger.error('Error marking all notifications as read:', error);
-    return 0;
+    throw error;
   }
 };
 
 /**
- * ลบการแจ้งเตือน
- * @param {number} notificationId - ID ของการแจ้งเตือน
- * @param {number} userId - ID ของผู้ใช้ (สำหรับตรวจสอบสิทธิ์)
- * @returns {Promise<boolean>} - ผลการลบ
- */
-export const deleteNotification = async (notificationId, userId) => {
-  try {
-    // ลบการแจ้งเตือน
-    const [result] = await pool.execute(`
-      DELETE FROM notifications
-      WHERE notification_id = ? AND user_id = ?
-    `, [notificationId, userId]);
-    
-    return result.affectedRows > 0;
-  } catch (error) {
-    logger.error('Error deleting notification:', error);
-    return false;
-  }
-};
-
-/**
- * นับจำนวนการแจ้งเตือนที่ยังไม่ได้อ่าน
+ * นับจำนวนการแจ้งเตือนที่ยังไม่อ่าน
  * @param {number} userId - ID ของผู้ใช้
- * @returns {Promise<number>} - จำนวนการแจ้งเตือนที่ยังไม่ได้อ่าน
+ * @returns {Promise<number>} จำนวนการแจ้งเตือนที่ยังไม่อ่าน
  */
-export const countUnreadNotifications = async (userId) => {
+export const getUnreadNotificationCount = async (userId) => {
   try {
-    // นับจำนวนการแจ้งเตือนที่ยังไม่ได้อ่าน
     const [result] = await pool.execute(`
-      SELECT COUNT(*) as count
-      FROM notifications
-      WHERE user_id = ? AND read_at IS NULL
+      SELECT COUNT(*) as count FROM notifications 
+      WHERE user_id = ? AND is_read = 0
     `, [userId]);
     
     return result[0].count;
   } catch (error) {
-    logger.error('Error counting unread notifications:', error);
-    return 0;
+    logger.error('Error getting unread notification count:', error);
+    throw error;
   }
 };
 
-/**
- * แจ้งเตือนเมื่อโครงการได้รับการอนุมัติหรือถูกปฏิเสธ
- * @param {number} userId - ID ของผู้ใช้ที่จะรับการแจ้งเตือน
- * @param {number} projectId - ID ของโครงการ
- * @param {string} projectTitle - ชื่อโครงการ
- * @param {string} status - สถานะการอนุมัติ ('approved' หรือ 'rejected')
- * @param {string} comment - ความคิดเห็นจากผู้ดูแลระบบ
- * @returns {Promise<Object>} - ข้อมูลการแจ้งเตือนที่สร้าง
- */
-export const notifyProjectReview = async (userId, projectId, projectTitle, status, comment = '') => {
-    try {
-      // ตรวจสอบข้อมูลผู้ใช้
-      const [users] = await pool.execute(`
-        SELECT username, email FROM users WHERE user_id = ?
-      `, [userId]);
-      
-      if (users.length === 0) {
-        throw new Error(`User not found: ${userId}`);
-      }
-      
-      const user = users[0];
-      
-      // กำหนดประเภทและข้อความแจ้งเตือน
-      const type = status === 'approved' ? NOTIFICATION_TYPES.PROJECT_APPROVED : NOTIFICATION_TYPES.PROJECT_REJECTED;
-      const statusText = status === 'approved' ? 'ได้รับการอนุมัติ' : 'ถูกปฏิเสธ';
-      const message = `โครงการ "${projectTitle}" ของคุณ${statusText}`;
-      
-      // สร้างข้อมูลเพิ่มเติม
-      const data = {
-        projectId,
-        projectTitle,
-        status,
-        comment,
-        link: `/projects/${projectId}`
-      };
-      
-      // สร้างการแจ้งเตือนในระบบ
-      const notification = await createNotification(userId, type, message, data);
-      
-      // ส่งอีเมลแจ้งเตือน
-      await emailService.sendProjectStatusEmail(
-        user.email,
-        user.username,
-        projectTitle,
-        status,
-        comment
-      );
-      
-      return notification;
-    } catch (error) {
-      logger.error('Error notifying project review:', error);
-      throw error;
-    }
-  };
-  
-  /**
-   * แจ้งเตือนผู้ดูแลระบบเมื่อมีโครงการใหม่รอการอนุมัติ
-   * @param {number} projectId - ID ของโครงการ
-   * @param {string} projectTitle - ชื่อโครงการ
-   * @param {string} studentName - ชื่อนักศึกษา
-   * @param {string} projectType - ประเภทของโครงการ
-   * @returns {Promise<Array>} - รายการการแจ้งเตือนที่สร้าง
-   */
-  export const notifyAdminsNewProject = async (projectId, projectTitle, studentName, projectType) => {
-    try {
-      // ดึงรายชื่อผู้ดูแลระบบทั้งหมด
-      const [admins] = await pool.execute(`
-        SELECT user_id, username, email FROM users WHERE role = 'admin'
-      `);
-      
-      if (admins.length === 0) {
-        logger.warn('No admin users found for notification');
-        return [];
-      }
-      
-      const message = `มีโครงการใหม่รอการอนุมัติ: "${projectTitle}" จาก ${studentName}`;
-      const data = {
-        projectId,
-        projectTitle,
-        studentName,
-        projectType,
-        link: `/admin/projects/review/${projectId}`
-      };
-      
-      const notifications = [];
-      
-      // สร้างการแจ้งเตือนสำหรับผู้ดูแลระบบแต่ละคน
-      for (const admin of admins) {
-        // สร้างการแจ้งเตือนในระบบ
-        const notification = await createNotification(
-          admin.user_id,
-          NOTIFICATION_TYPES.NEW_PROJECT_PENDING,
-          message,
-          data
-        );
-        
-        notifications.push(notification);
-        
-        // ส่งอีเมลแจ้งเตือน
-        await emailService.sendNewProjectNotificationEmail(
-          admin.email,
-          projectTitle,
-          studentName,
-          projectType
-        );
-      }
-      
-      return notifications;
-    } catch (error) {
-      logger.error('Error notifying admins about new project:', error);
-      throw error;
-    }
-  };
-  
-  /**
-   * แจ้งเตือนเมื่อมีบริษัทเข้าชมโครงการ
-   * @param {number} userId - ID ของผู้ใช้ที่จะรับการแจ้งเตือน
-   * @param {number} projectId - ID ของโครงการ
-   * @param {string} projectTitle - ชื่อโครงการ
-   * @param {string} companyName - ชื่อบริษัท
-   * @param {string} contactEmail - อีเมลติดต่อของบริษัท
-   * @returns {Promise<Object>} - ข้อมูลการแจ้งเตือนที่สร้าง
-   */
-  export const notifyCompanyView = async (userId, projectId, projectTitle, companyName, contactEmail) => {
-    try {
-      // ตรวจสอบข้อมูลผู้ใช้
-      const [users] = await pool.execute(`
-        SELECT username, email FROM users WHERE user_id = ?
-      `, [userId]);
-      
-      if (users.length === 0) {
-        throw new Error(`User not found: ${userId}`);
-      }
-      
-      const user = users[0];
-      
-      const message = `บริษัท ${companyName} ได้เข้าชมโครงการ "${projectTitle}" ของคุณ`;
-      const data = {
-        projectId,
-        projectTitle,
-        companyName,
-        contactEmail,
-        link: `/projects/${projectId}`
-      };
-      
-      // สร้างการแจ้งเตือนในระบบ
-      const notification = await createNotification(userId, NOTIFICATION_TYPES.COMPANY_VIEW, message, data);
-      
-      // ส่งอีเมลแจ้งเตือน
-      await emailService.sendCompanyViewNotificationEmail(
-        user.email,
-        user.username,
-        projectTitle,
-        companyName,
-        contactEmail
-      );
-      
-      return notification;
-    } catch (error) {
-      logger.error('Error notifying company view:', error);
-      throw error;
-    }
-  };
-  
-  /**
-   * สร้างการแจ้งเตือนจากระบบ
-   * @param {Array} userIds - รายการ ID ของผู้ใช้ที่จะรับการแจ้งเตือน
-   * @param {string} title - หัวข้อการแจ้งเตือน
-   * @param {string} message - ข้อความแจ้งเตือน
-   * @param {Object} data - ข้อมูลเพิ่มเติม
-   * @returns {Promise<Array>} - รายการการแจ้งเตือนที่สร้าง
-   */
-  export const createSystemNotification = async (userIds, title, message, data = {}) => {
-    try {
-      const notifications = [];
-      
-      // สร้างการแจ้งเตือนสำหรับผู้ใช้แต่ละคน
-      for (const userId of userIds) {
-        const notification = await createNotification(
-          userId,
-          NOTIFICATION_TYPES.SYSTEM_NOTIFICATION,
-          message,
-          { ...data, title }
-        );
-        
-        notifications.push(notification);
-      }
-      
-      return notifications;
-    } catch (error) {
-      logger.error('Error creating system notification:', error);
-      throw error;
-    }
-  };
-  
-  /**
-   * ลบการแจ้งเตือนเก่า
-   * @param {number} days - จำนวนวันที่เก็บการแจ้งเตือน
-   * @returns {Promise<number>} - จำนวนการแจ้งเตือนที่ถูกลบ
-   */
-  export const cleanupOldNotifications = async (days = 30) => {
-    try {
-      // ลบการแจ้งเตือนที่เก่ากว่าจำนวนวันที่กำหนด
-      const [result] = await pool.execute(`
-        DELETE FROM notifications
-        WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-      `, [days]);
-      
-      logger.info(`Cleaned up ${result.affectedRows} old notifications`);
-      
-      return result.affectedRows;
-    } catch (error) {
-      logger.error('Error cleaning up old notifications:', error);
-      return 0;
-    }
-  };
-  
-  export default {
-    createNotification,
-    getUserNotifications,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-    deleteNotification,
-    countUnreadNotifications,
-    notifyProjectReview,
-    notifyAdminsNewProject,
-    notifyCompanyView,
-    createSystemNotification,
-    cleanupOldNotifications,
-    NOTIFICATION_TYPES
-  };
+export default {
+  createNotification,
+  notifyAdminsNewProject,
+  notifyProjectReview,
+  notifyProjectUpdated,
+  notifyProjectDeleted,
+  logProjectChange,
+  logUserLogin,
+  logProjectView,
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getUnreadNotificationCount
+};

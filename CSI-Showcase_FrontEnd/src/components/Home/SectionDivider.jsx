@@ -7,6 +7,7 @@ const SectionDivider = ({
   wave = true,
   height = 120,
   className = "",
+  scrollToNext = false,
   scrollToTop = false,
   onClick
 }) => {
@@ -20,11 +21,11 @@ const SectionDivider = ({
   const translateY = useTransform(scrollYProgress, [0, 1], [0, -30]);
   const opacity = useTransform(scrollYProgress, [0, 0.5, 1], [0.8, 1, 0.8]);
 
-  // ปรับความสูงตามขนาดหน้าจอ
+  // ปรับความสูงตามขนาดหน้าจอแบบสมมาตร
   const responsiveHeight = window.innerWidth < 768 ? height * 0.6 : height;
 
-  // ฟังก์ชันสร้างรูปแบบ GitHub-style divider
-  const createGithubStyleDivider = () => {
+  // ฟังก์ชันสร้างรูปแบบ Wave Style ที่สมมาตร
+  const createWaveDivider = () => {
     return (
       <div 
         className="w-full overflow-hidden" 
@@ -43,9 +44,16 @@ const SectionDivider = ({
             fill={`url(#divider-gradient-${colorFrom.replace('#', '')})`}
           />
           <defs>
-            <linearGradient id={`divider-gradient-${colorFrom.replace('#', '')}`} x1="720" y1="0" x2="720" y2={responsiveHeight} gradientUnits="userSpaceOnUse">
-              <stop stopColor={colorFrom} />
-              <stop offset="1" stopColor={colorTo} />
+            <linearGradient 
+              id={`divider-gradient-${colorFrom.replace('#', '')}`} 
+              x1="0%" 
+              y1="0%" 
+              x2="0%" 
+              y2="100%" 
+              gradientUnits="objectBoundingBox"
+            >
+              <stop offset="0%" stopColor={colorFrom} />
+              <stop offset="100%" stopColor={colorTo} />
             </linearGradient>
           </defs>
         </svg>
@@ -66,10 +74,11 @@ const SectionDivider = ({
           y: translateY 
         }}
       >
-        {createGithubStyleDivider()}
+        {createWaveDivider()}
       </motion.div>
 
-      {scrollToTop && (
+      {/* Unified scroll button for both directions */}
+      {(scrollToNext || scrollToTop) && (
         <motion.div
           className="absolute bottom-8 left-1/2 transform -translate-x-1/2 cursor-pointer z-10"
           whileHover={{ scale: 1.1 }}
@@ -89,11 +98,11 @@ const SectionDivider = ({
               }
             }}
           >
-            <div className="px-3 sm:px-4 py-1 sm:py-2 bg-[#90278E] text-white rounded-full shadow-lg text-xs sm:text-sm">
+            <div className="px-3 sm:px-4 py-1 sm:py-2 bg-[#90278E] text-white rounded-full shadow-lg text-xs sm:text-sm font-medium">
               {scrollToTop ? "↑" : "↓"}
             </div>
             <div className="text-[#90278E] mt-2 font-medium text-xs sm:text-sm">
-              {scrollToTop ? "Back to Top" : "Explore More"}
+              {scrollToTop ? "กลับสู่ด้านบน" : "เลื่อนลงมา"}
             </div>
           </motion.div>
         </motion.div>

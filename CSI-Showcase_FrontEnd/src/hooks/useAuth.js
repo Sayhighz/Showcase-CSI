@@ -92,7 +92,6 @@ const useAuth = () => {
       const userData = await login(username, password);
       setUser(userData.user);
       setIsAuthenticated(true);
-      message.success('เข้าสู่ระบบสำเร็จ');
       return userData;
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');

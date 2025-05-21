@@ -381,7 +381,7 @@ router.get(API_ROUTES.PROJECT.GET_ALL, getAllProjects);
 
 /**
  * @swagger
- * /api/projects/top:
+ * /api/projects/top9:
  *   get:
  *     summary: Get top 9 projects by view count
  *     tags: [Projects]
@@ -743,7 +743,7 @@ router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDe
 router.put(
   API_ROUTES.PROJECT.UPDATE, 
   authenticateToken, 
-  // isResourceOwner,
+  isResourceOwner,
   projectUpdateMiddleware, // ใช้ middleware สำหรับการอัปเดต
   updateProjectWithFiles
 );

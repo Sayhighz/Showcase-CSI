@@ -1,6 +1,7 @@
 // controllers/user/projectController.js
 import pool from "../../config/database.js";
 import logger from "../../config/logger.js";
+import fs from 'fs';
 import {
   successResponse,
   handleServerError,
@@ -114,6 +115,48 @@ export const getTop9Projects = async (req, res) => {
     const mainQuery = `${baseQuery} ORDER BY p.views_count DESC, p.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     const [projects] = await pool.execute(mainQuery, queryParams);
 
+    // ดึงข้อมูลผู้ร่วมโครงการสำหรับทุกโครงการ
+    if (projects.length > 0) {
+      const projectIds = projects.map(p => p.project_id);
+      const placeholders = projectIds.map(() => '?').join(',');
+      
+      const collaboratorsQuery = `
+        SELECT pg.project_id, pg.role, u.user_id, u.username, u.full_name, u.image
+        FROM project_groups pg
+        JOIN users u ON pg.user_id = u.user_id
+        WHERE pg.project_id IN (${placeholders})
+        ORDER BY pg.project_id, 
+          CASE 
+            WHEN pg.role = 'owner' THEN 1
+            WHEN pg.role = 'contributor' THEN 2
+            WHEN pg.role = 'advisor' THEN 3
+            ELSE 4
+          END
+      `;
+      
+      const [collaborators] = await pool.execute(collaboratorsQuery, projectIds);
+      
+      // จัดกลุ่มผู้ร่วมโครงการตาม project_id
+      const collaboratorsByProject = collaborators.reduce((acc, collab) => {
+        if (!acc[collab.project_id]) {
+          acc[collab.project_id] = [];
+        }
+        acc[collab.project_id].push({
+          userId: collab.user_id,
+          username: collab.username,
+          fullName: collab.full_name,
+          image: collab.image,
+          role: collab.role
+        });
+        return acc;
+      }, {});
+      
+      // เพิ่มข้อมูลผู้ร่วมโครงการเข้าไปในแต่ละโครงการ
+      projects.forEach(project => {
+        project.collaborators = collaboratorsByProject[project.project_id] || [];
+      });
+    }
+
     const formattedProjects = projects.map((project) => ({
       id: project.project_id,
       title: project.title,
@@ -126,6 +169,7 @@ export const getTop9Projects = async (req, res) => {
       studentId: project.user_id,
       username: project.username,
       userImage: project.user_image || null,
+      collaborators: project.collaborators || [], // เพิ่มข้อมูลผู้ร่วมโครงการ
       projectLink: `/projects/${project.project_id}`,
       viewsCount: project.views_count || 0,
       createdAt: project.created_at,
@@ -701,98 +745,182 @@ export const uploadProject = async (req, res) => {
   }
 };
 
-/**
- * อัปเดตข้อมูลโครงการพร้อมรองรับการอัปโหลดไฟล์
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-/**
- * อัปเดตข้อมูลโครงการพร้อมรองรับการอัปโหลดไฟล์
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-import fs from 'fs'; // เพิ่มการนำเข้า fs module
 
+/**
+* อัปเดตข้อมูลโครงการพร้อมรองรับการอัปโหลดไฟล์
+* @param {Object} req - Express request object
+* @param {Object} res - Express response object
+*/
 export const updateProjectWithFiles = async (req, res) => {
   const connection = await pool.getConnection();
-
+ 
   try {
     const projectId = req.params.projectId;
-
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+ 
     // ดึงข้อมูลโครงการเพื่อตรวจสอบความเป็นเจ้าของ
     const [projects] = await pool.execute(
       `SELECT * FROM projects WHERE project_id = ?`,
       [projectId]
     );
-
+ 
     if (projects.length === 0) {
       return notFoundResponse(res, "Project not found");
     }
-
+ 
     const project = projects[0];
-
+ 
     // ตรวจสอบสิทธิ์ในการแก้ไข
-    // if (req.user.id != project.user_id && req.user.role !== "admin") {
-    //   return forbiddenResponse(res, "You can only update your own projects");
-    // }
-
+    if (req.user.id != project.user_id && req.user.role !== "admin") {
+      return forbiddenResponse(res, "You can only update your own projects");
+    }
+ 
     // แสดง log ข้อมูลที่ได้รับ
     console.log("Update request for project:", projectId);
     console.log("Request body:", req.body);
     console.log("Files:", req.files);
     console.log("Project file:", req.file);
     console.log("Project update files:", req.projectUpdate?.files);
-
+ 
     // เริ่มต้น transaction
     await connection.beginTransaction();
-
+ 
     // ดึงข้อมูลที่จะอัปเดต
     const updateData = req.body;
-
+ 
     // สร้าง query สำหรับอัปเดตเฉพาะฟิลด์ที่มี
     let updateFields = [];
     let updateParams = [];
-
-    if (updateData.title !== undefined) {
+ 
+    if (updateData.title !== undefined && updateData.title !== project.title) {
       updateFields.push("title = ?");
       updateParams.push(sanitizeHTML(updateData.title));
+      
+      // บันทึกการเปลี่ยนแปลง
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'title',
+        project.title,
+        updateData.title,
+        req.user.id,
+        'User updated project title',
+        ipAddress,
+        userAgent
+      );
     }
-
-    if (updateData.description !== undefined) {
+ 
+    if (updateData.description !== undefined && updateData.description !== project.description) {
       updateFields.push("description = ?");
       updateParams.push(sanitizeHTML(updateData.description));
+      
+      // บันทึกการเปลี่ยนแปลง
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'description',
+        project.description,
+        updateData.description,
+        req.user.id,
+        'User updated project description',
+        ipAddress,
+        userAgent
+      );
     }
-
-    if (updateData.study_year !== undefined) {
+ 
+    if (updateData.study_year !== undefined && updateData.study_year !== project.study_year) {
       updateFields.push("study_year = ?");
       updateParams.push(updateData.study_year);
+      
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'study_year',
+        project.study_year,
+        updateData.study_year,
+        req.user.id,
+        'User updated study year',
+        ipAddress,
+        userAgent
+      );
     }
-
-    if (updateData.year !== undefined) {
+ 
+    if (updateData.year !== undefined && updateData.year !== project.year) {
       updateFields.push("year = ?");
       updateParams.push(updateData.year);
+      
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'year',
+        project.year,
+        updateData.year,
+        req.user.id,
+        'User updated year',
+        ipAddress,
+        userAgent
+      );
     }
-
-    if (updateData.semester !== undefined) {
+ 
+    if (updateData.semester !== undefined && updateData.semester !== project.semester) {
       updateFields.push("semester = ?");
       updateParams.push(updateData.semester);
+      
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'semester',
+        project.semester,
+        updateData.semester,
+        req.user.id,
+        'User updated semester',
+        ipAddress,
+        userAgent
+      );
     }
-
-    if (updateData.visibility !== undefined) {
+ 
+    if (updateData.visibility !== undefined && updateData.visibility !== project.visibility) {
       updateFields.push("visibility = ?");
       updateParams.push(updateData.visibility);
+      
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'visibility',
+        project.visibility,
+        updateData.visibility,
+        req.user.id,
+        'User updated visibility',
+        ipAddress,
+        userAgent
+      );
     }
-
+ 
     // เปลี่ยนสถานะกลับเป็น pending เพื่อรอการตรวจสอบจากผู้ดูแล
-    updateFields.push("status = ?");
-    updateParams.push(PROJECT_STATUSES.PENDING);
-
+    if (project.status !== PROJECT_STATUSES.PENDING) {
+      updateFields.push("status = ?");
+      updateParams.push(PROJECT_STATUSES.PENDING);
+      
+      await notificationService.logProjectChange(
+        projectId,
+        'updated',
+        'status',
+        project.status,
+        PROJECT_STATUSES.PENDING,
+        req.user.id,
+        'Status changed to pending after user update',
+        ipAddress,
+        userAgent
+      );
+    }
+ 
     // อัปเดตเวลาการแก้ไข
     updateFields.push("updated_at = NOW()");
-
+ 
     // เพิ่ม project ID เข้าไปใน parameters
     updateParams.push(projectId);
-
+ 
     // อัปเดตข้อมูลโครงการหลัก
     if (updateFields.length > 0) {
       const updateQuery = `
@@ -800,11 +928,11 @@ export const updateProjectWithFiles = async (req, res) => {
         SET ${updateFields.join(", ")} 
         WHERE project_id = ?
       `;
-
+ 
       await connection.execute(updateQuery, updateParams);
       console.log("Updated main project data");
     }
-
+ 
     // -----------------------------------------------
     // จัดการกับไฟล์ที่อัปโหลด
     // -----------------------------------------------
@@ -866,6 +994,19 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old paperFile:", err);
           }
         }
+        
+        // บันทึกการเปลี่ยนแปลงไฟล์
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'paper_file',
+          oldFiles.paperFile,
+          paperFilePath,
+          req.user.id,
+          'User updated paper file',
+          ipAddress,
+          userAgent
+        );
       }
       
       // ตรวจสอบไฟล์โปสเตอร์
@@ -882,6 +1023,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkPoster:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_poster',
+          oldFiles.courseworkPoster,
+          posterPath,
+          req.user.id,
+          'User updated coursework poster',
+          ipAddress,
+          userAgent
+        );
       }
       
       if (req.files.competitionPoster) {
@@ -897,6 +1050,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old competitionPoster:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'competition_poster',
+          oldFiles.competitionPoster,
+          posterPath,
+          req.user.id,
+          'User updated competition poster',
+          ipAddress,
+          userAgent
+        );
       }
       
       // ตรวจสอบไฟล์ภาพประกอบ
@@ -913,6 +1078,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkImage:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_image',
+          oldFiles.courseworkImage,
+          imagePath,
+          req.user.id,
+          'User updated coursework image',
+          ipAddress,
+          userAgent
+        );
       }
       
       // ตรวจสอบไฟล์วิดีโอ
@@ -929,6 +1106,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkVideo file:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_video',
+          oldFiles.clipVideoPath,
+          clipVideoPath,
+          req.user.id,
+          'User updated coursework video',
+          ipAddress,
+          userAgent
+        );
       }
     }
     
@@ -950,6 +1139,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old paperFile:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'paper_file',
+          oldFiles.paperFile,
+          paperFilePath,
+          req.user.id,
+          'User updated paper file',
+          ipAddress,
+          userAgent
+        );
       }
       
       // ไฟล์โปสเตอร์
@@ -966,6 +1167,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkPoster:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_poster',
+          oldFiles.courseworkPoster,
+          posterPath,
+          req.user.id,
+          'User updated coursework poster',
+          ipAddress,
+          userAgent
+        );
       }
       
       if (req.projectUpdate.files.competitionPoster && !posterPath) {
@@ -981,6 +1194,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old competitionPoster:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'competition_poster',
+          oldFiles.competitionPoster,
+          posterPath,
+          req.user.id,
+          'User updated competition poster',
+          ipAddress,
+          userAgent
+        );
       }
       
       // ไฟล์ภาพประกอบ
@@ -997,6 +1222,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkImage:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_image',
+          oldFiles.courseworkImage,
+          imagePath,
+          req.user.id,
+          'User updated coursework image',
+          ipAddress,
+          userAgent
+        );
       }
       
       // ไฟล์วิดีโอ
@@ -1013,6 +1250,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkVideo file:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_video',
+          oldFiles.clipVideoPath,
+          clipVideoPath,
+          req.user.id,
+          'User updated coursework video',
+          ipAddress,
+          userAgent
+        );
       }
     }
     
@@ -1034,6 +1283,18 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old paperFile:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'paper_file',
+          oldFiles.paperFile,
+          paperFilePath,
+          req.user.id,
+          'User updated paper file',
+          ipAddress,
+          userAgent
+        );
       } else if (req.file.mimetype.startsWith('image/')) {
         // กำหนดโปสเตอร์ตามประเภทโปรเจกต์
         posterPath = req.file.path;
@@ -1055,6 +1316,21 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old competitionPoster:", err);
           }
         }
+        
+        const fileType = project.type === PROJECT_TYPES.COURSEWORK ? 'coursework_poster' : 'competition_poster';
+        const oldFile = project.type === PROJECT_TYPES.COURSEWORK ? oldFiles.courseworkPoster : oldFiles.competitionPoster;
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          fileType,
+          oldFile,
+          posterPath,
+          req.user.id,
+          `User updated ${fileType}`,
+          ipAddress,
+          userAgent
+        );
       } else if (req.file.mimetype.startsWith('video/')) {
         clipVideoPath = req.file.path;
         console.log("Using video from req.file:", clipVideoPath);
@@ -1068,13 +1344,50 @@ export const updateProjectWithFiles = async (req, res) => {
             console.error("Error deleting old courseworkVideo file:", err);
           }
         }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'coursework_video',
+          oldFiles.clipVideoPath,
+          clipVideoPath,
+          req.user.id,
+          'User updated coursework video',
+          ipAddress,
+          userAgent
+        );
       }
     }
     
     // 4. ตรวจสอบ URL วิดีโอจาก form input (สำหรับ coursework)
     if (updateData.clip_video !== undefined && project.type === PROJECT_TYPES.COURSEWORK) {
-      clipVideoPath = updateData.clip_video || null;
-      console.log("Using clip_video from form input:", clipVideoPath);
+      // ตรวจสอบการเปลี่ยนแปลง URL วิดีโอ
+      if (updateData.clip_video !== oldFiles.clipVideoPath) {
+        clipVideoPath = updateData.clip_video || null;
+        console.log("Using clip_video from form input:", clipVideoPath);
+        
+        // ลบไฟล์เดิมถ้าเป็นไฟล์ (ไม่ใช่ URL)
+        if (oldFiles.clipVideoPath && oldFiles.clipVideoPath.startsWith('uploads/')) {
+          try {
+            fs.unlinkSync(oldFiles.clipVideoPath);
+            console.log("Deleted old video file when replaced with URL:", oldFiles.clipVideoPath);
+          } catch (err) {
+            console.error("Error deleting old video file:", err);
+          }
+        }
+        
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'clip_video_url',
+          oldFiles.clipVideoPath,
+          clipVideoPath,
+          req.user.id,
+          'User updated video URL',
+          ipAddress,
+          userAgent
+        );
+      }
     }
     
     console.log("Final files to update:", {
@@ -1084,18 +1397,25 @@ export const updateProjectWithFiles = async (req, res) => {
       imagePath,
       paperFilePath
     });
-
+ 
     // Update contributors if provided
     if (updateData.contributors !== undefined && updateData.contributors !== '') {
       try {
+        // ดึงข้อมูล contributors เดิม
+        const [oldContributors] = await connection.execute(
+          `SELECT user_id, role FROM project_groups WHERE project_id = ?`,
+          [projectId]
+        );
+        
         // Delete existing contributors
         await connection.execute(
           `DELETE FROM project_groups WHERE project_id = ?`,
           [projectId]
         );
         console.log("Deleted existing contributors");
-
+ 
         // Add new contributors only if contributors is not empty
+        let newContributors = [];
         if (updateData.contributors.trim()) {
           const contributors = JSON.parse(updateData.contributors);
           
@@ -1107,15 +1427,29 @@ export const updateProjectWithFiles = async (req, res) => {
                 [projectId, contributor.user_id, contributor.role || "contributor"]
               );
             }
+            newContributors = contributors;
           }
         }
+        
+        // บันทึกการเปลี่ยนแปลง contributors
+        await notificationService.logProjectChange(
+          projectId,
+          'updated',
+          'contributors',
+          oldContributors,
+          newContributors,
+          req.user.id,
+          'User updated contributors',
+          ipAddress,
+          userAgent
+        );
       } catch (parseError) {
         console.error("Error parsing contributors JSON:", parseError);
         // ไม่ให้การแปลง JSON ผิดพลาดทำให้การอัปเดตทั้งหมดล้มเหลว
         // เราจะดำเนินการต่อโดยไม่อัปเดต contributors
       }
     }
-
+ 
     // อัปเดตข้อมูลตามประเภทโปรเจกต์
     if (project.type === PROJECT_TYPES.ACADEMIC) {
       await updateAcademicDataWithFiles(connection, projectId, updateData, project.year, paperFilePath);
@@ -1124,16 +1458,16 @@ export const updateProjectWithFiles = async (req, res) => {
     } else if (project.type === PROJECT_TYPES.COURSEWORK) {
       await updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagePath);
     }
-
+ 
     // Commit transaction
     await connection.commit();
     console.log("Transaction committed successfully");
-
+ 
     // Notify admins of updated project
     try {
       await notificationService.notifyAdminsNewProject(
         projectId,
-        project.title,
+        updateData.title || project.title,
         req.user.fullName,
         project.type
       );
@@ -1141,7 +1475,7 @@ export const updateProjectWithFiles = async (req, res) => {
       // ไม่ให้การแจ้งเตือนล้มเหลวทำให้การอัปเดตล้มเหลว
       console.error("Error sending admin notification:", notifyError);
     }
-
+ 
     return res.json(
       successResponse(
         {
@@ -1162,7 +1496,8 @@ export const updateProjectWithFiles = async (req, res) => {
     // Release connection
     connection.release();
   }
-};
+ };
+
 
 /**
  * อัปเดตข้อมูลบทความวิชาการพร้อมไฟล์
@@ -1399,6 +1734,8 @@ export const deleteProject = async (req, res) => {
 
   try {
     const projectId = req.params.projectId;
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
 
     // ดึงข้อมูลโครงการเพื่อตรวจสอบความเป็นเจ้าของและประเภทโครงการ
     const [projects] = await connection.execute(
@@ -1453,6 +1790,22 @@ export const deleteProject = async (req, res) => {
     }
 
     console.log("Files to delete:", filesToDelete);
+
+    // บันทึกการลบในประวัติก่อนลบจริง
+    await notificationService.logProjectChange(
+      projectId,
+      'deleted',
+      'entire_project',
+      { 
+        project_data: { ...project },
+        files_to_delete: filesToDelete
+      },
+      null,
+      req.user.id,
+      'User deleted project',
+      ipAddress,
+      userAgent
+    );
 
     // เริ่มต้น transaction
     await connection.beginTransaction();
@@ -1526,7 +1879,11 @@ export const deleteProject = async (req, res) => {
         console.warn("Could not delete related upload sessions:", sessError.message);
       }
 
-      // 7. ลบข้อมูลโครงการหลัก
+      // 7. ลบการเปลี่ยนแปลงที่เกี่ยวข้อง (เก็บประวัติการลบไว้)
+      // หมายเหตุ: เราไม่ลบ project_changes เพื่อเก็บประวัติการลบไว้
+      console.log("Keeping project_changes for historical record");
+
+      // 8. ลบข้อมูลโครงการหลัก
       await connection.execute(
         `DELETE FROM projects WHERE project_id = ?`,
         [projectId]
@@ -1542,35 +1899,52 @@ export const deleteProject = async (req, res) => {
       for (const filePath of filesToDelete) {
         try {
           if (filePath && filePath.startsWith('uploads/')) {
-            const result = await fs.promises.unlink(filePath).then(() => {
-              deletedFiles.push(filePath);
-              return true;
-            }).catch(err => {
-              console.error(`Error deleting file ${filePath}:`, err);
-              return false;
-            });
+            await fs.promises.unlink(filePath);
+            deletedFiles.push(filePath);
+            console.log(`Successfully deleted file: ${filePath}`);
           }
         } catch (fileError) {
-          console.error(`Error processing file ${filePath}:`, fileError);
+          console.error(`Error deleting file ${filePath}:`, fileError);
+          // ไม่ให้การลบไฟล์ล้มเหลวทำให้การลบโครงการล้มเหลว
         }
       }
       console.log(`Deleted ${deletedFiles.length} physical files`);
+
+      // บันทึกการลบไฟล์ในประวัติ (หลังจากลบเสร็จแล้ว)
+      if (deletedFiles.length > 0) {
+        await notificationService.logProjectChange(
+          projectId,
+          'deleted',
+          'physical_files',
+          filesToDelete,
+          deletedFiles,
+          req.user.id,
+          `Successfully deleted ${deletedFiles.length} files`,
+          ipAddress,
+          userAgent
+        );
+      }
 
       return res.json(
         successResponse(
           {
             projectId,
-            deletedFiles
+            deletedFiles,
+            projectTitle: project.title,
+            message: "Project and all associated data have been successfully deleted"
           },
           "Project deleted successfully"
         )
       );
+
     } catch (trxError) {
       // Rollback ในกรณีที่เกิดข้อผิดพลาดระหว่าง transaction
       await connection.rollback();
       console.error("Transaction error during delete:", trxError);
+      
       throw trxError;
     }
+
   } catch (error) {
     console.error("Delete project error:", error);
     logger.error(`Error deleting project ${req.params.projectId}:`, error);

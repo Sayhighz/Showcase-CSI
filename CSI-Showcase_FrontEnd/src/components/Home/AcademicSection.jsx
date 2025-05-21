@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Typography, Space, Empty, Button, Card, Avatar } from 'antd';
-import { ReadOutlined, FireOutlined, FileTextOutlined, BookOutlined, TeamOutlined } from '@ant-design/icons';
+import { Typography, Space, Empty, Button, Card, Avatar, Tag, Divider } from 'antd';
+import { ReadOutlined, FireOutlined, FileTextOutlined, BookOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import ProjectDisplay from './ProjectDisplay';
 import ScrollIndicator from './ScrollIndicator';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -68,6 +68,54 @@ const AcademicSection = ({
     } else {
       setAcademicPage(academicProjects.length);
     }
+  };
+
+  // Function to render collaborators for academic projects
+  const renderCollaborators = (collaborators) => {
+    if (!collaborators || collaborators.length === 0) return null;
+
+    return (
+      <div className="mt-6 mb-6">
+        <Text strong className="text-lg mb-3 block" style={{ color: '#90278E' }}>
+          <TeamOutlined className="mr-2" />
+          ผู้ร่วมวิจัย ({collaborators.length + 1} คน)
+        </Text>
+        <div className="space-y-3">
+          {collaborators.map((collaborator, index) => (
+            <motion.div
+              key={collaborator.userId}
+              className="flex items-center space-x-3 bg-purple-50 p-3 rounded-lg"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              {collaborator.image ? (
+                <img 
+                  src={`${API_ENDPOINTS.BASE}/${collaborator.image}`} 
+                  alt={collaborator.fullName}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-purple-300" 
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#90278E] flex items-center justify-center text-white font-bold">
+                  {collaborator.fullName.charAt(0)}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <Text className="font-medium block text-base truncate">
+                  {collaborator.fullName}
+                </Text>
+                <Text type="secondary" className="text-sm">
+                  @{collaborator.username}
+                </Text>
+              </div>
+              <Tag color="purple" className="text-xs">
+                {collaborator.role === 'contributor' ? 'ผู้ร่วมวิจัย' : collaborator.role}
+              </Tag>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   // Animation variants for cards
@@ -209,6 +257,9 @@ const AcademicSection = ({
                               <div>
                                 <Text className="font-medium block text-sm sm:text-base">{getCurrentProject().student}</Text>
                                 <Text type="secondary" className="text-xs sm:text-sm">{getCurrentProject().username}</Text>
+                                <Tag size="small" color="blue" className="mt-1">
+                                  นักวิจัยหลัก
+                                </Tag>
                               </div>
                             </div>
                           </div>
@@ -217,8 +268,16 @@ const AcademicSection = ({
                             <Text type="secondary">
                               <FireOutlined /> {getCurrentProject().viewsCount}
                             </Text>
+                            {getCurrentProject().collaborators && getCurrentProject().collaborators.length > 0 && (
+                              <Text type="secondary">
+                                <TeamOutlined /> {getCurrentProject().collaborators.length + 1} คน
+                              </Text>
+                            )}
                           </div>
                         </div>
+
+                        {/* Collaborators Section */}
+                        {renderCollaborators(getCurrentProject().collaborators)}
 
                         <div className="my-4 sm:my-6 md:my-8 p-3 sm:p-4 md:p-6 bg-gray-50 rounded-xl">
                           <Title level={4} className="mt-0 text-lg sm:text-xl" style={{ marginTop: 0 }}>บทคัดย่อ</Title>

@@ -20,7 +20,17 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
       if (keyword && keyword.trim()) {
         const escapedKeyword = `%${keyword.trim().replace(/[%_\\]/g, '\\$&')}%`;
         const safeKeyword = connection.escape(escapedKeyword);
-        conditions.push(`(p.title LIKE ${safeKeyword} OR p.description LIKE ${safeKeyword} OR u.full_name LIKE ${safeKeyword})`);
+        conditions.push(`(
+          p.title LIKE ${safeKeyword} 
+          OR p.description LIKE ${safeKeyword} 
+          OR u.full_name LIKE ${safeKeyword}
+          OR EXISTS (
+            SELECT 1 FROM project_groups pg 
+            JOIN users ug ON pg.user_id = ug.user_id 
+            WHERE pg.project_id = p.project_id 
+            AND ug.full_name LIKE ${safeKeyword}
+          )
+        )`);
       }
       
       if (filters.type) {
@@ -39,7 +49,7 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
       
       // Count query
       const countQuery = `
-        SELECT COUNT(*) as total 
+        SELECT COUNT(DISTINCT p.project_id) as total 
         FROM projects p
         JOIN users u ON p.user_id = u.user_id
         WHERE ${whereClause}
@@ -49,17 +59,25 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
       const [countResult] = await connection.query(countQuery);
       const totalItems = countResult[0].total;
       
-      // Selection query
+      // Selection query with project collaborators
       let selectQuery = `
-        SELECT p.*, u.username, u.full_name, u.image as user_image,
+        SELECT DISTINCT p.*, u.username, u.full_name, u.image as user_image,
           CASE 
             WHEN p.type = 'coursework' THEN (SELECT c.poster FROM courseworks c WHERE c.project_id = p.project_id)
             WHEN p.type = 'competition' THEN (SELECT c.poster FROM competitions c WHERE c.project_id = p.project_id)
             WHEN p.type = 'academic' THEN NULL
-          END as image
+          END as image,
+          GROUP_CONCAT(
+            DISTINCT CONCAT(ug.full_name, ':', COALESCE(pg.role, 'member'))
+            ORDER BY pg.added_at
+            SEPARATOR ';'
+          ) as collaborators
         FROM projects p
         JOIN users u ON p.user_id = u.user_id
+        LEFT JOIN project_groups pg ON p.project_id = pg.project_id
+        LEFT JOIN users ug ON pg.user_id = ug.user_id
         WHERE ${whereClause}
+        GROUP BY p.project_id
         ORDER BY p.views_count DESC, p.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -68,18 +86,30 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
       const [projects] = await connection.query(selectQuery);
       
       // Format results
-      const formattedProjects = projects.map(project => ({
-        id: project.project_id,
-        title: project.title,
-        description: project.description,
-        category: project.type,
-        level: `ปี ${project.study_year}`,
-        year: project.year,
-        image: project.image || 'https://via.placeholder.com/150',
-        student: project.full_name,
-        studentId: project.user_id,
-        projectLink: `/projects/${project.project_id}`
-      }));
+      const formattedProjects = projects.map(project => {
+        // Parse collaborators
+        let collaborators = [];
+        if (project.collaborators) {
+          collaborators = project.collaborators.split(';').map(collab => {
+            const [name, role] = collab.split(':');
+            return { name, role: role || 'member' };
+          });
+        }
+        
+        return {
+          id: project.project_id,
+          title: project.title,
+          description: project.description,
+          category: project.type,
+          level: `ปี ${project.study_year}`,
+          year: project.year,
+          image: project.image || 'https://via.placeholder.com/150',
+          student: project.full_name,
+          studentId: project.user_id,
+          collaborators: collaborators,
+          projectLink: `/projects/${project.project_id}`
+        };
+      });
       
       const paginationInfo = getPaginationInfo(totalItems, page, limit);
       

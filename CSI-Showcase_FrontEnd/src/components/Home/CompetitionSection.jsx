@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Typography, Space, Empty, Tag, Divider, Button } from 'antd';
-import { TrophyOutlined, StarOutlined, CalendarOutlined, EyeOutlined, LinkOutlined } from '@ant-design/icons';
+import { Typography, Space, Empty, Tag, Divider, Button, Tooltip, Avatar } from 'antd';
+import { TrophyOutlined, StarOutlined, CalendarOutlined, EyeOutlined, LinkOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import ProjectDisplay from './ProjectDisplay';
 import ScrollIndicator from './ScrollIndicator';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -64,6 +64,58 @@ const CompetitionSection = ({
 
   const currentProject = getCurrentProject();
 
+  // Function to render collaborators
+  const renderCollaborators = (collaborators) => {
+    if (!collaborators || collaborators.length === 0) return null;
+
+    return (
+      <div className="mt-4 mb-6">
+        <Divider orientation="left">
+          <Text strong className="text-[#90278E] text-sm sm:text-base">
+            <TeamOutlined className="mr-2" />
+            ผู้ร่วมพัฒนา ({collaborators.length + 1} คน)
+          </Text>
+        </Divider>
+        <div className="bg-purple-50 p-3 sm:p-4 rounded-xl">
+          <div className="space-y-2">
+            {collaborators.map((collaborator, index) => (
+              <motion.div
+                key={collaborator.userId}
+                className="flex items-center space-x-3 bg-white p-2 sm:p-3 rounded-lg shadow-sm"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                {collaborator.image ? (
+                  <img 
+                    src={`${API_ENDPOINTS.BASE}/${collaborator.image}`} 
+                    alt={collaborator.fullName}
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 border-purple-300" 
+                  />
+                ) : (
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-r from-purple-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                    {collaborator.fullName.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <Text className="text-sm sm:text-base font-medium block truncate">
+                    {collaborator.fullName}
+                  </Text>
+                  <Text type="secondary" className="text-xs sm:text-sm">
+                    @{collaborator.username}
+                  </Text>
+                </div>
+                <Tag size="small" color="purple" className="text-xs">
+                  {collaborator.role === 'contributor' ? 'ผู้ร่วมพัฒนา' : collaborator.role}
+                </Tag>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section 
       ref={sectionRef}
@@ -103,191 +155,202 @@ const CompetitionSection = ({
           icon={<TrophyOutlined />}
           title="ผลงานการแข่งขัน"
           subtitle="ผลงานจากการแข่งขันทั้งในระดับมหาวิทยาลัยและระดับประเทศที่นักศึกษา CSI ได้มีโอกาสเข้าร่วมและได้รับรางวัล"
-          colorScheme="light"
-        />
-
-        {loading ? (
-          <div className="py-10 flex justify-center">
-            <LoadingSpinner tip="กำลังโหลดผลงาน..." />
-          </div>
-        ) : !competitionProjects || competitionProjects.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="ไม่พบผลงานในหมวดหมู่นี้"
-          />
-        ) : (
-          <motion.div
-            style={{
-              opacity,
-              scale,
-              y
-            }}
-          >
-            <ProjectDisplay
-              currentProject={currentProject}
-              currentPage={competitionPage}
-              totalProjects={competitionProjects.length}
-              onPageChange={setCompetitionPage}
-              onNext={nextProject}
-              onPrev={prevProject}
-            >
-              {currentProject && (
-                <div className="max-w-6xl mx-auto">
-                  <div className="flex flex-col lg:flex-row gap-4 md:gap-8 bg-white bg-opacity-80 backdrop-filter backdrop-blur-sm p-4 md:p-8 rounded-2xl shadow-xl">
-                    {/* Left Side - Project Image */}
-                    <div className="lg:w-1/2">
-                      <AnimatedText type="heading" delay={0.3}>
-                        <Image3DEffect
-                          className="h-[250px] sm:h-[350px] md:h-[450px] rounded-xl overflow-hidden flex items-center justify-center"
-                          depth={12}
-                          glareEnabled={true}
-                        >
-                          {currentProject.image ? (
-                            <img 
-                              alt={currentProject.title} 
-                              src={`${API_ENDPOINTS.BASE}/${currentProject.image}`} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full w-full bg-gradient-to-r from-[#90278E] to-[#B252B0] text-white text-opacity-30">
-                              <TrophyOutlined style={{ fontSize: '64px' }} />
-                            </div>
-                          )}
-                        </Image3DEffect>
-                      </AnimatedText>
-                      
-                      {/* Tags */}
-                      <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                        <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{currentProject.level || 'ปี 3'}</Tag>
-                        <Tag color="#B252B0" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{`ปี ${currentProject.year || new Date(currentProject.createdAt).getFullYear()}`}</Tag>
-                        <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{`${currentProject.viewsCount || 0} views`}</Tag>
-                      </div>
-                    </div>
-                    
-                    {/* Right Side - Project Details */}
-                    <div className="lg:w-1/2 mt-4 lg:mt-0">
-                      <AnimatedText type="heading" delay={0.1}>
-                        <div>
-                          <Title 
-                            level={2} 
-                            className="text-xl sm:text-2xl md:text-3xl"
-                            style={{ 
-                              color: '#90278E', 
-                              marginTop: 0, 
-                              marginBottom: '16px',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {currentProject.title}
-                          </Title>
-                          
-                          {/* Student Information */}
-                          <div className="flex items-center space-x-3 mb-3 sm:mb-5">
-                            {currentProject.userImage ? (
-                              <motion.img 
-                                src={`${API_ENDPOINTS.BASE}/${currentProject.userImage}`} 
-                                alt={currentProject.student}
-                                className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-[#90278E]" 
-                                whileHover={{ scale: 1.1 }}
-                              />
-                            ) : (
-                              <motion.div 
-                                className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-[#90278E] flex items-center justify-center text-white text-base sm:text-lg md:text-xl font-bold"
-                                whileHover={{ scale: 1.1 }}
-                              >
-                                {currentProject.student ? currentProject.student.charAt(0) : ""}
-                              </motion.div>
-                            )}
-                            <div>
-                              <Text className="font-medium block text-base sm:text-lg">{currentProject.student}</Text>
-                              {currentProject.username && (
-                                <Text type="secondary" className="text-xs sm:text-sm">@{currentProject.username}</Text>
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Date and Views */}
-                          <div className="flex items-center space-x-4 mb-4 sm:mb-6 text-gray-500 text-xs sm:text-sm">
-                            <div className="flex items-center">
-                              <CalendarOutlined className="mr-2" />
-                              <span>{currentProject.year || new Date(currentProject.createdAt).getFullYear()}</span>
-                            </div>
-                            <div className="flex items-center">
-                              <EyeOutlined className="mr-2" />
-                              <span>{currentProject.viewsCount || 0} views</span>
-                            </div>
-                          </div>
+      colorScheme="light"
+      />
+      {loading ? (
+      <div className="py-10 flex justify-center">
+        <LoadingSpinner tip="กำลังโหลดผลงาน..." />
+      </div>
+    ) : !competitionProjects || competitionProjects.length === 0 ? (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="ไม่พบผลงานในหมวดหมู่นี้"
+      />
+    ) : (
+      <motion.div
+        style={{
+          opacity,
+          scale,
+          y
+        }}
+      >
+        <ProjectDisplay
+          currentProject={currentProject}
+          currentPage={competitionPage}
+          totalProjects={competitionProjects.length}
+          onPageChange={setCompetitionPage}
+          onNext={nextProject}
+          onPrev={prevProject}
+        >
+          {currentProject && (
+            <div className="max-w-6xl mx-auto">
+              <div className="flex flex-col lg:flex-row gap-4 md:gap-8 bg-white bg-opacity-80 backdrop-filter backdrop-blur-sm p-4 md:p-8 rounded-2xl shadow-xl">
+                {/* Left Side - Project Image */}
+                <div className="lg:w-1/2">
+                  <AnimatedText type="heading" delay={0.3}>
+                    <Image3DEffect
+                      className="h-[250px] sm:h-[350px] md:h-[450px] rounded-xl overflow-hidden flex items-center justify-center"
+                      depth={12}
+                      glareEnabled={true}
+                    >
+                      {currentProject.image ? (
+                        <img 
+                          alt={currentProject.title} 
+                          src={`${API_ENDPOINTS.BASE}/${currentProject.image}`} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full w-full bg-gradient-to-r from-[#90278E] to-[#B252B0] text-white text-opacity-30">
+                          <TrophyOutlined style={{ fontSize: '64px' }} />
                         </div>
-                      </AnimatedText>
-                      
-                      {/* Project Description */}
-                      <AnimatedText type="paragraph" delay={0.3}>
-                        <div className="mt-3 sm:mt-5 mb-4 sm:mb-8">
-                          <Divider orientation="left">
-                            <Text strong className="text-[#90278E] text-sm sm:text-base">รายละเอียดโปรเจค</Text>
-                          </Divider>
-                          <Paragraph 
-                            className="text-sm sm:text-base md:text-lg" 
-                            style={{ 
-                              lineHeight: 1.8,
-                              textAlign: 'justify' 
-                            }}
-                          >
-                            {currentProject.description}
-                          </Paragraph>
-                        </div>
-                      </AnimatedText>
-                      
-                      {/* Call to Action */}
-                      <AnimatedText type="badge" delay={0.7}>
-                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 sm:mt-8">
-                          <div className="text-center sm:text-left">
-                            <Text className="text-gray-500 block text-xs sm:text-sm">สนใจในผลงานนี้?</Text>
-                            <Text strong className="text-[#90278E] text-base sm:text-lg">ดูรายละเอียดเพิ่มเติมได้ที่นี่</Text>
-                          </div>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <Button 
-                              type="primary" 
-                              size="middle"
-                              icon={<LinkOutlined />}
-                              className="bg-gradient-to-r from-[#90278E] to-[#B252B0] border-none px-3 sm:px-6 h-8 sm:h-12 text-xs sm:text-sm"
-                              href={currentProject.projectLink || '#'}
-                            >
-                              ดูผลงานแข่งขันเต็มรูปแบบ
-                            </Button>
-                          </motion.div>
-                        </div>
-                      </AnimatedText>
-                    </div>
+                      )}
+                    </Image3DEffect>
+                  </AnimatedText>
+                  
+                  {/* Tags */}
+                  <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                    <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{currentProject.level || 'ปี 3'}</Tag>
+                    <Tag color="#B252B0" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{`ปี ${currentProject.year || new Date(currentProject.createdAt).getFullYear()}`}</Tag>
+                    <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">
+                      <TeamOutlined className="mr-1" />
+                      {(currentProject.collaborators?.length || 0) + 1} คน
+                    </Tag>
+                    <Tag color="#90278E" className="px-2 sm:px-3 py-1 text-xs sm:text-sm">{`${currentProject.viewsCount || 0} views`}</Tag>
                   </div>
                 </div>
-              )}
-            </ProjectDisplay>
-          </motion.div>
-        )}
-        
-      </div>
-      
-      {/* Scroll to next section */}
-      <motion.div
-        className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-      >
+                
+                {/* Right Side - Project Details */}
+                <div className="lg:w-1/2 mt-4 lg:mt-0">
+                  <AnimatedText type="heading" delay={0.1}>
+                    <div>
+                      <Title 
+                        level={2} 
+                        className="text-xl sm:text-2xl md:text-3xl"
+                        style={{ 
+                          color: '#90278E', 
+                          marginTop: 0, 
+                          marginBottom: '16px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {currentProject.title}
+                      </Title>
+                      
+                      {/* Student Information */}
+                      <div className="flex items-center space-x-3 mb-3 sm:mb-5">
+                        {currentProject.userImage ? (
+                          <motion.img 
+                            src={`${API_ENDPOINTS.BASE}/${currentProject.userImage}`} 
+                            alt={currentProject.student}
+                            className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full object-cover border-2 border-[#90278E]" 
+                            whileHover={{ scale: 1.1 }}
+                          />
+                        ) : (
+                          <motion.div 
+                            className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-[#90278E] flex items-center justify-center text-white text-base sm:text-lg md:text-xl font-bold"
+                            whileHover={{ scale: 1.1 }}
+                          >
+                            {currentProject.student ? currentProject.student.charAt(0) : ""}
+                          </motion.div>
+                        )}
+                        <div>
+                          <Text className="font-medium block text-base sm:text-lg">{currentProject.student}</Text>
+                          {currentProject.username && (
+                            <Text type="secondary" className="text-xs sm:text-sm">@{currentProject.username}</Text>
+                          )}
+                          <Tag size="small" color="blue" className="mt-1">
+                            หัวหน้าทีม
+                          </Tag>
+                        </div>
+                      </div>
+                      
+                      {/* Date and Views */}
+                      <div className="flex items-center space-x-4 mb-4 sm:mb-6 text-gray-500 text-xs sm:text-sm">
+                        <div className="flex items-center">
+                          <CalendarOutlined className="mr-2" />
+                          <span>{currentProject.year || new Date(currentProject.createdAt).getFullYear()}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <EyeOutlined className="mr-2" />
+                          <span>{currentProject.viewsCount || 0} views</span>
+                        </div>
+                      </div>
+                    </div>
+                  </AnimatedText>
+                  
+                  {/* Collaborators Section */}
+                  <AnimatedText type="badge" delay={0.25}>
+                    {renderCollaborators(currentProject.collaborators)}
+                  </AnimatedText>
+                  
+                  {/* Project Description */}
+                  <AnimatedText type="paragraph" delay={0.3}>
+                    <div className="mt-3 sm:mt-5 mb-4 sm:mb-8">
+                      <Divider orientation="left">
+                        <Text strong className="text-[#90278E] text-sm sm:text-base">รายละเอียดโปรเจค</Text>
+                      </Divider>
+                      <Paragraph 
+                        className="text-sm sm:text-base md:text-lg" 
+                        style={{ 
+                          lineHeight: 1.8,
+                          textAlign: 'left' 
+                        }}
+                      >
+                        {currentProject.description}
+                      </Paragraph>
+                    </div>
+                  </AnimatedText>
+                  
+                  {/* Call to Action */}
+                  <AnimatedText type="badge" delay={0.7}>
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 sm:mt-8">
+                      <div className="text-center sm:text-left">
+                        <Text className="text-gray-500 block text-xs sm:text-sm">สนใจในผลงานนี้?</Text>
+                        <Text strong className="text-[#90278E] text-base sm:text-lg">ดูรายละเอียดเพิ่มเติมได้ที่นี่</Text>
+                      </div>
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          type="primary" 
+                          size="middle"
+                          icon={<LinkOutlined />}
+                          className="bg-gradient-to-r from-[#90278E] to-[#B252B0] border-none px-3 sm:px-6 h-8 sm:h-12 text-xs sm:text-sm"
+                          href={currentProject.projectLink || '#'}
+                        >
+                          ดูผลงานแข่งขันเต็มรูปแบบ
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </AnimatedText>
+                </div>
+              </div>
+            </div>
+          )}
+        </ProjectDisplay>
       </motion.div>
-      
-      {/* Section Divider at Bottom */}
-      <SectionDivider 
-        colorFrom="#E0D1FF" 
-        colorTo="#90278E"
-        className="absolute bottom-0 left-0 w-full transform rotate-180"
-        height={80}
-      />
-    </section>
+    )}
+    
+  </div>
+  
+  {/* Scroll to next section */}
+  <motion.div
+    className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ delay: 0.5 }}
+  >
+  </motion.div>
+  
+  {/* Section Divider at Bottom */}
+  <SectionDivider 
+    colorFrom="#E0D1FF" 
+    colorTo="#90278E"
+    className="absolute bottom-0 left-0 w-full transform rotate-180"
+    height={80}
+  />
+</section>
   );
 };
 
