@@ -69,7 +69,7 @@ const useSearch = () => {
         }
       });
       
-      console.log('Searching with params:', queryParams);
+      // console.log('Searching with params:', queryParams);
       
       const response = await searchProjects(queryParams);
       

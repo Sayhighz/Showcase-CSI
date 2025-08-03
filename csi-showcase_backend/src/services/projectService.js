@@ -1,9 +1,9 @@
 // services/projectService.js
-import pool from '../config/database.js';
-import logger from '../config/logger.js';
-import notificationService from './notificationService.js';
-import { PROJECT_STATUSES, PROJECT_TYPES } from '../constants/projectStatuses.js';
-import { isValidStatus, isValidType } from '../constants/projectStatuses.js';
+const pool = require('../config/database.js');
+const logger = require('../config/logger.js');
+const notificationService = require('./notificationService.js');
+const { PROJECT_STATUSES, PROJECT_TYPES } = require('../constants/projectStatuses.js');
+const { isValidStatus, isValidType } = require('../constants/projectStatuses.js');
 
 /**
  * ดึงข้อมูลโครงการทั้งหมด
@@ -11,7 +11,7 @@ import { isValidStatus, isValidType } from '../constants/projectStatuses.js';
  * @param {Object} pagination - ข้อมูลการแบ่งหน้า
  * @returns {Promise<Object>} - รายการโครงการและข้อมูลการแบ่งหน้า
  */
-export const getAllProjects = async (filters = {}, pagination = {}) => {
+const getAllProjects = async (filters = {}, pagination = {}) => {
   try {
     // กำหนดค่าเริ่มต้นสำหรับการแบ่งหน้า
     const page = parseInt(pagination.page || 1);
@@ -149,7 +149,7 @@ export const getAllProjects = async (filters = {}, pagination = {}) => {
  * @param {Object} options - ตัวเลือกเพิ่มเติม
  * @returns {Promise<Object>} - ข้อมูลโครงการ
  */
-export const getProjectById = async (projectId, options = {}) => {
+const getProjectById = async (projectId, options = {}) => {
     try {
       // ดึงข้อมูลหลักของโครงการ
       const [projects] = await pool.execute(`
@@ -290,7 +290,7 @@ export const getProjectById = async (projectId, options = {}) => {
  * @param {Object} files - ไฟล์ที่อัปโหลด
  * @returns {Promise<Object>} - ข้อมูลโครงการที่สร้าง
  */
-export const createProject = async (projectData, files = {}) => {
+const createProject = async (projectData, files = {}) => {
   // เริ่มต้น transaction
   const connection = await pool.getConnection();
   
@@ -505,7 +505,7 @@ export const createProject = async (projectData, files = {}) => {
   }
 };
 
-export default {
+module.exports = {
   getAllProjects,
   getProjectById,
   createProject

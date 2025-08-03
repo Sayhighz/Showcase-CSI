@@ -1,8 +1,8 @@
 // middleware/authMiddleware.js
-import { UAParser } from 'ua-parser-js';
-import { verifyToken } from '../utils/jwtHelper.js';
-import { forbiddenResponse } from '../utils/responseFormatter.js';
-import pool from '../config/database.js';
+const { UAParser } = require('ua-parser-js');
+const { verifyToken } = require('../utils/jwtHelper.js');
+const { forbiddenResponse } = require('../utils/responseFormatter.js');
+const pool = require('../config/database.js');
 
 /**
  * Middleware ตรวจสอบ JWT token
@@ -10,7 +10,7 @@ import pool from '../config/database.js';
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const authenticateToken = async (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -89,7 +89,7 @@ export const authenticateToken = async (req, res, next) => {
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const isAdmin = (req, res, next) => {
+const isAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -111,7 +111,7 @@ export const isAdmin = (req, res, next) => {
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const isStudent = (req, res, next) => {
+const isStudent = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
@@ -133,7 +133,7 @@ export const isStudent = (req, res, next) => {
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const isResourceOwner = async (req, res, next) => {
+const isResourceOwner = async (req, res, next) => {
   try {
     // console.log(req.user)
     if (!req.user) {
@@ -196,4 +196,12 @@ export const isResourceOwner = async (req, res, next) => {
       message: 'Server error during resource owner check'
     });
   }
+};
+
+// Export functions using CommonJS
+module.exports = {
+  authenticateToken,
+  isAdmin,
+  isStudent,
+  isResourceOwner
 };

@@ -2,7 +2,7 @@
 export default {
   apps: [{
     name: "csi-showcase_backend",
-    script: "./src/app.js",  // เส้นทางไปยังไฟล์เริ่มต้นของแอพคุณ
+    script: "./server.js",  // เส้นทางไปยังไฟล์เริ่มต้นของแอพคุณ
     instances: 1,
     autorestart: true,
     watch: false,

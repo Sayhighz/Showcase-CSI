@@ -1,18 +1,18 @@
 // controllers/admin/logsController.js
-import pool from '../../config/database.js';
-import logger from '../../config/logger.js';
-import { handleServerError, successResponse } from '../../utils/responseFormatter.js';
-import { getPaginationParams, getPaginationInfo } from '../../constants/pagination.js';
-import { formatToISODate } from '../../utils/dateHelper.js';
-import { asyncHandler } from '../../middleware/loggerMiddleware.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
+const pool = require('../../config/database.js');
+const logger = require('../../config/logger.js');
+const { handleServerError, successResponse } = require('../../utils/responseFormatter.js');
+const { getPaginationParams, getPaginationInfo } = require('../../constants/pagination.js');
+const { formatToISODate } = require('../../utils/dateHelper.js');
+const { asyncHandler } = require('../../middleware/loggerMiddleware.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
 
 /**
  * ดึงข้อมูลการเข้าสู่ระบบทั้งหมด
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllLoginLogs = asyncHandler(async (req, res) => {
+const getAllLoginLogs = asyncHandler(async (req, res) => {
   try {
     // ใช้ getPaginationParams จาก pagination helper
     const pagination = getPaginationParams(req);
@@ -122,7 +122,7 @@ export const getAllLoginLogs = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getVisitorViews = asyncHandler(async (req, res) => {
+const getVisitorViews = asyncHandler(async (req, res) => {
   try {
     // ใช้ getPaginationParams จาก pagination helper
     const pagination = getPaginationParams(req);
@@ -197,7 +197,7 @@ export const getVisitorViews = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectReviews = asyncHandler(async (req, res) => {
+const getProjectReviews = asyncHandler(async (req, res) => {
   try {
     // ใช้ getPaginationParams จาก pagination helper
     const pagination = getPaginationParams(req);
@@ -286,7 +286,7 @@ export const getProjectReviews = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getSystemStats = asyncHandler(async (req, res) => {
+const getSystemStats = asyncHandler(async (req, res) => {
   try {
     // จำนวนการเข้าสู่ระบบทั้งหมด
     const [totalLogins] = await pool.execute(`
@@ -416,7 +416,7 @@ export const getSystemStats = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getDailyStats = asyncHandler(async (req, res) => {
+const getDailyStats = asyncHandler(async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -572,3 +572,12 @@ export const getDailyStats = asyncHandler(async (req, res) => {
     return handleServerError(res, error);
   }
 });
+
+// Export functions
+module.exports = {
+  getAllLoginLogs,
+  getVisitorViews,
+  getProjectReviews,
+  getSystemStats,
+  getDailyStats
+};

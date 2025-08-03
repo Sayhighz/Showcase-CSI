@@ -1,8 +1,8 @@
 // middleware/optionalAuthenticateToken.js
-import { verifyToken } from '../utils/jwtHelper.js';
-import pool from '../config/database.js';
+const { verifyToken } = require('../utils/jwtHelper.js');
+const pool = require('../config/database.js');
 
-export const optionalAuthenticateToken = async (req, res, next) => {
+const optionalAuthenticateToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -41,4 +41,9 @@ export const optionalAuthenticateToken = async (req, res, next) => {
     // มี error แต่ไม่บล็อก ให้ผ่านไปได้เลย
     next();
   }
+};
+
+// Export function using CommonJS
+module.exports = {
+  optionalAuthenticateToken
 };

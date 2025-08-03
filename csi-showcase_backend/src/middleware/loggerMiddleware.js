@@ -1,10 +1,10 @@
 // middleware/loggerMiddleware.js
-import logger from '../config/logger.js';
+const logger = require('../config/logger.js');
 
 /**
  * Middleware สำหรับบันทึกข้อมูล HTTP request
  */
-export const requestLogger = (req, res, next) => {
+const requestLogger = (req, res, next) => {
   // บันทึกเวลาเริ่มต้น
   const start = Date.now();
   
@@ -59,7 +59,7 @@ export const requestLogger = (req, res, next) => {
 /**
  * Middleware สำหรับจับและบันทึกข้อผิดพลาด
  */
-export const errorLogger = (err, req, res, next) => {
+const errorLogger = (err, req, res, next) => {
   // บันทึกข้อผิดพลาด
   logger.error(`Error processing ${req.method} ${req.originalUrl}: ${err.message}`);
   logger.error(`Stack: ${err.stack}`);
@@ -73,10 +73,17 @@ export const errorLogger = (err, req, res, next) => {
  * @param {Function} fn - ฟังก์ชันที่ต้องการห่อหุ้ม
  * @returns {Function} - ฟังก์ชันที่ห่อหุ้มแล้ว
  */
-export const asyncHandler = (fn) => (req, res, next) => {
+const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch((err) => {
     logger.error(`Async error in ${req.method} ${req.originalUrl}: ${err.message}`);
     logger.error(`Stack: ${err.stack}`);
     next(err);
   });
+};
+
+// Export functions using CommonJS
+module.exports = {
+  requestLogger,
+  errorLogger,
+  asyncHandler
 };

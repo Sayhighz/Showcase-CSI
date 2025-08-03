@@ -4,6 +4,17 @@ import { jwtDecode } from 'jwt-decode';
 import { setAdminAuthCookie, getAdminAuthCookie, removeAdminAuthCookie } from '../lib/cookie';
 import { adminLogin, verifyAdminToken } from '../services/authService';
 
+// สร้าง constant สำหรับ base path
+const BASE_PATH = '/csif';
+
+// ฟังก์ชันสำหรับสร้าง URL ที่ถูกต้อง
+const getFullPath = (path) => {
+    if (path.startsWith('/')) {
+        return `${BASE_PATH}${path}`;
+    }
+    return path;
+};
+
 // Create Auth Context
 const AuthContext = createContext(null);
 
@@ -37,13 +48,11 @@ export const AuthProvider = ({ children }) => {
         avatar: null
     });
     
-    // เพิ่ม userInfoRef เพื่อเก็บข้อมูลผู้ใช้เพิ่มเติมที่ไม่ได้อยู่ใน token
     const userInfoRef = useRef({
         username: '',
         avatar: null
     });
     
-    // ใช้ Ref เพียงอันเดียวเพื่อป้องกันการทำงานซ้ำซ้อน
     const authInProgressRef = useRef(false);
     
     // ฟังก์ชันตั้งค่าข้อมูลผู้ใช้จาก token
@@ -54,21 +63,16 @@ export const AuthProvider = ({ children }) => {
             const decodedToken = jwtDecode(token);
             console.log("Decoded token in setUserFromToken:", decodedToken);
             
-            // ตรวจสอบการหมดอายุของ token
             if (isTokenExpired(token)) {
                 console.log("Token expired when setting user");
                 return false;
             }
             
-            // ดึงข้อมูลจาก userInfoRef ที่เก็บไว้ตอน login
             const savedUserInfo = userInfoRef.current;
             console.log("Saved user info:", savedUserInfo);
             
-            // ตั้งค่าข้อมูลผู้ใช้โดยใช้ข้อมูลจาก userInfoRef ก่อน
-            // ถ้าไม่มีค่อยใช้ข้อมูลจาก token
             setAdmin({
                 id: decodedToken.id || decodedToken.userId || null,
-                // ใช้ username ที่เก็บไว้ในตอน login ก่อน
                 username: savedUserInfo.username || 
                          decodedToken.user?.fullName || 
                          decodedToken.fullName || 
@@ -76,7 +80,6 @@ export const AuthProvider = ({ children }) => {
                          decodedToken.name || 
                          '',
                 role: decodedToken.role,
-                // ใช้ avatar ที่เก็บไว้ในตอน login ก่อน
                 avatar: savedUserInfo.avatar || 
                        decodedToken.user?.image || 
                        decodedToken.image || 
@@ -101,12 +104,11 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
     
-    // ตรวจสอบ token เมื่อโหลดแอพ - ทำงานเพียงครั้งเดียว
+    // ตรวจสอบ token เมื่อโหลดแอพ
     useEffect(() => {
         console.log("🚀 Initial auth check on app load");
         
         const initialAuthCheck = async () => {
-            // ป้องกันการทำงานซ้ำซ้อน
             if (authInProgressRef.current) {
                 console.log("Auth check already in progress, skipping");
                 return;
@@ -125,7 +127,6 @@ export const AuthProvider = ({ children }) => {
                     return;
                 }
                 
-                // ตรวจสอบ token หมดอายุหรือไม่
                 if (isTokenExpired(token)) {
                     console.log("Token is expired, removing");
                     removeAdminAuthCookie();
@@ -133,7 +134,6 @@ export const AuthProvider = ({ children }) => {
                     return;
                 }
                 
-                // ตั้งค่าผู้ใช้จาก token โดยไม่เรียก API
                 const success = setUserFromToken(token);
                 
                 if (success) {
@@ -167,7 +167,6 @@ export const AuthProvider = ({ children }) => {
             if (response.success && response.data && response.data.token) {
                 const token = response.data.token;
                 
-                // ตรวจสอบบทบาทของผู้ใช้
                 const decodedToken = jwtDecode(token);
                 console.log("Decoded token:", decodedToken);
                 
@@ -177,10 +176,8 @@ export const AuthProvider = ({ children }) => {
                     return false;
                 }
                 
-                // ตั้งค่า token ใน cookie (เพิ่มเวลาหมดอายุเป็น 7 วัน)
                 setAdminAuthCookie(token, 7);
                 
-                // กำหนดค่า username และ avatar ที่ต้องการใช้
                 const userFullName = response.data.user?.fullName || 
                                      response.data.user?.username || 
                                      decodedToken.user?.fullName || 
@@ -196,15 +193,12 @@ export const AuthProvider = ({ children }) => {
                                   decodedToken.avatar || 
                                   null;
                 
-                // เก็บข้อมูล username และ avatar ไว้ใน userInfoRef
-                // เพื่อใช้ในกรณี refresh
                 userInfoRef.current = {
                     username: userFullName,
                     avatar: userAvatar
                 };
                 console.log("Saved user info to ref:", userInfoRef.current);
                 
-                // ตั้งค่าข้อมูลผู้ดูแล
                 setAdmin({
                     id: decodedToken.id || decodedToken.userId || null,
                     username: userFullName,
@@ -222,7 +216,6 @@ export const AuthProvider = ({ children }) => {
                     avatar: userAvatar
                 });
                 
-                // เพิ่ม: บันทึกข้อมูลผู้ใช้ลงใน localStorage
                 try {
                     localStorage.setItem('admin_user_info', JSON.stringify({
                         username: userFullName,
@@ -247,20 +240,17 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
     
-    // ฟังก์ชันออกจากระบบ
+    // ฟังก์ชันออกจากระบบ - แก้ไขตรงนี้
     const handleLogout = useCallback(() => {
         console.log("Logging out");
         
-        // ลบ token และรีเซ็ตสถานะ
         removeAdminAuthCookie();
         
-        // รีเซ็ต userInfoRef
         userInfoRef.current = {
             username: '',
             avatar: null
         };
         
-        // ลบข้อมูลจาก localStorage
         try {
             localStorage.removeItem('admin_user_info');
         } catch (error) {
@@ -277,9 +267,10 @@ export const AuthProvider = ({ children }) => {
         
         message.success('ออกจากระบบสำเร็จ');
         
-        // ทำการ redirect
+        // แก้ไขการ redirect ให้ใช้ path ที่ถูกต้อง
         setTimeout(() => {
-            window.location.href = '/login';
+            // console.log("asdasdadddddddd")
+            window.location.href = getFullPath('/login');
         }, 100);
     }, []);
     
@@ -297,7 +288,7 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
     
-    // ฟังก์ชันรีเฟรชสถานะการยืนยันตัวตน (ใช้เมื่อต้องการตรวจสอบ token ซ้ำ)
+    // ฟังก์ชันรีเฟรชสถานะการยืนยันตัวตน
     const refreshAuth = useCallback(async () => {
         console.log("Manual refresh auth requested");
         
@@ -324,7 +315,6 @@ export const AuthProvider = ({ children }) => {
                 return false;
             }
             
-            // ตรวจสอบกับ backend เฉพาะเมื่อจำเป็น (ไม่ตรวจสอบทุกครั้ง)
             if (!isAuthenticated) {
                 return setUserFromToken(token);
             }
@@ -332,13 +322,13 @@ export const AuthProvider = ({ children }) => {
             return true;
         } catch (error) {
             console.error("Refresh auth error:", error);
-            return isAuthenticated; // คงสถานะเดิมในกรณีที่มีข้อผิดพลาด
+            return isAuthenticated;
         } finally {
             authInProgressRef.current = false;
         }
     }, [isAuthenticated, setUserFromToken]);
     
-    // สร้าง context value ที่มี performance ดี
+    // สร้าง context value
     const contextValue = React.useMemo(() => ({
         isAuthenticated,
         isLoading,

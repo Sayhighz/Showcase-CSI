@@ -1,23 +1,24 @@
 // controllers/admin/adminProjectController.js
-import pool, { beginTransaction, commitTransaction, rollbackTransaction } from '../../config/database.js';
-import logger from '../../config/logger.js';
-import { successResponse, errorResponse, handleServerError, notFoundResponse, forbiddenResponse, validationErrorResponse } from '../../utils/responseFormatter.js';
-import { PROJECT_STATUSES, PROJECT_TYPES, isValidStatus, isValidType } from '../../constants/projectStatuses.js';
-import { getPaginationParams, getPaginationInfo } from '../../constants/pagination.js';
-import { formatToISODateTime } from '../../utils/dateHelper.js';
-import { ERROR_MESSAGES, getErrorMessage } from '../../constants/errorMessages.js';
-import projectService from '../../services/projectService.js';
-import notificationService from '../../services/notificationService.js';
-import storageService from '../../services/storageService.js';
-import { ROLES, hasPermission } from '../../constants/roles.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
+const pool = require('../../config/database.js');
+const { beginTransaction, commitTransaction, rollbackTransaction } = require('../../config/database.js');
+const logger = require('../../config/logger.js');
+const { successResponse, errorResponse, handleServerError, notFoundResponse, forbiddenResponse, validationErrorResponse } = require('../../utils/responseFormatter.js');
+const { PROJECT_STATUSES, PROJECT_TYPES, isValidStatus, isValidType } = require('../../constants/projectStatuses.js');
+const { getPaginationParams, getPaginationInfo } = require('../../constants/pagination.js');
+const { formatToISODateTime } = require('../../utils/dateHelper.js');
+const { ERROR_MESSAGES, getErrorMessage } = require('../../constants/errorMessages.js');
+const projectService = require('../../services/projectService.js');
+const notificationService = require('../../services/notificationService.js');
+const storageService = require('../../services/storageService.js');
+const { ROLES, hasPermission } = require('../../constants/roles.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
 
 /**
  * ดึงข้อมูลโครงการทั้งหมดสำหรับผู้ดูแลระบบ
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllProjects = async (req, res) => {
+const getAllProjects = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -59,7 +60,7 @@ export const getAllProjects = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getPendingProjects = async (req, res) => {
+const getPendingProjects = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -95,7 +96,7 @@ export const getPendingProjects = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectDetails = async (req, res) => {
+const getProjectDetails = async (req, res) => {
   try {
     const { projectId } = req.params;
     
@@ -169,7 +170,7 @@ const executeWithRetryInTransaction = async (operation, maxRetries = 3) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
- export const reviewProject = async (req, res) => {
+ const reviewProject = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -346,7 +347,7 @@ const executeWithRetryInTransaction = async (operation, maxRetries = 3) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const deleteProject = async (req, res) => {
+const deleteProject = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -419,7 +420,7 @@ export const deleteProject = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const updateProject = async (req, res) => {
+const updateProject = async (req, res) => {
   try {
     const { projectId } = req.params;
     const {
@@ -508,7 +509,7 @@ export const updateProject = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectReviews = async (req, res) => {
+const getProjectReviews = async (req, res) => {
   try {
     const { projectId } = req.params;
     
@@ -538,7 +539,7 @@ export const getProjectReviews = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAdminReviewStats = async (req, res) => {
+const getAdminReviewStats = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -599,7 +600,7 @@ export const getAdminReviewStats = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectStats = async (req, res) => {
+const getProjectStats = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -698,7 +699,7 @@ export const getProjectStats = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllProjectReviews = async (req, res) => {
+const getAllProjectReviews = async (req, res) => {
   try {
     // ตรวจสอบว่าเป็น admin หรือไม่
     if (req.user.role !== ROLES.ADMIN) {
@@ -738,4 +739,18 @@ export const getAllProjectReviews = async (req, res) => {
     logger.error('Error getting all project reviews:', error);
     return handleServerError(res, error);
   }
+};
+
+// Export functions
+module.exports = {
+  getAllProjects,
+  getPendingProjects,
+  getProjectDetails,
+  reviewProject,
+  deleteProject,
+  updateProject,
+  getProjectReviews,
+  getAdminReviewStats,
+  getProjectStats,
+  getAllProjectReviews
 };

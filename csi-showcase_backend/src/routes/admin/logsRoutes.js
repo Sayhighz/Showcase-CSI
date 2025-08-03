@@ -1,15 +1,15 @@
 // routes/admin/logsRoutes.js
 
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   getAllLoginLogs, 
   getVisitorViews,
   getProjectReviews,
   getSystemStats,
   getDailyStats
-} from '../../controllers/admin/logsController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
+} = require('../../controllers/admin/logsController.js');
+const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
 
 const router = express.Router();
 
@@ -576,4 +576,4 @@ router.get(
  *           description: Previous page number, or null if there is no previous page
  */
 
-export default router;
+module.exports = router;

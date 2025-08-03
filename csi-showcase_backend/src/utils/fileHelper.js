@@ -1,13 +1,13 @@
 // utils/fileHelper.js
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const path = require('path');
 
 /**
  * สร้างโฟลเดอร์หากยังไม่มี
  * @param {string} dirPath - เส้นทางของโฟลเดอร์ที่ต้องการสร้าง
  * @returns {boolean} - ผลการสร้างโฟลเดอร์
  */
-export const createDirectoryIfNotExists = (dirPath) => {
+const createDirectoryIfNotExists = (dirPath) => {
   try {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });
@@ -24,7 +24,7 @@ export const createDirectoryIfNotExists = (dirPath) => {
  * @param {string} filePath - เส้นทางของไฟล์ที่ต้องการลบ
  * @returns {boolean} - ผลการลบไฟล์
  */
-export const deleteFile = (filePath) => {
+const deleteFile = (filePath) => {
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -42,7 +42,7 @@ export const deleteFile = (filePath) => {
  * @param {string} prefix - คำนำหน้าชื่อไฟล์ (optional)
  * @returns {string} - ชื่อไฟล์ใหม่ที่ไม่ซ้ำกัน
  */
-export const generateUniqueFilename = (originalFilename, prefix = '') => {
+const generateUniqueFilename = (originalFilename, prefix = '') => {
   const timestamp = Date.now();
   const random = Math.round(Math.random() * 1E9);
   const ext = path.extname(originalFilename);
@@ -56,7 +56,7 @@ export const generateUniqueFilename = (originalFilename, prefix = '') => {
  * @param {RegExp} allowedTypes - Regular expression ของประเภทไฟล์ที่อนุญาต
  * @returns {boolean} - ผลการตรวจสอบ
  */
-export const isAllowedFileType = (filename, mimetype, allowedTypes) => {
+const isAllowedFileType = (filename, mimetype, allowedTypes) => {
   const ext = path.extname(filename).toLowerCase();
   return allowedTypes.test(mimetype) && allowedTypes.test(ext);
 };
@@ -67,7 +67,7 @@ export const isAllowedFileType = (filename, mimetype, allowedTypes) => {
  * @param {number} maxSizeInMB - ขนาดไฟล์สูงสุดที่อนุญาตในหน่วย MB
  * @returns {boolean} - ผลการตรวจสอบ
  */
-export const isFileSizeValid = (fileSize, maxSizeInMB) => {
+const isFileSizeValid = (fileSize, maxSizeInMB) => {
   const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
   return fileSize <= maxSizeInBytes;
 };
@@ -77,7 +77,7 @@ export const isFileSizeValid = (fileSize, maxSizeInMB) => {
  * @param {number} bytes - ขนาดไฟล์ในหน่วย bytes
  * @returns {string} - ขนาดไฟล์ในหน่วยที่อ่านง่าย
  */
-export const formatFileSize = (bytes) => {
+const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' bytes';
   if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
   if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB';
@@ -89,7 +89,7 @@ export const formatFileSize = (bytes) => {
  * @param {string} filename - ชื่อไฟล์
  * @returns {string} - นามสกุลไฟล์
  */
-export const getFileExtension = (filename) => {
+const getFileExtension = (filename) => {
   return path.extname(filename).toLowerCase();
 };
 
@@ -98,7 +98,7 @@ export const getFileExtension = (filename) => {
  * @param {string} mimetype - MIME type ของไฟล์
  * @returns {string} - ประเภทของไฟล์ (image, video, document, other)
  */
-export const getFileTypeFromMimetype = (mimetype) => {
+const getFileTypeFromMimetype = (mimetype) => {
   if (mimetype.startsWith('image/')) return 'image';
   if (mimetype.startsWith('video/')) return 'video';
   if (mimetype === 'application/pdf' || 
@@ -106,4 +106,15 @@ export const getFileTypeFromMimetype = (mimetype) => {
       mimetype.includes('powerpoint') || 
       mimetype.includes('excel')) return 'document';
   return 'other';
+};
+
+module.exports = {
+  createDirectoryIfNotExists,
+  deleteFile,
+  generateUniqueFilename,
+  isAllowedFileType,
+  isFileSizeValid,
+  formatFileSize,
+  getFileExtension,
+  getFileTypeFromMimetype
 };

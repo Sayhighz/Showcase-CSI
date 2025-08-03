@@ -1,9 +1,9 @@
 // src/middleware/projectUploadMiddleware.js
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-import logger from '../config/logger.js';
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+const logger = require('../config/logger.js');
 
 /**
  * กำหนดโฟลเดอร์หลักสำหรับการจัดเก็บไฟล์
@@ -110,7 +110,7 @@ const multiTypeUploader = multer({
 /**
  * Middleware สำหรับการอัปโหลดไฟล์โปรเจคใหม่
  */
-export const projectUploadMiddleware = (req, res, next) => {
+const projectUploadMiddleware = (req, res, next) => {
   logger.info("Processing project upload with improved middleware");
   
   // กำหนดฟิลด์ไฟล์ที่จะรับ
@@ -157,7 +157,7 @@ export const projectUploadMiddleware = (req, res, next) => {
 /**
  * Middleware สำหรับการอัปเดตไฟล์โปรเจค
  */
-export const projectUpdateMiddleware = (req, res, next) => {
+const projectUpdateMiddleware = (req, res, next) => {
   logger.info("Processing project update with improved middleware");
   
   // ใช้ uploader เดียวกันกับ projectUploadMiddleware
@@ -204,7 +204,7 @@ export const projectUpdateMiddleware = (req, res, next) => {
 /**
  * ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
  */
-export const fileExists = (filePath) => {
+const fileExists = (filePath) => {
   try {
     if (!filePath) return false;
     return fs.existsSync(filePath);
@@ -217,7 +217,7 @@ export const fileExists = (filePath) => {
 /**
  * ลบไฟล์เก่าเมื่อมีการอัปเดตไฟล์ใหม่
  */
-export const deleteOldFile = (filePath) => {
+const deleteOldFile = (filePath) => {
   try {
     if (fileExists(filePath)) {
       fs.unlinkSync(filePath);
@@ -231,7 +231,8 @@ export const deleteOldFile = (filePath) => {
   }
 };
 
-export default {
+// Export functions using CommonJS
+module.exports = {
   projectUploadMiddleware,
   projectUpdateMiddleware,
   fileExists,

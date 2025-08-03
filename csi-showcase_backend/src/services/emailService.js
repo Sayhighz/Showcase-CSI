@@ -1,13 +1,13 @@
 // services/emailService.js
-import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-import logger from '../config/logger.js';
+const nodemailer = require('nodemailer');
+const dotenv = require('dotenv');
+const logger = require('../config/logger.js');
 
 // โหลดค่าจากไฟล์ .env
 dotenv.config();
 
 // สร้าง transporter สำหรับส่งอีเมล
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({  // แก้ไขจาก createTransporter เป็น createTransport
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
   secure: process.env.EMAIL_SECURE === 'true',
@@ -24,7 +24,7 @@ const transporter = nodemailer.createTransport({
  * @param {string} username - ชื่อผู้ใช้
  * @returns {Promise<boolean>} - ผลการส่งอีเมล
  */
-export const sendPasswordResetEmail = async (to, resetToken, username) => {
+const sendPasswordResetEmail = async (to, resetToken, username) => {
   const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
   
   const mailOptions = {
@@ -63,7 +63,7 @@ export const sendPasswordResetEmail = async (to, resetToken, username) => {
  * @param {string} username - ชื่อผู้ใช้
  * @returns {Promise<boolean>} - ผลการส่งอีเมล
  */
-export const sendWelcomeEmail = async (to, username) => {
+const sendWelcomeEmail = async (to, username) => {
   const loginLink = `${process.env.FRONTEND_URL}/login`;
   
   const mailOptions = {
@@ -105,7 +105,7 @@ export const sendWelcomeEmail = async (to, username) => {
  * @param {string} comment - ความคิดเห็นจากผู้ดูแลระบบ
  * @returns {Promise<boolean>} - ผลการส่งอีเมล
  */
-export const sendProjectStatusEmail = async (to, username, projectTitle, status, comment = '') => {
+const sendProjectStatusEmail = async (to, username, projectTitle, status, comment = '') => {
   const projectsLink = `${process.env.FRONTEND_URL}/projects/my`;
   const statusText = status === 'approved' ? 'ได้รับการอนุมัติ' : 'ถูกปฏิเสธ';
   const statusColor = status === 'approved' ? '#28a745' : '#dc3545';
@@ -150,7 +150,7 @@ export const sendProjectStatusEmail = async (to, username, projectTitle, status,
  * @param {string} projectType - ประเภทของผลงาน
  * @returns {Promise<boolean>} - ผลการส่งอีเมล
  */
-export const sendNewProjectNotificationEmail = async (to, projectTitle, studentName, projectType) => {
+const sendNewProjectNotificationEmail = async (to, projectTitle, studentName, projectType) => {
   const adminLink = `${process.env.FRONTEND_URL}/admin/projects/pending`;
   
   const mailOptions = {
@@ -194,7 +194,7 @@ export const sendNewProjectNotificationEmail = async (to, projectTitle, studentN
  * @param {string} contactEmail - อีเมลติดต่อของบริษัท
  * @returns {Promise<boolean>} - ผลการส่งอีเมล
  */
-export const sendCompanyViewNotificationEmail = async (to, username, projectTitle, companyName, contactEmail) => {
+const sendCompanyViewNotificationEmail = async (to, username, projectTitle, companyName, contactEmail) => {
   const projectLink = `${process.env.FRONTEND_URL}/projects/my`;
   
   const mailOptions = {
@@ -234,7 +234,7 @@ export const sendCompanyViewNotificationEmail = async (to, username, projectTitl
  * สำหรับทดสอบการเชื่อมต่อกับเซิร์ฟเวอร์อีเมล
  * @returns {Promise<boolean>} - ผลการทดสอบ
  */
-export const verifyEmailConnection = async () => {
+const verifyEmailConnection = async () => {
   try {
     await transporter.verify();
     logger.info('Email server connection verified');
@@ -245,7 +245,7 @@ export const verifyEmailConnection = async () => {
   }
 };
 
-export default {
+module.exports = {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendProjectStatusEmail,

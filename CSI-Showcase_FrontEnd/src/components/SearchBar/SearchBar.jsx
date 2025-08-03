@@ -299,7 +299,7 @@ const SearchBar = () => {
       
       
       {/* Cosmic search style */}
-      <style jsx global>{`
+      <style jsx="true">{`
         .cosmic-search-dropdown {
           z-index: 1050 !important;
         }

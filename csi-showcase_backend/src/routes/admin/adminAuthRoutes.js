@@ -1,15 +1,15 @@
 // routes/admin/adminAuthRoutes.js
 
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   adminLogin, 
   getCurrentAdmin, 
   verifyAdminToken, 
   adminLogout,
-} from '../../controllers/admin/adminAuthController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
-import { checkSecretKey } from '../../middleware/secretKeyMiddleware.js';
+} = require('../../controllers/admin/adminAuthController.js');
+const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
+const { checkSecretKey } = require('../../middleware/secretKeyMiddleware.js');
 
 const router = express.Router();
 
@@ -204,7 +204,6 @@ router.get(
   getCurrentAdmin
 );
 
-
 /**
  * @swagger
  * /api/admin/auth/logout:
@@ -238,4 +237,4 @@ router.post(
   adminLogout
 );
 
-export default router;
+module.exports = router;

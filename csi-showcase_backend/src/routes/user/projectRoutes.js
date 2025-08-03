@@ -1,7 +1,7 @@
 // routes/user/projectRoutes.js
 
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   getAllProjects, 
   getTop9Projects, 
   getLatestProjects, 
@@ -10,14 +10,14 @@ import {
   uploadProject,
   updateProjectWithFiles,
   deleteProject,
-} from '../../controllers/user/projectController.js';
-import { authenticateToken, isResourceOwner } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
-import { optionalAuthenticateToken } from '../../middleware/optionalAuthenticateToken.js';
-import { 
+} = require('../../controllers/user/projectController.js');
+const { authenticateToken, isResourceOwner } = require('../../middleware/authMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
+const { optionalAuthenticateToken } = require('../../middleware/optionalAuthenticateToken.js');
+const { 
   projectUploadMiddleware, 
   projectUpdateMiddleware, 
-} from '../../middleware/projectUploadMiddleware.js';
+} = require('../../middleware/projectUploadMiddleware.js');
 
 const router = express.Router();
 
@@ -793,4 +793,4 @@ router.delete(
   deleteProject
 );
 
-export default router;
+module.exports = router;

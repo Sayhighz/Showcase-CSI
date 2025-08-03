@@ -1,12 +1,9 @@
 // config/env.js
-import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const dotenv = require('dotenv');
+const fs = require('fs');
+const path = require('path');
 
-// กำหนด __dirname ใน ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// __dirname มีอยู่แล้วใน CommonJS ไม่ต้องกำหนดเพิ่ม
 
 /**
  * ตัวแปรสภาพแวดล้อมที่จำเป็น
@@ -37,7 +34,7 @@ const RECOMMENDED_PROD_ENV_VARS = [
  * @param {string} envPath - เส้นทางไฟล์ .env
  * @returns {Object} - ข้อมูลตัวแปรสภาพแวดล้อม
  */
-export const loadEnv = (envPath = undefined) => {
+const loadEnv = (envPath = undefined) => {
   // กำหนดเส้นทางไฟล์ .env ตามสภาพแวดล้อม
   const defaultEnvPath = path.join(__dirname, '..','..', '.env');
   const envFilePath = envPath || defaultEnvPath;
@@ -61,7 +58,7 @@ export const loadEnv = (envPath = undefined) => {
  * ตรวจสอบตัวแปรสภาพแวดล้อมที่จำเป็น
  * @returns {Object} - ผลการตรวจสอบ
  */
-export const validateEnv = () => {
+const validateEnv = () => {
   const missingVars = [];
   
   // ตรวจสอบตัวแปรที่จำเป็น
@@ -91,7 +88,7 @@ export const validateEnv = () => {
 /**
  * ตั้งค่าตัวแปรสภาพแวดล้อมเริ่มต้น
  */
-export const setDefaultEnv = () => {
+const setDefaultEnv = () => {
   // กำหนดค่าเริ่มต้นสำหรับตัวแปรสภาพแวดล้อมที่ไม่ได้กำหนด
   process.env.NODE_ENV = process.env.NODE_ENV || 'development';
   process.env.PORT = process.env.PORT || '5000';
@@ -101,7 +98,7 @@ export const setDefaultEnv = () => {
 /**
  * แสดงสถานะตัวแปรสภาพแวดล้อมในคอนโซล
  */
-export const logEnvStatus = () => {
+const logEnvStatus = () => {
   const { isValid, missingVars, recommendedMissingVars } = validateEnv();
   
   if (!isValid) {
@@ -126,13 +123,14 @@ export const logEnvStatus = () => {
  * @param {string} envPath - เส้นทางไฟล์ .env
  * @returns {boolean} - สถานะการเริ่มต้น
  */
-export const initEnv = (envPath = undefined) => {
+const initEnv = (envPath = undefined) => {
   loadEnv(envPath);
   setDefaultEnv();
   return logEnvStatus();
 };
 
-export default {
+// Export functions
+module.exports = {
   loadEnv,
   validateEnv,
   setDefaultEnv,

@@ -58,7 +58,7 @@ const Navbar = () => {
   // Handle logout
   const handleLogout = () => {
     removeAuthCookie();
-    window.location.href = "/login";
+    window.location.href = "/csie/login";
   };
 
   // Track scroll position to show/hide Navbar and set transparency state
@@ -171,7 +171,7 @@ const Navbar = () => {
         onClose={closeDrawer}
         open={visible}
         width={isMobile ? "80%" : 280}
-        bodyStyle={{ padding: 0 }}
+        style={{ padding: 0 }}
         styles={{
           header: { 
             borderBottom: '1px solid rgba(144, 39, 142, 0.2)',

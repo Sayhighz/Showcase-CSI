@@ -1,15 +1,15 @@
 // routes/admin/statisticsRoutes.js
 
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   getDashboardStats,
   getTodayStats,
   getProjectTypeStats,
   getStudyYearStats
-} from '../../controllers/admin/statisticsController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { checkAdminSecretKey } from '../../middleware/secretKeyMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
+} = require('../../controllers/admin/statisticsController.js');
+const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
+const { checkAdminSecretKey } = require('../../middleware/secretKeyMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
 
 const router = express.Router();
 
@@ -742,4 +742,4 @@ router.get(
 
 );
 
-export default router;
+module.exports = router;

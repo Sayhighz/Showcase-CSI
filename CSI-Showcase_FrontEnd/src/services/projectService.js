@@ -25,7 +25,7 @@ export const getAllProjects = async (params = {}) => {
     if (params.year) params.year = Number(params.year);
     if (params.level) params.level = Number(params.level);
     
-    console.log('API params before filtering:', params);
+    // console.log('API params before filtering:', params);
     
     // กรองพารามิเตอร์ที่เป็น null, undefined หรือ empty string ออก
     const filteredParams = Object.fromEntries(
@@ -34,7 +34,7 @@ export const getAllProjects = async (params = {}) => {
       )
     );
     
-    console.log('API params after filtering (sent to API):', filteredParams);
+    // console.log('API params after filtering (sent to API):', filteredParams);
     
     const response = await get(API_ENDPOINTS.PROJECT.GET_ALL, filteredParams);
     
@@ -84,7 +84,7 @@ export const getTopProjects = async () => {
 export const getLatestProjects = async (limit = 9) => {
   try {
     const response = await get(API_ENDPOINTS.PROJECT.LATEST, { limit: Number(limit) });
-    console.log(response)
+    // console.log(response)
     
     if (response && response.success) {
       return response.data.projects || [];
@@ -218,9 +218,9 @@ export const uploadProject = async (userId, projectData, files) => {
     }
     
     // ตรวจสอบการสร้าง FormData
-    console.log("FormData entries:");
+    // console.log("FormData entries:");
     for (let pair of formData.entries()) {
-      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+      // console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
     }
     
     // ส่งข้อมูลไปยัง API
@@ -339,9 +339,9 @@ export const updateProject = async (projectId, projectData, files) => {
     }
     
     // แสดง log เพื่อตรวจสอบ FormData
-    console.log("FormData entries for update:");
+    // console.log("FormData entries for update:");
     for (let pair of formData.entries()) {
-      console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
+      // console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1]));
     }
     
     // ส่งข้อมูลไปยัง API
@@ -405,7 +405,7 @@ export const searchProjects = async (params = {}) => {
     if (params.year) params.year = Number(params.year);
     if (params.level) params.level = Number(params.level);
     
-    console.log('Search params before filtering:', params);
+    // console.log('Search params before filtering:', params);
     
     // กรองพารามิเตอร์ที่เป็น null, undefined หรือ empty string ออก
     const filteredParams = Object.fromEntries(
@@ -414,7 +414,7 @@ export const searchProjects = async (params = {}) => {
       )
     );
     
-    console.log('Search params after filtering (sent to API):', filteredParams);
+    // console.log('Search params after filtering (sent to API):', filteredParams);
     
     const response = await get(API_ENDPOINTS.SEARCH.PROJECTS, filteredParams);
     

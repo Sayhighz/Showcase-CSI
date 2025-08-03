@@ -16,7 +16,7 @@ import CourseWork from "./pages/Upload/UploadProject";
 import EditProject from "./pages/Projects/EditProject";
 
 // Add a configuration for your deployment base path
-const BASE_PATH = import.meta.env.REACT_APP_BASE_PATH || '/csia';
+const BASE_PATH = import.meta.env.REACT_APP_BASE_PATH || '/csie';
 
 const App = () => {
   return (

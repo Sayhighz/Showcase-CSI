@@ -1,14 +1,14 @@
 // routes/user/authRoutes.js
 
-import express from 'express';
-import {
+const express = require('express');
+const {
   login,
   getCurrentUser,
   verifyToken,
   logout,
-} from '../../controllers/user/authController.js';
-import { authenticateToken } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
+} = require('../../controllers/user/authController.js');
+const { authenticateToken } = require('../../middleware/authMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
 
 const router = express.Router();
 
@@ -104,4 +104,4 @@ router.post(API_ROUTES.AUTH.LOGOUT, logout);
 // ดึงข้อมูลผู้ใช้ปัจจุบัน
 router.get(API_ROUTES.AUTH.ME, authenticateToken, getCurrentUser);
 
-export default router;
+module.exports = router;

@@ -1,21 +1,21 @@
 // controllers/admin/adminAuthController.js
-import { UAParser } from 'ua-parser-js';
-import pool from '../../config/database.js';
-import logger from '../../config/logger.js';
-import tokenService from '../../services/tokenService.js';
-import emailService from '../../services/emailService.js';
-import { hashPassword, comparePassword, checkPasswordStrength } from '../../utils/passwordHelper.js';
-import { getErrorMessage } from '../../constants/errorMessages.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
-import { 
+const { UAParser } = require('ua-parser-js');
+const pool = require('../../config/database.js');
+const logger = require('../../config/logger.js');
+const tokenService = require('../../services/tokenService.js');
+const emailService = require('../../services/emailService.js');
+const { hashPassword, comparePassword, checkPasswordStrength } = require('../../utils/passwordHelper.js');
+const { getErrorMessage } = require('../../constants/errorMessages.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
+const { 
   successResponse, 
   errorResponse, 
   notFoundResponse, 
   forbiddenResponse, 
   validationErrorResponse, 
   handleServerError 
-} from '../../utils/responseFormatter.js';
-import { isValidEmail, isEmpty } from '../../utils/validationHelper.js';
+} = require('../../utils/responseFormatter.js');
+const { isValidEmail, isEmpty } = require('../../utils/validationHelper.js');
 
 
 /**
@@ -23,7 +23,7 @@ import { isValidEmail, isEmpty } from '../../utils/validationHelper.js';
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const adminLogin = async (req, res) => {
+const adminLogin = async (req, res) => {
   try {
     const { username, password } = req.body;
     logger.debug("Admin login attempt", { username });
@@ -111,7 +111,7 @@ export const adminLogin = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getCurrentAdmin = async (req, res) => {
+const getCurrentAdmin = async (req, res) => {
   try {
     // ข้อมูลผู้ใช้ถูกเพิ่มให้ req.user โดย middleware
     if (!req.user) {
@@ -155,7 +155,7 @@ export const getCurrentAdmin = async (req, res) => {
  * @param {Object} res - Express response object
  */
 
-export const verifyAdminToken = async (req, res) => {
+const verifyAdminToken = async (req, res) => {
   try {
     // ถ้ามีการรับ req.user จาก middleware แล้ว
     if (!req.user) {
@@ -207,6 +207,7 @@ export const verifyAdminToken = async (req, res) => {
     return handleServerError(res, error);
   }
 };
+
 /**
  * รีเซ็ตรหัสผ่านสำหรับผู้ดูแลระบบ (เริ่มต้นกระบวนการรีเซ็ต)
  * @param {Object} req - Express request object
@@ -219,7 +220,7 @@ export const verifyAdminToken = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const adminLogout = async (req, res) => {
+const adminLogout = async (req, res) => {
   try {
     // ถ้ามีการเก็บข้อมูล token ไว้ในฐานข้อมูล (blacklist) ก็ลบออก
     if (req.user && req.token) {
@@ -233,4 +234,12 @@ export const adminLogout = async (req, res) => {
     logger.error('Error in admin logout:', error);
     return handleServerError(res, error);
   }
+};
+
+// Export functions
+module.exports = {
+  adminLogin,
+  getCurrentAdmin,
+  verifyAdminToken,
+  adminLogout
 };

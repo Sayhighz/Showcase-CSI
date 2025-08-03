@@ -1,6 +1,6 @@
-import mysql from 'mysql2';
-import dotenv from 'dotenv';
-import logger from './logger.js';
+const mysql = require('mysql2');
+const dotenv = require('dotenv');
+const logger = require('./logger.js');
 
 // โหลดค่าจากไฟล์ .env
 dotenv.config();
@@ -142,7 +142,7 @@ function keepAliveConnection() {
 }
 
 // ฟังก์ชันสำหรับเริ่มต้น transaction
-export const beginTransaction = async () => {
+const beginTransaction = async () => {
   let connection;
   let attempts = 0;
   const maxAttempts = 3;
@@ -179,7 +179,7 @@ export const beginTransaction = async () => {
 };
 
 // ฟังก์ชันสำหรับ commit transaction
-export const commitTransaction = async (connection) => {
+const commitTransaction = async (connection) => {
   try {
     if (!connection) {
       throw new Error('Connection object is undefined or null');
@@ -202,7 +202,7 @@ export const commitTransaction = async (connection) => {
 };
 
 // ฟังก์ชันสำหรับ rollback transaction
-export const rollbackTransaction = async (connection) => {
+const rollbackTransaction = async (connection) => {
   try {
     if (!connection) {
       throw new Error('Connection object is undefined or null');
@@ -224,7 +224,7 @@ export const rollbackTransaction = async (connection) => {
 };
 
 // ฟังก์ชันสำหรับการ execute query ที่มีการลองใหม่อัตโนมัติ
-export const executeQueryWithRetry = async (query, params, maxRetries = 3) => {
+const executeQueryWithRetry = async (query, params, maxRetries = 3) => {
   let retries = 0;
   
   while (retries < maxRetries) {
@@ -258,9 +258,14 @@ export const executeQueryWithRetry = async (query, params, maxRetries = 3) => {
 };
 
 // เพิ่มฟังก์ชันสำหรับการ query ทั่วไปที่มีการลองใหม่
-export const queryWithRetry = async (query, params = [], maxRetries = 3) => {
+const queryWithRetry = async (query, params = [], maxRetries = 3) => {
   return executeQueryWithRetry(query, params, maxRetries);
 };
 
-// ส่งออก pool ที่รองรับ Promises เพื่อให้สามารถใช้ async/await ได้
-export default pool.promise();
+// Export functions และ default export
+module.exports = pool.promise();
+module.exports.beginTransaction = beginTransaction;
+module.exports.commitTransaction = commitTransaction;
+module.exports.rollbackTransaction = rollbackTransaction;
+module.exports.executeQueryWithRetry = executeQueryWithRetry;
+module.exports.queryWithRetry = queryWithRetry;

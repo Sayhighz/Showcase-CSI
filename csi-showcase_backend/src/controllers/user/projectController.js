@@ -1,34 +1,34 @@
 // controllers/user/projectController.js
-import pool from "../../config/database.js";
-import logger from "../../config/logger.js";
-import fs from 'fs';
-import {
+const pool = require("../../config/database.js");
+const logger = require("../../config/logger.js");
+const fs = require('fs');
+const {
   successResponse,
   handleServerError,
   notFoundResponse,
   forbiddenResponse,
   validationErrorResponse,
-} from "../../utils/responseFormatter.js";
-import {
+} = require("../../utils/responseFormatter.js");
+const {
   PROJECT_STATUSES,
   PROJECT_TYPES,
   isValidStatus,
   isValidType,
-} from "../../constants/projectStatuses.js";
-import { getPaginationParams } from "../../constants/pagination.js";
-import { STATUS_CODES } from "../../constants/statusCodes.js";
-import storageService from "../../services/storageService.js";
-import projectService from "../../services/projectService.js";
-import notificationService from "../../services/notificationService.js";
-import { sanitizeHTML } from "../../utils/validationHelper.js";
-import { truncateText } from "../../utils/stringHelper.js";
+} = require("../../constants/projectStatuses.js");
+const { getPaginationParams } = require("../../constants/pagination.js");
+const { STATUS_CODES } = require("../../constants/statusCodes.js");
+const storageService = require("../../services/storageService.js");
+const projectService = require("../../services/projectService.js");
+const notificationService = require("../../services/notificationService.js");
+const { sanitizeHTML } = require("../../utils/validationHelper.js");
+const { truncateText } = require("../../utils/stringHelper.js");
 
 /**
  * ดึงข้อมูลโครงการทั้งหมดที่ได้รับการอนุมัติแล้ว
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllProjects = async (req, res) => {
+const getAllProjects = async (req, res) => {
   try {
     // Get pagination parameters from request
     const pagination = getPaginationParams(req);
@@ -78,7 +78,7 @@ export const getAllProjects = async (req, res) => {
   }
 };
 
-export const getTop9Projects = async (req, res) => {
+const getTop9Projects = async (req, res) => {
   try {
     const page = 1;
     const limit = 9;
@@ -200,7 +200,7 @@ export const getTop9Projects = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getLatestProjects = async (req, res) => {
+const getLatestProjects = async (req, res) => {
   try {
     const page = 1;
     const limit = parseInt(req.query.limit) || 9;
@@ -279,13 +279,12 @@ export const getLatestProjects = async (req, res) => {
   }
 };
 
-
 /**
  * ดึงข้อมูลโครงการของผู้ใช้คนนั้น ๆ
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getMyProjects = async (req, res) => {
+const getMyProjects = async (req, res) => {
   try {
     const userId = req.params.user_id;
 
@@ -338,14 +337,12 @@ export const getMyProjects = async (req, res) => {
   }
 };
 
-
 /**
  * ดึงข้อมูลรายละเอียดโครงการตาม project_id
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-
-export const getProjectDetails = async (req, res) => {
+const getProjectDetails = async (req, res) => {
   try {
     const projectId = req.params.projectId;
     const viewerId = req.user ? req.user.id : null;
@@ -419,13 +416,12 @@ export const getProjectDetails = async (req, res) => {
   }
 };
 
-
 /**
  * อัปโหลดโครงการใหม่
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const uploadProject = async (req, res) => {
+const uploadProject = async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
@@ -745,13 +741,12 @@ export const uploadProject = async (req, res) => {
   }
 };
 
-
 /**
 * อัปเดตข้อมูลโครงการพร้อมรองรับการอัปโหลดไฟล์
 * @param {Object} req - Express request object
 * @param {Object} res - Express response object
 */
-export const updateProjectWithFiles = async (req, res) => {
+const updateProjectWithFiles = async (req, res) => {
   const connection = await pool.getConnection();
  
   try {
@@ -1498,7 +1493,6 @@ export const updateProjectWithFiles = async (req, res) => {
   }
  };
 
-
 /**
  * อัปเดตข้อมูลบทความวิชาการพร้อมไฟล์
  */
@@ -1729,7 +1723,7 @@ async function updateCourseworkDataWithFiles(connection, projectId, updateData, 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const deleteProject = async (req, res) => {
+const deleteProject = async (req, res) => {
   const connection = await pool.getConnection();
 
   try {
@@ -1952,4 +1946,16 @@ export const deleteProject = async (req, res) => {
   } finally {
     connection.release();
   }
+};
+
+// Export all functions using CommonJS
+module.exports = {
+  getAllProjects,
+  getTop9Projects,
+  getLatestProjects,
+  getMyProjects,
+  getProjectDetails,
+  uploadProject,
+  updateProjectWithFiles,
+  deleteProject
 };

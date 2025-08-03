@@ -1,5 +1,5 @@
 // middleware/errorMiddleware.js
-import logger from '../config/logger.js';
+const logger = require('../config/logger.js');
 
 /**
  * Middleware จัดการข้อผิดพลาดทั้งหมด
@@ -8,7 +8,7 @@ import logger from '../config/logger.js';
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const errorMiddleware = (err, req, res, next) => {
+const errorMiddleware = (err, req, res, next) => {
   // กำหนดรหัสสถานะเริ่มต้น
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   
@@ -26,4 +26,9 @@ export const errorMiddleware = (err, req, res, next) => {
     message: err.message,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
+};
+
+// Export function using CommonJS
+module.exports = {
+  errorMiddleware
 };

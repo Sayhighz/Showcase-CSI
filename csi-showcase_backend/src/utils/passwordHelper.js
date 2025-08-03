@@ -1,6 +1,6 @@
 // utils/passwordHelper.js
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 /**
  * เข้ารหัสรหัสผ่านด้วย bcrypt
@@ -8,7 +8,7 @@ import crypto from 'crypto';
  * @param {number} saltRounds - จำนวนรอบการเข้ารหัส (default: 10)
  * @returns {Promise<string>} - รหัสผ่านที่เข้ารหัสแล้ว
  */
-export const hashPassword = async (password, saltRounds = 10) => {
+const hashPassword = async (password, saltRounds = 10) => {
   return await bcrypt.hash(password, saltRounds);
 };
 
@@ -18,7 +18,7 @@ export const hashPassword = async (password, saltRounds = 10) => {
  * @param {string} hashedPassword - รหัสผ่านที่เข้ารหัสไว้
  * @returns {Promise<boolean>} - ผลการตรวจสอบ
  */
-export const comparePassword = async (password, hashedPassword) => {
+const comparePassword = async (password, hashedPassword) => {
   return await bcrypt.compare(password, hashedPassword);
 };
 
@@ -27,7 +27,7 @@ export const comparePassword = async (password, hashedPassword) => {
  * @param {number} length - ความยาวของรหัสผ่าน (default: 12)
  * @returns {string} - รหัสผ่านแบบสุ่ม
  */
-export const generateRandomPassword = (length = 12) => {
+const generateRandomPassword = (length = 12) => {
   const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+';
   let password = '';
   const randomBytes = crypto.randomBytes(length);
@@ -45,7 +45,7 @@ export const generateRandomPassword = (length = 12) => {
  * @param {string} password - รหัสผ่านที่ต้องการตรวจสอบ
  * @returns {Object} - ผลการตรวจสอบ
  */
-export const checkPasswordStrength = (password) => {
+const checkPasswordStrength = (password) => {
   const result = {
     isStrong: false,
     score: 0,
@@ -91,4 +91,11 @@ export const checkPasswordStrength = (password) => {
   result.isStrong = result.score >= 4;
   
   return result;
+};
+
+module.exports = {
+  hashPassword,
+  comparePassword,
+  generateRandomPassword,
+  checkPasswordStrength
 };

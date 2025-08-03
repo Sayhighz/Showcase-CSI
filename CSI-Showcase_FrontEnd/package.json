@@ -16,6 +16,7 @@
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "framer-motion": "^12.4.10",
+    "he": "^1.2.0",
     "js-cookie": "^3.0.5",
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.21",

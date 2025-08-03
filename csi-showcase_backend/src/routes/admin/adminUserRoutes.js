@@ -1,22 +1,21 @@
 // routes/admin/adminUserRoutes.js
 
-import express from 'express';
-import multer from 'multer';
-import path from 'path';
-import { API_ROUTES } from '../../constants/routes.js';
-import { createDirectoryIfNotExists } from '../../utils/fileHelper.js';
-import { importUsersFromCSV, downloadCSVTemplate } from '../../controllers/admin/batchUserController.js';
-import { 
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const { API_ROUTES } = require('../../constants/routes.js');
+const { createDirectoryIfNotExists } = require('../../utils/fileHelper.js');
+const { importUsersFromCSV, downloadCSVTemplate } = require('../../controllers/admin/batchUserController.js');
+const { 
   getAllUsers,
   getUserById,
   createUser,
   updateUser,
   deleteUser,
   getUserStats
-} from '../../controllers/admin/adminUserController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { uploadProfileImage } from '../../controllers/common/uploadController.js';
-
+} = require('../../controllers/admin/adminUserController.js');
+const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
+const { uploadProfileImage } = require('../../controllers/common/uploadController.js');
 
 // กำหนดค่าการอัปโหลดไฟล์ CSV
 const csvUploadDir = path.join(process.cwd(), 'uploads', 'temp');
@@ -795,4 +794,4 @@ router.get(
   getUserStats
 );
 
-export default router;
+module.exports = router;

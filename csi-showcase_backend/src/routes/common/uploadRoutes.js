@@ -1,7 +1,7 @@
 // routes/common/uploadRoutes.js
 
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   uploadProfileImage,
   uploadImages,
   uploadVideo,
@@ -12,9 +12,9 @@ import {
   deleteFile,
   getStorageStatus,
   handleMulterError
-} from '../../controllers/common/uploadController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
+} = require('../../controllers/common/uploadController.js');
+const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
 
 /**
  * Router for handling file upload and management operations
@@ -260,4 +260,4 @@ router.delete(API_ROUTES.UPLOAD.DELETE, authenticateToken, deleteFile);
  */
 router.get(API_ROUTES.UPLOAD.STORAGE_STATUS, getStorageStatus);
 
-export default router;
+module.exports = router;

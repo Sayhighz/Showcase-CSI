@@ -1,18 +1,18 @@
 // controllers/admin/statisticsController.js
-import pool from '../../config/database.js';
-import logger from '../../config/logger.js';
-import { handleServerError, successResponse } from '../../utils/responseFormatter.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
-import { PROJECT_TYPES, PROJECT_STATUSES } from '../../constants/projectStatuses.js';
-import { formatToISODate } from '../../utils/dateHelper.js';
-import { asyncHandler } from '../../middleware/loggerMiddleware.js';
+const pool = require('../../config/database.js');
+const logger = require('../../config/logger.js');
+const { handleServerError, successResponse } = require('../../utils/responseFormatter.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
+const { PROJECT_TYPES, PROJECT_STATUSES } = require('../../constants/projectStatuses.js');
+const { formatToISODate } = require('../../utils/dateHelper.js');
+const { asyncHandler } = require('../../middleware/loggerMiddleware.js');
 
 /**
  * ดึงข้อมูลสถิติทั้งหมดสำหรับหน้า Dashboard
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getDashboardStats = asyncHandler(async (req, res) => {
+const getDashboardStats = asyncHandler(async (req, res) => {
   try {
     logger.debug('Fetching dashboard statistics');
 
@@ -164,7 +164,7 @@ const calculatePercentChange = (current, previous) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getTodayStats = asyncHandler(async (req, res) => {
+const getTodayStats = asyncHandler(async (req, res) => {
   try {
     logger.debug('Fetching today statistics');
     
@@ -339,7 +339,7 @@ export const getTodayStats = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getProjectTypeStats = asyncHandler(async (req, res) => {
+const getProjectTypeStats = asyncHandler(async (req, res) => {
   try {
     logger.debug('Fetching project type statistics');
     
@@ -494,7 +494,7 @@ export const getProjectTypeStats = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getStudyYearStats = asyncHandler(async (req, res) => {
+const getStudyYearStats = asyncHandler(async (req, res) => {
   try {
     logger.debug('Fetching study year statistics');
     
@@ -644,12 +644,10 @@ export const getStudyYearStats = asyncHandler(async (req, res) => {
 }
 });
 
-/**
-* สร้างและส่งออกฟังก์ชันทั้งหมดสำหรับให้เรียกใช้งานจากภายนอก
-*/
-export default {
-getDashboardStats,
-getTodayStats,
-getProjectTypeStats,
-getStudyYearStats
+// Export functions
+module.exports = {
+  getDashboardStats,
+  getTodayStats,
+  getProjectTypeStats,
+  getStudyYearStats
 };

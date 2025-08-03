@@ -1,13 +1,13 @@
 // controllers/user/searchController.js
-import logger from '../../config/logger.js';
-import { successResponse, handleServerError } from '../../utils/responseFormatter.js';
-import { getPaginationParams } from '../../constants/pagination.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
-import { isEmpty } from '../../utils/validationHelper.js';
-import searchService from '../../services/searchService.js';
-import { asyncHandler } from '../../middleware/loggerMiddleware.js';
+const logger = require('../../config/logger.js');
+const { successResponse, handleServerError } = require('../../utils/responseFormatter.js');
+const { getPaginationParams } = require('../../constants/pagination.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
+const { isEmpty } = require('../../utils/validationHelper.js');
+const searchService = require('../../services/searchService.js');
+const { asyncHandler } = require('../../middleware/loggerMiddleware.js');
 
-export const searchProjects = asyncHandler(async (req, res) => {
+const searchProjects = asyncHandler(async (req, res) => {
   const keyword = typeof req.query.keyword === 'object' ? (req.query.keyword.keyword || '') : (req.query.keyword || '');
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
@@ -29,7 +29,7 @@ export const searchProjects = asyncHandler(async (req, res) => {
   }
 });
 
-export const searchStudents = asyncHandler(async (req, res) => {
+const searchStudents = asyncHandler(async (req, res) => {
   const keyword = req.query.keyword || '';
   const limit = parseInt(req.query.limit) || 10;
 
@@ -53,8 +53,8 @@ export const searchStudents = asyncHandler(async (req, res) => {
   }
 });
 
-
-export default {
+// Export functions
+module.exports = {
   searchProjects,
-  searchStudents,
+  searchStudents
 };

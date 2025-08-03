@@ -1,7 +1,7 @@
 // middleware/adminMiddleware.js
-import { verifyAdminToken, verifyToken } from '../utils/jwtHelper.js';
-import { forbiddenResponse } from '../utils/responseFormatter.js';
-import pool from '../config/database.js';
+const { verifyAdminToken, verifyToken } = require('../utils/jwtHelper.js');
+const { forbiddenResponse } = require('../utils/responseFormatter.js');
+const pool = require('../config/database.js');
 
 /**
  * Middleware ตรวจสอบว่าผู้ใช้เป็น Admin หรือไม่
@@ -9,7 +9,7 @@ import pool from '../config/database.js';
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const isAdmin = async (req, res, next) => {
+const isAdmin = async (req, res, next) => {
   try {
     // ตรวจสอบว่ามีข้อมูลผู้ใช้ใน request หรือไม่ (ผ่านการตรวจสอบ token มาแล้ว)
     if (!req.user) {
@@ -41,7 +41,7 @@ export const isAdmin = async (req, res, next) => {
  * Middleware สำหรับตรวจสอบ JWT token ของ Admin 
  * แยกออกมาต่างหากเพราะอาจมีการตรวจสอบ token ในรูปแบบที่แตกต่างจาก user ทั่วไป
  */
-export const authenticateAdminToken = async (req, res, next) => {
+const authenticateAdminToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -99,4 +99,10 @@ export const authenticateAdminToken = async (req, res, next) => {
       message: 'Server error during admin authentication'
     });
   }
+};
+
+// Export functions using CommonJS
+module.exports = {
+  isAdmin,
+  authenticateAdminToken
 };

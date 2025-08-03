@@ -1,8 +1,8 @@
 // config/logger.js
-import winston from 'winston';
-import 'winston-daily-rotate-file';
-import fs from 'fs';
-import path from 'path';
+const winston = require('winston');
+require('winston-daily-rotate-file');
+const fs = require('fs');
+const path = require('path');
 
 // สร้างโฟลเดอร์ logs หากยังไม่มี
 const logDir = 'logs';
@@ -75,4 +75,4 @@ logger.logDbQuery = (query, params = [], duration = null) => {
   }
 };
 
-export default logger;
+module.exports = logger;

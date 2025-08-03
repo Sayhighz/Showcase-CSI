@@ -1,5 +1,5 @@
 // utils/jwtHelper.js
-import jwt from 'jsonwebtoken';
+const jwt = require('jsonwebtoken');
 
 /**
  * สร้าง JWT token สำหรับผู้ใช้
@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
  * @param {string} expiresIn - ระยะเวลาหมดอายุของ token (default: 24h)
  * @returns {string} - JWT token
  */
-export const generateToken = (payload, expiresIn = '24h') => {
+const generateToken = (payload, expiresIn = '24h') => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
@@ -17,7 +17,7 @@ export const generateToken = (payload, expiresIn = '24h') => {
  * @param {string} expiresIn - ระยะเวลาหมดอายุของ token (default: 12h)
  * @returns {string} - JWT token
  */
-export const generateAdminToken = (payload, expiresIn = '12h') => {
+const generateAdminToken = (payload, expiresIn = '12h') => {
   return jwt.sign(
     { ...payload, isAdmin: true },
     process.env.JWT_ADMIN_SECRET || process.env.JWT_SECRET,
@@ -30,7 +30,7 @@ export const generateAdminToken = (payload, expiresIn = '12h') => {
  * @param {string} token - JWT token ที่ต้องการถอดรหัส
  * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
  */
-export const verifyToken = (token) => {
+const verifyToken = (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     return decoded;
@@ -45,7 +45,7 @@ export const verifyToken = (token) => {
  * @param {string} token - JWT token ที่ต้องการถอดรหัส
  * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
  */
-export const verifyAdminToken = (token) => {
+const verifyAdminToken = (token) => {
   try {
     // ลองถอดรหัสด้วย Admin Secret ก่อน
     try {
@@ -76,7 +76,7 @@ export const verifyAdminToken = (token) => {
  * @param {Object} payload - ข้อมูลที่ต้องการเก็บใน token
  * @returns {string} - JWT token สำหรับรีเซ็ตรหัสผ่าน
  */
-export const generatePasswordResetToken = (payload) => {
+const generatePasswordResetToken = (payload) => {
   return jwt.sign(
     { ...payload, purpose: 'password_reset' },
     process.env.JWT_SECRET,
@@ -89,7 +89,7 @@ export const generatePasswordResetToken = (payload) => {
  * @param {string} token - JWT token ที่ต้องการตรวจสอบ
  * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
  */
-export const verifyPasswordResetToken = (token) => {
+const verifyPasswordResetToken = (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // ตรวจสอบว่า token นี้มีวัตถุประสงค์เพื่อรีเซ็ตรหัสผ่านหรือไม่
@@ -101,4 +101,13 @@ export const verifyPasswordResetToken = (token) => {
     console.error('Password Reset Token Verification Error:', error.message);
     return null;
   }
+};
+
+module.exports = {
+  generateToken,
+  generateAdminToken,
+  verifyToken,
+  verifyAdminToken,
+  generatePasswordResetToken,
+  verifyPasswordResetToken
 };

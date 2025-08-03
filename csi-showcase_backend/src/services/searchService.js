@@ -1,10 +1,10 @@
 // services/searchService.js
-import pool from '../config/database.js';
-import logger from '../config/logger.js';
-import { getPaginationInfo } from '../constants/pagination.js';
+const pool = require('../config/database.js');
+const logger = require('../config/logger.js');
+const { getPaginationInfo } = require('../constants/pagination.js');
 
 
-export const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
+const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
   try {
     const page = parseInt(pagination.page) || 1;
     const limit = parseInt(pagination.limit) || 10;
@@ -128,7 +128,7 @@ export const searchProjects = async (keyword = '', filters = {}, pagination = {}
 };
 
 
-export const searchStudents = async (keyword = '', limit = 10) => {
+const searchStudents = async (keyword = '', limit = 10) => {
   try {
     if (!keyword || !keyword.trim()) {
       return [];
@@ -176,7 +176,7 @@ export const searchStudents = async (keyword = '', limit = 10) => {
   }
 };
 
-export default {
+module.exports = {
   searchProjects,
   searchStudents
 };

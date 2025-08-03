@@ -1,28 +1,29 @@
 // adminUserController.js
-import pool, { beginTransaction, commitTransaction, rollbackTransaction } from '../../config/database.js';
-import { 
+const pool = require('../../config/database.js');
+const { beginTransaction, commitTransaction, rollbackTransaction } = require('../../config/database.js');
+const { 
   handleServerError, 
   notFoundResponse, 
   successResponse, 
   forbiddenResponse, 
   validationErrorResponse 
-} from '../../utils/responseFormatter.js';
-import { deleteFile } from '../../utils/fileHelper.js';
-import { sendWelcomeEmail } from '../../services/emailService.js';
-import { hashPassword } from '../../utils/passwordHelper.js';
-import { getPaginationParams, getPaginationInfo } from '../../constants/pagination.js';
-import { isValidEmail, isValidUsername } from '../../utils/validationHelper.js';
-import { ERROR_MESSAGES, getErrorMessage } from '../../constants/errorMessages.js';
-import { isValidRole, ROLES } from '../../constants/roles.js';
-import logger from '../../config/logger.js';
-import { asyncHandler } from '../../middleware/loggerMiddleware.js';
+} = require('../../utils/responseFormatter.js');
+const { deleteFile } = require('../../utils/fileHelper.js');
+const { sendWelcomeEmail } = require('../../services/emailService.js');
+const { hashPassword } = require('../../utils/passwordHelper.js');
+const { getPaginationParams, getPaginationInfo } = require('../../constants/pagination.js');
+const { isValidEmail, isValidUsername } = require('../../utils/validationHelper.js');
+const { ERROR_MESSAGES, getErrorMessage } = require('../../constants/errorMessages.js');
+const { isValidRole, ROLES } = require('../../constants/roles.js');
+const logger = require('../../config/logger.js');
+const { asyncHandler } = require('../../middleware/loggerMiddleware.js');
 
 /**
  * ดึงข้อมูลผู้ใช้ทั้งหมด
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getAllUsers = asyncHandler(async (req, res) => {
+const getAllUsers = asyncHandler(async (req, res) => {
   let connection;
 
   try {
@@ -122,7 +123,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const createUser = asyncHandler(async (req, res) => {
+const createUser = asyncHandler(async (req, res) => {
   let connection = null;
   
   try {
@@ -221,7 +222,7 @@ export const createUser = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getUserById = asyncHandler(async (req, res) => {
+const getUserById = asyncHandler(async (req, res) => {
   try {
     const userId = req.params.userId;
     
@@ -285,7 +286,7 @@ export const getUserById = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const updateUser = asyncHandler(async (req, res) => {
+const updateUser = asyncHandler(async (req, res) => {
   let connection;
   
   try {
@@ -428,7 +429,7 @@ export const updateUser = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const changeUserPassword = asyncHandler(async (req, res) => {
+const changeUserPassword = asyncHandler(async (req, res) => {
   try {
     const userId = req.params.userId;
     const { new_password } = req.body;
@@ -482,7 +483,7 @@ export const changeUserPassword = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const deleteUser = asyncHandler(async (req, res) => {
+const deleteUser = asyncHandler(async (req, res) => {
   let connection;
   
   try {
@@ -547,7 +548,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getUserLoginHistory = asyncHandler(async (req, res) => {
+const getUserLoginHistory = asyncHandler(async (req, res) => {
   try {
     const userId = req.params.userId;
     const limit = parseInt(req.query.limit) || 50;
@@ -591,7 +592,7 @@ export const getUserLoginHistory = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getUserStats = asyncHandler(async (req, res) => {
+const getUserStats = asyncHandler(async (req, res) => {
   try {
     // จำนวนผู้ใช้ทั้งหมด
     const [totalUsers] = await pool.execute(`
@@ -659,7 +660,8 @@ export const getUserStats = asyncHandler(async (req, res) => {
   }
 });
 
-export default {
+// Export functions
+module.exports = {
   getAllUsers,
   createUser,
   getUserById,

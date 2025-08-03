@@ -64,7 +64,7 @@ const NavigationSidebar = ({ scrollToSection, refs }) => {
   
   // แสดงสถานะปัจจุบันใน console (สามารถลบออกได้ในโค้ดจริง)
   useEffect(() => {
-    console.log('Active Section:', activeSection);
+    // console.log('Active Section:', activeSection);
   }, [activeSection]);
   
   // Navigation items

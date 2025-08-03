@@ -60,7 +60,7 @@ const MainLayout = () => {
       if (!isAuthenticated && !admin && !hasRedirected.current) {
         hasRedirected.current = true;
         setTimeout(() => {
-          navigate('/login', { replace: true });
+          navigate('login', { replace: true });
         }, 100);
       }
     }

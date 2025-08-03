@@ -94,7 +94,7 @@ const useProject = (projectId = null) => {
    * @param {Object} params - พารามิเตอร์สำหรับการค้นหา
    */
   const fetchAllProjects = useCallback(async (params = {}) => {
-    console.log('📥 เรียกใช้ fetchAllProjects กับ params:', params);
+    // console.log('📥 เรียกใช้ fetchAllProjects กับ params:', params);
     
     setIsLoading(true);
     setError(null);
@@ -115,12 +115,12 @@ const useProject = (projectId = null) => {
         }
       });
       
-      console.log('🚀 ส่ง request ไปยัง API ด้วยพารามิเตอร์:', queryParams);
+      // console.log('🚀 ส่ง request ไปยัง API ด้วยพารามิเตอร์:', queryParams);
       
       const response = await getAllProjects(queryParams);
       
       if (response) {
-        console.log('✅ ได้รับข้อมูลจาก API:', response);
+        // console.log('✅ ได้รับข้อมูลจาก API:', response);
         setProjects(response.projects || []);
         setPagination({
           current: parseInt(response.pagination?.page || pagination.current),
@@ -228,7 +228,7 @@ const useProject = (projectId = null) => {
    * @param {Object} searchParams - พารามิเตอร์สำหรับการค้นหา
    */
   const handleSearch = useCallback(async (searchParams = {}) => {
-    console.log('🔍 เริ่มค้นหาด้วยพารามิเตอร์:', searchParams);
+    // console.log('🔍 เริ่มค้นหาด้วยพารามิเตอร์:', searchParams);
     setIsLoading(true);
     setError(null);
     
@@ -248,12 +248,12 @@ const useProject = (projectId = null) => {
         }
       });
       
-      console.log('🔍 ส่งคำขอค้นหาไปยัง API ด้วยพารามิเตอร์:', queryParams);
+      // console.log('🔍 ส่งคำขอค้นหาไปยัง API ด้วยพารามิเตอร์:', queryParams);
       
       const response = await searchProjects(queryParams);
       
       if (response) {
-        console.log('✅ ผลการค้นหา:', response);
+        // console.log('✅ ผลการค้นหา:', response);
         setProjects(response.projects || []);
         setPagination({
           current: parseInt(response.pagination?.page || pagination.current),
@@ -282,7 +282,7 @@ const useProject = (projectId = null) => {
    * @param {Object} newFilters - ตัวกรองใหม่
    */
   const updateFilters = useCallback((newFilters) => {
-    console.log('🔄 อัปเดตตัวกรอง - ปัจจุบัน:', filters, 'ใหม่:', newFilters);
+    // console.log('🔄 อัปเดตตัวกรอง - ปัจจุบัน:', filters, 'ใหม่:', newFilters);
     
     setFilters(prev => ({
       ...prev,
@@ -302,7 +302,7 @@ const useProject = (projectId = null) => {
    * @param {number} pageSize - จำนวนรายการต่อหน้า
    */
   const changePage = useCallback((page, pageSize) => {
-    console.log('📄 เปลี่ยนหน้า:', { page, pageSize });
+    // console.log('📄 เปลี่ยนหน้า:', { page, pageSize });
     
     // อัปเดต pagination
     setPagination(prev => ({

@@ -1,7 +1,7 @@
 // routes/admin/adminProjectRoutes.js
 
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   getAllProjects,
   getPendingProjects,
   getProjectDetails,
@@ -12,9 +12,9 @@ import {
   getAdminReviewStats,
   getProjectStats,
   getAllProjectReviews
-} from '../../controllers/admin/adminProjectController.js';
-import { authenticateToken, isAdmin } from '../../middleware/authMiddleware.js';
-import { API_ROUTES } from '../../constants/routes.js';
+} = require('../../controllers/admin/adminProjectController.js');
+const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
+const { API_ROUTES } = require('../../constants/routes.js');
 
 const router = express.Router();
 
@@ -937,7 +937,6 @@ router.get(
   getProjectStats
 );
 
-
 /**
  * @swagger
  * components:
@@ -1046,12 +1045,10 @@ router.get(
  *           example: null
  */
 
-
 router.get(
   API_ROUTES.ADMIN.PROJECT.ALL_REVIEWS, 
   adminAuth, 
   getAllProjectReviews
 );
 
-
-export default router;
+module.exports = router;

@@ -1,7 +1,7 @@
 // services/tokenService.js
-import jwt from 'jsonwebtoken';
-import logger from '../config/logger.js';
-import pool from '../config/database.js';
+const jwt = require('jsonwebtoken');
+const logger = require('../config/logger.js');
+const pool = require('../config/database.js');
 
 
 /**
@@ -11,7 +11,7 @@ import pool from '../config/database.js';
  * @param {Object} options - ตัวเลือกเพิ่มเติม
  * @returns {string} - JWT token
  */
-export const generateToken = (payload, secret = process.env.JWT_SECRET, options = {}) => {
+const generateToken = (payload, secret = process.env.JWT_SECRET, options = {}) => {
     try {
       // ตั้งค่า expiresIn เริ่มต้น
       const defaultOptions = { expiresIn: '24h' };
@@ -39,7 +39,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * @param {string} secret - Secret key ที่ใช้ในการถอดรหัส
    * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
    */
-  export const verifyToken = (token, secret = process.env.JWT_SECRET) => {
+  const verifyToken = (token, secret = process.env.JWT_SECRET) => {
     try {
       // ถอดรหัส token
       const decoded = jwt.verify(token, secret);
@@ -55,7 +55,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * @param {Object} payload - ข้อมูลที่ต้องการเก็บใน token
    * @returns {string} - JWT token
    */
-  export const generatePasswordResetToken = (payload) => {
+  const generatePasswordResetToken = (payload) => {
     // เพิ่ม purpose เพื่อระบุว่าเป็น token สำหรับการรีเซ็ตรหัสผ่าน
     const resetPayload = { ...payload, purpose: 'password_reset' };
     // กำหนดอายุของ token เป็น 1 ชั่วโมง
@@ -67,7 +67,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * @param {Object} payload - ข้อมูลที่ต้องการเก็บใน token
    * @returns {string} - JWT token
    */
-  export const generateAdminToken = (payload) => {
+  const generateAdminToken = (payload) => {
     // เพิ่ม isAdmin เพื่อระบุว่าเป็น token สำหรับ admin
     const adminPayload = { ...payload, isAdmin: true };
     // ใช้ secret key สำหรับ admin หรือ secret key ปกติถ้าไม่มี
@@ -81,7 +81,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * @param {string} token - JWT token ที่ต้องการตรวจสอบ
    * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
    */
-  export const verifyAdminToken = (token) => {
+  const verifyAdminToken = (token) => {
     try {
       // ลองถอดรหัสด้วย Admin Secret ก่อน
       try {
@@ -113,7 +113,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * @param {Object} decoded - ข้อมูลที่ถอดรหัสจาก token
    * @returns {Promise<boolean>} - ผลการเพิกถอน token
    */
-  export const revokeToken = async (token, decoded) => {
+  const revokeToken = async (token, decoded) => {
     try {
       // คำนวณเวลาหมดอายุจาก exp ใน token
       const expiresAt = new Date(decoded.exp * 1000);
@@ -138,7 +138,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * @param {string} token - JWT token ที่ต้องการตรวจสอบ
    * @returns {Promise<boolean>} - true ถ้า token ถูกเพิกถอน, false ถ้าไม่ถูกเพิกถอน
    */
-  export const isTokenRevoked = async (token) => {
+  const isTokenRevoked = async (token) => {
     try {
       // ตรวจสอบว่า token อยู่ในรายการที่ถูกเพิกถอนหรือไม่
       const [rows] = await pool.execute(`
@@ -157,7 +157,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
    * ลบ token ที่หมดอายุออกจากฐานข้อมูล
    * @returns {Promise<number>} - จำนวน token ที่ถูกลบ
    */
-  export const cleanupExpiredTokens = async () => {
+  const cleanupExpiredTokens = async () => {
     try {
       // ลบ token ที่หมดอายุแล้ว
       const [result] = await pool.execute(`
@@ -174,7 +174,7 @@ export const generateToken = (payload, secret = process.env.JWT_SECRET, options 
     }
   };
   
-  export default {
+  module.exports = {
     generateToken,
     verifyToken,
     generatePasswordResetToken,

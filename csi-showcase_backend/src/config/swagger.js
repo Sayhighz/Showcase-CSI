@@ -1,6 +1,6 @@
 // src/config/swagger.js
-import swaggerUi from 'swagger-ui-express';
-import swaggerJSDoc from 'swagger-jsdoc';
+const swaggerUi = require('swagger-ui-express');
+const swaggerJSDoc = require('swagger-jsdoc');
 
 // Swagger Base Definition
 const swaggerDef = {
@@ -49,7 +49,7 @@ const swaggerSpec = swaggerJSDoc(options);
  * Configure Swagger middleware for Express app
  * @param {Express.Application} app - Express application
  */
-export const setupSwagger = (app) => {
+const setupSwagger = (app) => {
   const swaggerUiOptions = {
     explorer: true,
     swaggerOptions: {
@@ -70,4 +70,4 @@ export const setupSwagger = (app) => {
   console.log('Swagger API documentation available at /api-docs');
 };
 
-export default setupSwagger;
+module.exports = { setupSwagger };

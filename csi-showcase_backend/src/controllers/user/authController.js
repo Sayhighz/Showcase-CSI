@@ -1,22 +1,22 @@
 // controllers/user/authController.js
-import { comparePassword } from '../../utils/passwordHelper.js';
-import pool from '../../config/database.js';
-import { handleServerError, successResponse, errorResponse } from '../../utils/responseFormatter.js';
-import { generateToken, generatePasswordResetToken } from '../../utils/jwtHelper.js';
-import { sendPasswordResetEmail } from '../../services/emailService.js';
-import logger from '../../config/logger.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
-import { getErrorMessage } from '../../constants/errorMessages.js';
-import { isValidEmail } from '../../utils/validationHelper.js';
-import { logLogin } from '../../utils/logHelper.js';
-import { UAParser } from 'ua-parser-js';
+const { comparePassword } = require('../../utils/passwordHelper.js');
+const pool = require('../../config/database.js');
+const { handleServerError, successResponse, errorResponse } = require('../../utils/responseFormatter.js');
+const { generateToken, generatePasswordResetToken } = require('../../utils/jwtHelper.js');
+const { sendPasswordResetEmail } = require('../../services/emailService.js');
+const logger = require('../../config/logger.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
+const { getErrorMessage } = require('../../constants/errorMessages.js');
+const { isValidEmail } = require('../../utils/validationHelper.js');
+const { logLogin } = require('../../utils/logHelper.js');
+const { UAParser } = require('ua-parser-js');
 
 /**
  * ล็อกอินสำหรับผู้ใช้
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const login = async (req, res) => {
+const login = async (req, res) => {
   try {
     const { username, password } = req.body;
     
@@ -105,7 +105,7 @@ export const login = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getCurrentUser = async (req, res) => {
+const getCurrentUser = async (req, res) => {
   try {
     // ข้อมูลผู้ใช้ถูกเพิ่มให้ req.user โดย middleware
     if (!req.user) {
@@ -163,7 +163,7 @@ export const getCurrentUser = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const verifyToken = (req, res) => {
+const verifyToken = (req, res) => {
   // ถ้ามาถึงจุดนี้แสดงว่า token ถูกต้อง (เพราะผ่าน middleware authenticateToken มาแล้ว)
   return res.json(successResponse({ 
     valid: true, 
@@ -177,11 +177,19 @@ export const verifyToken = (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const logout = (req, res) => {
+const logout = (req, res) => {
   // บันทึกการออกจากระบบ (ถ้ามี req.user จาก middleware)
   if (req.user) {
     logger.info(`User ${req.user.username} (ID: ${req.user.id}) logged out`);
   }
   
   return res.json(successResponse(null, 'Logout successful'));
+};
+
+// Export functions
+module.exports = {
+  login,
+  getCurrentUser,
+  verifyToken,
+  logout
 };

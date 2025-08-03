@@ -1,16 +1,17 @@
 // src/controllers/admin/batchUserController.js
 
-import fs from 'fs';
-import path from 'path';
-import { parse } from 'csv-parse/sync';
-import pool, { beginTransaction, commitTransaction, rollbackTransaction } from '../../config/database.js';
-import { hashPassword, generateRandomPassword } from '../../utils/passwordHelper.js';
-import { isValidEmail, isValidUsername } from '../../utils/validationHelper.js';
-import { sendWelcomeEmail } from '../../services/emailService.js';
-import { handleServerError, successResponse, validationErrorResponse } from '../../utils/responseFormatter.js';
-import { isValidRole, ROLES } from '../../constants/roles.js';
-import logger from '../../config/logger.js';
-import { asyncHandler } from '../../middleware/loggerMiddleware.js';
+const fs = require('fs');
+const path = require('path');
+const { parse } = require('csv-parse/sync');
+const pool = require('../../config/database.js');
+const { beginTransaction, commitTransaction, rollbackTransaction } = require('../../config/database.js');
+const { hashPassword, generateRandomPassword } = require('../../utils/passwordHelper.js');
+const { isValidEmail, isValidUsername } = require('../../utils/validationHelper.js');
+const { sendWelcomeEmail } = require('../../services/emailService.js');
+const { handleServerError, successResponse, validationErrorResponse } = require('../../utils/responseFormatter.js');
+const { isValidRole, ROLES } = require('../../constants/roles.js');
+const logger = require('../../config/logger.js');
+const { asyncHandler } = require('../../middleware/loggerMiddleware.js');
 
 // src/controllers/admin/batchUserController.js
 
@@ -19,7 +20,7 @@ import { asyncHandler } from '../../middleware/loggerMiddleware.js';
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const importUsersFromCSV = asyncHandler(async (req, res) => {
+const importUsersFromCSV = asyncHandler(async (req, res) => {
     let connection = null;
     const results = {
       success: [],
@@ -286,7 +287,7 @@ export const importUsersFromCSV = asyncHandler(async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const downloadCSVTemplate = asyncHandler(async (req, res) => {
+const downloadCSVTemplate = asyncHandler(async (req, res) => {
   try {
     const csvHeader = 'username,full_name,email,role,password\n';
     const csvExample = 'student001,Student Name,student001@example.com,student,\nteacher001,Teacher Name,teacher001@example.com,admin,password123\n';
@@ -304,7 +305,8 @@ export const downloadCSVTemplate = asyncHandler(async (req, res) => {
   }
 });
 
-export default {
+// Export functions
+module.exports = {
   importUsersFromCSV,
   downloadCSVTemplate
 };

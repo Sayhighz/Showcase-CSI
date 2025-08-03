@@ -1,5 +1,5 @@
 // middleware/secretKeyMiddleware.js
-import dotenv from 'dotenv';
+const dotenv = require('dotenv');
 
 // Initialize .env configuration
 dotenv.config();
@@ -10,7 +10,7 @@ dotenv.config();
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const checkSecretKey = (req, res, next) => {
+const checkSecretKey = (req, res, next) => {
   // ดึง secret key จาก header
   const secretKey = req.headers['secret_key'];
   
@@ -67,7 +67,7 @@ export const checkSecretKey = (req, res, next) => {
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-export const checkAdminSecretKey = (req, res, next) => {
+const checkAdminSecretKey = (req, res, next) => {
   // ดึง secret key จาก header
   const secretKey = req.headers['admin_secret_key'];
   
@@ -98,4 +98,10 @@ export const checkAdminSecretKey = (req, res, next) => {
   
   // ถ้า secret key ถูกต้อง ให้ดำเนินการต่อไป
   next();
+};
+
+// Export functions using CommonJS
+module.exports = {
+  checkSecretKey,
+  checkAdminSecretKey
 };

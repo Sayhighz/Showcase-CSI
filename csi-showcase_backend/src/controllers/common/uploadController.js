@@ -1,26 +1,26 @@
 // controllers/common/uploadController.js
-import { createUploader } from '../../services/storageService.js';
-import { handleMulterError } from '../../middleware/userMiddleware.js';
-import { ALLOWED_FILE_TYPES, formatFileSize } from '../../constants/fileTypes.js';
-import logger from '../../config/logger.js';
-import { successResponse, errorResponse } from '../../utils/responseFormatter.js';
-import { STATUS_CODES } from '../../constants/statusCodes.js';
-import pool from '../../config/database.js';
-import storageService from '../../services/storageService.js';
-import path from 'path';
-import fs from 'fs';
-import multer from 'multer';
+const { createUploader } = require('../../services/storageService.js');
+const { handleMulterError } = require('../../middleware/userMiddleware.js');
+const { ALLOWED_FILE_TYPES, formatFileSize } = require('../../constants/fileTypes.js');
+const logger = require('../../config/logger.js');
+const { successResponse, errorResponse } = require('../../utils/responseFormatter.js');
+const { STATUS_CODES } = require('../../constants/statusCodes.js');
+const pool = require('../../config/database.js');
+const storageService = require('../../services/storageService.js');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 // ใช้ค่าที่กำหนดจาก services/storageService.js
 const UPLOAD_PATHS = storageService.UPLOAD_PATHS;
 
 // สร้าง multer uploader สำหรับแต่ละประเภท
-export const uploadProfileImage = createUploader('profiles').single('profileImage');
-export const uploadImages = createUploader('images').array('images', 5);
-export const uploadVideo = createUploader('videos').single('video');
-export const uploadDocuments = createUploader('documents').array('documents', 3);
-export const uploadFiles = createUploader('others').array('files', 5);
-export const uploadMultiple = createUploader('others').fields([
+const uploadProfileImage = createUploader('profiles').single('profileImage');
+const uploadImages = createUploader('images').array('images', 5);
+const uploadVideo = createUploader('videos').single('video');
+const uploadDocuments = createUploader('documents').array('documents', 3);
+const uploadFiles = createUploader('others').array('files', 5);
+const uploadMultiple = createUploader('others').fields([
   { name: 'images', maxCount: 5 },
   { name: 'video', maxCount: 1 },
   { name: 'documents', maxCount: 3 }
@@ -31,7 +31,7 @@ export const uploadMultiple = createUploader('others').fields([
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const handleFileUpload = async (req, res) => {
+const handleFileUpload = async (req, res) => {
   try {
     // ตรวจสอบว่ามีไฟล์หรือไม่
     if (!req.file && !req.files) {
@@ -93,7 +93,7 @@ export const handleFileUpload = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const deleteFile = async (req, res) => {
+const deleteFile = async (req, res) => {
   try {
     const { filePath } = req.body;
     
@@ -152,7 +152,7 @@ export const deleteFile = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-export const getStorageStatus = async (req, res) => {
+const getStorageStatus = async (req, res) => {
   try {
     // ตรวจสอบว่าผู้ใช้เป็น admin หรือไม่
     if (req.user.role !== 'admin') {
@@ -284,10 +284,8 @@ async function deleteFileFromDatabase(fileId) {
   }
 }
 
-// นำเข้าฟังก์ชันจัดการข้อผิดพลาดจาก userMiddleware.js
-export { handleMulterError };
-
-export default {
+// Export functions และ constants
+module.exports = {
   uploadProfileImage,
   uploadImages,
   uploadVideo,

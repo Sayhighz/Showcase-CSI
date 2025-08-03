@@ -39,6 +39,9 @@ import SystemStatsPage from './pages/log/SystemStatsPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
+// กำหนด base path สำหรับ reverse proxy
+const BASE_PATH = '/csif';
+
 // กำหนดสีธีมสำหรับ Ant Design
 const theme = {
   token: {
@@ -76,18 +79,19 @@ const App = () => {
       <ErrorBoundary>
         <AuthProvider>
           <AdminStateProvider>
-            <Router>
+            {/* เพิ่ม basename สำหรับ reverse proxy */}
+            <Router basename={BASE_PATH}>
               <Routes>
                 {/* เส้นทางสำหรับหน้าเข้าสู่ระบบ */}
                 <Route element={<AuthLayout />}>
-                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/" element={<LoginPage />} />
                 </Route>
 
                 {/* เส้นทางที่ต้องยืนยันตัวตน */}
                 <Route element={<ProtectedRoute />}>
                   <Route element={<MainLayout />}>
                     {/* หน้าแดชบอร์ด */}
-                    <Route path="/" element={
+                    <Route path="/dashboard" element={
                       <ErrorBoundary>
                         <DashboardPage />
                       </ErrorBoundary>
@@ -166,11 +170,8 @@ const App = () => {
                   </Route>
                 </Route>
 
-                {/* เส้นทางเริ่มต้น */}
-                {/* <Route path="/" element={<Navigate to="/dashboard" replace />} /> */}
-                
-                {/* เส้นทางที่ไม่มี */}
-                {/* <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
+                {/* เส้นทางเริ่มต้น - redirect ไปหน้าแรก */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Router>
           </AdminStateProvider>

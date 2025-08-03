@@ -509,7 +509,7 @@ const Login = () => {
       </Modal>
       
       {/* Global style overrides */}
-      <style jsx global>{`
+      <style jsx='true'>{`
         .ant-input:focus, .ant-input-focused,
         .ant-input-affix-wrapper:focus,
         .ant-input-affix-wrapper-focused {

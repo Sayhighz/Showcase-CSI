@@ -148,7 +148,7 @@ const ProjectContributors = ({ author, contributors = [] }) => {
         </Tooltip>
         {isAuthor ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#90278E] bg-opacity-10 text-[#90278E] mt-1">
-            <CrownOutlined className="mr-1" /> เจ้าของโปรเจค
+            <CrownOutlined className="mr-1" /> ผู้อัพโหลด
           </span>
         ) : (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#F5EAFF] text-[#90278E] mt-1">

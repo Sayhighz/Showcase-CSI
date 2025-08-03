@@ -1,7 +1,7 @@
 // services/notificationService.js
-import pool from '../config/database.js';
-import logger from '../config/logger.js';
-import { PROJECT_STATUSES } from '../constants/projectStatuses.js';
+const pool = require('../config/database.js');
+const logger = require('../config/logger.js');
+const { PROJECT_STATUSES } = require('../constants/projectStatuses.js');
 
 /**
  * Notification Service
@@ -17,7 +17,7 @@ import { PROJECT_STATUSES } from '../constants/projectStatuses.js';
  * @param {Object} data - ข้อมูลเพิ่มเติม
  * @returns {Promise<number>} ID ของการแจ้งเตือนที่สร้าง
  */
-export const createNotification = async (userId, type, title, message, data = {}) => {
+const createNotification = async (userId, type, title, message, data = {}) => {
   try {
     const [result] = await pool.execute(`
       INSERT INTO notifications (user_id, type, title, message, data, is_read, created_at)
@@ -39,7 +39,7 @@ export const createNotification = async (userId, type, title, message, data = {}
  * @param {string} studentName - ชื่อนักศึกษา
  * @param {string} projectType - ประเภทโครงการ
  */
-export const notifyAdminsNewProject = async (projectId, projectTitle, studentName, projectType) => {
+const notifyAdminsNewProject = async (projectId, projectTitle, studentName, projectType) => {
   try {
     // ดึงรายชื่อผู้ดูแลระบบทั้งหมด
     const [admins] = await pool.execute(`
@@ -75,7 +75,7 @@ export const notifyAdminsNewProject = async (projectId, projectTitle, studentNam
  * @param {string} status - สถานะใหม่ของโครงการ
  * @param {string} comment - ความเห็นจากผู้ตรวจสอบ
  */
-export const notifyProjectReview = async (userId, projectId, projectTitle, status, comment = '') => {
+const notifyProjectReview = async (userId, projectId, projectTitle, status, comment = '') => {
   try {
     let title, message;
     
@@ -116,7 +116,7 @@ export const notifyProjectReview = async (userId, projectId, projectTitle, statu
  * @param {string} projectTitle - หัวข้อโครงการ
  * @param {string} adminName - ชื่อผู้ดูแลระบบที่แก้ไข
  */
-export const notifyProjectUpdated = async (userId, projectId, projectTitle, adminName) => {
+const notifyProjectUpdated = async (userId, projectId, projectTitle, adminName) => {
   try {
     const title = 'โครงการของคุณถูกแก้ไข';
     const message = `โครงการ "${projectTitle}" ของคุณถูกแก้ไขโดย ${adminName}`;
@@ -142,7 +142,7 @@ export const notifyProjectUpdated = async (userId, projectId, projectTitle, admi
  * @param {string} projectTitle - หัวข้อโครงการ
  * @param {string} reason - เหตุผลในการลบ
  */
-export const notifyProjectDeleted = async (userId, projectTitle, reason = '') => {
+const notifyProjectDeleted = async (userId, projectTitle, reason = '') => {
   try {
     const title = 'โครงการของคุณถูกลบ';
     let message = `โครงการ "${projectTitle}" ของคุณถูกลบออกจากระบบ`;
@@ -178,7 +178,7 @@ export const notifyProjectDeleted = async (userId, projectTitle, reason = '') =>
  * @param {string} ipAddress - IP Address ของผู้ใช้
  * @param {string} userAgent - User Agent ของผู้ใช้
  */
-export const logProjectChange = async (
+const logProjectChange = async (
   projectId, 
   changeType, 
   fieldChanged, 
@@ -223,7 +223,7 @@ export const logProjectChange = async (
  * @param {string} browser - เบราว์เซอร์
  * @param {string} userAgent - User Agent
  */
-export const logUserLogin = async (userId, ipAddress, deviceType, os, browser, userAgent) => {
+const logUserLogin = async (userId, ipAddress, deviceType, os, browser, userAgent) => {
   try {
     await pool.execute(`
       INSERT INTO login_logs (user_id, login_time, ip_address, device_type, os, browser, user_agent)
@@ -243,7 +243,7 @@ export const logUserLogin = async (userId, ipAddress, deviceType, os, browser, u
  * @param {string} ipAddress - IP Address ของผู้เข้าชม
  * @param {string} userAgent - User Agent ของผู้เข้าชม
  */
-export const logProjectView = async (projectId, ipAddress, userAgent) => {
+const logProjectView = async (projectId, ipAddress, userAgent) => {
   try {
     await pool.execute(`
       INSERT INTO visitor_views (project_id, ip_address, user_agent, viewed_at)
@@ -264,7 +264,7 @@ export const logProjectView = async (projectId, ipAddress, userAgent) => {
  * @param {boolean} onlyUnread - แสดงเฉพาะที่ยังไม่อ่าน
  * @returns {Promise<Array>} รายการการแจ้งเตือน
  */
-export const getUserNotifications = async (userId, limit = 20, onlyUnread = false) => {
+const getUserNotifications = async (userId, limit = 20, onlyUnread = false) => {
   try {
     let query = `
       SELECT * FROM notifications 
@@ -294,7 +294,7 @@ export const getUserNotifications = async (userId, limit = 20, onlyUnread = fals
  * @param {number} notificationId - ID ของการแจ้งเตือน
  * @param {number} userId - ID ของผู้ใช้
  */
-export const markNotificationAsRead = async (notificationId, userId) => {
+const markNotificationAsRead = async (notificationId, userId) => {
   try {
     await pool.execute(`
       UPDATE notifications 
@@ -313,7 +313,7 @@ export const markNotificationAsRead = async (notificationId, userId) => {
  * ทำเครื่องหมายการแจ้งเตือนทั้งหมดว่าอ่านแล้ว
  * @param {number} userId - ID ของผู้ใช้
  */
-export const markAllNotificationsAsRead = async (userId) => {
+const markAllNotificationsAsRead = async (userId) => {
   try {
     await pool.execute(`
       UPDATE notifications 
@@ -333,7 +333,7 @@ export const markAllNotificationsAsRead = async (userId) => {
  * @param {number} userId - ID ของผู้ใช้
  * @returns {Promise<number>} จำนวนการแจ้งเตือนที่ยังไม่อ่าน
  */
-export const getUnreadNotificationCount = async (userId) => {
+const getUnreadNotificationCount = async (userId) => {
   try {
     const [result] = await pool.execute(`
       SELECT COUNT(*) as count FROM notifications 
@@ -347,7 +347,7 @@ export const getUnreadNotificationCount = async (userId) => {
   }
 };
 
-export default {
+module.exports = {
   createNotification,
   notifyAdminsNewProject,
   notifyProjectReview,

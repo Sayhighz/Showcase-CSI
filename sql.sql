@@ -1,4 +1,4 @@
-USE `zulpszwh_db_a`;
+USE `zulpszwh_db_e`;
 
 -- Set foreign key checks to 0 for clean setup
 SET FOREIGN_KEY_CHECKS = 0;

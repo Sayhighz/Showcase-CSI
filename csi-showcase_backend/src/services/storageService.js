@@ -1,10 +1,10 @@
 // services/storageService.js
-import fs from 'fs';
-import path from 'path';
-import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
-import logger from '../config/logger.js';
-import { ALLOWED_FILE_TYPES, sanitizeFileName } from '../constants/fileTypes.js';
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const logger = require('../config/logger.js');
+const { ALLOWED_FILE_TYPES, sanitizeFileName } = require('../constants/fileTypes.js');
 
 /**
  * กำหนดโฟลเดอร์หลักสำหรับการจัดเก็บไฟล์
@@ -104,7 +104,7 @@ const fileFilter = (storageType) => (req, file, cb) => {
  * @param {Object} options - ตัวเลือกเพิ่มเติม
  * @returns {multer.Multer} - multer instance
  */
-export const createUploader = (storageType, options = {}) => {
+const createUploader = (storageType, options = {}) => {
   const maxFileSize = options.maxSize || (
     ALLOWED_FILE_TYPES[storageType === 'profiles' ? 'PROFILE_IMAGE' : 
       storageType === 'images' ? 'IMAGE' : 
@@ -129,7 +129,7 @@ export const createUploader = (storageType, options = {}) => {
  * @param {Object} options - ตัวเลือกเพิ่มเติม
  * @returns {Promise<Object>} - ข้อมูลไฟล์ที่อัปโหลด
  */
-export const uploadFile = (req, storageType, options = {}) => {
+const uploadFile = (req, storageType, options = {}) => {
   return new Promise((resolve, reject) => {
     const uploader = createUploader(storageType, options).single('file');
     
@@ -168,7 +168,7 @@ export const uploadFile = (req, storageType, options = {}) => {
  * @param {Object} options - ตัวเลือกเพิ่มเติม
  * @returns {Promise<Array>} - รายการข้อมูลไฟล์ที่อัปโหลด
  */
-export const uploadMultipleFiles = (req, storageType, fieldName, options = {}) => {
+const uploadMultipleFiles = (req, storageType, fieldName, options = {}) => {
   return new Promise((resolve, reject) => {
     const uploader = createUploader(storageType, options).array(fieldName, options.maxCount || 10);
     
@@ -207,7 +207,7 @@ export const uploadMultipleFiles = (req, storageType, fieldName, options = {}) =
  * @param {string} filePath - เส้นทางไฟล์ที่ต้องการลบ
  * @returns {Promise<boolean>} - ผลการลบไฟล์
  */
-export const deleteFile = async (filePath) => {
+const deleteFile = async (filePath) => {
   try {
     // ตรวจสอบว่าเป็นเส้นทางไฟล์ที่อยู่ในโฟลเดอร์ uploads หรือไม่
     if (!filePath.startsWith('uploads/')) {
@@ -236,7 +236,7 @@ export const deleteFile = async (filePath) => {
  * ดึงข้อมูลสถานะการใช้พื้นที่จัดเก็บ
  * @returns {Promise<Object>} - ข้อมูลสถานะการใช้พื้นที่จัดเก็บ
  */
-export const getStorageStatus = async () => {
+const getStorageStatus = async () => {
   try {
     const storageStats = {};
     let totalSize = 0;
@@ -303,7 +303,7 @@ export const getStorageStatus = async () => {
  * @param {string} filePath - เส้นทางไฟล์ที่ต้องการอ่าน
  * @returns {Promise<Buffer>} - ข้อมูลไฟล์
  */
-export const readFile = async (filePath) => {
+const readFile = async (filePath) => {
   try {
     // ตรวจสอบว่าเป็นเส้นทางไฟล์ที่อยู่ในโฟลเดอร์ uploads หรือไม่
     if (!filePath.startsWith('uploads/')) {
@@ -324,7 +324,7 @@ export const readFile = async (filePath) => {
   }
 };
 
-export default {
+module.exports = {
   uploadFile,
   uploadMultipleFiles,
   deleteFile,
