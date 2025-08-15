@@ -269,8 +269,8 @@ export const AuthProvider = ({ children }) => {
         
         // แก้ไขการ redirect ให้ใช้ path ที่ถูกต้อง
         setTimeout(() => {
-            // console.log("asdasdadddddddd")
-            window.location.href = getFullPath('/login');
+            console.log("Redirecting to login page with path: " + getFullPath('/login'));
+            window.location.replace(getFullPath('/login'));
         }, 100);
     }, []);
     

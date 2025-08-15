@@ -25,7 +25,8 @@ const ProtectedRoute = () => {
   if (!isAuthenticated && !admin && !hasRedirected.current) {
     hasRedirected.current = true;
     // ส่งข้อมูลเส้นทางปัจจุบันไปด้วยเพื่อกลับมายังหน้านี้หลังจากเข้าสู่ระบบ
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Redirect to root path which is login page in App.jsx routes
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   // กรณีเข้าสู่ระบบแล้ว

@@ -17,7 +17,7 @@ const LoginPage = () => {
   useEffect(() => {
     if (admin && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
-      const from = location.state?.from?.pathname || '/login';
+      const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     }
   }, [admin, navigate, location]);

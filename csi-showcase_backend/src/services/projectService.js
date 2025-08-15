@@ -59,8 +59,15 @@ const getAllProjects = async (filters = {}, pagination = {}) => {
     }
     
     if (filters.userId) {
-      baseQuery += ` AND (p.user_id = ? OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?))`;
-      queryParams.push(filters.userId, filters.userId);
+      if (filters.onlyOwned) {
+        // Only include projects where the user is the owner
+        baseQuery += ` AND p.user_id = ?`;
+        queryParams.push(filters.userId);
+      } else {
+        // Include projects where the user is either owner or contributor
+        baseQuery += ` AND (p.user_id = ? OR EXISTS (SELECT 1 FROM project_groups pg WHERE pg.project_id = p.project_id AND pg.user_id = ?))`;
+        queryParams.push(filters.userId, filters.userId);
+      }
     }
     
     if (filters.search) {

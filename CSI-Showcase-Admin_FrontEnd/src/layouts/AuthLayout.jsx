@@ -37,7 +37,7 @@ const AuthLayout = () => {
 
   // If authenticated, redirect to dashboard
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Not authenticated, show the login form

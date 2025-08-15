@@ -26,7 +26,7 @@ const LoginForm = () => {
       
       if (success) {
         // นำทางไปยังหน้าแดชบอร์ด
-        navigate('/');
+        navigate('/dashboard');
       } else {
         throw new Error('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
       }
@@ -99,7 +99,7 @@ const LoginForm = () => {
               <Checkbox>จดจำฉัน</Checkbox>
             </Form.Item>
             <a 
-              href="/forgot-password" 
+              href="#"
               style={{ color: '#90278E' }}
               onClick={(e) => {
                 e.preventDefault();

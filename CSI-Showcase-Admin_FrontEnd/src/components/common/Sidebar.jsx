@@ -24,7 +24,7 @@ const getMenuItems = () => [
   {
     key: '/dashboard',
     icon: <DashboardOutlined />,
-    label: <Link to="/">แดชบอร์ด</Link>,
+    label: <Link to="/dashboard">แดชบอร์ด</Link>,
   },
   {
     key: '/projects',

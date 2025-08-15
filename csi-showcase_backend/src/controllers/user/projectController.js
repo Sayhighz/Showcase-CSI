@@ -294,6 +294,7 @@ const getMyProjects = async (req, res) => {
 
     const filters = {
       userId: userId,
+      onlyOwned: true, // Only show projects where the user is the owner, not just a contributor
     };
 
     const pagination = getPaginationParams(req);
