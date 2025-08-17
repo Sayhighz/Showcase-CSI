@@ -55,6 +55,7 @@ export const API_ENDPOINTS = {
     UPLOAD: (userId) => `${API_BASE_URL}/projects/user/${userId}`,
     UPDATE: (projectId) => `${API_BASE_URL}/projects/update/${projectId}`,
     DELETE: (projectId) => `${API_BASE_URL}/projects/delete/${projectId}`,
+    VIEW_COUNT: (projectId) => `${API_BASE_URL}/projects/${projectId}/view`,
   },
   
   // การค้นหา

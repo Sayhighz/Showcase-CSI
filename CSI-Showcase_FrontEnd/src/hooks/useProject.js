@@ -3,26 +3,18 @@
  * จัดการ state และฟังก์ชันที่เกี่ยวข้องกับการดึงข้อมูล, สร้าง, แก้ไข, ลบโปรเจค
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { message } from 'antd';
 
 // นำเข้า services ที่เกี่ยวข้อง
 import {
   getAllProjects,
   getTopProjects,
   getLatestProjects,
-  getMyProjects,
   getProjectDetails,
-  uploadProject,
-  updateProject,
-  deleteProject,
   searchProjects
 } from '../services/projectService';
 
 // นำเข้า constants และ utilities
-import { PROJECT } from '../constants/routes';
 import { PROJECT_TYPE } from '../constants/projectTypes';
-import { get } from '../services/apiService';
 
 /**
  * Custom hook สำหรับจัดการข้อมูลโปรเจค
@@ -49,15 +41,14 @@ const useProject = (projectId = null) => {
   });
   
   // State สำหรับเก็บข้อมูลตัวกรอง
-  const [projectTypes, setProjectTypes] = useState([
+  const [projectTypes] = useState([
     { value: PROJECT_TYPE.ACADEMIC, label: 'บทความวิชาการ' },
     { value: PROJECT_TYPE.COURSEWORK, label: 'งานในชั้นเรียน' },
     { value: PROJECT_TYPE.COMPETITION, label: 'การแข่งขัน' }
   ]);
   const [projectYears, setProjectYears] = useState([]);
-  const [studyYears, setStudyYears] = useState([1, 2, 3, 4]);
+  const [studyYears] = useState([1, 2, 3, 4]);
   
-  const navigate = useNavigate();
 
   /**
    * ดึงข้อมูลรายละเอียดของโปรเจค
@@ -183,45 +174,6 @@ const useProject = (projectId = null) => {
     }
   }, []);
 
-  /**
-   * ดึงข้อมูลโปรเจคของผู้ใช้
-   * @param {string} userId - ID ของผู้ใช้
-   * @param {Object} params - พารามิเตอร์การค้นหา (pagination)
-   */
-  const fetchMyProjects = useCallback(async (userId, params = {}) => {
-    if (!userId) {
-      setError('ไม่มีข้อมูลผู้ใช้');
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // สร้าง queryParams จาก pagination
-      const queryParams = {
-        page: pagination.current,
-        limit: pagination.pageSize,
-        ...params
-      };
-      
-      const response = await getMyProjects(userId, queryParams);
-      
-      if (response) {
-        setProjects(response.projects || []);
-        setPagination({
-          current: parseInt(response.pagination?.page || pagination.current),
-          pageSize: parseInt(response.pagination?.limit || pagination.pageSize),
-          total: parseInt(response.pagination?.totalItems || 0)
-        });
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคของคุณ');
-      console.error('เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจคของคุณ:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pagination.current, pagination.pageSize]);
 
   /**
    * ค้นหาโปรเจค
@@ -312,130 +264,6 @@ const useProject = (projectId = null) => {
     }));
   }, []);
 
-  /**
-   * สร้างโปรเจคใหม่
-   * @param {string} userId - ID ของผู้ใช้
-   * @param {Object} projectData - ข้อมูลของโปรเจค
-   * @param {Object} files - ไฟล์ที่ต้องการอัปโหลด
-   * @returns {Promise} - ผลลัพธ์จากการสร้างโปรเจค
-   */
-  const createProject = useCallback(async (userId, projectData, files) => {
-    if (!userId) {
-      message.error('ไม่มีข้อมูลผู้ใช้');
-      return null;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await uploadProject(userId, projectData, files);
-      
-      if (response) {
-        message.success('สร้างโปรเจคสำเร็จ');
-        
-        // นำทางไปยังหน้าโปรเจคที่สร้าง
-        navigate(PROJECT.VIEW(response.projectId));
-        
-        return response;
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการสร้างโปรเจค');
-      console.error('เกิดข้อผิดพลาดในการสร้างโปรเจค:', err);
-      message.error(err.message || 'เกิดข้อผิดพลาดในการสร้างโปรเจค');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [navigate]);
-
-  /**
-   * อัปเดตข้อมูลโปรเจค
-   * @param {string} id - ID ของโปรเจค
-   * @param {Object} projectData - ข้อมูลที่ต้องการอัปเดต
-   * @param {Object} files - ไฟล์ที่ต้องการอัปโหลดใหม่
-   * @returns {Promise} - ผลลัพธ์จากการอัปเดตโปรเจค
-   */
-  const updateProjectData = useCallback(async (id, projectData, files) => {
-    const projectIdToUpdate = id || projectId;
-    
-    if (!projectIdToUpdate) {
-      message.error('ไม่มีข้อมูล ID ของโปรเจค');
-      return null;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await updateProject(projectIdToUpdate, projectData, files);
-      
-      if (response) {
-        message.success('อัปเดตโปรเจคสำเร็จ');
-        
-        // อัปเดต state ของโปรเจค (ถ้ามี)
-        if (projectIdToUpdate === projectId) {
-          setProject(prev => ({
-            ...prev,
-            ...response
-          }));
-        }
-        
-        return response;
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค');
-      console.error('เกิดข้อผิดพลาดในการอัปเดตโปรเจค:', err);
-      message.error(err.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [projectId]);
-
-  /**
-   * ลบโปรเจค
-   * @param {string} id - ID ของโปรเจคที่ต้องการลบ
-   * @returns {Promise} - ผลลัพธ์จากการลบโปรเจค
-   */
-  const removeProject = useCallback(async (id) => {
-    const projectIdToDelete = id || projectId;
-    
-    if (!projectIdToDelete) {
-      message.error('ไม่มีข้อมูล ID ของโปรเจค');
-      return null;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await deleteProject(projectIdToDelete);
-      
-      if (response) {
-        message.success('ลบโปรเจคสำเร็จ');
-        
-        // นำทางไปยังหน้าโปรเจคของฉัน (ถ้าลบโปรเจคปัจจุบัน)
-        if (projectIdToDelete === projectId) {
-          navigate(PROJECT.MY_PROJECTS);
-        } else {
-          // รีเฟรชรายการโปรเจค
-          if (Array.isArray(projects)) {
-            setProjects(projects.filter(p => p.id !== projectIdToDelete));
-          }
-        }
-        
-        return response;
-      }
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการลบโปรเจค');
-      console.error('เกิดข้อผิดพลาดในการลบโปรเจค:', err);
-      message.error(err.message || 'เกิดข้อผิดพลาดในการลบโปรเจค');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [projectId, navigate, projects]);
 
 
 
@@ -451,12 +279,13 @@ const useProject = (projectId = null) => {
     setProjectYears(years);
   }, []);
 
-  // Effect สำหรับดึงข้อมูลรายละเอียดของโปรเจคเมื่อมี projectId
-  useEffect(() => {
-    if (projectId) {
-      fetchProjectDetails();
-    }
-  }, [projectId, fetchProjectDetails]);
+  // Effect สำหรับดึงข้อมูลรายละเอียดของโปรเจคเมื่อมี projectId - ปิดใช้งานเพื่อไม่ให้ fetch ซ้ำ
+  // ให้ component เรียกใช้ fetchProjectDetails เอง
+  // useEffect(() => {
+  //   if (projectId) {
+  //     fetchProjectDetails();
+  //   }
+  // }, [projectId, fetchProjectDetails]);
 
   // Effect สำหรับดึงข้อมูลโปรเจคเมื่อ pagination หรือ filters เปลี่ยนแปลง
   useEffect(() => {
@@ -489,11 +318,7 @@ const useProject = (projectId = null) => {
     fetchAllProjects,
     fetchTopProjects,
     fetchLatestProjects,
-    fetchMyProjects,
     fetchProjectDetails,
-    createProject,
-    updateProject: updateProjectData,
-    deleteProject: removeProject,
     searchProjects: handleSearch,
     updateFilters,
     changePage

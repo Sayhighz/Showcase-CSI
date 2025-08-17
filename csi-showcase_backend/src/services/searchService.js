@@ -59,25 +59,17 @@ const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
       const [countResult] = await connection.query(countQuery);
       const totalItems = countResult[0].total;
       
-      // Selection query with project collaborators
+      // Selection query
       let selectQuery = `
         SELECT DISTINCT p.*, u.username, u.full_name, u.image as user_image,
-          CASE 
+          CASE
             WHEN p.type = 'coursework' THEN (SELECT c.poster FROM courseworks c WHERE c.project_id = p.project_id)
             WHEN p.type = 'competition' THEN (SELECT c.poster FROM competitions c WHERE c.project_id = p.project_id)
             WHEN p.type = 'academic' THEN NULL
-          END as image,
-          GROUP_CONCAT(
-            DISTINCT CONCAT(ug.full_name, ':', COALESCE(pg.role, 'member'))
-            ORDER BY pg.added_at
-            SEPARATOR ';'
-          ) as collaborators
+          END as image
         FROM projects p
         JOIN users u ON p.user_id = u.user_id
-        LEFT JOIN project_groups pg ON p.project_id = pg.project_id
-        LEFT JOIN users ug ON pg.user_id = ug.user_id
         WHERE ${whereClause}
-        GROUP BY p.project_id
         ORDER BY p.views_count DESC, p.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -85,17 +77,50 @@ const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
       // Execute select query
       const [projects] = await connection.query(selectQuery);
       
+      // ดึงข้อมูลผู้ร่วมโครงการสำหรับทุกโครงการ (ใช้รูปแบบเดียวกับ projectService)
+      if (projects.length > 0) {
+        const projectIds = projects.map(p => p.project_id);
+        const placeholders = projectIds.map(() => '?').join(',');
+        
+        const collaboratorsQuery = `
+          SELECT pg.project_id, pg.role, u.user_id, u.username, u.full_name, u.image
+          FROM project_groups pg
+          JOIN users u ON pg.user_id = u.user_id
+          WHERE pg.project_id IN (${placeholders})
+          ORDER BY pg.project_id,
+            CASE
+              WHEN pg.role = 'owner' THEN 1
+              WHEN pg.role = 'contributor' THEN 2
+              WHEN pg.role = 'advisor' THEN 3
+              ELSE 4
+            END
+        `;
+        
+        const [collaborators] = await connection.query(collaboratorsQuery, projectIds);
+        
+        // จัดกลุ่มผู้ร่วมโครงการตาม project_id
+        const collaboratorsByProject = collaborators.reduce((acc, collab) => {
+          if (!acc[collab.project_id]) {
+            acc[collab.project_id] = [];
+          }
+          acc[collab.project_id].push({
+            userId: collab.user_id,
+            username: collab.username,
+            fullName: collab.full_name,
+            image: collab.image,
+            role: collab.role
+          });
+          return acc;
+        }, {});
+        
+        // เพิ่มข้อมูลผู้ร่วมโครงการเข้าไปในแต่ละโครงการ
+        projects.forEach(project => {
+          project.collaborators = collaboratorsByProject[project.project_id] || [];
+        });
+      }
+      
       // Format results
       const formattedProjects = projects.map(project => {
-        // Parse collaborators
-        let collaborators = [];
-        if (project.collaborators) {
-          collaborators = project.collaborators.split(';').map(collab => {
-            const [name, role] = collab.split(':');
-            return { name, role: role || 'member' };
-          });
-        }
-        
         return {
           id: project.project_id,
           title: project.title,
@@ -103,11 +128,15 @@ const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
           category: project.type,
           level: `ปี ${project.study_year}`,
           year: project.year,
-          image: project.image || 'https://via.placeholder.com/150',
+          image: project.image || null,
           student: project.full_name,
           studentId: project.user_id,
-          collaborators: collaborators,
-          projectLink: `/projects/${project.project_id}`
+          username: project.username,
+          userImage: project.user_image || null,
+          collaborators: project.collaborators || [], // เพิ่มข้อมูลผู้ร่วมโครงการ
+          projectLink: `/projects/${project.project_id}`,
+          viewsCount: project.views_count || 0,
+          createdAt: project.created_at,
         };
       });
       

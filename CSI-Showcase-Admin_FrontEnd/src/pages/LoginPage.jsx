@@ -7,7 +7,7 @@ import LoginForm from '../components/auth/LoginForm';
 const { Title, Text } = Typography;
 
 const LoginPage = () => {
-  const { admin, loading, error: authError } = useAuth();
+  const { user, isAuthenticated, isLoading, error: authError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -15,21 +15,39 @@ const LoginPage = () => {
   const hasNavigatedRef = useRef(false);
 
   useEffect(() => {
-    if (admin && !hasNavigatedRef.current) {
+    if (isAuthenticated && user && !hasNavigatedRef.current) {
+      console.log("✅ LoginPage: User authenticated, navigating to dashboard", user);
       hasNavigatedRef.current = true;
-      const from = location.state?.from?.pathname || '/dashboard';
+      
+      // Determine dashboard path based on user role
+      let dashboardPath = '/dashboard'; // default admin dashboard
+      if (user.role === 'student') {
+        dashboardPath = '/student/dashboard';
+      }
+      
+      const from = location.state?.from?.pathname || dashboardPath;
+      console.log("🔄 LoginPage: Navigating to:", from);
       navigate(from, { replace: true });
     }
-  }, [admin, navigate, location]);
+  }, [isAuthenticated, user, navigate, location]);
 
   // Display error from context or local
   const error = authError || localError;
 
   // Loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spin size="large" tip="กำลังตรวจสอบการเข้าสู่ระบบ..." />
+      </div>
+    );
+  }
+  
+  // If already authenticated, show loading while navigating
+  if (isAuthenticated && user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spin size="large" tip="กำลังเข้าสู่ระบบ..." />
       </div>
     );
   }

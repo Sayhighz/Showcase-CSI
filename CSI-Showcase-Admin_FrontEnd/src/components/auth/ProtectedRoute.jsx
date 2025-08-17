@@ -1,36 +1,66 @@
 // src/components/auth/ProtectedRoute.jsx
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading, admin } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
-  const hasRedirected = useRef(false);
+  const [redirectState, setRedirectState] = useState('checking'); // checking, authenticated, unauthenticated, redirecting
 
-  // รีเซ็ต hasRedirected เมื่อมีการเข้าสู่ระบบสำเร็จ
   useEffect(() => {
-    if (isAuthenticated && admin) {
-      hasRedirected.current = false;
-    }
-  }, [isAuthenticated, admin]);
+    console.log('🔍 ProtectedRoute state check:', {
+      path: location.pathname,
+      isLoading,
+      isAuthenticated,
+      hasUser: !!user,
+      userRole: user?.role
+    });
 
-  // กรณีกำลังโหลด
-  if (isLoading) {
+    // Wait for auth check to complete
+    if (isLoading) {
+      setRedirectState('checking');
+      return;
+    }
+
+    // Check authentication and user data
+    if (!isAuthenticated || !user) {
+      console.log('❌ Not authenticated, will redirect to login');
+      setRedirectState('unauthenticated');
+    } else {
+      console.log('✅ User authenticated:', user.role);
+      setRedirectState('authenticated');
+    }
+  }, [isLoading, isAuthenticated, user, location.pathname]);
+
+  // Show loading while checking authentication
+  if (isLoading || redirectState === 'checking') {
+    console.log('⏳ Still checking authentication...');
     return <LoadingSpinner fullScreen />;
   }
 
-  // กรณียังไม่ได้เข้าสู่ระบบ และยังไม่ได้ redirect
-  if (!isAuthenticated && !admin && !hasRedirected.current) {
-    hasRedirected.current = true;
-    // ส่งข้อมูลเส้นทางปัจจุบันไปด้วยเพื่อกลับมายังหน้านี้หลังจากเข้าสู่ระบบ
-    // Redirect to root path which is login page in App.jsx routes
-    return <Navigate to="/" state={{ from: location }} replace />;
+  // Handle unauthenticated users
+  if (redirectState === 'unauthenticated') {
+    console.log('🔄 Redirecting to login from:', location.pathname);
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // กรณีเข้าสู่ระบบแล้ว
-  return <Outlet />;
+  // Handle authenticated users on login page or root
+  if (redirectState === 'authenticated' && (location.pathname === '/' || location.pathname === '/login')) {
+    const dashboardPath = user.role === 'student' ? '/student/dashboard' : '/dashboard';
+    console.log('🔄 Redirecting authenticated user to:', dashboardPath);
+    return <Navigate to={dashboardPath} replace />;
+  }
+
+  // Render protected content
+  if (redirectState === 'authenticated') {
+    console.log('✅ Rendering protected content for:', location.pathname);
+    return <Outlet />;
+  }
+
+  // Fallback - show loading
+  return <LoadingSpinner fullScreen />;
 };
 
 export default ProtectedRoute;

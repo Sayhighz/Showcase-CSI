@@ -1,56 +1,47 @@
 // src/hooks/useProject.js
-import { useState, useEffect, useCallback, useRef } from 'react';
-import _ from 'lodash';
-import { 
-  getAllProjects, 
-  getPendingProjects, 
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  getAllProjects,
+  getPendingProjects,
   getProjectDetails,
   reviewProject,
-  deleteProject,
-  updateProject,
-  getProjectReviews,
-  getAdminReviewStats,
-  getProjectStats,
-  getAllProjectReviews
+  getMyProjects
 } from '../services/projectService';
 import { message } from 'antd';
 import useDebounce from './useDebounce';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * Custom hook สำหรับจัดการข้อมูลโปรเจค
- * @param {string} mode - โหมดการแสดงผล ('all', 'pending', 'detail', 'stats', 'reviews')
- * @param {string} viewMode - โหมดการแสดงผล ('list', 'detail', etc.)
- * @param {Object} initialFilters - ตัวกรองข้อมูลเริ่มต้น
- * @param {string|number} projectId - รหัสโปรเจค (สำหรับโหมด 'detail')
- * @returns {Object} - สถานะและฟังก์ชันสำหรับจัดการข้อมูลโปรเจค
+ * Optimized Custom hook for project management with improved performance
+ * and reduced duplicate fetching
  */
-const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projectId = null) => {
-  const { admin } = useAuth();
+const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, projectId = null) => {
+  const { user, admin } = useAuth();
+  const currentUser = user || admin;
   
-  // ใช้ ref เก็บค่าเริ่มต้นเพื่อป้องกันการ fetch ซ้ำเมื่อ re-render
+  // Stable references to prevent unnecessary re-renders
   const initialModeRef = useRef(mode);
   const initialProjectIdRef = useRef(projectId);
+  const abortControllerRef = useRef(null);
+  const cacheRef = useRef(new Map());
   
-  // สถานะสำหรับจัดเก็บข้อมูล
+  // State management
   const [projects, setProjects] = useState([]);
   const [projectDetails, setProjectDetails] = useState(null);
-  const [projectReviews, setProjectReviews] = useState([]);
-  const [reviewStats, setReviewStats] = useState(null);
-  const [projectStats, setProjectStats] = useState(null);
-  const [allReviews, setAllReviews] = useState([]);
+  const [projectReviews] = useState([]);
+  const [reviewStats] = useState(null);
+  const [projectStats] = useState(null);
+  const [allReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   
-  // สถานะสำหรับการแบ่งหน้า
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0
   });
   
-  // สถานะสำหรับตัวกรองข้อมูล
   const [filters, setFilters] = useState({
     search: '',
     type: '',
@@ -63,348 +54,185 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
     ...initialFilters
   });
 
-  // ใช้ debounce สำหรับการค้นหาเพื่อลดการเรียก API บ่อยเกินไป
-  const debouncedSearch = useDebounce(filters.search, 500);
+  const debouncedSearch = useDebounce(filters.search, 300);
 
-  // ใช้ ref เพื่อควบคุมการ fetch ข้อมูลซ้ำ
-  const fetchingRef = useRef(false);
-  
-  // ใช้ ref เพื่อเก็บค่าล่าสุดของ filters และ pagination
-  const filtersRef = useRef(filters);
-  const paginationRef = useRef(pagination);
+  // Request management
+  const cancelPreviousRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    return abortControllerRef.current.signal;
+  }, []);
 
-  // อัพเดต ref เมื่อ state เปลี่ยน
-  useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
-  
-  useEffect(() => {
-    paginationRef.current = pagination;
-  }, [pagination]);
+  // Cache management
+  const getCacheKey = useCallback((type, params) => {
+    return `${type}_${JSON.stringify(params)}`;
+  }, []);
 
-  /**
-   * โหลดข้อมูลโปรเจคทั้งหมด
-   */
-  const fetchProjects = useCallback(
-    _.debounce(async (page = 1, pageSize = 10) => {
-      // ป้องกันการ fetch ซ้ำในกรณีที่กำลัง fetch อยู่
-      if (fetchingRef.current) return;
-      
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // สร้าง query params
-        const queryParams = {
-          page,
-          limit: pageSize,
-          search: debouncedSearch,
-          type: filtersRef.current.type,
-          status: filtersRef.current.status,
-          year: filtersRef.current.year,
-          level: filtersRef.current.level
-        };
-        
-        // เลือกฟังก์ชันที่จะใช้ตามโหมด
-        let apiFunction = getAllProjects;
-        if (initialModeRef.current === 'pending') {
-          apiFunction = getPendingProjects;
-        }
-        
-        const response = await apiFunction(queryParams);
-        console.log(response);
-        
-        if (response.success) {
-          // ตรวจสอบโครงสร้างข้อมูลและดึง projects ออกมา
-          setProjects(response.data.projects || response.data || []);
-          
-          // ใช้ pagination จาก response โดยตรง
-          const newPagination = {
+  const getFromCache = useCallback((key, maxAge = 5 * 60 * 1000) => { // 5 minutes
+    const cached = cacheRef.current.get(key);
+    if (cached && Date.now() - cached.timestamp < maxAge) {
+      return cached.data;
+    }
+    return null;
+  }, []);
+
+  const setCache = useCallback((key, data) => {
+    cacheRef.current.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+  }, []);
+
+  // Optimized fetch functions with caching and request cancellation
+  const fetchProjects = useCallback(async (page = 1, pageSize = 10, useCache = true) => {
+    const queryParams = {
+      page,
+      limit: pageSize,
+      search: debouncedSearch,
+      type: filters.type,
+      status: filters.status,
+      year: filters.year,
+      level: filters.level
+    };
+
+    const cacheKey = getCacheKey(`projects_${initialModeRef.current}`, queryParams);
+    
+    if (useCache) {
+      const cached = getFromCache(cacheKey);
+      if (cached) {
+        setProjects(cached.projects || []);
+        setPagination(cached.pagination || pagination);
+        return;
+      }
+    }
+
+    const signal = cancelPreviousRequest();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const apiFunction = initialModeRef.current === 'pending' ? getPendingProjects : getAllProjects;
+      const response = await apiFunction(queryParams);
+
+      if (signal.aborted) return;
+
+      if (response.success) {
+        const data = {
+          projects: response.data.projects || response.data || [],
+          pagination: {
             current: response.pagination?.page || page,
             pageSize: response.pagination?.limit || pageSize,
             total: response.pagination?.totalItems || 0
-          };
-          
-          if (!_.isEqual(paginationRef.current, newPagination)) {
-            setPagination(newPagination);
           }
-        } else {
-          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-        }
-      } catch (err) {
+        };
+
+        setProjects(data.projects);
+        setPagination(data.pagination);
+        setCache(cacheKey, data);
+      } else {
+        setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+      }
+    } catch (err) {
+      if (!signal.aborted) {
         console.error('Error fetching projects:', err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจค กรุณาลองใหม่อีกครั้ง');
-      } finally {
-        setLoading(false);
-        // รอให้ animation เสร็จก่อนอนุญาตให้ fetch ใหม่
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
       }
-    }, 300),
-    [debouncedSearch]
-  );
-  
-  /**
-   * โหลดข้อมูลโปรเจคตาม ID
-   */
-  const fetchProjectDetails = useCallback(
-    _.debounce(async (id) => {
-      if (!id || fetchingRef.current) return;
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [debouncedSearch, filters.type, filters.status, filters.year, filters.level, getCacheKey, getFromCache, setCache, cancelPreviousRequest]);
+
+  const fetchProjectDetails = useCallback(async (id, useCache = true) => {
+    if (!id) return;
+
+    const cacheKey = getCacheKey('project_detail', { id });
+    
+    if (useCache) {
+      const cached = getFromCache(cacheKey);
+      if (cached) {
+        setProjectDetails(cached);
+        return;
+      }
+    }
+
+    const signal = cancelPreviousRequest();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await getProjectDetails(id);
       
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const response = await getProjectDetails(id);
-        
-        if (response.success) {
-          setProjectDetails(response.data);
-        } else {
-          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจค');
-        }
-      } catch (err) {
+      if (signal.aborted) return;
+
+      if (response.success) {
+        setProjectDetails(response.data);
+        setCache(cacheKey, response.data);
+      } else {
+        setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจค');
+      }
+    } catch (err) {
+      if (!signal.aborted) {
         console.error(`Error fetching project ${id}:`, err);
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจค กรุณาลองใหม่อีกครั้ง');
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
       }
-    }, 300),
-    []
-  );
-  
-  /**
-   * โหลดประวัติการตรวจสอบโปรเจค
-   */
-  const fetchProjectReviews = useCallback(
-    _.debounce(async (id) => {
-      if (!id || fetchingRef.current) return;
-      
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const response = await getProjectReviews(id);
-        console.log("asdasd",response)
-        
-        if (response.success) {
-          setProjectReviews(response.data.reviews || response.data || []);
-        } else {
-          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค');
-        }
-      } catch (err) {
-        console.error(`Error fetching project reviews ${id}:`, err);
-        setError('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
-      } finally {
+    } finally {
+      if (!signal.aborted) {
         setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
       }
-    }, 300),
-    []
-  );
-  
-  /**
-   * โหลดสถิติการตรวจสอบโปรเจค
-   */
-  const fetchReviewStats = useCallback(
-    _.debounce(async () => {
-      if (fetchingRef.current) return;
+    }
+  }, [getCacheKey, getFromCache, setCache, cancelPreviousRequest]);
+
+  const fetchMyProjects = useCallback(async (userId, filterParams = {}) => {
+    if (!userId) return;
+
+    const signal = cancelPreviousRequest();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await getMyProjects(userId, filterParams);
       
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const response = await getAdminReviewStats();
-        
-        if (response.success) {
-          setReviewStats(response.data);
-        } else {
-          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดสถิติการตรวจสอบโปรเจค');
-        }
-      } catch (err) {
-        console.error('Error fetching review stats:', err);
-        setError('เกิดข้อผิดพลาดในการโหลดสถิติการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
-      }
-    }, 300),
-    []
-  );
-  
-  /**
-   * โหลดสถิติโปรเจค
-   */
-  const fetchProjectStats = useCallback(
-    _.debounce(async () => {
-      if (fetchingRef.current) return;
-      
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const response = await getProjectStats();
-        // console.log("aaaa",response)
-        
-        if (response.success) {
-          setProjectStats(response.data);
-        } else {
-          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดสถิติโปรเจค');
-        }
-      } catch (err) {
-        console.error('Error fetching project stats:', err);
-        setError('เกิดข้อผิดพลาดในการโหลดสถิติโปรเจค กรุณาลองใหม่อีกครั้ง');
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
-      }
-    }, 300),
-    []
-  );
-  
-  /**
-   * โหลดรายการตรวจสอบทั้งหมด
-   */
-  const fetchAllReviews = useCallback(
-    _.debounce(async (page = 1, pageSize = 10) => {
-      if (fetchingRef.current) return;
-      
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // สร้าง query params
-        const queryParams = {
-          page,
-          limit: pageSize,
-          status: filtersRef.current.status,
-          admin_id: filtersRef.current.adminId,
-          startDate: filtersRef.current.startDate,
-          endDate: filtersRef.current.endDate
-        };
-        
-        const response = await getAllProjectReviews(queryParams);
-        console.log('response', response);
-        
-        if (response.success) {
-          setAllReviews(response.data.reviews || response.data || []);
-          
-          // ใช้ pagination จาก response โดยตรง
-          const newPagination = {
-            current: response.pagination?.page || page,
-            pageSize: response.pagination?.limit || pageSize,
-            total: response.pagination?.totalItems || 0
-          };
-          
-          if (!_.isEqual(paginationRef.current, newPagination)) {
-            setPagination(newPagination);
-          }
-        } else {
-          setError(response.message || 'เกิดข้อผิดพลาดในการโหลดรายการตรวจสอบ');
-        }
-      } catch (err) {
-        console.error('Error fetching all reviews:', err);
-        setError('เกิดข้อผิดพลาดในการโหลดรายการตรวจสอบ กรุณาลองใหม่อีกครั้ง');
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
-      }
-    }, 300),
-    []
-  );
-  
-  // ใช้ ref เพื่อติดตามการเรียก fetch ครั้งแรก
-  const hasInitialLoadRef = useRef(false);
-  
-  // สำหรับติดตามการเปลี่ยนแปลงของ filter
-  const filterChangeTimeoutRef = useRef(null);
-  
-  // โหลดข้อมูลครั้งแรกเมื่อ component mount
-  useEffect(() => {
-    if (!hasInitialLoadRef.current) {
-      hasInitialLoadRef.current = true;
-      
-      if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
-        fetchProjectDetails(initialProjectIdRef.current);
-        // ถ้าอยู่ในโหมด detail ให้โหลดประวัติการตรวจสอบด้วย
-        fetchProjectReviews(initialProjectIdRef.current);
-      } else if (initialModeRef.current === 'stats') {
-        fetchProjectStats();
-        fetchReviewStats();
-      } else if (initialModeRef.current === 'reviews') {
-        fetchAllReviews(pagination.current, pagination.pageSize);
+      if (signal.aborted) return;
+
+      if (response.success) {
+        setProjects(response.data.projects || response.data || []);
+        setPagination({
+          current: response.pagination?.page || filterParams.page || 1,
+          pageSize: response.pagination?.limit || filterParams.limit || 10,
+          total: response.pagination?.totalItems || 0
+        });
       } else {
-        fetchProjects(pagination.current, pagination.pageSize);
+        setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจคของคุณ');
+      }
+    } catch (err) {
+      if (!signal.aborted) {
+        console.error('Error fetching my projects:', err);
+        setError('เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจคของคุณ กรุณาลองใหม่อีกครั้ง');
+      }
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false);
       }
     }
-  }, []); // แยก useEffect ออกมาเพื่อใช้งานเพียงครั้งเดียวเมื่อ component mount
-  
-  // useEffect สำหรับจัดการการเปลี่ยนแปลงของ filters และ pagination
-  useEffect(() => {
-    // ไม่ทำงานถ้าเป็นโหมด detail หรือ stats
-    if (initialModeRef.current === 'detail' || initialModeRef.current === 'stats') return;
-    
-    // ยกเลิก timeout เดิม
-    if (filterChangeTimeoutRef.current) {
-      clearTimeout(filterChangeTimeoutRef.current);
-    }
-    
-    // ตั้ง timeout ใหม่
-    filterChangeTimeoutRef.current = setTimeout(() => {
-      if (hasInitialLoadRef.current && !fetchingRef.current) {
-        if (initialModeRef.current === 'reviews') {
-          fetchAllReviews(pagination.current, pagination.pageSize);
-        } else {
-          fetchProjects(pagination.current, pagination.pageSize);
-        }
-      }
-    }, 300);
-    
-    return () => {
-      if (filterChangeTimeoutRef.current) {
-        clearTimeout(filterChangeTimeoutRef.current);
-      }
-    };
-  }, [debouncedSearch, filters]); // เพิ่ม filters ใน dependency array เพื่อตรวจจับการเปลี่ยนแปลงของตัวกรองทั้งหมด
-  
-  /**
-   * จัดการการเปลี่ยนแปลงตัวกรอง
-   * @param {Object} newFilters - ตัวกรองใหม่
-   */
+  }, [cancelPreviousRequest]);
+
+  // Memoized handlers
   const handleFilterChange = useCallback((newFilters) => {
     setFilters(prev => {
-      // ใช้ lodash เพื่อตรวจสอบความเท่ากันของ object
       const updatedFilters = { ...prev, ...newFilters };
-      if (_.isEqual(updatedFilters, prev)) {
+      // Only update if there are actual changes
+      if (JSON.stringify(updatedFilters) === JSON.stringify(prev)) {
         return prev;
       }
       return updatedFilters;
     });
-    
-    // รีเซ็ตหน้าเมื่อมีการเปลี่ยนแปลงตัวกรอง
     setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
-  
-  /**
-   * รีเซ็ตตัวกรองทั้งหมด
-   */
+
   const resetFilters = useCallback(() => {
     setFilters({
       search: '',
@@ -418,204 +246,140 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
     });
     setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
-  
-  /**
-   * จัดการการเปลี่ยนแปลงการแบ่งหน้า
-   * @param {number} page - หน้าที่ต้องการ
-   * @param {number} pageSize - จำนวนรายการต่อหน้า
-   */
+
   const handlePaginationChange = useCallback((page, pageSize) => {
-    // ป้องกันการเรียกซ้ำถ้าค่าไม่เปลี่ยน
-    if (page === pagination.current && pageSize === pagination.pageSize) {
-      return;
-    }
-    
-    setPagination({
-      current: page,
-      pageSize,
-      total: pagination.total
+    setPagination(prev => {
+      // Prevent unnecessary updates
+      if (page === prev.current && pageSize === prev.pageSize) {
+        return prev;
+      }
+      return {
+        ...prev,
+        current: page,
+        pageSize
+      };
     });
-    
-    // เรียก fetch ข้อมูลใหม่เมื่อเปลี่ยนหน้า
-    if (initialModeRef.current === 'reviews') {
-      fetchAllReviews(page, pageSize);
-    } else {
-      fetchProjects(page, pageSize);
-    }
-  }, [pagination.current, pagination.pageSize, pagination.total]);
-  
-  /**
-   * ตรวจสอบและอนุมัติหรือปฏิเสธโปรเจค
-   * @param {string|number} id - รหัสโปรเจค
-   * @param {string} status - สถานะใหม่ ('approved' หรือ 'rejected')
-   * @param {string} comment - ความคิดเห็น (จำเป็นในกรณี rejected)
-   * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
-   */
-  const reviewProjectAction = useCallback(
-    _.debounce(async (id, status, comment) => {
-      if (actionLoading) return false;
-      
-      setActionLoading(true);
-      
-      try {
-        if (!id) {
-          message.error('ไม่ระบุรหัสโปรเจค');
-          return false;
-        }
-        
-        if (status !== 'approved' && status !== 'rejected') {
-          message.error('สถานะไม่ถูกต้อง');
-          return false;
-        }
-        
-        // ต้องระบุเหตุผลกรณีปฏิเสธ
-        if (status === 'rejected' && !comment.trim()) {
-          message.error('กรุณาระบุเหตุผลที่ปฏิเสธ');
-          return false;
-        }
-        
-        const response = await reviewProject(id, status, comment);
-        
-        if (response.success) {
-          message.success(response.message || (status === 'approved' ? 'อนุมัติโปรเจคสำเร็จ' : 'ปฏิเสธโปรเจคสำเร็จ'));
-          
-          // รีเฟรชข้อมูล
-          fetchingRef.current = false; // รีเซ็ตป้องกัน flag
-          
-          if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
-            fetchProjectDetails(initialProjectIdRef.current);
-            fetchProjectReviews(initialProjectIdRef.current);
-          } else {
-            fetchProjects(paginationRef.current.current, paginationRef.current.pageSize);
-          }
-          
-          return true;
-        } else {
-          message.error(response.message || 'เกิดข้อผิดพลาดในการตรวจสอบโปรเจค');
-          return false;
-        }
-      } catch (err) {
-        console.error(`Error reviewing project ${id}:`, err);
-        message.error('เกิดข้อผิดพลาดในการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
-        return false;
-      } finally {
-        setActionLoading(false);
-      }
-    }, 300),
-    [actionLoading]
-  );
-  
-  /**
-   * ลบโปรเจค
-   * @param {string|number} id - รหัสโปรเจค
-   * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
-   */
-  const deleteProjectAction = useCallback(
-    _.debounce(async (id) => {
-      if (actionLoading) return false;
-      
-      setActionLoading(true);
-      
-      try {
-        if (!id) {
-          message.error('ไม่ระบุรหัสโปรเจค');
-          return false;
-        }
-        
-        const response = await deleteProject(id);
-        
-        if (response.success) {
-          message.success(response.message || 'ลบโปรเจคสำเร็จ');
-          
-          // รีเฟรชข้อมูล
-          fetchingRef.current = false; // รีเซ็ตป้องกัน flag
-          fetchProjects(paginationRef.current.current, paginationRef.current.pageSize);
-          
-          return true;
-        } else {
-          message.error(response.message || 'เกิดข้อผิดพลาดในการลบโปรเจค');
-          return false;
-        }
-      } catch (err) {
-        console.error(`Error deleting project ${id}:`, err);
-        message.error('เกิดข้อผิดพลาดในการลบโปรเจค กรุณาลองใหม่อีกครั้ง');
-        return false;
-      } finally {
-        setActionLoading(false);
-      }
-    }, 300),
-    [actionLoading]
-  );
-  
-  /**
-   * อัพเดตข้อมูลโปรเจค
-   * @param {string|number} id - รหัสโปรเจค 
-   * @param {Object} projectData - ข้อมูลโปรเจคที่ต้องการอัพเดต
-   * @returns {Promise<boolean>} - ผลลัพธ์การดำเนินการ
-   */
-  const updateProjectAction = useCallback(
-    _.debounce(async (id, projectData) => {
-      if (actionLoading) return false;
-      
-      setActionLoading(true);
-      
-      try {
-        if (!id) {
-          message.error('ไม่ระบุรหัสโปรเจค');
-          return false;
-        }
-        
-        const response = await updateProject(id, projectData);
-        
-        if (response.success) {
-          message.success(response.message || 'อัพเดตโปรเจคสำเร็จ');
-          
-          // รีเฟรชข้อมูล
-          fetchingRef.current = false; // รีเซ็ตป้องกัน flag
-          
-          if (initialModeRef.current === 'detail') {
-            fetchProjectDetails(id);
-          } else {
-            fetchProjects(paginationRef.current.current, paginationRef.current.pageSize);
-          }
-          
-          return true;
-        } else {
-          message.error(response.message || 'เกิดข้อผิดพลาดในการอัพเดตโปรเจค');
-          return false;
-        }
-      } catch (err) {
-        console.error(`Error updating project ${id}:`, err);
-        message.error('เกิดข้อผิดพลาดในการอัพเดตโปรเจค กรุณาลองใหม่อีกครั้ง');
-        return false;
-      } finally {
-        setActionLoading(false);
-      }
-    }, 300),
-    [actionLoading]
-  );
-  
-  /**
-   * รีเฟรชข้อมูลโปรเจค (เรียกจากภายนอก)
-   */
-  const refreshProjectsData = useCallback(() => {
-    fetchingRef.current = false; // รีเซ็ตป้องกัน flag
-    
-    if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
-      fetchProjectDetails(initialProjectIdRef.current);
-      fetchProjectReviews(initialProjectIdRef.current);
-    } else if (initialModeRef.current === 'stats') {
-      fetchProjectStats();
-      fetchReviewStats();
-    } else if (initialModeRef.current === 'reviews') {
-      fetchAllReviews(paginationRef.current.current, paginationRef.current.pageSize);
-    } else {
-      fetchProjects(paginationRef.current.current, paginationRef.current.pageSize);
-    }
   }, []);
-  
-  return {
-    // สถานะข้อมูล
+
+  // Action functions with optimistic updates
+  const reviewProjectAction = useCallback(async (id, status, comment) => {
+    if (actionLoading || !id) return false;
+
+    setActionLoading(true);
+
+    try {
+      if (status !== 'approved' && status !== 'rejected') {
+        message.error('สถานะไม่ถูกต้อง');
+        return false;
+      }
+
+      if (status === 'rejected' && !comment?.trim()) {
+        message.error('กรุณาระบุเหตุผลที่ปฏิเสธ');
+        return false;
+      }
+
+      const response = await reviewProject(id, status, comment);
+
+      if (response.success) {
+        message.success(response.message || (status === 'approved' ? 'อนุมัติโปรเจคสำเร็จ' : 'ปฏิเสธโปรเจคสำเร็จ'));
+        
+        // Invalidate cache and refresh
+        cacheRef.current.clear();
+        
+        if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
+          fetchProjectDetails(initialProjectIdRef.current, false);
+        } else {
+          fetchProjects(pagination.current, pagination.pageSize, false);
+        }
+        
+        return true;
+      } else {
+        message.error(response.message || 'เกิดข้อผิดพลาดในการตรวจสอบโปรเจค');
+        return false;
+      }
+    } catch (err) {
+      console.error(`Error reviewing project ${id}:`, err);
+      message.error('เกิดข้อผิดพลาดในการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  }, [actionLoading, pagination.current, pagination.pageSize, fetchProjectDetails, fetchProjects]);
+
+  // Consolidated data fetching effect - prevents multiple simultaneous API calls
+  useEffect(() => {
+    const fetchData = async () => {
+      // Skip if already loading to prevent race conditions
+      if (loading) return;
+
+      // Initial load on mount
+      if (pagination.current === 1 && !filters.search && !filters.type && !filters.status && !filters.year && !filters.level) {
+        if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
+          await fetchProjectDetails(initialProjectIdRef.current);
+          return;
+        } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+          await fetchMyProjects(currentUser.id, { page: 1, limit: pagination.pageSize });
+          return;
+        } else if (initialModeRef.current !== 'stats') {
+          await fetchProjects(1, pagination.pageSize);
+          return;
+        }
+      }
+
+      // Handle filter changes or pagination changes
+      if (initialModeRef.current !== 'detail' && initialModeRef.current !== 'stats') {
+        const fetchParams = {
+          page: pagination.current,
+          limit: pagination.pageSize,
+          search: debouncedSearch,
+          type: filters.type,
+          status: filters.status,
+          year: filters.year,
+          level: filters.level
+        };
+
+        if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+          await fetchMyProjects(currentUser.id, fetchParams);
+        } else {
+          await fetchProjects(fetchParams.page, fetchParams.limit, false);
+        }
+      }
+    };
+
+    // Debounce the fetch to prevent rapid fire API calls
+    const timeoutId = setTimeout(fetchData, 200);
+
+    return () => {
+      clearTimeout(timeoutId);
+      // Cleanup on unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [
+    pagination.current,
+    pagination.pageSize,
+    debouncedSearch,
+    filters.type,
+    filters.status,
+    filters.year,
+    filters.level,
+    currentUser?.id
+  ]); // Consolidated dependencies
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      cacheRef.current.clear();
+    };
+  }, []);
+
+  // Memoized return object
+  const returnValue = useMemo(() => ({
+    // State
     projects,
     projectDetails,
     projectReviews,
@@ -628,38 +392,52 @@ const useProject = (mode = 'all', viewMode = 'list', initialFilters = {}, projec
     pagination,
     filters,
     
-    // ข้อมูลผู้ใช้
-    admin,
+    // User info
+    admin: currentUser,
+    user: currentUser,
     
-    // การจัดการตัวกรอง
+    // Handlers
     handleFilterChange,
     resetFilters,
-    
-    // การแบ่งหน้า
     handlePaginationChange,
     
-    // การดำเนินการกับโปรเจค
+    // Actions
     approveProject: (id, comment = '') => reviewProjectAction(id, 'approved', comment),
     rejectProject: (id, comment) => reviewProjectAction(id, 'rejected', comment),
-    deleteProject: deleteProjectAction,
-    updateProject: updateProjectAction,
     
-    // ฟังก์ชัน fetch ข้อมูล
+    // Fetch functions
+    fetchProjects: (page, pageSize, useCache) => fetchProjects(page, pageSize, useCache),
+    fetchProjectDetails: (id, useCache) => fetchProjectDetails(id, useCache),
+    fetchMyProjects,
+    
+    // Utilities
+    refreshProjects: () => {
+      cacheRef.current.clear();
+      if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+        fetchMyProjects(currentUser.id, { limit: pagination.pageSize });
+      } else {
+        fetchProjects(pagination.current, pagination.pageSize, false);
+      }
+    },
+    clearCache: () => cacheRef.current.clear()
+  }), [
+    projects,
+    projectDetails,
+    loading,
+    error,
+    pagination,
+    filters,
+    currentUser,
+    handleFilterChange,
+    resetFilters,
+    handlePaginationChange,
+    reviewProjectAction,
     fetchProjects,
     fetchProjectDetails,
-    fetchProjectReviews,
-    fetchReviewStats,
-    fetchProjectStats,
-    fetchAllReviews,
-    
-    // รีเฟรชข้อมูล
-    refreshProjects: refreshProjectsData,
-    refreshProjectDetails: () => {
-      fetchingRef.current = false; // รีเซ็ตป้องกัน flag
-      fetchProjectDetails(initialProjectIdRef.current);
-      fetchProjectReviews(initialProjectIdRef.current);
-    }
-  };
+    fetchMyProjects
+  ]);
+
+  return returnValue;
 };
 
 export default useProject;

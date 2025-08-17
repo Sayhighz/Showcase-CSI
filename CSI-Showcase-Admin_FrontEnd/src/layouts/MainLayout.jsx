@@ -19,10 +19,13 @@ const MainLayout = () => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [openKeys, setOpenKeys] = useState([]);
-  const { admin, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, admin, isAuthenticated, isLoading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const screens = useBreakpoint();
+  
+  // Use user or admin (backward compatibility)
+  const currentUser = user || admin;
   
   // เพิ่ม ref เพื่อป้องกันการ navigate ซ้ำซ้อน
   const hasRedirected = useRef(false);
@@ -57,27 +60,29 @@ const MainLayout = () => {
     if (!isLoading && !authCheckedRef.current) {
       authCheckedRef.current = true;
       
-      if (!isAuthenticated && !admin && !hasRedirected.current) {
+      if (!isAuthenticated && !currentUser && !hasRedirected.current) {
         hasRedirected.current = true;
         setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+          // Redirect to appropriate dashboard based on role
+          const dashboardPath = currentUser?.role === 'student' ? '/student/dashboard' : '/dashboard';
+          navigate(dashboardPath, { replace: true });
         }, 100);
       }
     }
-  }, [isLoading, isAuthenticated, admin, navigate]);
+  }, [isLoading, isAuthenticated, currentUser, navigate]);
 
   // รีเซ็ต hasRedirected เมื่อมีการ login สำเร็จ
   useEffect(() => {
-    if (isAuthenticated && admin) {
+    if (isAuthenticated && currentUser) {
       hasRedirected.current = false;
     }
-  }, [isAuthenticated, admin]);
+  }, [isAuthenticated, currentUser]);
 
   if (isLoading) {
     return <LoadingSpinner fullScreen />;
   }
 
-  if (!isAuthenticated && !admin && authCheckedRef.current) {
+  if (!isAuthenticated && !currentUser && authCheckedRef.current) {
     return <LoadingSpinner fullScreen tip="กำลังนำท่านไปยังหน้าเข้าสู่ระบบ..." />;
   }
 
@@ -137,7 +142,7 @@ const MainLayout = () => {
             onOpenChange={onOpenChange}
             onClick={onClick}
             onLogout={handleLogout}
-            admin={admin}
+            admin={currentUser}
           />
         </Drawer>
       )}
@@ -172,7 +177,7 @@ const MainLayout = () => {
             onOpenChange={onOpenChange}
             onClick={onClick}
             onLogout={handleLogout}
-            admin={admin}
+            admin={currentUser}
           />
         </Sider>
       )}

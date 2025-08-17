@@ -20,25 +20,28 @@ import {
   SettingOutlined,
   AppstoreOutlined,
   CloseOutlined,
+  DownOutlined,
+  BookOutlined,
+  TeamOutlined,
+  TrophyOutlined,
 } from "@ant-design/icons";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "../context/AuthContext";
-import { removeAuthCookie } from "../lib/cookie";
+
+// Suppress eslint warning for motion usage in JSX
+// eslint-disable-next-line no-unused-vars
+const _motion = motion;
 import LogoCSI from "../assets/Logo_CSI.png";
-import { API_ENDPOINTS } from "../constants";
+import LogoSIT from "../assets/Logo_SIT.png";
 
 const { Header } = Layout;
 
 const Navbar = () => {
-  const { isAuthenticated, user } = useAuth();
-  const { fullName, image } = user || {}; 
   const location = useLocation();
 
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isAtTop, setIsAtTop] = useState(true);
   const [visible, setVisible] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // ตรวจสอบขนาดหน้าจอว่าเป็นโมบายหรือไม่
@@ -55,11 +58,6 @@ const Navbar = () => {
     };
   }, []);
 
-  // Handle logout
-  const handleLogout = () => {
-    removeAuthCookie();
-    window.location.href = "/csie/login";
-  };
 
   // Track scroll position to show/hide Navbar and set transparency state
   useEffect(() => {
@@ -85,33 +83,6 @@ const Navbar = () => {
     setIsAtTop(window.scrollY < 20);
   }, [location.pathname]);
 
-  // Dropdown menu items with icons and animations
-  const items = [
-    {
-      key: "1",
-      label: (
-        <Link to="/projects/my" className="flex items-center space-x-2 p-2">
-          <ProjectOutlined />
-          <span>ผลงานของฉัน</span>
-        </Link>
-      ),
-    },
-    {
-      type: "divider",
-    },
-    {
-      key: "2",
-      label: (
-        <div
-          onClick={handleLogout}
-          className="flex items-center space-x-2 text-red-500 p-2"
-        >
-          <LogoutOutlined />
-          <span>ออกจากระบบ</span>
-        </div>
-      ),
-    },
-  ];
 
   // Handle Drawer visibility toggle
   const showDrawer = () => {
@@ -186,22 +157,6 @@ const Navbar = () => {
           }
         }}
       >
-        <div className="p-4">
-          {isAuthenticated && (
-            <div className="flex items-center space-x-3 mb-6 p-3 bg-[#90278E] bg-opacity-5 rounded-lg border border-[#90278E] border-opacity-10">
-              <Avatar
-                src={image ? API_ENDPOINTS.BASE + "/" + image : null}
-                icon={!image && <UserOutlined />}
-                className="bg-[#90278E]"
-                size={isMobile ? "default" : "large"}
-              />
-              <div>
-                <div className="font-medium text-[#90278E] text-sm sm:text-base truncate max-w-[150px]">{fullName}</div>
-                <div className="text-xs text-[#8b949e]">นักศึกษา CSI</div>
-              </div>
-            </div>
-          )}
-        </div>
 
         <Menu
           mode="inline"
@@ -225,39 +180,40 @@ const Navbar = () => {
                 </Link>
               ),
             },
-            ...(isAuthenticated
-              ? [
-                  {
-                    key: "my-projects",
-                    icon: <ProjectOutlined />,
-                    label: (
-                      <Link to="/projects/my" onClick={closeDrawer}>
-                        ผลงานของฉัน
-                      </Link>
-                    ),
-                  },
-                  {
-                    key: "logout",
-                    icon: <LogoutOutlined />,
-                    label: (
-                      <span onClick={handleLogout} className="text-red-500">
-                        ออกจากระบบ
-                      </span>
-                    ),
-                    className: "mt-4 text-red-500",
-                  },
-                ]
-              : [
-                  {
-                    key: "login",
-                    icon: <UserOutlined />,
-                    label: (
-                      <Link to="/login" onClick={closeDrawer}>
-                        เข้าสู่ระบบ
-                      </Link>
-                    ),
-                  },
-                ]),
+            {
+              key: "project-types",
+              icon: <ProjectOutlined />,
+              label: "ประเภทผลงาน",
+              children: [
+                {
+                  key: "coursework",
+                  icon: <TeamOutlined />,
+                  label: (
+                    <Link to="/projects/coursework" onClick={closeDrawer}>
+                      งานในชั้นเรียน
+                    </Link>
+                  ),
+                },
+                {
+                  key: "academic",
+                  icon: <BookOutlined />,
+                  label: (
+                    <Link to="/projects/academic" onClick={closeDrawer}>
+                      ผลงานวิชาการ
+                    </Link>
+                  ),
+                },
+                {
+                  key: "competition",
+                  icon: <TrophyOutlined />,
+                  label: (
+                    <Link to="/projects/competition" onClick={closeDrawer}>
+                      ผลงานการแข่งขัน
+                    </Link>
+                  ),
+                },
+              ],
+            },
           ]}
         />
       </Drawer>
@@ -277,9 +233,9 @@ const Navbar = () => {
                 : "bg-[#90278E] shadow-md backdrop-filter backdrop-blur-md bg-opacity-90"
             }`}
           >
-            {/* Left Section - Logo & Navigation */}
-            <div className="flex items-center space-x-3 sm:space-x-8">
-              {/* Logo with hover animation */}
+            {/* Left Section - Logos Only */}
+            <div className="flex items-center space-x-3">
+              {/* SIT Logo */}
               <motion.div
                 className="flex items-center"
                 variants={logoVariants}
@@ -287,10 +243,25 @@ const Navbar = () => {
                 whileHover="hover"
               >
                 <Link to="/">
-                  <img src={LogoCSI} alt="CSI Logo" className="h-8 sm:h-10 md:h-12" />
+                  <img src={LogoSIT} alt="SIT Logo" className="h-6 sm:h-7 md:h-8" />
                 </Link>
               </motion.div>
               
+              {/* CSI Logo */}
+              <motion.div
+                className="flex items-center"
+                variants={logoVariants}
+                initial="normal"
+                whileHover="hover"
+              >
+                <Link to="/">
+                  <img src={LogoCSI} alt="CSI Logo" className="h-6 sm:h-7 md:h-8" />
+                </Link>
+              </motion.div>
+            </div>
+
+            {/* Right Section - Navigation & Action Buttons */}
+            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-6">
               {/* Desktop Navigation Links */}
               <div className="hidden md:flex items-center space-x-6">
                 <motion.div
@@ -339,35 +310,78 @@ const Navbar = () => {
                   )}
                 </motion.div>
 
-                {isAuthenticated && (
-                  <motion.div
-                    variants={linkVariants}
-                    whileHover="hover"
-                    className="relative"
-                  >
-                    <Link
-                      to="/projects/my"
-                      className={`hover:text-white transition-colors ${
-                        location.pathname === "/projects/my"
-                          ? "text-white font-medium"
-                          : "text-[#FFE6FF]"
-                      }`}
-                    >
-                      ผลงานของฉัน
-                    </Link>
-                    {location.pathname === "/projects/my" && (
-                      <motion.div
-                        className="absolute -bottom-1 left-0 right-0 h-[3px] bg-white rounded-full"
-                        layoutId="navIndicator"
-                      />
+                {/* Project Types Dropdown */}
+                <motion.div
+                  variants={linkVariants}
+                  whileHover="hover"
+                  className="relative"
+                >
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'coursework',
+                          icon: <TeamOutlined className="text-[#90278E]" />,
+                          label: (
+                            <Link
+                              to="/projects/coursework"
+                              className="text-gray-700 hover:text-[#90278E] block w-full"
+                            >
+                              งานในชั้นเรียน
+                            </Link>
+                          ),
+                        },
+                        {
+                          key: 'academic',
+                          icon: <BookOutlined className="text-[#90278E]" />,
+                          label: (
+                            <Link
+                              to="/projects/academic"
+                              className="text-gray-700 hover:text-[#90278E] block w-full"
+                            >
+                              ผลงานวิชาการ
+                            </Link>
+                          ),
+                        },
+                        {
+                          key: 'competition',
+                          icon: <TrophyOutlined className="text-[#90278E]" />,
+                          label: (
+                            <Link
+                              to="/projects/competition"
+                              className="text-gray-700 hover:text-[#90278E] block w-full"
+                            >
+                              ผลงานการแข่งขัน
+                            </Link>
+                          ),
+                        },
+                      ],
+                    }}
+                    placement="bottom"
+                    trigger={['hover']}
+                    dropdownRender={(menu) => (
+                      <div className="bg-white rounded-xl shadow-lg border border-purple-100 overflow-hidden py-1">
+                        {menu}
+                      </div>
                     )}
-                  </motion.div>
-                )}
+                  >
+                    <span className={`hover:text-white transition-colors cursor-pointer flex items-center space-x-1 ${
+                      ['/projects/academic', '/projects/coursework', '/projects/competition'].includes(location.pathname)
+                        ? "text-white font-medium"
+                        : "text-[#FFE6FF]"
+                    }`}>
+                      <span>ประเภทผลงาน</span>
+                      <DownOutlined className="text-xs" />
+                    </span>
+                  </Dropdown>
+                  {['/projects/academic', '/projects/coursework', '/projects/competition'].includes(location.pathname) && (
+                    <motion.div
+                      className="absolute -bottom-1 left-0 right-0 h-[3px] bg-white rounded-full"
+                      layoutId="navIndicator"
+                    />
+                  )}
+                </motion.div>
               </div>
-            </div>
-
-            {/* Right Section - Action Buttons & User Profile */}
-            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
               {/* Mobile Menu Button */}
               <motion.div
                 whileHover={{ scale: 1.05 }}
@@ -382,44 +396,6 @@ const Navbar = () => {
                 />
               </motion.div>
 
-              {/* User Profile / Login Button */}
-              {isAuthenticated ? (
-                <Dropdown
-                  menu={{ items }}
-                  placement="bottomRight"
-                  arrow={{ pointAtCenter: true }}
-                  trigger={["click"]}
-                >
-                  <motion.div
-                    onMouseEnter={() => setIsHovering(true)}
-                    onMouseLeave={() => setIsHovering(false)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex items-center cursor-pointer space-x-2 bg-white bg-opacity-10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white border-opacity-10 transition-all hover:bg-opacity-20"
-                  >
-                    <Avatar
-                      src={image ? API_ENDPOINTS.BASE + "/" + image : null}
-                      icon={!image && <UserOutlined />}
-                      className="bg-[#B252B0]"
-                      size="small"
-                    />
-                    <span className="hidden sm:inline max-w-16 md:max-w-24 truncate text-xs sm:text-sm text-white">{fullName}</span>
-                  </motion.div>
-                </Dropdown>
-              ) : (
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link
-                    to="/login"
-                    className="flex items-center space-x-1 bg-white hover:bg-[#F5EAFF] text-[#90278E] font-medium px-2 sm:px-4 py-1 sm:py-1.5 rounded-full transition-all duration-300 border border-transparent shadow-sm text-xs sm:text-sm"
-                  >
-                    <UserOutlined className="mr-0 sm:mr-1" />
-                    <span className="hidden xs:inline">เข้าสู่ระบบ</span>
-                  </Link>
-                </motion.div>
-              )}
             </div>
           </Header>
         </motion.div>

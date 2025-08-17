@@ -194,7 +194,7 @@ const ProjectContributors = ({ author, contributors = [] }) => {
         </Button>
       ]}
       width={800}
-      bodyStyle={{ maxHeight: '70vh', overflow: 'auto' }}
+      styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}
       className="contributor-modal backdrop-filter backdrop-blur-md"
     >
       <div className="py-4">

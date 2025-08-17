@@ -7,3 +7,94 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* MagicUI Border Beam Animation */
+@keyframes border-beam {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.animate-border-beam {
+  animation: border-beam linear infinite;
+}
+
+/* MagicUI Meteors Animation - Left to Right */
+@keyframes meteor-effect {
+  from {
+    transform: translateX(-100px) translateY(-50px);
+  }
+  to {
+    transform: translateX(calc(100vw + 100px)) translateY(calc(100vh + 50px));
+  }
+}
+
+.animate-meteor-effect {
+  animation: meteor-effect linear infinite;
+}
+
+/* Performance Optimizations for Smooth Scrolling */
+html {
+  scroll-behavior: auto; /* Let Lenis handle smooth scrolling */
+}
+
+/* Hardware acceleration for animated elements */
+.performance-optimized,
+.will-change-transform {
+  will-change: transform;
+  transform: translateZ(0); /* Force GPU acceleration */
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize heavy visual effects */
+.animate-border-beam,
+.animate-meteor-effect {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Smooth parallax scrolling optimization */
+.parallax-element {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize text rendering for animations */
+.text-rendering-optimized {
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize blur effects */
+.backdrop-blur-optimized {
+  will-change: filter;
+  transform: translateZ(0);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .parallax-element {
+    transform: none !important;
+  }
+}
+
+/* Container query optimization */
+.scroll-container {
+  contain: layout style paint;
+}

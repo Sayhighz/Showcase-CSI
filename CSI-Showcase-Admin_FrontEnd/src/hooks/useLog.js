@@ -68,12 +68,22 @@ const useLog = (logType = 'login', initialFilters = {}) => {
   // ใช้ debounce สำหรับการค้นหาเพื่อลดการเรียก API บ่อยเกินไป
   const debouncedSearch = useDebounce(filters.search, 500);
   
+  // Keep track of current fetch operation
+  const currentFetchRef = useRef(null);
+  
   /**
    * โหลดประวัติการเข้าสู่ระบบ
    */
   // Example for fetchLoginLogs
-const fetchLoginLogs = useCallback(
-    _.debounce(async (page = 1, pageSize = 10) => {
+  const fetchLoginLogs = useCallback(async (page = 1, pageSize = 10, customFilters = null) => {
+      const fetchId = Date.now();
+      
+      // Cancel previous fetch if it exists
+      if (currentFetchRef.current) {
+        currentFetchRef.current.cancelled = true;
+      }
+      currentFetchRef.current = { id: fetchId, cancelled: false };
+      
       if (fetchingRef.current) return;
       
       fetchingRef.current = true;
@@ -81,11 +91,14 @@ const fetchLoginLogs = useCallback(
       setError(null);
       
       try {
+        // Use custom filters or current filters
+        const activeFilters = customFilters || filtersRef.current;
+        
         // Build query params from all current filters
         const queryParams = {
           page,
           limit: pageSize,
-          ...filtersRef.current
+          ...activeFilters
         };
         
         // Remove dateRange as it's already processed to startDate and endDate
@@ -111,10 +124,18 @@ const fetchLoginLogs = useCallback(
         
         console.log('Fetching login logs with params:', queryParams);
         
+        // Check if this fetch was cancelled
+        if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+          return;
+        }
+        
         const response = await getAllLoginLogs(queryParams);
         console.log('Login logs API response:', response);
         
-        // Rest of the function remains the same...
+        // Check again if this fetch was cancelled after API call
+        if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+          return;
+        }
         
         if (response && response.success) {
           const logsData = response.data?.logs || [];
@@ -131,191 +152,246 @@ const fetchLoginLogs = useCallback(
             totalPages: paginationData.totalPages
           };
           
+          // Only update pagination if it's different to prevent loops
           if (!_.isEqual(paginationRef.current, newPagination)) {
             setPagination(newPagination);
+            paginationRef.current = newPagination;
           }
         } else {
           setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
           message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการเข้าสู่ระบบได้');
         }
       } catch (err) {
+        // Check if this fetch was cancelled
+        if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+          return;
+        }
+        
         console.error('Error fetching login logs:', err);
         setError('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง');
         message.error('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าสู่ระบบ');
       } finally {
         setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
+        fetchingRef.current = false;
+        if (currentFetchRef.current?.id === fetchId) {
+          currentFetchRef.current = null;
+        }
       }
-    }, 300),
-    [debouncedSearch]
-  );
+    }, []);
   
 /**
  * โหลดประวัติการเข้าชมของผู้เยี่ยมชม
  */
-const fetchVisitorViews = useCallback(
-    _.debounce(async (page = 1, pageSize = 10) => {
-      if (fetchingRef.current) return;
+const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilters = null) => {
+    const fetchId = Date.now();
+    
+    // Cancel previous fetch if it exists
+    if (currentFetchRef.current) {
+      currentFetchRef.current.cancelled = true;
+    }
+    currentFetchRef.current = { id: fetchId, cancelled: false };
+    
+    if (fetchingRef.current) return;
+    
+    fetchingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Use custom filters or current filters
+      const activeFilters = customFilters || filtersRef.current;
       
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
+      // สร้าง query params จาก filters
+      const queryParams = {
+        page,
+        limit: pageSize,
+        ...activeFilters
+      };
       
-      try {
-        // สร้าง copy ของ filtersRef.current เพื่อไม่ให้มีการแก้ไขอ้างอิงโดยตรง
-        const currentFilters = {...filtersRef.current};
+      // จัดการกับ dateRange ให้เป็น startDate และ endDate
+      if (queryParams.dateRange) {
+        // ตรวจสอบว่า dateRange เป็น array หรือไม่
+        if (Array.isArray(queryParams.dateRange) && queryParams.dateRange.length === 2) {
+          // แปลง dateRange เป็น startDate และ endDate
+          queryParams.startDate = queryParams.dateRange[0].format ?
+            queryParams.dateRange[0].format('YYYY-MM-DD') :
+            queryParams.dateRange[0];
+            
+          queryParams.endDate = queryParams.dateRange[1].format ?
+            queryParams.dateRange[1].format('YYYY-MM-DD') :
+            queryParams.dateRange[1];
+        }
+        // ลบ dateRange ออกไป
+        delete queryParams.dateRange;
+      }
+      
+      // แปลง dayjs objects เป็น string ถ้าจำเป็น
+      if (queryParams.startDate && typeof queryParams.startDate === 'object' && queryParams.startDate.format) {
+        queryParams.startDate = queryParams.startDate.format('YYYY-MM-DD');
+      }
+      
+      if (queryParams.endDate && typeof queryParams.endDate === 'object' && queryParams.endDate.format) {
+        queryParams.endDate = queryParams.endDate.format('YYYY-MM-DD');
+      }
+      
+      // ลบค่าที่เป็น undefined หรือ empty string ออกจาก queryParams
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === undefined || queryParams[key] === '' || queryParams[key] === null) {
+          delete queryParams[key];
+        }
+      });
+      
+      console.log('Fetching visitor views with params:', queryParams);
+      
+      // Check if this fetch was cancelled
+      if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+        return;
+      }
+      
+      const response = await getVisitorViews(queryParams);
+      console.log('Visitor views API response:', response);
+      
+      // Check again if this fetch was cancelled after API call
+      if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+        return;
+      }
+      
+      if (response && response.success) {
+        const viewsData = response.data?.views || [];
+        setLogs(viewsData);
         
-        // สร้าง query params จาก filters
-        const queryParams = {
-          page,
-          limit: pageSize,
-          ...currentFilters
+        const paginationData = response.data?.pagination || {};
+        
+        const newPagination = {
+          current: paginationData.currentPage || page,
+          pageSize: paginationData.limit || pageSize,
+          total: paginationData.totalItems || 0,
+          hasNextPage: paginationData.hasNextPage,
+          hasPrevPage: paginationData.hasPrevPage,
+          totalPages: paginationData.totalPages
         };
         
-        // จัดการกับ dateRange ให้เป็น startDate และ endDate
-        if (queryParams.dateRange) {
-          // ตรวจสอบว่า dateRange เป็น array หรือไม่
-          if (Array.isArray(queryParams.dateRange) && queryParams.dateRange.length === 2) {
-            // แปลง dateRange เป็น startDate และ endDate
-            queryParams.startDate = queryParams.dateRange[0].format ? 
-              queryParams.dateRange[0].format('YYYY-MM-DD') : 
-              queryParams.dateRange[0];
-              
-            queryParams.endDate = queryParams.dateRange[1].format ? 
-              queryParams.dateRange[1].format('YYYY-MM-DD') : 
-              queryParams.dateRange[1];
-          }
-          // ลบ dateRange ออกไป
-          delete queryParams.dateRange;
+        // Only update pagination if it's different to prevent loops
+        if (!_.isEqual(paginationRef.current, newPagination)) {
+          setPagination(newPagination);
+          paginationRef.current = newPagination;
         }
-        
-        // แปลง dayjs objects เป็น string ถ้าจำเป็น
-        if (queryParams.startDate && typeof queryParams.startDate === 'object' && queryParams.startDate.format) {
-          queryParams.startDate = queryParams.startDate.format('YYYY-MM-DD');
-        }
-        
-        if (queryParams.endDate && typeof queryParams.endDate === 'object' && queryParams.endDate.format) {
-          queryParams.endDate = queryParams.endDate.format('YYYY-MM-DD');
-        }
-        
-        // ลบค่าที่เป็น undefined หรือ empty string ออกจาก queryParams
-        Object.keys(queryParams).forEach(key => {
-          if (queryParams[key] === undefined || queryParams[key] === '' || queryParams[key] === null) {
-            delete queryParams[key];
-          }
-        });
-        
-        console.log('Fetching visitor views with params:', queryParams);
-        
-        const response = await getVisitorViews(queryParams);
-        console.log('Visitor views API response:', response);
-        
-        if (response && response.success) {
-          const viewsData = response.data?.views || [];
-          setLogs(viewsData);
-          
-          const paginationData = response.data?.pagination || {};
-          
-          const newPagination = {
-            current: paginationData.currentPage || page,
-            pageSize: paginationData.limit || pageSize,
-            total: paginationData.totalItems || 0,
-            hasNextPage: paginationData.hasNextPage,
-            hasPrevPage: paginationData.hasPrevPage,
-            totalPages: paginationData.totalPages
-          };
-          
-          if (!_.isEqual(paginationRef.current, newPagination)) {
-            setPagination(newPagination);
-          }
-        } else {
-          setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-          message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการเข้าชมได้');
-        }
-      } catch (err) {
-        console.error('Error fetching visitor views:', err);
-        setError('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าชม กรุณาลองใหม่อีกครั้ง');
-        message.error('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าชม');
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
+      } else {
+        setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการเข้าชมได้');
       }
-    }, 300),
-    [debouncedSearch]
-  );
+    } catch (err) {
+      // Check if this fetch was cancelled
+      if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+        return;
+      }
+      
+      console.error('Error fetching visitor views:', err);
+      setError('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าชม กรุณาลองใหม่อีกครั้ง');
+      message.error('เกิดข้อผิดพลาดในการโหลดประวัติการเข้าชม');
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+      if (currentFetchRef.current?.id === fetchId) {
+        currentFetchRef.current = null;
+      }
+    }
+  }, []);
   
   /**
    * โหลดประวัติการตรวจสอบโปรเจค
    */
-  const fetchProjectReviews = useCallback(
-    _.debounce(async (page = 1, pageSize = 10) => {
-      if (fetchingRef.current) return;
+  const fetchProjectReviews = useCallback(async (page = 1, pageSize = 10, customFilters = null) => {
+    const fetchId = Date.now();
+    
+    // Cancel previous fetch if it exists
+    if (currentFetchRef.current) {
+      currentFetchRef.current.cancelled = true;
+    }
+    currentFetchRef.current = { id: fetchId, cancelled: false };
+    
+    if (fetchingRef.current) return;
+    
+    fetchingRef.current = true;
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Use custom filters or current filters
+      const activeFilters = customFilters || filtersRef.current;
       
-      fetchingRef.current = true;
-      setLoading(true);
-      setError(null);
+      const queryParams = {
+        page,
+        limit: pageSize,
+        ...activeFilters
+      };
       
-      try {
-        const queryParams = {
-          page,
-          limit: pageSize,
-          ...filtersRef.current
+      if (queryParams.dateRange) {
+        delete queryParams.dateRange;
+      }
+      
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === undefined || queryParams[key] === '') {
+          delete queryParams[key];
+        }
+      });
+      
+      console.log('Fetching project reviews with params:', queryParams);
+      
+      // Check if this fetch was cancelled
+      if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+        return;
+      }
+      
+      const response = await getProjectReviews(queryParams);
+      console.log('Project reviews API response:', response);
+      
+      // Check again if this fetch was cancelled after API call
+      if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+        return;
+      }
+      
+      if (response && response.success) {
+        const reviewsData = response.data?.reviews || [];
+        setLogs(reviewsData);
+        
+        const paginationData = response.data?.pagination || {};
+        
+        const newPagination = {
+          current: paginationData.currentPage || page,
+          pageSize: paginationData.limit || pageSize,
+          total: paginationData.totalItems || 0,
+          hasNextPage: paginationData.hasNextPage,
+          hasPrevPage: paginationData.hasPrevPage,
+          totalPages: paginationData.totalPages
         };
         
-        if (queryParams.dateRange) {
-          delete queryParams.dateRange;
+        // Only update pagination if it's different to prevent loops
+        if (!_.isEqual(paginationRef.current, newPagination)) {
+          setPagination(newPagination);
+          paginationRef.current = newPagination;
         }
-        
-        Object.keys(queryParams).forEach(key => {
-          if (queryParams[key] === undefined || queryParams[key] === '') {
-            delete queryParams[key];
-          }
-        });
-        
-        console.log('Fetching project reviews with params:', queryParams);
-        
-        const response = await getProjectReviews(queryParams);
-        console.log('Project reviews API response:', response);
-        
-        if (response && response.success) {
-          const reviewsData = response.data?.reviews || [];
-          setLogs(reviewsData);
-          
-          const paginationData = response.data?.pagination || {};
-          
-          const newPagination = {
-            current: paginationData.currentPage || page,
-            pageSize: paginationData.limit || pageSize,
-            total: paginationData.totalItems || 0,
-            hasNextPage: paginationData.hasNextPage,
-            hasPrevPage: paginationData.hasPrevPage,
-            totalPages: paginationData.totalPages
-          };
-          
-          if (!_.isEqual(paginationRef.current, newPagination)) {
-            setPagination(newPagination);
-          }
-        } else {
-          setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
-          message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการตรวจสอบโปรเจคได้');
-        }
-      } catch (err) {
-        console.error('Error fetching project reviews:', err);
-        setError('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
-        message.error('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค');
-      } finally {
-        setLoading(false);
-        setTimeout(() => {
-          fetchingRef.current = false;
-        }, 300);
+      } else {
+        setError((response && response.message) || 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
+        message.error((response && response.message) || 'ไม่สามารถโหลดประวัติการตรวจสอบโปรเจคได้');
       }
-    }, 300),
-    [debouncedSearch]
-  );
+    } catch (err) {
+      // Check if this fetch was cancelled
+      if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
+        return;
+      }
+      
+      console.error('Error fetching project reviews:', err);
+      setError('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
+      message.error('เกิดข้อผิดพลาดในการโหลดประวัติการตรวจสอบโปรเจค');
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+      if (currentFetchRef.current?.id === fetchId) {
+        currentFetchRef.current = null;
+      }
+    }
+  }, []);
   
   /**
    * โหลดสถิติระบบ
@@ -465,11 +541,11 @@ const fetchVisitorViews = useCallback(
       hasInitialLoadRef.current = true;
       
       if (logTypeRef.current === 'login') {
-        fetchLoginLogs(pagination.current, pagination.pageSize);
+        fetchLoginLogs(1, 10);
       } else if (logTypeRef.current === 'visitor') {
-        fetchVisitorViews(pagination.current, pagination.pageSize);
+        fetchVisitorViews(1, 10);
       } else if (logTypeRef.current === 'review') {
-        fetchProjectReviews(pagination.current, pagination.pageSize);
+        fetchProjectReviews(1, 10);
       } else if (logTypeRef.current === 'stats') {
         fetchSystemStats();
         fetchDailyStats();
@@ -477,81 +553,67 @@ const fetchVisitorViews = useCallback(
         fetchDashboardStats();
       }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
   
-  // useEffect สำหรับจัดการการเปลี่ยนแปลงของ filters และ pagination
+  // Separate useEffect for handling search changes
   useEffect(() => {
-    // ไม่ทำงานถ้าเป็นโหมด stats หรือ dashboard
-    if (logTypeRef.current === 'stats' || logTypeRef.current === 'dashboard') return;
+    // Skip if initial load hasn't happened or if it's stats/dashboard mode
+    if (!hasInitialLoadRef.current || logTypeRef.current === 'stats' || logTypeRef.current === 'dashboard') {
+      return;
+    }
     
-    console.log('Pagination or search changed:', pagination.current, pagination.pageSize, debouncedSearch);
+    console.log('Search changed:', debouncedSearch);
     
-    // ใช้ setTimeout เพื่อป้องกันการ fetch บ่อยเกินไป
+    // Reset to page 1 and fetch with current search
     const timeoutId = setTimeout(() => {
-      if (hasInitialLoadRef.current && !fetchingRef.current) {
+      if (!fetchingRef.current) {
         if (logTypeRef.current === 'login') {
-          console.log('Fetching login logs with page:', pagination.current);
-          fetchLoginLogs(pagination.current, pagination.pageSize);
+          fetchLoginLogs(1, paginationRef.current.pageSize);
         } else if (logTypeRef.current === 'visitor') {
-          console.log('Fetching visitor views with page:', pagination.current);
-          fetchVisitorViews(pagination.current, pagination.pageSize);
+          fetchVisitorViews(1, paginationRef.current.pageSize);
         } else if (logTypeRef.current === 'review') {
-          console.log('Fetching project reviews with page:', pagination.current);
-          fetchProjectReviews(pagination.current, pagination.pageSize);
+          fetchProjectReviews(1, paginationRef.current.pageSize);
         }
       }
-    }, 300);
+    }, 100);
     
     return () => clearTimeout(timeoutId);
-  }, [debouncedSearch, pagination.current, pagination.pageSize]);
+  }, [debouncedSearch]); // Only depend on debouncedSearch
   
   /**
    * จัดการการเปลี่ยนแปลงตัวกรอง
    * @param {Object} newFilters - ตัวกรองใหม่
    */
-  // แก้ไขส่วนของ handleFilterChange ใน useLog.js
-const handleFilterChange = useCallback((newFilters) => {
+  const handleFilterChange = useCallback((newFilters) => {
     console.log('Filter change triggered:', newFilters);
     
-    setFilters(prev => {
-      const updatedFilters = { ...prev, ...newFilters };
-      console.log('Updated filters:', updatedFilters);
-      return updatedFilters;
-    });
+    const updatedFilters = { ...filtersRef.current, ...newFilters };
+    console.log('Updated filters:', updatedFilters);
     
-    // รีเซ็ตหน้าเมื่อมีการเปลี่ยนแปลงตัวกรอง
+    // Update both state and ref immediately
+    setFilters(updatedFilters);
+    filtersRef.current = updatedFilters;
+    
+    // Reset to page 1
     setPagination(prev => ({ ...prev, current: 1 }));
     
-    // เพิ่มการเรียก fetch ข้อมูลทันทีหลังจาก filter เปลี่ยน
+    // Fetch data with new filters
     setTimeout(() => {
-      console.log('Fetching after filter change...');
-      if (logTypeRef.current === 'login') {
-        fetchLoginLogs(1, paginationRef.current.pageSize);
-      } else if (logTypeRef.current === 'visitor') {
-        fetchVisitorViews(1, paginationRef.current.pageSize);
-      } else if (logTypeRef.current === 'review') {
-        fetchProjectReviews(1, paginationRef.current.pageSize);
+      if (!fetchingRef.current) {
+        if (logTypeRef.current === 'login') {
+          fetchLoginLogs(1, paginationRef.current.pageSize, updatedFilters);
+        } else if (logTypeRef.current === 'visitor') {
+          fetchVisitorViews(1, paginationRef.current.pageSize, updatedFilters);
+        } else if (logTypeRef.current === 'review') {
+          fetchProjectReviews(1, paginationRef.current.pageSize, updatedFilters);
+        }
       }
-    }, 0);
-  }, [fetchLoginLogs, fetchVisitorViews, fetchProjectReviews]);
+    }, 50);
+  }, []);
+  
   /**
    * รีเซ็ตตัวกรองทั้งหมด
    */
-  // 1. First, modify the handleReset function in LogFilterForm.js:
-
-// Change this function in LogFilterForm.js
-const handleReset = () => {
-    form.resetFields();
-    
-    if (onReset) {
-      // Call onReset callback to trigger data refresh
-      onReset();
-    }
-  };
-  
-  // 2. Next, modify the resetFilters function in useLog.js:
-  
-  // Change this function in useLog.js
   const resetFilters = useCallback(() => {
     console.log('Resetting filters');
     
@@ -568,10 +630,8 @@ const handleReset = () => {
       dateRange: null
     };
     
-    // Update filters state with empty values
+    // Update both state and ref immediately
     setFilters(emptyFilters);
-    
-    // Also update the ref to ensure immediate access to updated values
     filtersRef.current = emptyFilters;
     
     // Reset pagination to first page
@@ -579,18 +639,17 @@ const handleReset = () => {
     
     // Force a data fetch with the reset filters
     setTimeout(() => {
-      console.log('Fetching after filter reset...');
-      fetchingRef.current = false; // Reset fetching lock to ensure fetch happens
+      fetchingRef.current = false; // Reset fetching lock
       
       if (logTypeRef.current === 'login') {
-        fetchLoginLogs(1, pagination.pageSize);
+        fetchLoginLogs(1, paginationRef.current.pageSize, emptyFilters);
       } else if (logTypeRef.current === 'visitor') {
-        fetchVisitorViews(1, pagination.pageSize);
+        fetchVisitorViews(1, paginationRef.current.pageSize, emptyFilters);
       } else if (logTypeRef.current === 'review') {
-        fetchProjectReviews(1, pagination.pageSize);
+        fetchProjectReviews(1, paginationRef.current.pageSize, emptyFilters);
       }
-    }, 100); // Using a slightly longer timeout to ensure state updates complete
-  }, [fetchLoginLogs, fetchVisitorViews, fetchProjectReviews, pagination.pageSize]);
+    }, 50);
+  }, []);
   
   /**
    * จัดการการเปลี่ยนแปลงการแบ่งหน้า
@@ -599,24 +658,40 @@ const handleReset = () => {
    * @param {Object} tableFilters - ข้อมูลตัวกรองจาก Table (ไม่ใช่ state filters)
    * @param {Object} sorter - ข้อมูลการเรียงลำดับจาก Table
    */
-  const handlePaginationChange = useCallback((tablePagination, tableFilters, sorter) => {
+  const handlePaginationChange = useCallback((tablePagination) => {
     // ดึงค่า page และ pageSize จาก tablePagination
     const { current, pageSize } = tablePagination;
     
     console.log('handlePaginationChange', current, pageSize, tablePagination);
     
     // ป้องกันการเรียกซ้ำถ้าค่าไม่เปลี่ยน
-    if (current === pagination.current && pageSize === pagination.pageSize) {
+    if (current === paginationRef.current.current && pageSize === paginationRef.current.pageSize) {
       return;
     }
     
-    // อัพเดต pagination ใน state
-    setPagination(prev => ({
-      ...prev,
+    // อัพเดต pagination ใน state และ ref
+    const newPagination = {
+      ...paginationRef.current,
       current,
       pageSize
-    }));
-  }, [pagination.current, pagination.pageSize]);
+    };
+    
+    setPagination(newPagination);
+    paginationRef.current = newPagination;
+    
+    // Fetch data with new pagination
+    setTimeout(() => {
+      if (!fetchingRef.current) {
+        if (logTypeRef.current === 'login') {
+          fetchLoginLogs(current, pageSize);
+        } else if (logTypeRef.current === 'visitor') {
+          fetchVisitorViews(current, pageSize);
+        } else if (logTypeRef.current === 'review') {
+          fetchProjectReviews(current, pageSize);
+        }
+      }
+    }, 50);
+  }, []);
   
   /**
    * แปลงข้อมูลสำหรับกราฟแนวโน้มการเข้าใช้งานรายวัน

@@ -5,6 +5,13 @@ import { Link } from 'react-router-dom';
 import { PROJECT } from '../../constants/routes';
 import { API_ENDPOINTS } from '../../constants';
 
+// Utility function to truncate text
+const truncateText = (text, maxLength = 60) => {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength).trim() + '...';
+};
+
 const { Title } = Typography;
 
 /**
@@ -87,24 +94,58 @@ const RelatedProjects = ({ projects = [] }) => {
                       </div>
                     </div>
                   }
-                  bodyStyle={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}
+                  styles={{ body: { padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' } }}
                 >
                   <div className="flex-1">
                     <Tooltip title={project.title}>
-                      <h3 className="text-base font-medium mb-2 line-clamp-2 h-12 text-[#24292f]">
-                        {project.title}
+                      <h3 className="text-sm font-medium mb-2 line-clamp-2 h-10 text-[#24292f] leading-5">
+                        {truncateText(project.title, 55)}
                       </h3>
                     </Tooltip>
                   </div>
                   
-                  <div className="mt-3 flex justify-between items-center text-xs text-[#8b949e]">
-                    <div className="flex items-center truncate pr-2">
-                      <UserOutlined className="mr-1 text-[#90278E]" />
-                      <span className="truncate">{project.student || 'ไม่ระบุผู้จัดทำ'}</span>
+                  <div className="mt-3 space-y-2">
+                    {/* Display all group members */}
+                    <div className="flex items-start text-xs text-[#8b949e]">
+                      <TeamOutlined className="mr-1 text-[#90278E] mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-[#90278E] mb-1">สมาชิกทีม:</div>
+                        <div className="space-y-1">
+                          {/* Project Owner */}
+                          <div className="truncate">
+                            <span className="inline-block w-2 h-2 bg-[#90278E] rounded-full mr-2 flex-shrink-0"></span>
+                            <span className="font-medium">{truncateText(project.student || 'ไม่ระบุผู้สร้าง', 25)}</span>
+                            <span className="text-[#B252B0] ml-1">(หัวหน้าทีม)</span>
+                          </div>
+                          
+                          {/* Collaborators */}
+                          {project.collaborators && project.collaborators.length > 0 ? (
+                            project.collaborators.map((collaborator, idx) => (
+                              <div key={idx} className="truncate">
+                                <span className="inline-block w-2 h-2 bg-[#B252B0] rounded-full mr-2 flex-shrink-0"></span>
+                                <span>{truncateText(collaborator.fullName || collaborator.full_name || `สมาชิกคนที่ ${idx + 1}`, 20)}</span>
+                                {collaborator.role && (
+                                  <span className="text-[#8b949e] ml-1">
+                                    ({collaborator.role === 'contributor' ? 'ผู้ร่วมงาน' :
+                                      collaborator.role === 'advisor' ? 'ที่ปรึกษา' :
+                                      collaborator.role})
+                                  </span>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-[#8b949e] italic text-xs">
+                              ไม่มีข้อมูลสมาชิกอื่น
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center flex-shrink-0">
+                    
+                    {/* Views count */}
+                    <div className="flex items-center justify-end text-xs text-[#8b949e]">
                       <EyeOutlined className="mr-1 text-[#90278E]" />
-                      <span>{project.viewsCount || 0}</span>
+                      <span>{project.viewsCount || 0} ครั้ง</span>
                     </div>
                   </div>
                 </Card>

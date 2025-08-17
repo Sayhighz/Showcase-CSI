@@ -1,10 +1,10 @@
 import React from 'react';
 import { Menu, Avatar, Button, Typography } from 'antd';
 import { Link } from 'react-router-dom';
-import { 
-  DashboardOutlined, 
-  ProjectOutlined, 
-  TeamOutlined, 
+import {
+  DashboardOutlined,
+  ProjectOutlined,
+  TeamOutlined,
   FileTextOutlined,
   ClockCircleOutlined,
   BarChartOutlined,
@@ -12,93 +12,128 @@ import {
   AuditOutlined,
   CheckCircleOutlined,
   LogoutOutlined,
-  UserOutlined
+  UserOutlined,
+  PlusOutlined,
+  FolderOutlined
 } from '@ant-design/icons';
 import './Sidebar.css'
 import { URL } from '../../constants/apiEndpoints';
 
 const { Text } = Typography;
 
-// Define menu items outside the component to avoid recreating them on every render
-const getMenuItems = () => [
-  {
-    key: '/dashboard',
-    icon: <DashboardOutlined />,
-    label: <Link to="/dashboard">แดชบอร์ด</Link>,
-  },
-  {
-    key: '/projects',
-    icon: <ProjectOutlined />,
-    label: 'จัดการโครงงาน',
-    children: [
+// Define menu items based on user role
+const getMenuItems = (userRole) => {
+  // Admin-specific project items (no personal projects)
+  const adminProjectItems = [];
+
+  if (userRole === 'student') {
+    // Student menu items - includes dashboard, upload, projects, and analytics
+    return [
       {
-        key: '/projects/all',
-        label: <Link to="/projects">โครงงานทั้งหมด</Link>,
+        key: '/student/dashboard',
+        icon: <DashboardOutlined />,
+        label: <Link to="/student/dashboard">แดชบอร์ด</Link>,
       },
       {
-        key: '/projects/pending',
-        label: <Link to="/projects/pending">รอการอนุมัติ</Link>,
-        icon: <ClockCircleOutlined style={{ fontSize: '12px' }} />,
+        key: '/projects/upload',
+        icon: <PlusOutlined />,
+        label: <Link to="/projects/upload">อัปโหลดผลงาน</Link>,
       },
       {
-        key: '/projects/stats',
-        label: <Link to="/projects/stats">สถิติโครงงาน</Link>,
-        icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
-      },
-    ],
-  },
-  {
-    key: '/users',
-    icon: <TeamOutlined />,
-    label: 'จัดการผู้ใช้',
-    children: [
-      {
-        key: '/users/all',
-        label: <Link to="/users">ผู้ใช้ทั้งหมด</Link>,
+        key: '/projects/my-projects',
+        icon: <FolderOutlined />,
+        label: <Link to="/projects/my-projects">ผลงานของฉัน</Link>,
       },
       {
-        key: '/users/students',
-        label: <Link to="/users/students">นักศึกษา</Link>,
+        key: '/student/analytics',
+        icon: <BarChartOutlined />,
+        label: <Link to="/student/analytics">สถิติของฉัน</Link>,
+      },
+    ];
+  } else {
+    // Admin menu items (default)
+    return [
+      {
+        key: '/dashboard',
+        icon: <DashboardOutlined />,
+        label: <Link to="/dashboard">แดชบอร์ด</Link>,
       },
       {
-        key: '/users/admins',
-        label: <Link to="/users/admins">ผู้ดูแลระบบ</Link>,
+        key: '/projects',
+        icon: <ProjectOutlined />,
+        label: 'จัดการโครงงาน',
+        children: [
+          {
+            key: '/projects/all',
+            label: <Link to="/projects">โครงงานทั้งหมด</Link>,
+          },
+          {
+            key: '/projects/pending',
+            label: <Link to="/projects/pending">รอการอนุมัติ</Link>,
+            icon: <ClockCircleOutlined style={{ fontSize: '12px' }} />,
+          },
+          ...adminProjectItems,
+          {
+            key: '/projects/stats',
+            label: <Link to="/projects/stats">สถิติโครงงาน</Link>,
+            icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
+          },
+        ],
       },
       {
-        key: '/users/stats',
-        label: <Link to="/users/stats">สถิติผู้ใช้</Link>,
-        icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
-      },
-    ],
-  },
-  {
-    key: '/logs',
-    icon: <FileTextOutlined />,
-    label: 'บันทึกระบบ',
-    children: [
-      {
-        key: '/logs/login',
-        label: <Link to="/logs/login">การเข้าสู่ระบบ</Link>,
-        icon: <AuditOutlined style={{ fontSize: '12px' }} />,
-      },
-      {
-        key: '/logs/visitor-views',
-        label: <Link to="/logs/visitor-views">การเข้าชม</Link>,
-        icon: <EyeOutlined style={{ fontSize: '12px' }} />,
-      },
-      {
-        key: '/logs/reviews',
-        label: <Link to="/logs/reviews">การตรวจสอบ</Link>,
-        icon: <CheckCircleOutlined style={{ fontSize: '12px' }} />,
+        key: '/users',
+        icon: <TeamOutlined />,
+        label: 'จัดการผู้ใช้',
+        children: [
+          {
+            key: '/users/all',
+            label: <Link to="/users">ผู้ใช้ทั้งหมด</Link>,
+          },
+          {
+            key: '/users/students',
+            label: <Link to="/users/students">นักศึกษา</Link>,
+          },
+          {
+            key: '/users/admins',
+            label: <Link to="/users/admins">ผู้ดูแลระบบ</Link>,
+          },
+          {
+            key: '/users/stats',
+            label: <Link to="/users/stats">สถิติผู้ใช้</Link>,
+            icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
+          },
+        ],
       },
       {
-        key: '/logs/system-stats',
-        label: <Link to="/logs/system-stats">สถิติระบบ</Link>,
-        icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
+        key: '/logs',
+        icon: <FileTextOutlined />,
+        label: 'บันทึกระบบ',
+        children: [
+          {
+            key: '/logs/login',
+            label: <Link to="/logs/login">การเข้าสู่ระบบ</Link>,
+            icon: <AuditOutlined style={{ fontSize: '12px' }} />,
+          },
+          {
+            key: '/logs/visitor-views',
+            label: <Link to="/logs/visitor-views">การเข้าชม</Link>,
+            icon: <EyeOutlined style={{ fontSize: '12px' }} />,
+          },
+          {
+            key: '/logs/reviews',
+            label: <Link to="/logs/reviews">การตรวจสอบ</Link>,
+            icon: <CheckCircleOutlined style={{ fontSize: '12px' }} />,
+          },
+          {
+            key: '/logs/system-stats',
+            label: <Link to="/logs/system-stats">สถิติระบบ</Link>,
+            icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
+          },
+        ],
       },
-    ],
-  },
-];
+    ];
+  }
+};
 
 /**
  * Sidebar component for both desktop and mobile views
@@ -153,10 +188,10 @@ const Sidebar = ({
             />
             <div className="ml-3 overflow-hidden">
               <Text strong className="text-white block truncate">
-                {admin?.username || 'อาจารย์ ผู้ดูแลระบบ'}
+                {admin?.username || (admin?.role === 'student' ? 'นักศึกษา' : 'ผู้ดูแลระบบ')}
               </Text>
               <Text className="text-white text-opacity-70 text-xs block">
-                {admin?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
+                {admin?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'นักศึกษา'}
               </Text>
             </div>
           </div>
@@ -171,7 +206,7 @@ const Sidebar = ({
         selectedKeys={selectedKeys}
         onOpenChange={onOpenChange}
         onClick={onClick}
-        items={getMenuItems()}
+        items={getMenuItems(admin?.role)}
         style={{ 
           background: 'transparent',
           borderRight: 'none',

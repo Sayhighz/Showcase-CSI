@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Skeleton, Tag, message, Modal, Divider } from 'antd';
 import { 
@@ -14,15 +14,19 @@ import {
   HomeOutlined,
   RightOutlined
 } from '@ant-design/icons';
+// eslint-disable-next-line no-unused-vars
 import { motion } from 'framer-motion';
 import { useProject } from '../../hooks';
 import { useAuth } from '../../context/AuthContext';
 import { PROJECT, HOME } from '../../constants/routes';
+import { API_ENDPOINTS } from '../../constants/apiEndpoints';
 import { formatThaiDate } from '../../utils/dateUtils';
 import ProjectDetailsCard from '../../components/ProjectInfo/ProjectDetailsCard';
 import ProjectMediaDisplay from '../../components/ProjectInfo/ProjectMediaDisplay';
 import ProjectContributors from '../../components/ProjectInfo/ProjectContributors';
+import './ProjectInfo.css';
 import RelatedProjects from '../../components/ProjectInfo/RelatedProjects';
+import he from 'he';
 
 const { confirm } = Modal;
 
@@ -72,10 +76,14 @@ const buttonAnimation = {
 const ProjectInfo = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user, hasPermission } = useAuth();
-  const { project, isLoading, error, fetchProjectDetails, deleteProject, fetchTopProjects } = useProject(projectId);
+  const { user, hasPermission } = useAuth();
+  const { project, isLoading, error, fetchProjectDetails, fetchTopProjects } = useProject(projectId);
   const [isOwner, setIsOwner] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  
+  // ใช้ useRef เพื่อป้องกันการเรียก API ซ้ำ
+  const hasFetchedProject = useRef(false);
+  const hasFetchedRelatedProjects = useRef(false);
 
   // ตรวจสอบขนาดหน้าจอและอัปเดต state
   useEffect(() => {
@@ -104,25 +112,39 @@ const ProjectInfo = () => {
   const isMobile = responsiveSize === 'xs';
   const isTablet = responsiveSize === 'sm' || responsiveSize === 'md';
 
-  // ดึงโปรเจค
+  // ดึงโปรเจค - ป้องกันการเรียกซ้ำด้วย useRef
+  // หมายเหตุ: fetchProjectDetails จะนับ view count ให้อัตโนมัติใน backend
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetchProjectDetails(projectId);
+    
+    // ตรวจสอบว่าได้ fetch ข้อมูลแล้วหรือยัง
+    if (projectId && !hasFetchedProject.current) {
+      hasFetchedProject.current = true;
+      fetchProjectDetails(projectId);
+    }
   }, [projectId, fetchProjectDetails]);
+
+  // ฟังก์ชัน incrementViewCount ถูกลบออกแล้ว
+  // เพราะ fetchProjectDetails จะนับ view count ให้อัตโนมัติใน backend แล้ว
 
   // ดึงโปรเจคที่น่าสนใจโดยใช้ fetchTopProjects
   const [relatedProjects, setRelatedProjects] = useState([]);
   
   useEffect(() => {
     const getTopProjects = async () => {
+      // ป้องกันการเรียก API ซ้ำ
+      if (hasFetchedRelatedProjects.current) return;
+      
       try {
+        hasFetchedRelatedProjects.current = true;
+        
         // ใช้ fetchTopProjects เพื่อดึงโปรเจคยอดนิยม
         const topProjects = await fetchTopProjects(4);
         
         if (topProjects && topProjects.length > 0) {
           // กรองโปรเจคปัจจุบันออก
           const filtered = topProjects.filter(
-            item => item.id !== parseInt(projectId) && 
+            item => item.id !== parseInt(projectId) &&
                    item.projectId !== parseInt(projectId)
           );
           
@@ -137,7 +159,14 @@ const ProjectInfo = () => {
     };
     
     // เรียกใช้ฟังก์ชันดึงข้อมูลโปรเจคยอดนิยม
-    getTopProjects();
+    if (projectId) {
+      getTopProjects();
+    }
+    
+    // Reset flags เมื่อ projectId เปลี่ยน
+    return () => {
+      hasFetchedRelatedProjects.current = false;
+    };
   }, [projectId, fetchTopProjects]);
 
   useEffect(() => {
@@ -300,13 +329,8 @@ const ProjectInfo = () => {
         style: { borderColor: themeColors.primary, color: themeColors.primary }
       },
       onOk: async () => {
-        try {
-          await deleteProject(projectId);
-          message.success('ลบโปรเจคสำเร็จ');
-          navigate('/projects/my');
-        } catch (err) {
-          message.error('เกิดข้อผิดพลาดในการลบโปรเจค');
-        }
+        // Delete functionality removed for view-only frontend
+        message.error('ฟังก์ชันนี้ไม่ได้รับอนุญาตในหน้าแสดงผล');
       },
     });
   };
@@ -394,7 +418,10 @@ const ProjectInfo = () => {
 
   return (
     <motion.div 
-      className="min-h-screen bg-gradient-to-b from-[#F5EAFF] to-white relative overflow-hidden"
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 25%, #cbd5e1 50%, #f1f5f9 75%, #ffffff 100%)'
+      }}
       initial="hidden"
       animate="visible"
       variants={containerAnimation}
@@ -557,7 +584,7 @@ const ProjectInfo = () => {
                 <span className="w-1 h-4 sm:h-6 bg-gradient-to-b from-[#90278E] to-[#B252B0] mr-2 rounded inline-block"></span>
                 รายละเอียดโปรเจค
               </h2>
-              <div className="text-gray-700 whitespace-pre-line text-sm sm:text-base">{project.description}</div>
+              <div className="text-gray-700 whitespace-pre-line text-sm sm:text-base">{he.decode(project.description)}</div>
             </motion.div>
           </motion.div>
 

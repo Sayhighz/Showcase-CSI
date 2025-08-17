@@ -2,18 +2,16 @@ import React from "react";
 import '@ant-design/v5-patch-for-react-19';
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import PrivateProjectRoute from "./components/PrivateProjectRoute";
 import MasterLayout from "./layouts/MasterLayout";
+import SmoothScrollProvider from "./components/common/SmoothScrollProvider";
 
 // Import pages
-import Login from "./pages/Login/Login";
 import Home from "./pages/Home/Home";
 import AllProject from "./pages/Projects/AllProject";
-import MyProject from "./pages/Projects/MyProject";
+import AcademicProjects from "./pages/Projects/AcademicProjects";
+import CourseworkProjects from "./pages/Projects/CourseworkProjects";
+import CompetitionProjects from "./pages/Projects/CompetitionProjects";
 import ProjectInfo from "./pages/Projects/ProjectInfo";
-import CourseWork from "./pages/Upload/UploadProject";
-import EditProject from "./pages/Projects/EditProject";
 
 // Add a configuration for your deployment base path
 const BASE_PATH = import.meta.env.REACT_APP_BASE_PATH || '/csie';
@@ -22,46 +20,25 @@ const App = () => {
   return (
     <Router basename={BASE_PATH}>
       <AuthProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<MasterLayout><Home /></MasterLayout>} />
-          <Route path="/projects/all" element={<MasterLayout><AllProject /></MasterLayout>} />
-          
-          {/* Project Detail Route - จะตรวจสอบสิทธิ์ในการเข้าถึงโปรเจคส่วนตัว */}
-          <Route path="/projects/:projectId" element={
-            <MasterLayout>
-              <PrivateProjectRoute>
-                <ProjectInfo />
-              </PrivateProjectRoute>
-            </MasterLayout>
-          } />
-
-          {/* Protected Routes (Require Authentication) */}
-          <Route path="/projects/my" element={
-            <ProtectedRoute>
-              <MasterLayout><MyProject /></MasterLayout>
-            </ProtectedRoute>
-          } />
-
-          <Route path="/upload" element={
-            <ProtectedRoute>
-              <MasterLayout><CourseWork /></MasterLayout>
-            </ProtectedRoute>
-          } />
-
-          {/* Edit Project Route - ต้องตรวจสอบทั้งการเข้าสู่ระบบและสิทธิ์ในการแก้ไขโปรเจค */}
-          <Route path="/edit/project/:projectId" element={
-            <ProtectedRoute>
+        <SmoothScrollProvider>
+          <Routes>
+            {/* Public Routes - View Only */}
+            <Route path="/" element={<MasterLayout><Home /></MasterLayout>} />
+            <Route path="/projects/all" element={<MasterLayout><AllProject /></MasterLayout>} />
+            
+            {/* Category-specific project routes */}
+            <Route path="/projects/academic" element={<MasterLayout><AcademicProjects /></MasterLayout>} />
+            <Route path="/projects/coursework" element={<MasterLayout><CourseworkProjects /></MasterLayout>} />
+            <Route path="/projects/competition" element={<MasterLayout><CompetitionProjects /></MasterLayout>} />
+            
+            {/* Project Detail Route - Public viewing only */}
+            <Route path="/projects/:projectId" element={
               <MasterLayout>
-                <PrivateProjectRoute>
-                  <EditProject />
-                </PrivateProjectRoute>
+                <ProjectInfo />
               </MasterLayout>
-            </ProtectedRoute>
-          } />
-          
-        </Routes>
+            } />
+          </Routes>
+        </SmoothScrollProvider>
       </AuthProvider>
     </Router>
   );

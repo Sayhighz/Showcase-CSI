@@ -270,13 +270,16 @@ const getProjectById = async (projectId, options = {}) => {
         additionalData.reviews = reviews;
       }
       
-      // บันทึกการเข้าชม
-      if (options.recordView && options.viewerId && options.viewerId !== project.user_id) {
+      // บันทึกการเข้าชม - นับทุกครั้งที่มีการเข้าชม ไม่ว่าจะ login หรือไม่
+      if (options.recordView) {
         await pool.execute(`
           UPDATE projects
           SET views_count = views_count + 1
           WHERE project_id = ?
         `, [projectId]);
+        
+        // อัปเดตข้อมูลในหน่วยความจำให้สอดคล้องกัน
+        project.views_count = (project.views_count || 0) + 1;
       }
       
       return {

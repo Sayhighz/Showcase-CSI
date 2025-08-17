@@ -1,3 +1,8 @@
+/* English Text Font */
+.font-ubuntu, .english-text {
+  font-family: 'Ubuntu', 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
 @font-face {
   font-family: 'SukhumvitSet';
   src: url('./SukhumvitSet-Text.ttf') format('truetype');
@@ -38,4 +43,72 @@
   src: url('./SukhumvitSet-Thin.ttf') format('truetype');
   font-weight: 100;
   font-style: normal;
+}
+
+/* Ubuntu Font for English Content */
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('./Ubuntu-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('./Ubuntu-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('./Ubuntu-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Ubuntu';
+  src: url('./Ubuntu-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+
+/* Thai Typography Support - Fix diacritics rendering */
+body, html {
+  font-family: 'SukhumvitSet', 'Sarabun', 'Kanit', 'Noto Sans Thai', 'Ubuntu', sans-serif;
+  font-feature-settings: "liga" 1, "kern" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Improved Thai text rendering for headers and large text */
+h1, h2, h3, h4, h5, h6, .text-xl, .text-2xl, .text-3xl, .text-4xl, .font-bold {
+  font-family: 'SukhumvitSet', 'Sarabun', 'Kanit', 'Noto Sans Thai', sans-serif !important;
+  line-height: 1.6 !important;
+  padding-top: 0.1em !important;
+  padding-bottom: 0.1em !important;
+  font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-feature-settings: "liga", "kern", "calt";
+  -moz-font-feature-settings: "liga", "kern", "calt";
+  overflow: visible !important;
+}
+
+/* Specific Thai diacritics support */
+.thai-text, [lang="th"] {
+  font-family: 'SukhumvitSet', 'Sarabun', 'Kanit', 'Noto Sans Thai', sans-serif !important;
+  line-height: 1.65 !important;
+  letter-spacing: 0.02em;
+  word-spacing: 0.1em;
+  font-feature-settings: "liga" 1, "kern" 1, "calt" 1, "mark" 1, "mkmk" 1;
+}
+
+/* Fix for gradient text with Thai characters */
+.bg-clip-text, .bg-gradient-to-r {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  overflow: visible !important;
+  padding: 0.1em 0 !important;
 }

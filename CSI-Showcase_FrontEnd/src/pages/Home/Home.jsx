@@ -1,26 +1,30 @@
 import React, { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { FloatButton } from "antd";
-import { UpOutlined } from "@ant-design/icons";
 import { useAuth } from "../../context/AuthContext";
 import useProject from "../../hooks/useProject";
+import { useNavigate } from "react-router-dom";
 
 // Import components
-import Banner from "../../components/Home/Banner";
+import EnhancedBanner from "../../components/Home/EnhancedBanner";
 import NavigationSidebar from "../../components/Home/NavigationSidebar";
-import CourseWorkSection from "../../components/Home/CourseWorkSection";
-import CompetitionSection from "../../components/Home/CompetitionSection";
-import AcademicSection from "../../components/Home/AcademicSection";
+import EnhancedProjectSection from "../../components/Home/EnhancedProjectSection";
+import SpaceBackground from "../../components/Home/SpaceBackground";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import { BulbOutlined, TrophyOutlined, ReadOutlined } from "@ant-design/icons";
+
+// Import CSS
+import "./Home.css";
+
+// eslint-disable-next-line no-unused-vars
+const _motion = motion; // Suppress eslint warning for motion usage in JSX
 
 const Home = () => {
-  // Auth context
+  // eslint-disable-next-line no-unused-vars
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
-  // Local state for pagination of different project types
-  const [courseWorkPage, setCourseWorkPage] = useState(1);
-  const [competitionPage, setCompetitionPage] = useState(1);
-  const [academicPage, setAcademicPage] = useState(1);
+  // Local state for pagination and mobile detection
   const [isMobile, setIsMobile] = useState(false);
 
   // Use the project hook
@@ -29,7 +33,7 @@ const Home = () => {
   // State for storing projects
   const [topProjects, setTopProjects] = useState([]);
 
-  // ตรวจสอบขนาดหน้าจอ
+  // Check screen size
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -64,16 +68,15 @@ const Home = () => {
   };
 
   // Refs for scrolling sections
-  const homeRef = useRef(null); // เพิ่ม ref สำหรับส่วน Banner/Home
+  const homeRef = useRef(null);
   const courseWorkRef = useRef(null);
   const competitionRef = useRef(null);
   const academicRef = useRef(null);
 
-  // เอฟเฟกต์การเลื่อนแบบ GitHub
+  // Scroll effects
   const { scrollY } = useScroll();
   const [windowHeight, setWindowHeight] = useState(0);
 
-  // ตั้งค่า scroll event listener และดึงขนาดหน้าต่าง
   useEffect(() => {
     setWindowHeight(window.innerHeight);
 
@@ -85,189 +88,183 @@ const Home = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Transform values สำหรับการเปลี่ยนผ่าน section
-  const bannerOpacity = useTransform(scrollY, [0, windowHeight * 0.8], [1, 0]);
-
-  const contentOpacity = useTransform(
+  // Minimal animation for maximum smoothness
+  const bannerOpacity = useTransform(
     scrollY,
-    [0, windowHeight * 0.5, windowHeight * 0.8],
-    [0, 0.5, 1]
+    [0, windowHeight * 0.5],
+    [1, 0.1],
+    { clamp: true }
   );
+  // Remove contentOpacity and contentY transforms for smoother scroll
 
-  const contentY = useTransform(scrollY, [0, windowHeight], [100, 0]);
-
-  // แปลงค่าสำหรับ Header ที่ปรากฏเมื่อเลื่อน
-  const headerOpacity = useTransform(scrollY, [0, windowHeight * 0.3], [0, 1]);
-
-  // Scroll to section function
+  // Optimized scroll to section function
   const scrollToSection = (ref) => {
     if (ref && ref.current) {
-      ref.current.scrollIntoView({ behavior: "smooth" });
+      if (window.scrollToSmooth) {
+        window.scrollToSmooth(ref.current);
+      } else {
+        ref.current.scrollIntoView({ behavior: "smooth" });
+      }
     }
   };
 
-  // ฟังก์ชันเลื่อนไปยังส่วน Banner/Home
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  // Navigation handlers
+  const handleViewAllCourseWork = () => {
+    navigate("/projects/coursework");
   };
 
-  // สร้างฟังก์ชันสำหรับการสร้าง stars ในพื้นหลัง - จำนวนน้อยลงสำหรับมือถือ
-  const createBackgroundStars = () => {
-    return Array.from({ length: isMobile ? 20 : 50 }).map((_, i) => (
-      <motion.div
-        key={`bg-star-${i}`}
-        className="absolute rounded-full"
-        style={{
-          top: `${Math.random() * 100}%`,
-          left: `${Math.random() * 100}%`,
-          width: `${Math.random() * 2 + 1}px`,
-          height: `${Math.random() * 2 + 1}px`,
-          backgroundColor: "white",
-          opacity: Math.random() * 0.5 + 0.2,
-          boxShadow: `0 0 ${Math.random() * 3 + 1}px rgba(144, 39, 142, 0.8)`,
-        }}
-        animate={{
-          opacity: [0.2, 0.5, 0.2],
-          scale: [1, 1.2, 1],
-        }}
-        transition={{
-          duration: Math.random() * 3 + 2,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-    ));
+  const handleViewAllCompetition = () => {
+    navigate("/projects/competition");
+  };
+
+  const handleViewAllAcademic = () => {
+    navigate("/projects/academic");
   };
 
   // Show error message if needed
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <ErrorMessage
-          title="ไม่สามารถโหลดข้อมูลได้"
-          message={error}
-          showReloadButton={true}
-          onReloadClick={async () => {
-            const data = await fetchTopProjects();
-            setTopProjects(data || []);
-          }}
-        />
+        <SpaceBackground isMobile={isMobile} />
+        <div className="relative z-10">
+          <ErrorMessage
+            title="ไม่สามารถโหลดข้อมูลได้"
+            message={error}
+            showReloadButton={true}
+            onReloadClick={async () => {
+              const data = await fetchTopProjects();
+              setTopProjects(data || []);
+            }}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen">
-      {/* Fixed Background with Stars - GitHub Universe style */}
-      <div className="fixed inset-0 bg-gradient-to-b from-[#90278E] via-[#B252B0] to-[#5E1A5C] z-0 pointer-events-none">
-        {createBackgroundStars()}
+    <div className="relative min-h-screen overflow-x-hidden scroll-container">
+      {/* Enhanced Space Background - Fixed */}
+      <div className="fixed inset-0 z-0 pointer-events-none will-change-transform space-background-container">
+        <SpaceBackground isMobile={isMobile} />
       </div>
 
-      {/* Banner Section with Fade Effect - GitHub style */}
+      {/* Enhanced Banner Section - Minimal Animation */}
       <motion.div
-        ref={homeRef} // เพิ่ม ref ที่ Banner section
+        ref={homeRef}
         style={{ opacity: bannerOpacity }}
         className="w-full h-screen flex items-center justify-center fixed top-0 left-0 right-0 z-10"
+        initial={false}
       >
-        <Banner />
+        <EnhancedBanner />
       </motion.div>
 
-      {/* Fixed Navigation Sidebar - GitHub style */}
+      {/* Navigation Sidebar */}
       <NavigationSidebar
         scrollToSection={scrollToSection}
         refs={{
-          homeRef, // ส่ง ref ของ Banner/Home ไปด้วย
+          homeRef,
           courseWorkRef,
           competitionRef,
           academicRef,
         }}
       />
 
-      {/* Main Content Sections with GitHub-style glass morphism */}
-      <motion.div
+      {/* Main Content Sections - No Animation */}
+      <div
         className="relative z-30"
         style={{
-          opacity: contentOpacity,
-          y: contentY,
-          marginTop: windowHeight * 0.9,
+          marginTop: windowHeight,
+          paddingTop: '4rem',
         }}
       >
-        {/* CourseWork Section - ปรับให้มีสไตล์คล้าย GitHub */}
-        <section
-          ref={courseWorkRef}
-          id="courseWork" // เพิ่ม id สำหรับการเชื่อมโยง
-          className="relative min-h-screen"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(245, 234, 255, 0.9))",
-            borderRadius: "40px 40px 0 0",
-            boxShadow: "0 -10px 30px rgba(144, 39, 142, 0.2)",
-          }}
-        >
-          <div className="container mx-auto px-4">
-            <CourseWorkSection
+        {/* CourseWork Section */}
+        <section ref={courseWorkRef} id="courseWork" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16">
+            <EnhancedProjectSection
+              title="ผลงานวิชาเรียน"
+              subtitle="ผลงานที่เป็นส่วนหนึ่งของรายวิชาในหลักสูตร CSI มีทั้งโปรเจคเดี่ยวและโปรเจคกลุ่มที่นักศึกษาได้สร้างสรรค์ขึ้น"
+              icon={<BulbOutlined />}
+              projects={getCourseWorkProjects()}
               loading={isLoading}
-              courseWorkProjects={getCourseWorkProjects()}
-              courseWorkPage={courseWorkPage}
-              setCourseWorkPage={setCourseWorkPage}
-              scrollToSection={scrollToSection}
-              competitionRef={competitionRef}
+              sectionColor="#90278E"
+              accentColor="#B252B0"
+              backgroundStyle={{
+                background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 234, 255, 0.9) 100%)",
+                backdropFilter: "blur(20px)",
+                borderRadius: "40px 40px 0 0",
+                boxShadow: "0 -20px 50px rgba(144, 39, 142, 0.1), 0 10px 30px rgba(144, 39, 142, 0.05)",
+                marginTop: "2rem",
+                border: "1px solid rgba(144, 39, 142, 0.1)",
+              }}
+              onViewAll={handleViewAllCourseWork}
+              maxDisplay={3}
             />
-          </div>
         </section>
 
-        {/* Competition Section - ปรับให้มีสไตล์คล้าย GitHub */}
-        <section
-          ref={competitionRef}
-          id="competition" // เพิ่ม id สำหรับการเชื่อมโยง
-          className="relative min-h-screen py-8 md:py-16"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(245, 234, 255, 0.9), rgba(224, 209, 255, 0.9))",
-          }}
-        >
-          <div className="container mx-auto px-4">
-            <CompetitionSection
+        {/* Competition Section */}
+        <section ref={competitionRef} id="competition" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 my-8">
+            <EnhancedProjectSection
+              title="ผลงานการแข่งขัน"
+              subtitle="ผลงานจากการแข่งขันทั้งในระดับมหาวิทยาลัยและระดับประเทศที่นักศึกษา CSI ได้มีโอกาสเข้าร่วมและได้รับรางวัล"
+              icon={<TrophyOutlined />}
+              projects={getCompetitionProjects()}
               loading={isLoading}
-              competitionProjects={getCompetitionProjects()}
-              competitionPage={competitionPage}
-              setCompetitionPage={setCompetitionPage}
-              scrollToSection={scrollToSection}
-              academicRef={academicRef}
+              sectionColor="#B252B0"
+              accentColor="#90278E"
+              backgroundStyle={{
+                background: "linear-gradient(135deg, rgba(245, 234, 255, 0.9) 0%, rgba(224, 209, 255, 0.95) 100%)",
+                backdropFilter: "blur(20px)",
+                borderRadius: "20px",
+                boxShadow: "0 10px 40px rgba(178, 82, 176, 0.15), 0 5px 20px rgba(144, 39, 142, 0.1)",
+                border: "1px solid rgba(178, 82, 176, 0.1)",
+              }}
+              onViewAll={handleViewAllCompetition}
+              maxDisplay={3}
             />
-          </div>
         </section>
 
-        {/* Academic Section - ปรับให้มีสไตล์คล้าย GitHub */}
-        <section
-          ref={academicRef}
-          id="academic" // เพิ่ม id สำหรับการเชื่อมโยง
-          className="relative min-h-screen py-8 md:py-16"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(224, 209, 255, 0.9), rgba(144, 39, 142, 0.9))",
-          }}
-        >
-          <div className="container mx-auto px-4">
-            <AcademicSection
+        {/* Academic Section */}
+        <section ref={academicRef} id="academic" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 my-8">
+            <EnhancedProjectSection
+              title="ผลงานวิชาการ"
+              subtitle="ผลงานวิจัยและบทความวิชาการจากนักศึกษา CSI ที่ได้รับการตีพิมพ์และเผยแพร่ในวารสารและงานประชุมวิชาการต่างๆ"
+              icon={<ReadOutlined />}
+              projects={getAcademicProjects()}
               loading={isLoading}
-              academicProjects={getAcademicProjects()}
-              academicPage={academicPage}
-              setAcademicPage={setAcademicPage}
+              sectionColor="#5E1A5C"
+              accentColor="#90278E"
+              backgroundStyle={{
+                background: "linear-gradient(135deg, rgba(224, 209, 255, 0.95) 0%, rgba(144, 39, 142, 0.9) 100%)",
+                backdropFilter: "blur(20px)",
+                color: "white",
+                borderRadius: "20px 20px 40px 40px",
+                boxShadow: "0 15px 50px rgba(94, 26, 92, 0.2), 0 10px 30px rgba(144, 39, 142, 0.15)",
+                border: "1px solid rgba(144, 39, 142, 0.2)",
+              }}
+              onViewAll={handleViewAllAcademic}
+              maxDisplay={3}
             />
-          </div>
         </section>
-      </motion.div>
 
-      {/* Back to Top Button - GitHub style */}
+        {/* Footer Space */}
+        <div className="h-32 bg-gradient-to-b from-transparent to-[#90278E]/20" />
+      </div>
+
+      {/* Enhanced Back to Top Button - Optimized */}
       <FloatButton.BackTop
         style={{
-          width: 48,
-          height: 48,
-          backgroundColor: "#90278E",
-          color: "white",
+          width: 56,
+          height: 56,
+          background: "linear-gradient(135deg, #90278E, #B252B0)",
+          border: "none",
+          boxShadow: "0 8px 25px rgba(144, 39, 142, 0.3)",
         }}
-        onClick={scrollToTop}
+        onClick={() => {
+          if (window.scrollToSmooth) {
+            window.scrollToSmooth(0);
+          } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }}
       />
     </div>
   );

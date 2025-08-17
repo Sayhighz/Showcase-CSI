@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { AnimatePresence, motion, useViewportScroll, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { Skeleton, Card, Button, Space } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 
 import WorkCard from "./WorkCard";
 import WorkPagination from "./WorkPagination";
 import WorkEmpty from "./WorkEmpty";
-import { getItemsPerPage, handlePageChange, getHeadingGradient, getRenderDecorationBlob } from "./WorkUtils";
+import {
+  getItemsPerPage,
+  handlePageChange,
+  getHeadingGradient,
+  getRenderDecorationBlob,
+  getCategoryTheme
+} from "./WorkUtils";
+
+// eslint-disable-next-line no-unused-vars
+const _motion = motion; // Suppress eslint warning for motion usage in JSX
 
 const WorkGrid = ({
   title,
   items = [],
   description,
   side = "center",
-  displayMode = "column", // "column" หรือ "row"
+  displayMode = "column", // "column", "row", or "list"
   showActions = false,
   onEdit,
   onDelete,
@@ -25,14 +34,14 @@ const WorkGrid = ({
   const [loading, setLoading] = useState(false);
   const [isAutoPlay, setIsAutoPlay] = useState(autoPlay);
   const [itemsPerPage, setItemsPerPage] = useState(
-    displayMode === "column" ? getItemsPerPage() : 
+    displayMode === "column" ? getItemsPerPage() :
+    displayMode === "list" ? (window.innerWidth <= 768 ? 5 : 10) :
     window.innerWidth <= 640 ? 1 : window.innerWidth <= 1024 ? 2 : 3
   );
   
-  // Scroll animation
-  const { scrollYProgress } = useViewportScroll();
-  const sectionOpacity = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [0.6, 1, 1, 0.6]);
-  const sectionY = useTransform(scrollYProgress, [0, 0.1, 0.9, 1], [20, 0, 0, 20]);
+  // Optimized scroll animation - reduce computational overhead
+  const { scrollYProgress } = useScroll();
+  const sectionOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.8, 1, 1, 0.8]);
 
   // ข้อมูลต้องไม่เป็น null หรือ undefined
   // ต่อจาก WorkGrid.jsx ที่ยังไม่สมบูรณ์
@@ -46,6 +55,13 @@ const WorkGrid = ({
     const handleResize = () => {
       if (displayMode === "column") {
         setItemsPerPage(getItemsPerPage());
+      } else if (displayMode === "list") {
+        // สำหรับ list mode - แสดงมากกว่า row/column mode
+        if (window.innerWidth <= 768) {
+          setItemsPerPage(5);
+        } else {
+          setItemsPerPage(10);
+        }
       } else {
         // สำหรับ row mode ปรับตามขนาดหน้าจอ
         if (window.innerWidth <= 640) {
@@ -168,6 +184,7 @@ const WorkGrid = ({
               className="overflow-hidden border-0 rounded-xl bg-white h-full"
               style={{
                 boxShadow: "0 5px 15px rgba(144, 39, 142, 0.05)",
+                background: "rgba(255, 255, 255, 0.9)",
                 border: "1px solid rgba(144, 39, 142, 0.1)"
               }}
               cover={
@@ -183,9 +200,10 @@ const WorkGrid = ({
           <Card 
             key={index} 
             className="w-full shadow-sm rounded-xl overflow-hidden border-0 bg-white"
-            style={{ 
+            style={{
               height: window.innerWidth <= 1024 ? "auto" : "260px",
               boxShadow: "0 5px 15px rgba(144, 39, 142, 0.05)",
+              background: "rgba(255, 255, 255, 0.9)",
               border: "1px solid rgba(144, 39, 142, 0.1)"
             }}
           >
@@ -233,73 +251,120 @@ const WorkGrid = ({
     );
   };
 
-  // Background section color based on displayMode
+  // Enhanced background section color based on project categories
   const getSectionBackground = () => {
+    // ถ้ามีโปรเจคเดียวกันทุกอันใช้ theme ของ category นั้น
+    const categories = [...new Set(safeItems.map(item => item.category))];
+    
+    if (categories.length === 1) {
+      const theme = getCategoryTheme(categories[0]);
+      if (displayMode === "column") {
+        return `bg-gradient-to-b from-white via-[${theme.light}30] to-[${theme.light}20]`;
+      } else if (displayMode === "list") {
+        return `bg-gradient-to-b from-[${theme.light}20] to-white`;
+      } else {
+        return `bg-gradient-to-b from-[${theme.light}90] to-[${theme.light}60]`;
+      }
+    }
+    
+    // Mixed categories - use default purple theme
     if (displayMode === "column") {
       return "bg-gradient-to-b from-white via-[rgba(245,234,255,0.3)] to-[rgba(224,209,255,0.2)]";
+    } else if (displayMode === "list") {
+      return "bg-gradient-to-b from-[rgba(245,234,255,0.2)] to-white";
     } else {
       return "bg-gradient-to-b from-[rgba(245,234,255,0.9)] to-[rgba(224,209,255,0.9)]";
     }
   };
 
-  // Responsive grid columns based on screen size for column display mode
+  // Enhanced responsive grid columns with better spacing
   const getGridColumns = () => {
-    if (displayMode !== "column") return "grid-cols-1 gap-6";
+    if (displayMode === "list") {
+      // List mode - single column layout
+      return "flex flex-col gap-3 sm:gap-4";
+    } else if (displayMode !== "column") {
+      // Row mode
+      return "grid-cols-1 gap-4 sm:gap-6 lg:gap-8";
+    }
     
-    return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8";
+    // Column mode - Responsive grid with optimized breakpoints
+    if (window.innerWidth < 480) return "grid-cols-1 gap-3";
+    if (window.innerWidth < 640) return "grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4";
+    if (window.innerWidth < 768) return "grid-cols-2 gap-4";
+    if (window.innerWidth < 1024) return "grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6";
+    if (window.innerWidth < 1280) return "grid-cols-3 gap-6";
+    return "grid-cols-3 xl:grid-cols-4 gap-6 xl:gap-8";
   };
 
   return (
-    <motion.div 
+    <motion.div
       className={`work-section py-8 sm:py-12 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto relative ${getSectionBackground()}`}
-      style={{ 
-        opacity: sectionOpacity,
-        y: sectionY
+      style={{
+        opacity: sectionOpacity
       }}
       onMouseEnter={() => setIsAutoPlay(false)}
       onMouseLeave={() => setIsAutoPlay(autoPlay)}
     >
       {/* Background decoration blob */}
-      {getRenderDecorationBlob(displayMode === "column" ? "left" : "right")}
+      {displayMode !== "list" && getRenderDecorationBlob(displayMode === "column" ? "left" : "right")}
       
       {/* Background stars decoration */}
       <div className="absolute inset-0 overflow-hidden -z-10 opacity-30">
         {renderStars()}
       </div>
 
-      {/* Section heading */}
+      {/* Enhanced Section heading with responsive typography */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`text-${side} max-w-3xl mx-auto lg:mx-0`}
+        className={`${side === 'center' ? 'text-center mx-auto' : `text-${side} mx-auto lg:mx-0`} max-w-4xl mb-8 sm:mb-12`}
+        style={{
+          ...(side === 'center' && {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center'
+          })
+        }}
       >
-        <h1 
-          className={`text-xl sm:text-2xl md:text-3xl font-bold mb-2 sm:mb-3`}
-          style={getHeadingGradient()}
+        <h1
+          className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4 leading-relaxed ${side === 'center' ? 'text-center' : ''}`}
+          style={{
+            ...getHeadingGradient(),
+            lineHeight: '1.6',
+            paddingTop: '0.2em',
+            paddingBottom: '0.2em',
+            ...(side === 'center' && {
+              textAlign: 'center',
+              width: '100%'
+            })
+          }}
         >
           {title}
         </h1>
-        <p className="text-[#8b949e] mb-6 sm:mb-8 text-sm sm:text-base md:text-lg">{description}</p>
+        <p className={`text-[#8b949e] text-sm sm:text-base md:text-lg lg:text-xl leading-relaxed max-w-3xl ${side === 'center' ? 'text-center mx-auto' : ''}`}>
+          {description}
+        </p>
       </motion.div>
 
-      {/* Grid or List Layout */}
+      {/* Enhanced Grid or List Layout with improved spacing */}
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={currentPage}
-          className={getGridColumns()}
+          className={displayMode === "list" ? getGridColumns() : `grid ${getGridColumns()} w-full`}
           variants={containerVariants}
-          initial={{ opacity: 0, x: direction * 50 }}
+          initial={{ opacity: 0, x: direction * 30 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -direction * 50 }}
-          transition={{ duration: 0.5 }}
+          exit={{ opacity: 0, x: -direction * 30 }}
+          transition={{ duration: 0.4, ease: "easeInOut" }}
         >
           {loading ? (
             renderSkeletons()
           ) : (
             displayedItems.map((item, index) => (
               <React.Fragment key={item.id || index}>
-                <WorkCard 
+                <WorkCard
                   item={item}
                   index={index}
                   displayMode={displayMode}

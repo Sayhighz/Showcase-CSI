@@ -1,15 +1,16 @@
 // routes/user/projectRoutes.js
 
 const express = require('express');
-const { 
-  getAllProjects, 
-  getTop9Projects, 
-  getLatestProjects, 
-  getMyProjects, 
-  getProjectDetails, 
+const {
+  getAllProjects,
+  getTop9Projects,
+  getLatestProjects,
+  getMyProjects,
+  getProjectDetails,
   uploadProject,
   updateProjectWithFiles,
   deleteProject,
+  incrementViewCount,
 } = require('../../controllers/user/projectController.js');
 const { authenticateToken, isResourceOwner } = require('../../middleware/authMiddleware.js');
 const { API_ROUTES } = require('../../constants/routes.js');
@@ -549,7 +550,7 @@ router.get(API_ROUTES.PROJECT.LATEST, getLatestProjects);
  *       500:
  *         description: Server error
  */
-router.get(API_ROUTES.PROJECT.MY_PROJECTS, authenticateToken, isResourceOwner, getMyProjects);
+router.get('/user/:user_id/my-projects', authenticateToken, isResourceOwner, getMyProjects);
 
 /**
  * @swagger
@@ -787,10 +788,53 @@ router.put(
  *         description: Server error
  */
 router.delete(
-  API_ROUTES.PROJECT.DELETE, 
-  authenticateToken, 
-  isResourceOwner, 
+  API_ROUTES.PROJECT.DELETE,
+  authenticateToken,
+  isResourceOwner,
   deleteProject
 );
+
+/**
+ * @swagger
+ * /api/projects/{projectId}/view:
+ *   post:
+ *     summary: Increment view count for a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: View count incremented successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 statusCode:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     projectId:
+ *                       type: integer
+ *                     viewsCount:
+ *                       type: integer
+ *                     message:
+ *                       type: string
+ *       404:
+ *         description: Project not found or not visible
+ *       500:
+ *         description: Server error
+ */
+router.post(API_ROUTES.PROJECT.VIEW_COUNT, incrementViewCount);
 
 module.exports = router;

@@ -52,25 +52,8 @@ const authenticateToken = async (req, res, next) => {
       role: users[0].role
     };
     
-    // วิเคราะห์ User Agent
-    const uaParser = new UAParser(req.headers['user-agent']);
-    const device = uaParser.getDevice();
-    const os = uaParser.getOS();
-    const browser = uaParser.getBrowser();
-    const userAgent = req.headers['user-agent'] || 'Unknown';
-    
-    // บันทึกประวัติการเข้าสู่ระบบ (ตาม IP)
-    await pool.execute(`
-      INSERT INTO login_logs (user_id, ip_address, device_type, os, browser, user_agent)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      decoded.id, 
-      req.ip, 
-      device.type || 'Unknown', 
-      `${os.name || 'Unknown'} ${os.version || ''}`, 
-      `${browser.name || 'Unknown'} ${browser.version || ''}`, 
-      userAgent
-    ]);
+    // เพิ่ม token เดิมลใน req สำหรับการ revoke token ภายหลัง
+    req.token = token;
     
     next();
   } catch (error) {

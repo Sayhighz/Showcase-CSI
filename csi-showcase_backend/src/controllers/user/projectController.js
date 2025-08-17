@@ -59,8 +59,10 @@ const getAllProjects = async (req, res) => {
       studentId: project.user_id,
       username: project.username,
       userImage: project.user_image || null,
+      collaborators: project.collaborators || [], // เพิ่มข้อมูลผู้ร่วมโครงการ
       projectLink: `/projects/${project.project_id}`,
       viewsCount: project.views_count || 0,
+      createdAt: project.created_at,
     }));
 
     return res.json(
@@ -242,6 +244,48 @@ const getLatestProjects = async (req, res) => {
     const mainQuery = `${baseQuery} ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     const [projects] = await pool.execute(mainQuery, queryParams);
 
+    // ดึงข้อมูลผู้ร่วมโครงการสำหรับทุกโครงการ
+    if (projects.length > 0) {
+      const projectIds = projects.map(p => p.project_id);
+      const placeholders = projectIds.map(() => '?').join(',');
+      
+      const collaboratorsQuery = `
+        SELECT pg.project_id, pg.role, u.user_id, u.username, u.full_name, u.image
+        FROM project_groups pg
+        JOIN users u ON pg.user_id = u.user_id
+        WHERE pg.project_id IN (${placeholders})
+        ORDER BY pg.project_id,
+          CASE
+            WHEN pg.role = 'owner' THEN 1
+            WHEN pg.role = 'contributor' THEN 2
+            WHEN pg.role = 'advisor' THEN 3
+            ELSE 4
+          END
+      `;
+      
+      const [collaborators] = await pool.execute(collaboratorsQuery, projectIds);
+      
+      // จัดกลุ่มผู้ร่วมโครงการตาม project_id
+      const collaboratorsByProject = collaborators.reduce((acc, collab) => {
+        if (!acc[collab.project_id]) {
+          acc[collab.project_id] = [];
+        }
+        acc[collab.project_id].push({
+          userId: collab.user_id,
+          username: collab.username,
+          fullName: collab.full_name,
+          image: collab.image,
+          role: collab.role
+        });
+        return acc;
+      }, {});
+      
+      // เพิ่มข้อมูลผู้ร่วมโครงการเข้าไปในแต่ละโครงการ
+      projects.forEach(project => {
+        project.collaborators = collaboratorsByProject[project.project_id] || [];
+      });
+    }
+
     const formattedProjects = projects.map((project) => ({
       id: project.project_id,
       title: project.title,
@@ -254,6 +298,7 @@ const getLatestProjects = async (req, res) => {
       studentId: project.user_id,
       username: project.username,
       userImage: project.user_image || null,
+      collaborators: project.collaborators || [], // เพิ่มข้อมูลผู้ร่วมโครงการ
       projectLink: `/projects/${project.project_id}`,
       viewsCount: project.views_count || 0,
       createdAt: project.created_at,
@@ -314,6 +359,7 @@ const getMyProjects = async (req, res) => {
       studentId: project.user_id,
       username: project.username,
       userImage: project.user_image || null,
+      collaborators: project.collaborators || [], // เพิ่มข้อมูลผู้ร่วมโครงการ
       projectLink: `/projects/${project.project_id}`,
       viewsCount: project.views_count || 0,
       createdAt: project.created_at,
@@ -350,7 +396,7 @@ const getProjectDetails = async (req, res) => {
 
     const options = {
       includeReviews: req.user && req.user.role === "admin",
-      recordView: !req.user || req.user.id !== projectId,
+      recordView: true, // Always record view for analytics - count every access
       viewerId: viewerId,
     };
 
@@ -622,28 +668,120 @@ const uploadProject = async (req, res) => {
     const projectId = projectResult.insertId;
     console.log("Created project with ID:", projectId);
 
+    // เพิ่มเจ้าของโปรเจคเป็น owner ในตาราง project_groups ก่อน
+    console.log("=== ADDING PROJECT OWNER ===");
+    try {
+      await connection.execute(
+        `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
+        [projectId, userId, "owner"]
+      );
+      console.log(`✅ Successfully added project owner: ${userId} as owner`);
+    } catch (ownerError) {
+      console.error("❌ Error adding project owner:", ownerError);
+      throw ownerError; // ถ้าเพิ่ม owner ไม่ได้ให้หยุดทั้งกระบวนการ
+    }
+
     // เพิ่มข้อมูลผู้ร่วมงาน (contributors) ถ้ามี
+    console.log("=== CONTRIBUTOR PROCESSING START ===");
+    console.log("Original contributors data:", projectData.contributors);
+    console.log("Type of contributors:", typeof projectData.contributors);
+    
     let contributors = projectData.contributors;
     if (typeof contributors === 'string') {
       try {
         contributors = JSON.parse(contributors);
+        console.log("Parsed contributors from JSON:", contributors);
       } catch (e) {
         console.error("Failed to parse contributors JSON:", e);
         contributors = [];
       }
     }
 
-    if (Array.isArray(contributors) && contributors.length > 0) {
-      console.log("Adding contributors:", contributors);
-      for (const contributor of contributors) {
-        await connection.execute(
-          `
-          INSERT INTO project_groups (project_id, user_id, role) 
-          VALUES (?, ?, ?)
-        `,
-          [projectId, contributor.user_id, contributor.role || "contributor"]
-        );
+    // ตรวจสอบว่า contributors เป็น array หรือไม่
+    if (!Array.isArray(contributors)) {
+      console.log("Contributors is not an array, converting or skipping");
+      contributors = [];
+    }
+
+    console.log("Final contributors array:", contributors);
+    console.log("Contributors count:", contributors.length);
+
+    if (contributors.length > 0) {
+      console.log("Processing contributors...");
+      let successCount = 0;
+      let skipCount = 0;
+      
+      for (let i = 0; i < contributors.length; i++) {
+        const contributor = contributors[i];
+        console.log(`\n--- Processing contributor ${i + 1}/${contributors.length} ---`);
+        console.log("Contributor data:", contributor);
+        
+        // ตรวจสอบว่ามี user_id และไม่เป็น null หรือ undefined
+        if (!contributor || !contributor.user_id) {
+          console.error(`❌ Invalid contributor ${i + 1} - missing user_id:`, contributor);
+          skipCount++;
+          continue;
+        }
+
+        console.log(`✓ Contributor ${i + 1} has valid user_id: ${contributor.user_id}`);
+
+        try {
+          // ตรวจสอบว่า user_id มีอยู่ในตาราง users จริงหรือไม่
+          const [userExists] = await connection.execute(
+            `SELECT user_id FROM users WHERE user_id = ?`,
+            [contributor.user_id]
+          );
+
+          console.log(`User existence check for ID ${contributor.user_id}:`, userExists.length > 0 ? 'EXISTS' : 'NOT FOUND');
+
+          if (userExists.length === 0) {
+            console.error(`❌ User with ID ${contributor.user_id} does not exist in users table`);
+            skipCount++;
+            continue;
+          }
+
+          console.log(`✓ User ${contributor.user_id} exists in database`);
+
+          // ตรวจสอบว่าไม่ได้เพิ่ม user เดียวกันซ้ำในโครงการเดียวกัน
+          const [existingMember] = await connection.execute(
+            `SELECT * FROM project_groups WHERE project_id = ? AND user_id = ?`,
+            [projectId, contributor.user_id]
+          );
+
+          if (existingMember.length > 0) {
+            console.warn(`⚠️ User ${contributor.user_id} is already a member of project ${projectId}`);
+            skipCount++;
+            continue;
+          }
+
+          console.log(`✓ User ${contributor.user_id} is not yet a member, proceeding with insert`);
+
+          // พยายาม insert
+          const role = contributor.role || "contributor";
+          console.log(`Inserting: projectId=${projectId}, userId=${contributor.user_id}, role=${role}`);
+          
+          await connection.execute(
+            `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
+            [projectId, contributor.user_id, role]
+          );
+          
+          console.log(`✅ Successfully added contributor: ${contributor.user_id} with role: ${role}`);
+          successCount++;
+          
+        } catch (insertError) {
+          console.error(`❌ Error adding contributor ${contributor.user_id}:`, insertError);
+          skipCount++;
+          // ไม่ให้การเพิ่ม contributor คนหนึ่งล้มเหลวทำให้ทั้งโครงการล้มเหลว
+        }
       }
+      
+      console.log(`\n=== CONTRIBUTOR PROCESSING SUMMARY ===`);
+      console.log(`Total contributors processed: ${contributors.length}`);
+      console.log(`Successfully added: ${successCount}`);
+      console.log(`Skipped/Failed: ${skipCount}`);
+      console.log(`=== CONTRIBUTOR PROCESSING END ===\n`);
+    } else {
+      console.log("No contributors to process");
     }
 
     // เพิ่มข้อมูลเฉพาะตามประเภทโครงการ
@@ -1417,13 +1555,49 @@ const updateProjectWithFiles = async (req, res) => {
           
           if (Array.isArray(contributors) && contributors.length > 0) {
             console.log("Adding new contributors:", contributors);
+            
+            // ตรวจสอบความถูกต้องของข้อมูล contributors ก่อนการ insert
             for (const contributor of contributors) {
-              await connection.execute(
-                `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
-                [projectId, contributor.user_id, contributor.role || "contributor"]
+              // ตรวจสอบว่ามี user_id และไม่เป็น null หรือ undefined
+              if (!contributor.user_id) {
+                console.error("Invalid contributor - missing user_id:", contributor);
+                continue; // ข้าม contributor นี้
+              }
+
+              // ตรวจสอบว่า user_id มีอยู่ในตาราง users จริงหรือไม่
+              const [userExists] = await connection.execute(
+                `SELECT user_id FROM users WHERE user_id = ?`,
+                [contributor.user_id]
               );
+
+              if (userExists.length === 0) {
+                console.error(`User with ID ${contributor.user_id} does not exist in users table`);
+                continue; // ข้าม contributor นี้
+              }
+
+              // ตรวจสอบว่าไม่ได้เพิ่ม user เดียวกันซ้ำในโครงการเดียวกัน
+              const [existingMember] = await connection.execute(
+                `SELECT * FROM project_groups WHERE project_id = ? AND user_id = ?`,
+                [projectId, contributor.user_id]
+              );
+
+              if (existingMember.length > 0) {
+                console.warn(`User ${contributor.user_id} is already a member of project ${projectId}`);
+                continue; // ข้าม contributor นี้
+              }
+
+              try {
+                await connection.execute(
+                  `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
+                  [projectId, contributor.user_id, contributor.role || "contributor"]
+                );
+                console.log(`Successfully updated contributor: ${contributor.user_id} with role: ${contributor.role || "contributor"}`);
+                newContributors.push(contributor);
+              } catch (insertError) {
+                console.error(`Error adding contributor ${contributor.user_id}:`, insertError);
+                // ไม่ให้การเพิ่ม contributor คนหนึ่งล้มเหลวทำให้การอัปเดตล้มเหลว
+              }
             }
-            newContributors = contributors;
           }
         }
         
@@ -1950,6 +2124,49 @@ const deleteProject = async (req, res) => {
 };
 
 // Export all functions using CommonJS
+/**
+ * เพิ่มยอดการดู (View Count) สำหรับโครงการ
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const incrementViewCount = async (req, res) => {
+  try {
+    const projectId = req.params.projectId;
+    
+    // อัปเดต view count โดยตรง
+    const [result] = await pool.execute(
+      `UPDATE projects SET views_count = views_count + 1 WHERE project_id = ? AND status = 'approved' AND visibility = 1`,
+      [projectId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return notFoundResponse(res, "Project not found or not visible");
+    }
+    
+    // ดึงยอด view count ปัจจุบัน
+    const [project] = await pool.execute(
+      `SELECT views_count FROM projects WHERE project_id = ?`,
+      [projectId]
+    );
+    
+    const currentViews = project.length > 0 ? project[0].views_count : 0;
+    
+    return res.json(
+      successResponse(
+        {
+          projectId: parseInt(projectId),
+          viewsCount: currentViews,
+          message: "View count updated successfully"
+        },
+        "View count incremented successfully"
+      )
+    );
+  } catch (error) {
+    logger.error(`Error incrementing view count for project ${req.params.projectId}:`, error);
+    return handleServerError(res, error);
+  }
+};
+
 module.exports = {
   getAllProjects,
   getTop9Projects,
@@ -1958,5 +2175,6 @@ module.exports = {
   getProjectDetails,
   uploadProject,
   updateProjectWithFiles,
-  deleteProject
+  deleteProject,
+  incrementViewCount
 };

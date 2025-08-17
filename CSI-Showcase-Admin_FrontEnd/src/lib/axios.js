@@ -1,10 +1,11 @@
 import axios from 'axios';
 import { message } from 'antd';
-import { getAdminAuthCookie, removeAdminAuthCookie } from './cookie';
+import { getAuthToken, removeAuthToken } from './cookie-simple';
 
 // Use import.meta.env instead of process.env for Vite
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/admin';
 const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '9a73a892-06f4-4ae1-8767-c1ff07a3823f';
+const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
 
 // Create an axios instance with basic configuration
 const axiosInstance = axios.create({
@@ -22,7 +23,7 @@ axiosInstance.interceptors.request.use(
         config.headers['admin_secret_key'] = SECRET_KEY;
         
         // Add token if available
-        const token = getAdminAuthCookie();
+        const token = getAuthToken();
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -58,7 +59,7 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
       
       // Remove token and notify user
-      removeAdminAuthCookie();
+      removeAuthToken();
       message.error({
         content: 'เซสชั่นหมดอายุ กรุณาเข้าสู่ระบบใหม่',
         duration: 3,
@@ -67,9 +68,9 @@ axiosInstance.interceptors.response.use(
         }
       });
       
-      // Navigate to login page
+      // Navigate to login page with correct BASE_PATH
       setTimeout(() => {
-        window.location.href = '/login';
+        window.location.href = `${BASE_PATH}/login`;
       }, 1500);
       
       return Promise.reject(error);

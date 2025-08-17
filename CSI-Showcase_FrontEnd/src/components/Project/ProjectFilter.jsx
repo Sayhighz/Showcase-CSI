@@ -3,34 +3,14 @@ import { Form, Select, Button, Space, Typography, Card, Row, Col, Input, Tooltip
 import { FilterOutlined, ReloadOutlined, SearchOutlined, InfoCircleOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PROJECT_TYPES } from '../../constants/projectTypes';
+import {
+  FILTER_THEME_COLORS,
+  CARD_HOVER_ANIMATION,
+  useResponsive
+} from '../../utils/filterUtils';
 
 const { Option } = Select;
 const { Title } = Typography;
-
-// CSS Variables สำหรับสีหลักตามธีม - ย้ายออกมานอก component เพื่อหลีกเลี่ยงการสร้างใหม่ทุกรอบ
-const themeColors = {
-  primary: '#90278E',        // สีม่วงเข้ม
-  secondary: '#B252B0',      // สีม่วงอ่อน
-  dark: '#5E1A5C',           // สีม่วงเข้มมาก
-  lightPurple: '#F5EAFF',    // สีม่วงอ่อนมาก (background)
-  mediumPurple: '#E0D1FF',   // สีม่วงกลาง
-  textLight: '#FFE6FF',      // สีตัวอักษรบนพื้นเข้ม
-  textSecondary: '#F8CDFF'   // สีตัวอักษรรอง
-};
-
-// Animation variants for hover effect - คงที่ไม่ควรสร้างใหม่ทุกครั้ง
-const cardHoverAnimation = {
-  hover: {
-    boxShadow: '0 8px 24px rgba(144, 39, 142, 0.15)',
-    y: -3,
-    transition: { duration: 0.3 }
-  },
-  initial: {
-    boxShadow: '0 4px 12px rgba(144, 39, 142, 0.06)',
-    y: 0,
-    transition: { duration: 0.3 }
-  }
-};
 
 // ปรับแต่ง CSS สำหรับ Ant Design components - คงที่
 const styleOverrides = `
@@ -82,37 +62,10 @@ const ProjectFilter = ({
   const [searchKeyword, setSearchKeyword] = useState(initialValues.keyword || '');
   const [currentFilters, setCurrentFilters] = useState(initialValues);
   const [isHovered, setIsHovered] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const { windowWidth, responsiveSize, isMobile, isTablet } = useResponsive();
   
   // ใช้ useRef เพื่อเก็บค่า initialValues ล่าสุด และป้องกันการทำงานที่ไม่จำเป็น
   const previousInitialValues = React.useRef(initialValues);
-
-  // ตรวจสอบขนาดหน้าจอและอัปเดต state
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, []);
-
-  // ปรับการแสดงผลตามขนาดหน้าจอ
-  const getResponsiveSize = () => {
-    if (windowWidth < 576) return 'xs';
-    if (windowWidth < 768) return 'sm';
-    if (windowWidth < 992) return 'md';
-    if (windowWidth < 1200) return 'lg';
-    return 'xl';
-  };
-
-  const responsiveSize = getResponsiveSize();
-  const isMobile = responsiveSize === 'xs';
-  const isTablet = responsiveSize === 'sm' || responsiveSize === 'md';
 
   // ตรวจสอบว่าควรใช้ vertical layout หรือไม่
   useEffect(() => {
@@ -356,7 +309,7 @@ return (
     <motion.div
       initial="initial"
       animate={isHovered ? "hover" : "initial"}
-      variants={cardHoverAnimation}
+      variants={CARD_HOVER_ANIMATION}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -370,8 +323,10 @@ return (
           backgroundColor: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(12px)'
         }}
-        bodyStyle={{ 
-          padding: isMobile ? '12px' : (isTablet ? '16px' : '20px') 
+        styles={{
+          body: {
+            padding: isMobile ? '12px' : (isTablet ? '16px' : '20px')
+          }
         }}
       >
         <Title 
@@ -380,22 +335,22 @@ return (
             marginBottom: isMobile ? 12 : 16, 
             display: 'flex', 
             alignItems: 'center',
-            background: `linear-gradient(135deg, ${themeColors.primary} 0%, ${themeColors.secondary} 100%)`,
+            background: `linear-gradient(135deg, ${FILTER_THEME_COLORS.primary} 0%, ${FILTER_THEME_COLORS.secondary} 100%)`,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             fontSize: isMobile ? '16px' : (isTablet ? '18px' : '20px')
           }}
         >
           <FilterOutlined style={{ 
-            marginRight: isMobile ? 6 : 8, 
-            color: themeColors.primary, 
+            marginRight: isMobile ? 6 : 8,
+            color: FILTER_THEME_COLORS.primary,
             fontSize: isMobile ? '14px' : (isTablet ? '16px' : '18px')
           }} /> 
           ตัวกรองโปรเจค
           <Tooltip title="เลือกตัวกรองเพื่อค้นหาโปรเจคที่ต้องการ">
             <InfoCircleOutlined style={{ 
               marginLeft: isMobile ? 6 : 8, 
-              color: themeColors.secondary, 
+              color: FILTER_THEME_COLORS.secondary,
               fontSize: isMobile ? '12px' : '16px' 
             }} />
           </Tooltip>
@@ -409,9 +364,9 @@ return (
               <Button 
                 type="primary" 
                 icon={<SearchOutlined />}
-                style={{ 
-                  backgroundColor: themeColors.primary,
-                  borderColor: themeColors.primary,
+                style={{
+                  backgroundColor: FILTER_THEME_COLORS.primary,
+                  borderColor: FILTER_THEME_COLORS.primary,
                   boxShadow: '0 2px 4px rgba(144, 39, 142, 0.2)'
                 }}
               >
@@ -442,8 +397,8 @@ return (
               <Form.Item
                 name="type"
                 label={
-                  <span style={{ 
-                    color: themeColors.dark, 
+                  <span style={{
+                    color: FILTER_THEME_COLORS.dark,
                     fontWeight: 500,
                     fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
                   }}>
@@ -478,8 +433,8 @@ return (
               <Form.Item
                 name="year"
                 label={
-                  <span style={{ 
-                    color: themeColors.dark, 
+                  <span style={{
+                    color: FILTER_THEME_COLORS.dark,
                     fontWeight: 500,
                     fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
                   }}>
@@ -519,8 +474,8 @@ return (
                     <Form.Item
                       name="studyYear"
                       label={
-                        <span style={{ 
-                          color: themeColors.dark, 
+                        <span style={{
+                          color: FILTER_THEME_COLORS.dark,
                           fontWeight: 500,
                           fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
                         }}>
@@ -568,7 +523,7 @@ return (
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                color: themeColors.primary,
+                color: FILTER_THEME_COLORS.primary,
                 fontSize: isMobile ? '12px' : '14px',
                 padding: 0,
                 order: isMobile ? 3 : 1,
@@ -603,8 +558,8 @@ return (
                   onClick={handleReset}
                   disabled={loading}
                   style={{
-                    borderColor: themeColors.primary,
-                    color: themeColors.primary,
+                    borderColor: FILTER_THEME_COLORS.primary,
+                    color: FILTER_THEME_COLORS.primary,
                     borderRadius: isMobile ? '6px' : '8px',
                     fontSize: isMobile ? '12px' : 'inherit'
                   }}
@@ -621,8 +576,8 @@ return (
                   onClick={handleSearch}
                   loading={loading}
                   style={{
-                    backgroundColor: themeColors.primary,
-                    borderColor: themeColors.primary,
+                    backgroundColor: FILTER_THEME_COLORS.primary,
+                    borderColor: FILTER_THEME_COLORS.primary,
                     boxShadow: '0 2px 6px rgba(144, 39, 142, 0.2)',
                     borderRadius: isMobile ? '6px' : '8px',
                     fontSize: isMobile ? '12px' : 'inherit'

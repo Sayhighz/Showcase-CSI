@@ -30,8 +30,21 @@ const generateAdminToken = (payload, expiresIn = '12h') => {
  * @param {string} token - JWT token ที่ต้องการถอดรหัส
  * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
  */
-const verifyToken = (token) => {
+const verifyToken = (token, useAdminSecret = false) => {
   try {
+    // ถ้าเป็น admin token ให้ลอง verify ด้วย admin secret ก่อน
+    if (useAdminSecret && process.env.JWT_ADMIN_SECRET) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_ADMIN_SECRET);
+        if (decoded.isAdmin && decoded.role === 'admin') {
+          return decoded;
+        }
+      } catch (adminError) {
+        // หากไม่สำเร็จ ให้ลอง verify ด้วย secret ปกติ
+      }
+    }
+    
+    // ใช้ JWT_SECRET ปกติ
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     return decoded;
   } catch (error) {
@@ -46,29 +59,19 @@ const verifyToken = (token) => {
  * @returns {Object|null} - ข้อมูลที่ถอดรหัสแล้ว หรือ null หากไม่ถูกต้อง
  */
 const verifyAdminToken = (token) => {
-  try {
-    // ลองถอดรหัสด้วย Admin Secret ก่อน
-    try {
-      if (process.env.JWT_ADMIN_SECRET) {
-        const decoded = jwt.verify(token, process.env.JWT_ADMIN_SECRET);
-        // ตรวจสอบว่า token นี้เป็นของ admin จริงหรือไม่
-        if (decoded.isAdmin && decoded.role === 'admin') {
-          return decoded;
-        }
-      }
-    } catch (adminError) {
-      // หากไม่สามารถถอดรหัสด้วย Admin Secret ได้ ให้ลองใช้ Secret ปกติ
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      // ตรวจสอบว่า token นี้เป็นของ admin จริงหรือไม่
-      if (decoded.isAdmin && decoded.role === 'admin') {
-        return decoded;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error('Admin JWT Verification Error:', error.message);
+  const decoded = verifyToken(token, true);
+  
+  if (!decoded) {
     return null;
   }
+  
+  // ตรวจสอบว่าเป็น admin token หรือไม่
+  if (decoded.role !== 'admin') {
+    console.error('Token is not from an admin user');
+    return null;
+  }
+  
+  return decoded;
 };
 
 /**

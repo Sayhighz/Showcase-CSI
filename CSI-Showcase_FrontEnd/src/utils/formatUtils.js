@@ -1,6 +1,12 @@
 /**
- * ฟังก์ชันจัดรูปแบบข้อมูลสำหรับแอปพลิเคชัน
+ * ฟังก์ชันจัดรูปแบบข้อมูลสำหรับแอปพลิเคชัน - ปรับปรุงให้ใช้ lodash
  */
+import {
+  capitalize,
+  truncate,
+  startCase,
+  kebabCase
+} from 'lodash';
 
 /**
  * แปลงข้อความให้มีตัวอักษรแรกเป็นตัวพิมพ์ใหญ่
@@ -8,55 +14,47 @@
  * @returns {string} - ข้อความที่แปลงแล้ว
  */
 export const capitalizeFirstLetter = (text) => {
-    if (!text) return '';
-    
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  };
+  if (!text) return '';
+  return capitalize(text);
+};
+
+/**
+ * แปลงข้อความให้มีตัวอักษรแรกของทุกคำเป็นตัวพิมพ์ใหญ่
+ * @param {string} text - ข้อความที่ต้องการแปลง
+ * @returns {string} - ข้อความที่แปลงแล้ว
+ */
+export const titleCase = (text) => {
+  if (!text) return '';
+  return startCase(text.toLowerCase());
+};
+
+/**
+ * แปลงข้อความให้เป็นรูปแบบ slug (สำหรับ URL)
+ * @param {string} text - ข้อความที่ต้องการแปลง
+ * @returns {string} - slug ที่สร้างจากข้อความ
+ */
+export const slugify = (text) => {
+  if (!text) return '';
   
-  /**
-   * แปลงข้อความให้มีตัวอักษรแรกของทุกคำเป็นตัวพิมพ์ใหญ่
-   * @param {string} text - ข้อความที่ต้องการแปลง
-   * @returns {string} - ข้อความที่แปลงแล้ว
-   */
-  export const titleCase = (text) => {
-    if (!text) return '';
+  // สำหรับภาษาไทย ต้องจัดการแยกต่างหาก
+  const cleanText = text
+    .replace(/[^\w\sก-๙]/g, ' ')  // รองรับทั้งภาษาอังกฤษและภาษาไทย
+    .trim()
+    .replace(/\s+/g, '-');
     
-    return text
-      .toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-  
-  /**
-   * แปลงข้อความให้เป็นรูปแบบ slug (สำหรับ URL)
-   * @param {string} text - ข้อความที่ต้องการแปลง
-   * @returns {string} - slug ที่สร้างจากข้อความ
-   */
-  export const slugify = (text) => {
-    if (!text) return '';
-    
-    // แปลงเป็นตัวพิมพ์เล็ก แทนที่อักขระพิเศษด้วยช่องว่าง
-    const slug = text.toLowerCase()
-      .replace(/[^\w\sก-๙]/g, ' ')  // รองรับทั้งภาษาอังกฤษและภาษาไทย
-      .trim()
-      .replace(/\s+/g, '-');  // แทนที่ช่องว่างด้วย -
-    
-    return slug;
-  };
-  
-  /**
-   * ทำให้ข้อความสั้นลงและเพิ่ม ... ถ้าเกินความยาวที่กำหนด
-   * @param {string} text - ข้อความที่ต้องการย่อ
-   * @param {number} maxLength - ความยาวสูงสุดที่ต้องการ
-   * @returns {string} - ข้อความที่ถูกย่อแล้ว
-   */
-  export const truncateText = (text, maxLength = 100) => {
-    if (!text) return '';
-    if (text.length <= maxLength) return text;
-    
-    return text.slice(0, maxLength) + '...';
-  };
+  return kebabCase(cleanText);
+};
+
+/**
+ * ทำให้ข้อความสั้นลงและเพิ่ม ... ถ้าเกินความยาวที่กำหนด
+ * @param {string} text - ข้อความที่ต้องการย่อ
+ * @param {number} maxLength - ความยาวสูงสุดที่ต้องการ
+ * @returns {string} - ข้อความที่ถูกย่อแล้ว
+ */
+export const truncateText = (text, maxLength = 100) => {
+  if (!text) return '';
+  return truncate(text, { length: maxLength });
+};
   
   /**
    * แปลงจำนวนให้อยู่ในรูปแบบสกุลเงินบาทไทย
@@ -204,20 +202,19 @@ export const capitalizeFirstLetter = (text) => {
     return path.startsWith('/') ? path : `/${path}`;
   };
   
-  /**
-   * แปลงชื่อเต็มเป็นชื่อย่อ (เช่น John Doe เป็น JD)
-   * @param {string} name - ชื่อเต็ม
-   * @returns {string} - ชื่อย่อ
-   */
-  export const getInitials = (name) => {
-    if (!name) return '';
-    
-    return name
-      .split(' ')
-      .map(part => part.charAt(0))
-      .join('')
-      .toUpperCase();
-  };
+/**
+ * แปลงชื่อเต็มเป็นชื่อย่อ (เช่น John Doe เป็น JD)
+ * @param {string} name - ชื่อเต็ม
+ * @returns {string} - ชื่อย่อ
+ */
+export const getInitials = (name) => {
+  if (!name) return '';
+  
+  return name
+    .split(' ')
+    .map(part => part.charAt(0).toUpperCase())
+    .join('');
+};
   
   /**
    * แปลงเวลาเป็นรูปแบบ 12 ชั่วโมง (เช่น 13:45 เป็น 1:45 PM)

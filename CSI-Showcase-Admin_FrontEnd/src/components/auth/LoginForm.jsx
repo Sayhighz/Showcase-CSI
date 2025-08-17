@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Checkbox, Alert, Typography, Space } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const { Title, Text } = Typography;
@@ -9,7 +8,6 @@ const { Title, Text } = Typography;
 const LoginForm = () => {
   const [form] = Form.useForm();
   const { login } = useAuth();
-  const navigate = useNavigate();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -25,12 +23,14 @@ const LoginForm = () => {
       const success = await login(username, password, remember);
       
       if (success) {
-        // นำทางไปยังหน้าแดชบอร์ด
-        navigate('/dashboard');
+        console.log("✅ LoginForm: Login successful, letting LoginPage handle navigation");
+        // Don't navigate here - let the LoginPage's useEffect handle navigation based on user role
+        // The navigation will be handled by LoginPage after auth state is updated
       } else {
         throw new Error('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
       }
     } catch (err) {
+      console.error("❌ LoginForm: Login error:", err);
       setError(err.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       form.setFields([
         {

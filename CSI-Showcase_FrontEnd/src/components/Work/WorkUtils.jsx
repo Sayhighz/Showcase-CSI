@@ -44,17 +44,17 @@ export const getCategoryIcon = (type) => {
   }
 };
 
-// ฟังก์ชันสำหรับดึงสีของ Tag ตามประเภท
+// ฟังก์ชันสำหรับดึงสีของ Tag ตามประเภท - ปรับใหม่ให้สอดคล้องกับ brand colors
 export const getTagColor = (type) => {
   switch (type) {
     case "academic":
-      return "blue"; // หรือใช้โค้ดสี #90278E
+      return "#1890ff"; // Blue สำหรับงานวิชาการ
     case "coursework":
-      return "green"; // หรือใช้โค้ดสี #B252B0
+      return "#52c41a"; // Green สำหรับงานในชั้นเรียน
     case "competition":
-      return "gold"; // หรือใช้โค้ดสี #5E1A5C
+      return "#faad14"; // Gold สำหรับงานแข่งขัน
     default:
-      return "default";
+      return "#90278E"; // Primary brand color
   }
 };
 
@@ -143,12 +143,115 @@ export const getBoxShadowEffect = (intensity = 0.12) => ({
   boxShadow: `0 4px 12px rgba(144, 39, 142, ${intensity})`
 });
 
-// Gradient ต่างๆ ตามธีม
+// Gradient ต่างๆ ตามธีม - ปรับปรุงใหม่สำหรับแต่ละประเภท
 export const gradients = {
   primary: 'linear-gradient(to bottom, #90278E, #B252B0, #5E1A5C)',
-  coursework: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(245, 234, 255, 0.9))',
-  competition: 'linear-gradient(to bottom, rgba(245, 234, 255, 0.9), rgba(224, 209, 255, 0.9))',
-  academic: 'linear-gradient(to bottom, rgba(224, 209, 255, 0.9), rgba(144, 39, 142, 0.9))'
+  coursework: 'linear-gradient(135deg, rgba(82, 196, 26, 0.15) 0%, rgba(82, 196, 26, 0.05) 100%)',
+  competition: 'linear-gradient(135deg, rgba(250, 173, 20, 0.15) 0%, rgba(250, 173, 20, 0.05) 100%)',
+  academic: 'linear-gradient(135deg, rgba(24, 144, 255, 0.15) 0%, rgba(24, 144, 255, 0.05) 100%)'
+};
+
+// ฟังก์ชันสำหรับดึง category-specific styling
+export const getCategoryTheme = (category) => {
+  const themes = {
+    academic: {
+      primary: '#1890ff',
+      light: 'rgba(24, 144, 255, 0.1)',
+      gradient: gradients.academic,
+      shadow: '0 4px 12px rgba(24, 144, 255, 0.15)',
+      iconBg: 'rgba(24, 144, 255, 0.1)',
+      tagStyle: {
+        backgroundColor: '#1890ff',
+        borderColor: '#1890ff',
+        color: 'white'
+      },
+      aspectRatio: 'aspect-[16/9]',
+      mediaType: 'file'
+    },
+    coursework: {
+      primary: '#52c41a',
+      light: 'rgba(82, 196, 26, 0.1)',
+      gradient: gradients.coursework,
+      shadow: '0 4px 12px rgba(82, 196, 26, 0.15)',
+      iconBg: 'rgba(82, 196, 26, 0.1)',
+      tagStyle: {
+        backgroundColor: '#52c41a',
+        borderColor: '#52c41a',
+        color: 'white'
+      },
+      aspectRatio: 'aspect-[2/3]',
+      mediaType: 'image'
+    },
+    competition: {
+      primary: '#faad14',
+      light: 'rgba(250, 173, 20, 0.1)',
+      gradient: gradients.competition,
+      shadow: '0 4px 12px rgba(250, 173, 20, 0.15)',
+      iconBg: 'rgba(250, 173, 20, 0.1)',
+      tagStyle: {
+        backgroundColor: '#faad14',
+        borderColor: '#faad14',
+        color: 'white'
+      },
+      aspectRatio: 'aspect-square',
+      mediaType: 'image'
+    }
+  };
+  
+  return themes[category] || {
+    primary: '#90278E',
+    light: 'rgba(144, 39, 142, 0.1)',
+    gradient: gradients.primary,
+    shadow: '0 4px 12px rgba(144, 39, 142, 0.15)',
+    iconBg: 'rgba(144, 39, 142, 0.1)',
+    tagStyle: {
+      backgroundColor: '#90278E',
+      borderColor: '#90278E',
+      color: 'white'
+    },
+    aspectRatio: 'aspect-[4/3]',
+    mediaType: 'image'
+  };
+};
+
+// ฟังก์ชันสำหรับ placeholder styling ตามประเภท
+export const getCategoryPlaceholder = (category) => {
+  const theme = getCategoryTheme(category);
+  
+  const placeholders = {
+    academic: {
+      icon: 'FilePdfOutlined',
+      background: theme.light,
+      iconColor: theme.primary,
+      iconSize: '48px',
+      pattern: `radial-gradient(${theme.primary} 0.5px, transparent 0.5px)`,
+      patternSize: '20px 20px',
+      title: 'เอกสารงานวิชาการ',
+      subtitle: 'ไฟล์ PDF'
+    },
+    coursework: {
+      icon: 'FileImageOutlined',
+      background: theme.light,
+      iconColor: theme.primary,
+      iconSize: '44px',
+      pattern: `radial-gradient(${theme.primary} 0.5px, transparent 0.5px)`,
+      patternSize: '16px 16px',
+      title: 'โปสเตอร์ผลงาน',
+      subtitle: 'รูปภาพ'
+    },
+    competition: {
+      icon: 'TrophyOutlined',
+      background: theme.light,
+      iconColor: theme.primary,
+      iconSize: '44px',
+      pattern: `radial-gradient(${theme.primary} 0.5px, transparent 0.5px)`,
+      patternSize: '18px 18px',
+      title: 'ผลงานแข่งขัน',
+      subtitle: 'รูปภาพ'
+    }
+  };
+  
+  return placeholders[category] || placeholders.coursework;
 };
 
 // ฟังก์ชันกำหนดความกว้างของ Container ตามขนาดหน้าจอ

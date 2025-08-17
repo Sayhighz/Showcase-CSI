@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { motion, useScroll } from 'framer-motion';
+// eslint-disable-next-line no-unused-vars
+import { motion } from 'framer-motion';
 import { BulbOutlined, TrophyOutlined, ReadOutlined, HomeOutlined } from '@ant-design/icons';
 
 const NavigationSidebar = ({ scrollToSection, refs }) => {
   const { courseWorkRef, competitionRef, academicRef } = refs;
   // กำหนดค่าเริ่มต้นเป็น 'home' อย่างชัดเจน
   const [activeSection, setActiveSection] = useState('home');
-  const { scrollY } = useScroll();
   const [isMobile, setIsMobile] = useState(false);
   
   // ตรวจสอบขนาดหน้าจอและตั้งค่า mobile state
@@ -30,36 +30,91 @@ const NavigationSidebar = ({ scrollToSection, refs }) => {
     
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
+      const windowHeight = window.innerHeight;
       
-      // ตรวจสอบตำแหน่งของแต่ละ section
-      const courseWorkPos = courseWorkRef.current?.offsetTop || 0;
-      const competitionPos = competitionRef.current?.offsetTop || 0;
-      const academicPos = academicRef.current?.offsetTop || 0;
+      // ใช้ threshold ที่เล็กกว่าเพื่อให้สามารถเปลี่ยนได้เร็วขึ้น
+      const threshold = 200; // fixed threshold
       
-      // กำหนด section ที่กำลังดูอยู่ โดยใช้ค่าขอบเขตที่ชัดเจน
-      if (scrollPosition >= academicPos - 100) {
-        setActiveSection('academic');
-      } else if (scrollPosition >= competitionPos - 100) {
-        setActiveSection('competition');
-      } else if (scrollPosition >= courseWorkPos - 100) {
-        setActiveSection('courseWork');
-      } else {
-        // ถ้าไม่ตรงกับเงื่อนไขอื่นใด ถือว่าอยู่ที่ home
-        setActiveSection('home');
+      // ใช้ offsetTop สำหรับความแม่นยำสูง
+      const courseWorkElement = courseWorkRef.current;
+      const competitionElement = competitionRef.current;
+      const academicElement = academicRef.current;
+      
+      let courseWorkPos = null;
+      let competitionPos = null;
+      let academicPos = null;
+      
+      if (courseWorkElement) {
+        courseWorkPos = courseWorkElement.offsetTop;
       }
-
-      // ตรวจสอบเงื่อนไขเพิ่มเติมสำหรับ home
-      if (scrollPosition < 100) {
-        setActiveSection('home');
+      if (competitionElement) {
+        competitionPos = competitionElement.offsetTop;
       }
+      if (academicElement) {
+        academicPos = academicElement.offsetTop;
+      }
+      
+      // Debug: แสดงค่าต่าง ๆ
+      console.log('Scroll Debug:', {
+        scrollPosition,
+        threshold,
+        courseWorkPos,
+        competitionPos,
+        academicPos,
+        windowHeight
+      });
+      
+      // ปรับปรุงเงื่อนไขให้ติดตาม scroll อย่างแม่นยำ
+      let newActiveSection = 'home';
+      
+      // ถ้าอยู่ใกล้จุดเริ่มต้น (บน banner)
+      if (scrollPosition < windowHeight * 0.8) {
+        newActiveSection = 'home';
+      }
+      // เช็ค courseWork section
+      else if (courseWorkPos !== null && scrollPosition >= courseWorkPos - threshold) {
+        newActiveSection = 'courseWork';
+        
+        // เช็ค competition section
+        if (competitionPos !== null && scrollPosition >= competitionPos - threshold) {
+          newActiveSection = 'competition';
+          
+          // เช็ค academic section
+          if (academicPos !== null && scrollPosition >= academicPos - threshold) {
+            newActiveSection = 'academic';
+          }
+        }
+      }
+      
+      console.log('Active section should be:', newActiveSection);
+      
+      // เปลี่ยน active section
+      setActiveSection(newActiveSection);
     };
     
-    window.addEventListener('scroll', handleScroll);
+    // ใช้ requestAnimationFrame แทน throttle สำหรับ smoother animation
+    let rafId = null;
+    const smoothHandleScroll = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        handleScroll();
+        rafId = null;
+      });
+    };
+    
+    window.addEventListener('scroll', smoothHandleScroll, { passive: true });
     
     // เรียกใช้ฟังก์ชันทันทีเพื่อตั้งค่าเริ่มต้น
     handleScroll();
     
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', smoothHandleScroll);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, [courseWorkRef, competitionRef, academicRef]);
   
   // แสดงสถานะปัจจุบันใน console (สามารถลบออกได้ในโค้ดจริง)
@@ -115,22 +170,39 @@ const NavigationSidebar = ({ scrollToSection, refs }) => {
           {navItems.map(item => (
             <motion.button
               key={item.id}
-              className={`flex flex-col items-center justify-center p-2 ${
-                activeSection === item.id 
-                  ? 'text-[#90278E]' 
-                  : 'text-gray-600'
-              }`}
+              className="flex flex-col items-center justify-center p-2"
               whileTap={{ scale: 0.9 }}
+              animate={{
+                color: activeSection === item.id ? '#90278E' : '#6B7280',
+                scale: activeSection === item.id ? 1.05 : 1,
+              }}
+              transition={{
+                duration: 0.3,
+                ease: "easeOut"
+              }}
               onClick={item.onClick}
             >
-              <div className={`text-lg ${activeSection === item.id ? 'text-[#90278E]' : 'text-gray-500'}`}>
+              <motion.div 
+                className="text-lg"
+                animate={{
+                  color: activeSection === item.id ? '#90278E' : '#6B7280',
+                }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
                 {item.icon}
-              </div>
+              </motion.div>
               <span className="text-xs mt-1">{item.label}</span>
               {activeSection === item.id && (
                 <motion.div 
                   className="h-1 w-5 bg-[#90278E] rounded-full mt-1"
                   layoutId="mobileActiveIndicator"
+                  initial={{ opacity: 0, scaleX: 0 }}
+                  animate={{ opacity: 1, scaleX: 1 }}
+                  exit={{ opacity: 0, scaleX: 0 }}
+                  transition={{ 
+                    duration: 0.3,
+                    ease: "easeOut"
+                  }}
                 />
               )}
             </motion.button>
@@ -147,18 +219,35 @@ const NavigationSidebar = ({ scrollToSection, refs }) => {
         {navItems.map(item => (
           <div key={item.id} className="relative group">
             {/* ป้ายกำกับที่แสดงเมื่อ hover */}
-            <div className="absolute right-full mr-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-[#90278E] text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+            <motion.div 
+              className="absolute right-full mr-2 top-1/2 transform -translate-y-1/2 px-3 py-1 bg-[#90278E] text-white text-sm rounded whitespace-nowrap"
+              initial={{ opacity: 0, x: 10 }}
+              whileHover={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2 }}
+            >
               {item.label}
-            </div>
+            </motion.div>
             
             <motion.button
-              className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${
-                activeSection === item.id 
-                  ? 'bg-[#90278E] text-white shadow-lg' 
-                  : 'bg-white bg-opacity-80 text-[#90278E] hover:bg-[#90278E] hover:text-white'
-              } transition-colors duration-200`}
-              whileHover={{ scale: 1.1 }}
+              className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center"
+              animate={{
+                backgroundColor: activeSection === item.id ? '#90278E' : 'rgba(255, 255, 255, 0.8)',
+                color: activeSection === item.id ? '#ffffff' : '#90278E',
+                scale: activeSection === item.id ? 1.1 : 1,
+                boxShadow: activeSection === item.id 
+                  ? '0 10px 25px rgba(144, 39, 142, 0.3)' 
+                  : '0 4px 12px rgba(0, 0, 0, 0.1)'
+              }}
+              whileHover={{ 
+                scale: activeSection === item.id ? 1.15 : 1.1,
+                backgroundColor: '#90278E',
+                color: '#ffffff'
+              }}
               whileTap={{ scale: 0.95 }}
+              transition={{ 
+                duration: 0.3,
+                ease: "easeOut"
+              }}
               onClick={item.onClick}
             >
               {item.icon}
@@ -169,9 +258,13 @@ const NavigationSidebar = ({ scrollToSection, refs }) => {
               <motion.div 
                 className="absolute right-full mr-2 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-[#90278E] rounded-full"
                 layoutId="activeIndicator"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, scaleY: 0 }}
+                animate={{ opacity: 1, scaleY: 1 }}
+                exit={{ opacity: 0, scaleY: 0 }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: "easeOut"
+                }}
               />
             )}
           </div>
