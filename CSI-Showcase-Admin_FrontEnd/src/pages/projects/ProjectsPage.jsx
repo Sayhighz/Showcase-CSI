@@ -26,8 +26,8 @@ const ProjectsPage = () => {
   return (
     <div>
       <PageTitle
-        title="จัดการโครงงานทั้งหมด"
-        subtitle={`โครงงานทั้งหมด ${pagination.total} รายการ`}
+        title="จัดการผลงานทั้งหมด"
+        subtitle={`ผลงานทั้งหมด ${pagination.total} รายการ`}
       />
       
       <ProjectList

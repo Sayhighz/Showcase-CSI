@@ -12,8 +12,8 @@ import { AUTH, ADMIN } from '../constants/apiEndpoints';
  */
 export const adminLogin = async (username, password) => {
   try {
-    // Use the general user authentication endpoint that accepts both students and admins
-    const response = await axiosPost(AUTH.LOGIN, { username, password });
+    // Use the admin authentication endpoint
+    const response = await axiosPost(ADMIN.AUTH.LOGIN, { username, password });
     
     if (response.success && response.data && response.data.token) {
       // จัดเก็บ token ใน cookie
@@ -40,13 +40,43 @@ export const adminLogin = async (username, password) => {
 };
 
 /**
+ * เข้าสู่ระบบผู้ใช้ทั่วไป (เช่น Student)
+ * ใช้ endpoint ผู้ใช้ปกติ เพื่อให้ role=student สามารถล็อกอินใน Admin FE ได้
+ */
+export const userLogin = async (username, password) => {
+  try {
+    const response = await axiosPost(AUTH.LOGIN, { username, password });
+    
+    if (response.success && response.data && response.data.token) {
+      // เก็บ token ไว้ชั่วคราว (AuthContext จะบันทึกลง cookie หลักอีกครั้ง)
+      setAdminAuthCookie(response.data.token);
+      return {
+        success: true,
+        data: response.data
+      };
+    }
+    
+    return {
+      success: false,
+      message: response.message || 'เข้าสู่ระบบผู้ใช้ไม่สำเร็จ'
+    };
+  } catch (error) {
+    console.error('User login error:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบผู้ใช้'
+    };
+  }
+};
+
+/**
  * ออกจากระบบแอดมิน
  * @returns {Promise<Object>} - ผลลัพธ์การออกจากระบบแอดมิน
  */
 export const adminLogout = async () => {
   try {
     // ส่งคำขอออกจากระบบไปยัง API
-    await axiosPost(AUTH.LOGOUT);
+    await axiosPost(ADMIN.AUTH.LOGOUT);
     
     // ลบ token จาก cookie
     removeAdminAuthCookie();
@@ -96,7 +126,7 @@ export const verifyAdminToken = async () => {
     }
     
     // ตรวจสอบความถูกต้องของ token ด้วย API
-    const response = await axiosGet(AUTH.VERIFY_TOKEN);
+    const response = await axiosGet(ADMIN.AUTH.VERIFY_TOKEN);
     
     return {
       valid: response.data?.valid || false,
@@ -119,7 +149,7 @@ export const verifyAdminToken = async () => {
  */
 export const getCurrentAdmin = async () => {
   try {
-    const response = await axiosGet(AUTH.ME);
+    const response = await axiosGet(ADMIN.AUTH.ME);
     
     return {
       success: true,
@@ -137,6 +167,7 @@ export const getCurrentAdmin = async () => {
 
 export default {
   adminLogin,
+  userLogin,
   adminLogout,
   verifyAdminToken,
   getCurrentAdmin

@@ -13,7 +13,25 @@ import {
   formatDashboardStats
 } from '../services/adminLogService';
 import { message } from 'antd';
-import useDebounce from './useDebounce';
+
+// Custom debounce hook implementation
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    // Set up the timeout
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Clean up on value change or unmount
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 /**
  * Custom hook สำหรับจัดการข้อมูลประวัติและสถิติระบบ
@@ -562,6 +580,11 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
       return;
     }
     
+    // Skip if currently fetching to prevent duplicate calls
+    if (fetchingRef.current) {
+      return;
+    }
+    
     console.log('Search changed:', debouncedSearch);
     
     // Reset to page 1 and fetch with current search
@@ -575,7 +598,7 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
           fetchProjectReviews(1, paginationRef.current.pageSize);
         }
       }
-    }, 100);
+    }, 300);
     
     return () => clearTimeout(timeoutId);
   }, [debouncedSearch]); // Only depend on debouncedSearch

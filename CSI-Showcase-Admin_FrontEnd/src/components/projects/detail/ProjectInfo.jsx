@@ -1,21 +1,23 @@
 import React from 'react';
-import { 
-  Card, Descriptions, Tag, Typography, Divider, Button 
+import {
+  Card, Descriptions, Tag, Typography, Divider, Button
 } from 'antd';
-import { 
-  CheckCircleOutlined, CloseCircleOutlined 
+import {
+  CheckCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons';
+import { useAuth } from '../../../context/AuthContext';
 import { formatThaiDate } from '../../../utils/dataUtils';
 import { getCategoryName, getCategoryColor, getStatusName, getStatusColor } from '../../../utils/projectUtils';
 import { URL } from '../../../constants/apiEndpoints';
 
 const { Title, Paragraph } = Typography;
 
-const ProjectInfo = ({ 
-  projectDetails, 
-  onApprove, 
-  onReject 
+const ProjectInfo = ({
+  projectDetails,
+  onApprove,
+  onReject
 }) => {
+  const { user } = useAuth();
   // แสดงสถานะของโปรเจค
   const renderProjectStatus = () => {
     if (!projectDetails) return null;
@@ -95,8 +97,8 @@ const ProjectInfo = ({
           </Paragraph>
         </div>
         
-        {/* ถ้าโปรเจคกำลังรออนุมัติ แสดงปุ่มอนุมัติและปฏิเสธ */}
-        {projectDetails.status === 'pending' && (
+        {/* ถ้าโปรเจคกำลังรออนุมัติ และผู้ใช้เป็น admin แสดงปุ่มอนุมัติและปฏิเสธ */}
+        {projectDetails.status === 'pending' && user?.role === 'admin' && (
           <div className="flex justify-center space-x-4 mt-6">
             <Button
               type="primary"

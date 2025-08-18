@@ -63,7 +63,7 @@ const MyProjectPage = () => {
     fetchMyProjects,
     deleteProject,
     handlePaginationChange
-  } = useProject();
+  } = useProject('my-projects');
 
   // Check if current user is a student (only students can upload projects)
   const isStudent = currentUser?.role === 'student';
@@ -166,7 +166,10 @@ const MyProjectPage = () => {
 
     return projects.reduce((acc, project) => {
       acc.total++;
-      acc[project.type] = (acc[project.type] || 0) + 1;
+      const pt = project.type || project.category; // รองรับทั้ง type และ category
+      if (pt) {
+        acc[pt] = (acc[pt] || 0) + 1;
+      }
       acc[project.status] = (acc[project.status] || 0) + 1;
       return acc;
     }, {
@@ -199,7 +202,8 @@ const MyProjectPage = () => {
       title: 'ประเภท',
       dataIndex: 'type',
       key: 'type',
-      render: (type) => {
+      render: (_type, record) => {
+        const type = record.type || record.category || '-';
         const typeInfo = PROJECT_TYPES[type] || { label: type, color: 'default' };
         const IconComponent = typeInfo.icon;
         return (
@@ -212,7 +216,10 @@ const MyProjectPage = () => {
         text: value.label,
         value: key
       })),
-      onFilter: (value, record) => record.type === value,
+      onFilter: (value, record) => {
+        const type = record.type || record.category;
+        return type === value;
+      },
     },
     {
       title: 'สถานะ',

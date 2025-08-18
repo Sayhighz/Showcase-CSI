@@ -152,14 +152,14 @@ const DashboardPage = () => {
     activities: dashboardData.logs?.recentActivities || [],
   };
 
-  // ใช้ข้อมูลที่มีอยู่จริง
+  // ใช้ข้อมูลโปรเจคจาก stats API สำหรับ charts
   const projectsForCharts = dashboardData.projects?.recent_projects || [];
 
   return (
     <div>
       <PageTitle
         title="แดชบอร์ด"
-        subtitle="ภาพรวมของระบบจัดการผลงานนักศึกษา"
+        subtitle="ภาพรวมของระบบจัดการผลงาน CSI ProjectManage"
         actions={[{ label: 'รีเฟรช', icon: <ReloadOutlined />, onClick: handleRefresh }]}
       />
 
@@ -176,7 +176,7 @@ const DashboardPage = () => {
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="โครงงานทั้งหมด"
+            title="ผลงานทั้งหมด"
             value={stats.totalProjects}
             icon={<ProjectOutlined style={{ fontSize: 24 }} />}
             color="#90278E"

@@ -5,11 +5,30 @@ import {
   getPendingProjects,
   getProjectDetails,
   reviewProject,
-  getMyProjects
+  getMyProjects,
+  getProjectStats
 } from '../services/projectService';
 import { message } from 'antd';
-import useDebounce from './useDebounce';
 import { useAuth } from '../context/AuthContext';
+
+// Custom debounce hook implementation
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    // Set up the timeout
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Clean up on value change or unmount
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 /**
  * Optimized Custom hook for project management with improved performance
@@ -30,7 +49,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
   const [projectDetails, setProjectDetails] = useState(null);
   const [projectReviews] = useState([]);
   const [reviewStats] = useState(null);
-  const [projectStats] = useState(null);
+  const [projectStats, setProjectStats] = useState(null);
   const [allReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -220,6 +239,45 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     }
   }, [cancelPreviousRequest]);
 
+  // Fetch project stats
+  const fetchProjectStats = useCallback(async (useCache = true) => {
+    const cacheKey = getCacheKey('project_stats', {});
+    
+    if (useCache) {
+      const cached = getFromCache(cacheKey);
+      if (cached) {
+        setProjectStats(cached);
+        return;
+      }
+    }
+
+    const signal = cancelPreviousRequest();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await getProjectStats();
+      
+      if (signal.aborted) return;
+
+      if (response.success) {
+        setProjectStats(response.data);
+        setCache(cacheKey, response.data);
+      } else {
+        setError(response.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติโปรเจค');
+      }
+    } catch (err) {
+      if (!signal.aborted) {
+        console.error('Error fetching project stats:', err);
+        setError('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติโปรเจค กรุณาลองใหม่อีกครั้ง');
+      }
+    } finally {
+      if (!signal.aborted) {
+        setLoading(false);
+      }
+    }
+  }, [getCacheKey, getFromCache, setCache, cancelPreviousRequest]);
+
   // Memoized handlers
   const handleFilterChange = useCallback((newFilters) => {
     setFilters(prev => {
@@ -312,21 +370,24 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
       // Skip if already loading to prevent race conditions
       if (loading) return;
 
-      // Initial load on mount
-      if (pagination.current === 1 && !filters.search && !filters.type && !filters.status && !filters.year && !filters.level) {
+      // Initial load on mount - only run once
+      if (pagination.current === 1 && !debouncedSearch && !filters.type && !filters.status && !filters.year && !filters.level) {
         if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
           await fetchProjectDetails(initialProjectIdRef.current);
           return;
         } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
           await fetchMyProjects(currentUser.id, { page: 1, limit: pagination.pageSize });
           return;
-        } else if (initialModeRef.current !== 'stats') {
+        } else if (initialModeRef.current === 'stats') {
+          await fetchProjectStats();
+          return;
+        } else {
           await fetchProjects(1, pagination.pageSize);
           return;
         }
       }
 
-      // Handle filter changes or pagination changes
+      // Handle filter changes or pagination changes - only when there are actual changes
       if (initialModeRef.current !== 'detail' && initialModeRef.current !== 'stats') {
         const fetchParams = {
           page: pagination.current,
@@ -347,7 +408,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     };
 
     // Debounce the fetch to prevent rapid fire API calls
-    const timeoutId = setTimeout(fetchData, 200);
+    const timeoutId = setTimeout(fetchData, 300);
 
     return () => {
       clearTimeout(timeoutId);
@@ -409,11 +470,14 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     fetchProjects: (page, pageSize, useCache) => fetchProjects(page, pageSize, useCache),
     fetchProjectDetails: (id, useCache) => fetchProjectDetails(id, useCache),
     fetchMyProjects,
+    fetchProjectStats: (useCache) => fetchProjectStats(useCache),
     
     // Utilities
     refreshProjects: () => {
       cacheRef.current.clear();
-      if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+      if (initialModeRef.current === 'stats') {
+        fetchProjectStats(false);
+      } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
         fetchMyProjects(currentUser.id, { limit: pagination.pageSize });
       } else {
         fetchProjects(pagination.current, pagination.pageSize, false);
@@ -434,7 +498,8 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     reviewProjectAction,
     fetchProjects,
     fetchProjectDetails,
-    fetchMyProjects
+    fetchMyProjects,
+    fetchProjectStats
   ]);
 
   return returnValue;

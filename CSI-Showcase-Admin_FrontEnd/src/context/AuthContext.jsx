@@ -9,7 +9,7 @@ import {
   getCSRFToken,
   initializeCookieSecurity
 } from '../lib/cookie-simple';
-import { adminLogin } from '../services/authService';
+import { adminLogin, userLogin } from '../services/authService';
 
 // Environment configuration
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
@@ -160,10 +160,17 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(true);
     
     try {
-      const response = await adminLogin(username, password);
-      console.log("Login response received");
+      // พยายามล็อกอินเป็นแอดมินก่อน
+      let response = await adminLogin(username, password);
+      console.log("Admin login response received");
       
-      if (response.success && response.data && response.data.token) {
+      // ถ้าไม่สำเร็จ ลองล็อกอินด้วย endpoint ผู้ใช้ทั่วไป (สำหรับ student)
+      if (!(response && response.success && response.data && response.data.token)) {
+        console.log("Admin login failed or no token, trying user login...");
+        response = await userLogin(username, password);
+      }
+      
+      if (response && response.success && response.data && response.data.token) {
         const token = response.data.token;
         
         if (!validateToken(token)) {
@@ -224,7 +231,7 @@ export const AuthProvider = ({ children }) => {
         
         return true;
       } else {
-        message.error(response.message || 'เข้าสู่ระบบล้มเหลว');
+        message.error((response && response.message) || 'เข้าสู่ระบบล้มเหลว');
         setIsLoading(false);
         return false;
       }

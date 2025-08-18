@@ -116,7 +116,7 @@ const StudentDashboard = () => {
           สวัสดี {user?.username} 👋
         </Title>
         <Text type="secondary">
-          ยินดีต้อนรับสู่ระบบจัดการโครงงาน - แดชบอร์ดนักศึกษา
+          ยินดีต้อนรับสู่ระบบจัดการผลงาน CSI ProjectManage
         </Text>
       </div>
 
@@ -126,7 +126,7 @@ const StudentDashboard = () => {
           <Card>
             <Space direction="vertical" size="small" style={{ width: '100%', textAlign: 'center' }}>
               <UploadOutlined style={{ fontSize: 32, color: '#1890ff' }} />
-              <Text strong>อัปโหลดโปรเจค</Text>
+              <Text strong>อัปโหลดผลงาน</Text>
               <Link to="/projects/upload">
                 <Button type="primary" size="large" block>
                   เริ่มต้นอัปโหลด
@@ -139,7 +139,7 @@ const StudentDashboard = () => {
           <Card>
             <Space direction="vertical" size="small" style={{ width: '100%', textAlign: 'center' }}>
               <ProjectOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-              <Text strong>โปรเจคของฉัน</Text>
+              <Text strong>ผลงานของฉัน</Text>
               <Link to="/projects/my-projects">
                 <Button size="large" block>
                   ดูทั้งหมด
@@ -152,7 +152,7 @@ const StudentDashboard = () => {
           <Card>
             <Space direction="vertical" size="small" style={{ width: '100%', textAlign: 'center' }}>
               <BarChartOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
-              <Text strong>สถิติโปรเจค</Text>
+              <Text strong>สถิติผลงาน</Text>
               <Link to="/student/analytics">
                 <Button size="large" block>
                   ดูสถิติ
@@ -168,7 +168,7 @@ const StudentDashboard = () => {
         <Col xs={12} sm={6}>
           <Card>
             <Statistic
-              title="โปรเจคทั้งหมด"
+              title="ผลงานทั้งหมด"
               value={stats.totalProjects}
               prefix={<ProjectOutlined />}
               valueStyle={{ color: '#1890ff' }}
@@ -208,8 +208,8 @@ const StudentDashboard = () => {
       </Row>
 
       {/* Recent Projects */}
-      <Card 
-        title="โปรเจคล่าสุด" 
+      <Card
+        title="ผลงานล่าสุด"
         extra={
           <Link to="/projects/my-projects">
             <Button type="link">ดูทั้งหมด</Button>
@@ -239,7 +239,7 @@ const StudentDashboard = () => {
                   }
                   description={
                     <Space split={<span>•</span>}>
-                      <Text type="secondary">{project.type || 'โปรเจค'}</Text>
+                      <Text type="secondary">{project.type || 'ผลงาน'}</Text>
                       <Text type="secondary">
                         อัปเดตล่าสุด: {new Date(project.updatedAt).toLocaleDateString('th-TH')}
                       </Text>
@@ -256,12 +256,12 @@ const StudentDashboard = () => {
           />
         ) : (
           <Empty
-            description="ยังไม่มีโปรเจค"
+            description="ยังไม่มีผลงาน"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             <Link to="/projects/upload">
               <Button type="primary" size="large">
-                อัปโหลดโปรเจคแรกของคุณ
+                อัปโหลดผลงานแรกของคุณ
               </Button>
             </Link>
           </Empty>

@@ -26,7 +26,10 @@ const checkSecretKey = (req, res, next) => {
   
   // ตรวจสอบว่าเป็น path ที่ต้องผ่านการตรวจสอบ secret key หรือไม่
   // ถ้าเป็น path ที่ไม่ต้องตรวจสอบ ให้ผ่านไปได้เลย
-  const isPublicPath = publicPaths.some(path => req.path.startsWith(path));
+  // ใช้ originalUrl เพื่อให้ได้ path ที่สมบูรณ์รวม prefix
+  const isPublicPath = publicPaths.some(path =>
+    req.path.startsWith(path) || req.originalUrl.includes(path)
+  );
   
   if (isPublicPath) {
     return next();

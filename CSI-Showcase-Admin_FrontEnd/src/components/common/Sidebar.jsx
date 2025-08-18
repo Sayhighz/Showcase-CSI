@@ -61,11 +61,11 @@ const getMenuItems = (userRole) => {
       {
         key: '/projects',
         icon: <ProjectOutlined />,
-        label: 'จัดการโครงงาน',
+        label: 'จัดการผลงาน',
         children: [
           {
             key: '/projects/all',
-            label: <Link to="/projects">โครงงานทั้งหมด</Link>,
+            label: <Link to="/projects">ผลงานทั้งหมด</Link>,
           },
           {
             key: '/projects/pending',
@@ -75,7 +75,7 @@ const getMenuItems = (userRole) => {
           ...adminProjectItems,
           {
             key: '/projects/stats',
-            label: <Link to="/projects/stats">สถิติโครงงาน</Link>,
+            label: <Link to="/projects/stats">สถิติผลงาน</Link>,
             icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
           },
         ],
@@ -107,7 +107,7 @@ const getMenuItems = (userRole) => {
       {
         key: '/logs',
         icon: <FileTextOutlined />,
-        label: 'บันทึกระบบ',
+        label: 'รายงานระบบ',
         children: [
           {
             key: '/logs/login',

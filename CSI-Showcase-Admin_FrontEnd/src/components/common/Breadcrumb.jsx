@@ -7,9 +7,9 @@ import { HomeOutlined } from '@ant-design/icons';
 const breadcrumbNameMap = {
   '/': 'หน้าหลัก',
   '/dashboard': 'แดชบอร์ด',
-  '/projects': 'จัดการโครงงาน',
-  '/projects/pending': 'โครงงานรอการอนุมัติ',
-  '/projects/stats': 'สถิติโครงงาน',
+  '/projects': 'จัดการผลงาน',
+  '/projects/pending': 'ผลงานรอการอนุมัติ',
+  '/projects/stats': 'สถิติผลงาน',
   '/users': 'จัดการผู้ใช้',
   '/users/students': 'นักศึกษา',
   '/users/admins': 'ผู้ดูแลระบบ',
@@ -17,7 +17,7 @@ const breadcrumbNameMap = {
   '/logs': 'บันทึกระบบ',
   '/logs/login': 'การเข้าสู่ระบบ',
   '/logs/visitor-views': 'การเข้าชม',
-  '/logs/reviews': 'การตรวจสอบโครงงาน',
+  '/logs/reviews': 'การตรวจสอบผลงาน',
   '/logs/system-stats': 'สถิติระบบ',
 };
 

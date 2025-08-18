@@ -176,18 +176,31 @@ const ReviewStep = ({ projectType, validatedValues, fileList, contributors }) =>
         <Card title={`ผู้ร่วมโครงการ (${contributors.length} คน)`} size="small">
           <List
             dataSource={contributors}
-            renderItem={(contributor) => (
-              <List.Item>
-                <List.Item.Meta
-                  avatar={<Avatar icon={<UserOutlined />} />}
-                  title={contributor.username}
-                  description={`รหัส: ${contributor.user_id} | บทบาท: ${
-                    contributor.role === 'contributor' ? 'ผู้ร่วมงาน' : 
-                    contributor.role === 'advisor' ? 'อาจารย์ที่ปรึกษา' : contributor.role
-                  }`}
-                />
-              </List.Item>
-            )}
+            renderItem={(contributor) => {
+              const isRegistered = !!contributor.user_id || contributor.memberType === 'registered';
+              const name = isRegistered
+                ? (contributor.username || contributor.fullName || 'ไม่ระบุชื่อ')
+                : (contributor.name || contributor.memberName || 'ไม่ระบุชื่อ');
+              const idText = isRegistered
+                ? (contributor.user_id ? `รหัส: ${contributor.user_id}` : '')
+                : [
+                    contributor.student_id ? `รหัส: ${contributor.student_id}` : '',
+                    contributor.email ? `อีเมล: ${contributor.email}` : ''
+                  ].filter(Boolean).join(' | ');
+              const roleLabel = contributor.role === 'advisor' ? 'อาจารย์ที่ปรึกษา'
+                : contributor.role === 'contributor' ? 'ผู้ร่วมงาน'
+                : contributor.role || 'ผู้ร่วมงาน';
+
+              return (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={<Avatar icon={<UserOutlined />} />}
+                    title={name}
+                    description={[idText, `บทบาท: ${roleLabel}`].filter(Boolean).join(' | ')}
+                  />
+                </List.Item>
+              );
+            }}
           />
         </Card>
       )}

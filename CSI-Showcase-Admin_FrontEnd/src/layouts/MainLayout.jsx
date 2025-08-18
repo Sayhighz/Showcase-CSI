@@ -55,21 +55,13 @@ const MainLayout = () => {
     }
   }, [location.pathname, collapsed, isMobile]);
 
-  // ปรับปรุงการตรวจสอบสิทธิ์การใช้งาน
+  // ยกเลิกการ redirect อัตโนมัติใน MainLayout
+  // การนำทางตามสิทธิ์จะถูกจัดการโดย ProtectedRoute และ RoleBasedRoute แล้ว
   useEffect(() => {
     if (!isLoading && !authCheckedRef.current) {
       authCheckedRef.current = true;
-      
-      if (!isAuthenticated && !currentUser && !hasRedirected.current) {
-        hasRedirected.current = true;
-        setTimeout(() => {
-          // Redirect to appropriate dashboard based on role
-          const dashboardPath = currentUser?.role === 'student' ? '/student/dashboard' : '/dashboard';
-          navigate(dashboardPath, { replace: true });
-        }, 100);
-      }
     }
-  }, [isLoading, isAuthenticated, currentUser, navigate]);
+  }, [isLoading]);
 
   // รีเซ็ต hasRedirected เมื่อมีการ login สำเร็จ
   useEffect(() => {
@@ -190,23 +182,25 @@ const MainLayout = () => {
               type="text"
               icon={isMobile ? (mobileDrawerOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
               onClick={isMobile ? toggleMobileDrawer : toggleCollapsed}
-              className="mr-4 text-2xl"
+              className="mr-4 hover:bg-purple-50 transition-colors duration-200"
               style={{
                 fontSize: '16px',
                 width: 40,
                 height: 40,
                 color: '#90278E',
+                borderRadius: '8px',
               }}
             />
             <Breadcrumb />
           </div>
           
           <div
-            className="p-6 min-h-[calc(100vh-200px)]"
+            className="p-6 min-h-[calc(100vh-200px)] transition-all duration-300"
             style={{
               background: colorBgContainer,
               borderRadius: borderRadiusLG,
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+              boxShadow: '0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+              border: '1px solid rgba(0, 0, 0, 0.06)',
             }}
           >
             <Outlet />

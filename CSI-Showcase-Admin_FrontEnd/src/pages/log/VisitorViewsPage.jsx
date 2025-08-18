@@ -2,7 +2,6 @@ import React from 'react';
 import { EyeOutlined } from '@ant-design/icons';
 import PageTitle from '../../components/common/PageTitle';
 import VisitorViewList from '../../components/log/VisitorViewList';
-import FilterPanel from '../../components/common/FilterPanel';
 import useLog from '../../hooks/useLog';
 
 const VisitorViewsPage = () => {
@@ -18,29 +17,6 @@ const VisitorViewsPage = () => {
     refreshLogs
   } = useLog('visitor');
 
-  // ตัวกรองสำหรับบันทึกการเข้าชม
-  const filterOptions = [
-    {
-      name: 'projectId',
-      label: 'รหัสโครงงาน',
-      type: 'select',
-      placeholder: 'เลือกโครงงาน',
-      options: [], // ต้องโหลดข้อมูลโครงงานเพิ่มเติม
-      showSearch: true
-    },
-    {
-      name: 'startDate',
-      label: 'วันที่เริ่มต้น',
-      type: 'date',
-      placeholder: 'เลือกวันที่เริ่มต้น'
-    },
-    {
-      name: 'endDate',
-      label: 'วันที่สิ้นสุด',
-      type: 'date',
-      placeholder: 'เลือกวันที่สิ้นสุด'
-    }
-  ];
 
   // การจัดการค้นหา
   const handleSearch = (value) => {

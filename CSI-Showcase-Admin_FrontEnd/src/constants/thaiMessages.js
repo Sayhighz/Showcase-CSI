@@ -10,7 +10,7 @@ export const HEADERS = {
     PROJECTS: 'จัดการผลงาน',
     PROJECT_REVIEW: 'รายการรอตรวจสอบ',
     PROJECT_DETAIL: 'รายละเอียดผลงาน',
-    USERS: 'จัดการบัญชี',
+    USERS: 'จัดการผู้ใช้งาน',
     STUDENT_USERS: 'จัดการบัญชีนักศึกษา',
     ADMIN_USERS: 'จัดการบัญชีผู้ดูแลระบบ',
     LOGIN_INFO: 'ข้อมูลการเข้าสู่ระบบ',
@@ -20,11 +20,11 @@ export const HEADERS = {
   
   // ข้อความคำอธิบายหัวข้อหลัก
   export const HEADER_DESCRIPTIONS = {
-    DASHBOARD: 'ภาพข้อมูลรวมผลงาน',
-    PROJECTS: 'จัดการผลงานนักศึกษาทั้งหมด',
+    DASHBOARD: 'ภาพรวมของระบบจัดการผลงาน CSI ProjectManage',
+    PROJECTS: 'จัดการผลงานทั้งหมดในระบบ',
     PROJECT_REVIEW: 'ตรวจสอบและอนุมัติผลงานที่รอการตรวจสอบ',
-    PROJECT_DETAIL: 'ดูรายละเอียดผลงานของนักศึกษา',
-    USERS: 'จัดการบัญชีผู้ใช้ทั้งหมด',
+    PROJECT_DETAIL: 'ดูรายละเอียดผลงาน',
+    USERS: 'จัดการผู้ใช้งานทั้งหมด',
     STUDENT_USERS: 'จัดการบัญชีผู้ใช้นักศึกษา',
     ADMIN_USERS: 'จัดการบัญชีผู้ดูแลระบบ',
     LOGIN_INFO: 'ดูข้อมูลการเข้าสู่ระบบของผู้ใช้',
@@ -99,10 +99,10 @@ export const HEADERS = {
   
   // ข้อความแสดงการว่างเปล่า
   export const EMPTY_MESSAGES = {
-    NO_PROJECTS: 'ไม่พบข้อมูลโปรเจค',
-    NO_PROJECTS_PENDING: 'ไม่มีโปรเจคที่รอการตรวจสอบ',
-    NO_PROJECTS_APPROVED: 'ไม่มีโปรเจคที่อนุมัติแล้ว',
-    NO_PROJECTS_REJECTED: 'ไม่มีโปรเจคที่ถูกปฏิเสธ',
+    NO_PROJECTS: 'ไม่พบข้อมูลผลงาน',
+    NO_PROJECTS_PENDING: 'ไม่มีผลงานที่รอการตรวจสอบ',
+    NO_PROJECTS_APPROVED: 'ไม่มีผลงานที่อนุมัติแล้ว',
+    NO_PROJECTS_REJECTED: 'ไม่มีผลงานที่ถูกปฏิเสธ',
     NO_USERS: 'ไม่พบข้อมูลผู้ใช้',
     NO_STUDENTS: 'ไม่พบข้อมูลนักศึกษา',
     NO_ADMINS: 'ไม่พบข้อมูลผู้ดูแลระบบ',
@@ -116,12 +116,12 @@ export const HEADERS = {
   
   // ข้อความกรองข้อมูล
   export const FILTER_LABELS = {
-    SEARCH_PROJECT: 'ค้นหาโปรเจค',
+    SEARCH_PROJECT: 'ค้นหาผลงาน',
     SEARCH_USER: 'ค้นหาผู้ใช้',
     SEARCH_STUDENT: 'ค้นหานักศึกษา',
     SEARCH_ADMIN: 'ค้นหาผู้ดูแลระบบ',
-    PROJECT_TYPE: 'ประเภทโปรเจค',
-    PROJECT_STATUS: 'สถานะโปรเจค',
+    PROJECT_TYPE: 'ประเภทผลงาน',
+    PROJECT_STATUS: 'สถานะผลงาน',
     ACADEMIC_YEAR: 'ปีการศึกษา',
     STUDY_YEAR: 'ชั้นปี',
     SEMESTER: 'ภาคการศึกษา',
@@ -144,11 +144,11 @@ export const HEADERS = {
     STATUS: 'สถานะ',
     PROFILE_IMAGE: 'รูปโปรไฟล์',
     
-    // ข้อมูลโปรเจค
-    PROJECT_TITLE: 'ชื่อโปรเจค',
-    PROJECT_TYPE: 'ประเภทโปรเจค',
-    PROJECT_DESCRIPTION: 'รายละเอียดโปรเจค',
-    PROJECT_STATUS: 'สถานะโปรเจค',
+    // ข้อมูลผลงาน
+    PROJECT_TITLE: 'ชื่อผลงาน',
+    PROJECT_TYPE: 'ประเภทผลงาน',
+    PROJECT_DESCRIPTION: 'รายละเอียดผลงาน',
+    PROJECT_STATUS: 'สถานะผลงาน',
     PROJECT_YEAR: 'ปีการศึกษา',
     PROJECT_SEMESTER: 'ภาคการศึกษา',
     STUDY_YEAR: 'ชั้นปี',
@@ -200,7 +200,7 @@ export const HEADERS = {
   
   // ข้อความคำอธิบาย Placeholder
   export const PLACEHOLDERS = {
-    SEARCH_PROJECT: 'ค้นหาโปรเจคตามชื่อ, คำอธิบาย, แท็ก...',
+    SEARCH_PROJECT: 'ค้นหาผลงานตามชื่อ, คำอธิบาย, แท็ก...',
     SEARCH_USER: 'ค้นหาผู้ใช้ตามชื่อ, อีเมล, ชื่อผู้ใช้...',
     USERNAME: 'กรอกชื่อผู้ใช้',
     PASSWORD: 'กรอกรหัสผ่าน',
@@ -208,11 +208,11 @@ export const HEADERS = {
     FULL_NAME: 'กรอกชื่อ-นามสกุล',
     EMAIL: 'กรอกอีเมล',
     PHONE: 'กรอกเบอร์โทรศัพท์',
-    PROJECT_TITLE: 'กรอกชื่อโปรเจค',
-    PROJECT_DESCRIPTION: 'กรอกรายละเอียดโปรเจค...',
+    PROJECT_TITLE: 'กรอกชื่อผลงาน',
+    PROJECT_DESCRIPTION: 'กรอกรายละเอียดผลงาน...',
     PROJECT_TAGS: 'เช่น Programming, Database, AI...',
     REVIEW_COMMENT: 'กรอกความคิดเห็นหรือข้อเสนอแนะ...',
-    REJECT_REASON: 'กรอกเหตุผลที่ปฏิเสธโปรเจคนี้...'
+    REJECT_REASON: 'กรอกเหตุผลที่ปฏิเสธผลงานนี้...'
   };
   
   // ข้อความเมนู

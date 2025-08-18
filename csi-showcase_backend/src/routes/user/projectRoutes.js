@@ -12,7 +12,7 @@ const {
   deleteProject,
   incrementViewCount,
 } = require('../../controllers/user/projectController.js');
-const { authenticateToken, isResourceOwner } = require('../../middleware/authMiddleware.js');
+const { authenticateToken, isResourceOwner, isStudent } = require('../../middleware/authMiddleware.js');
 const { API_ROUTES } = require('../../constants/routes.js');
 const { optionalAuthenticateToken } = require('../../middleware/optionalAuthenticateToken.js');
 const { 
@@ -297,7 +297,8 @@ const router = express.Router();
  */
 router.post(
   '/user/:user_id', // ใช้ path ตรงๆ แทน API_ROUTES
-  authenticateToken, 
+  authenticateToken,
+  isStudent,
   isResourceOwner,
   projectUploadMiddleware, // ใช้ middleware ที่แยกออกมา
   uploadProject

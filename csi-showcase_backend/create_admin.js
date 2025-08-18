@@ -21,7 +21,7 @@ async function createAdminUser() {
     // Check if admin user already exists
     const [existingUsers] = await connection.execute(
       'SELECT username FROM users WHERE username = ? OR email = ?',
-      ['student', 'student@example.com']
+      ['admindd', 'adddmin@example.com']
     );
 
     if (existingUsers.length > 0) {
@@ -30,7 +30,7 @@ async function createAdminUser() {
     }
 
     // Hash the password
-    const password = 'password123';
+    const password = 'admin123';
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -38,13 +38,13 @@ async function createAdminUser() {
     const [result] = await connection.execute(
       `INSERT INTO users (username, password_hash, full_name, email, role, created_at)
        VALUES (?, ?, ?, ?, ?, NOW())`,
-      ['student', hashedPassword, 'Student', 'student@example.com', 'student']
+      ['studentna', hashedPassword, 'Administrddator', 'admindd@example.com', 'student']
     );
 
     console.log(`Admin user created successfully with ID: ${result.insertId}`);
     console.log('Login credentials:');
     console.log('Username: admin');
-    console.log('Password: password123');
+    console.log('Password: admin123');
 
   } catch (error) {
     console.error('Error creating admin user:', error);

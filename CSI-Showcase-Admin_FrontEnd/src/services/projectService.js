@@ -1,6 +1,22 @@
 // src/services/projectService.js
 import { axiosGet, axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/axios';
-import API_ROUTES, { BASE_URL } from '../constants/apiEndpoints';
+import API_ROUTES, { BASE_URL, ADMIN, PROJECT } from '../constants/apiEndpoints';
+import { getAuthToken } from '../lib/cookie-simple';
+import { jwtDecode } from 'jwt-decode';
+
+/**
+ * อ่านบทบาทจากโทเค็นปัจจุบัน
+ */
+const getCurrentRole = () => {
+  try {
+    const token = getAuthToken();
+    if (!token) return null;
+    const decoded = jwtDecode(token);
+    return decoded?.role || null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * ดึงรายการโปรเจคทั้งหมด
@@ -45,7 +61,7 @@ export const getAllProjects = async (filters = {}) => {
     }
     
     // สร้าง URL พร้อม query string
-    const url = API_ROUTES.PROJECT.GET_ALL + (queryParams.toString() ? `?${queryParams.toString()}` : '');
+    const url = ADMIN.PROJECT.ALL + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
     const response = await axiosGet(url);
     
@@ -105,7 +121,7 @@ export const getPendingProjects = async (filters = {}) => {
     }
     
     // สร้าง URL พร้อม query string
-    const url = API_ROUTES.PROJECT.PENDING + (queryParams.toString() ? `?${queryParams.toString()}` : '');
+    const url = ADMIN.PROJECT.PENDING + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
     const response = await axiosGet(url);
     
@@ -143,17 +159,69 @@ export const getProjectDetails = async (projectId) => {
         message: 'ไม่ระบุรหัสโปรเจค'
       };
     }
-    
-    const url = API_ROUTES.PROJECT.GET_BY_ID(projectId);
-    const response = await axiosGet(url);
-    
+
+    const role = getCurrentRole();
+
+    if (role === 'admin') {
+      // ผู้ดูแลระบบใช้ endpoint ฝั่งแอดมิน
+      const adminUrl = ADMIN.PROJECT.GET_BY_ID(projectId);
+      const adminResp = await axiosGet(adminUrl);
+      return {
+        success: true,
+        data: adminResp.data || adminResp
+      };
+    }
+
+    // นักศึกษา/ผู้ใช้ทั่วไป: ใช้ endpoint ฝั่งผู้ใช้
+    const userUrl = PROJECT.GET_BY_ID(projectId);
+    const userResp = await axiosGet(userUrl);
+    const d = userResp.data || userResp;
+
+    // ปรับรูปแบบข้อมูลให้สอดคล้องกับหน้ารายละเอียดที่มีอยู่
+    const normalized = {
+      // คีย์แบบ snake_case ที่หน้าเดิมใช้งาน
+      project_id: d.projectId,
+      title: d.title,
+      description: d.description,
+      type: d.type,
+      study_year: d.studyYear,
+      year: d.year,
+      semester: d.semester,
+      visibility: d.visibility,
+      status: d.status,
+      created_at: d.createdAt,
+      updated_at: d.updatedAt,
+      views_count: d.viewsCount,
+
+      // ภาพหลัก: ใช้จาก coursework/competition poster ถ้ามี
+      image: (d.coursework?.poster) || (d.competition?.poster) || d.image || null,
+
+      // ผู้สร้างเดิม (เพื่อรองรับคอมโพเนนต์เก่า)
+      user_id: d.author?.id,
+      username: d.author?.username,
+      full_name: d.author?.fullName,
+      email: d.author?.email,
+      user_image: d.author?.image,
+
+      // ฟิลด์ใหม่ที่คอมโพเนนต์ CreatorInfo ใช้งานแล้ว
+      uploader: d.uploader || null,
+
+      // ผู้ร่วมงานและไฟล์
+      contributors: d.contributors || [],
+      files: d.files || [],
+
+      // เก็บข้อมูลเฉพาะประเภทด้วย
+      academic: d.academic || null,
+      competition: d.competition || null,
+      coursework: d.coursework || null
+    };
+
     return {
       success: true,
-      data: response.data || response
+      data: normalized
     };
   } catch (error) {
     console.error(`Get project ${projectId} error:`, error);
-    
     return {
       success: false,
       message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรเจค'
@@ -192,7 +260,7 @@ export const reviewProject = async (projectId, status, comment = '') => {
       };
     }
     
-    const url = API_ROUTES.PROJECT.REVIEW(projectId);
+    const url = ADMIN.PROJECT.REVIEW(projectId);
     const response = await axiosPost(url, { status, comment });
     
     return {
@@ -224,10 +292,11 @@ export const updateProject = async (projectId, projectData) => {
         message: 'ไม่ระบุรหัสโปรเจค'
       };
     }
-    
-    const url = API_ROUTES.PROJECT.UPDATE(projectId);
+
+    const role = getCurrentRole();
+    const url = role === 'admin' ? ADMIN.PROJECT.UPDATE(projectId) : PROJECT.UPDATE(projectId);
+
     const response = await axiosPut(url, projectData);
-    
     return {
       success: true,
       data: response.data || response,
@@ -235,7 +304,6 @@ export const updateProject = async (projectId, projectData) => {
     };
   } catch (error) {
     console.error(`Update project ${projectId} error:`, error);
-    
     return {
       success: false,
       message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค'
@@ -256,17 +324,17 @@ export const deleteProject = async (projectId) => {
         message: 'ไม่ระบุรหัสโปรเจค'
       };
     }
-    
-    const url = API_ROUTES.PROJECT.DELETE(projectId);
+
+    const role = getCurrentRole();
+    const url = role === 'admin' ? ADMIN.PROJECT.DELETE(projectId) : PROJECT.DELETE(projectId);
+
     const response = await axiosDelete(url);
-    
     return {
       success: true,
       message: response.message || 'ลบโปรเจคสำเร็จ'
     };
   } catch (error) {
     console.error(`Delete project ${projectId} error:`, error);
-    
     return {
       success: false,
       message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการลบโปรเจค'
@@ -356,7 +424,7 @@ export const getMyProjects = async (userId, filters = {}) => {
       queryParams.append('keyword', filters.keyword);
     }
 
-    const url = `${BASE_URL}/projects/myprojects/${userId}` +
+    const url = `${BASE_URL}/projects/user/${userId}/my-projects` +
                 (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
     const response = await axiosGet(url);
@@ -396,7 +464,7 @@ export const getProjectReviews = async (projectId) => {
       };
     }
     
-    const url = API_ROUTES.PROJECT.REVIEWS(projectId);
+    const url = ADMIN.PROJECT.REVIEWS(projectId);
     const response = await axiosGet(url);
     
     return {
@@ -420,7 +488,7 @@ export const getProjectReviews = async (projectId) => {
  */
 export const getAdminReviewStats = async () => {
   try {
-    const response = await axiosGet(API_ROUTES.PROJECT.REVIEW_STATS);
+    const response = await axiosGet(ADMIN.PROJECT.REVIEW_STATS);
     
     return {
       success: true,
@@ -443,7 +511,7 @@ export const getAdminReviewStats = async () => {
  */
 export const getProjectStats = async () => {
   try {
-    const response = await axiosGet(API_ROUTES.PROJECT.STATS);
+    const response = await axiosGet(ADMIN.PROJECT.STATS);
     // console.log("dddd",response)
     
     return {
@@ -496,7 +564,7 @@ export const getAllProjectReviews = async (filters = {}) => {
     }
     
     // สร้าง URL พร้อม query string
-    const url = API_ROUTES.PROJECT.ALL_REVIEWS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
+    const url = ADMIN.PROJECT.ALL_REVIEWS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
     const response = await axiosGet(url);
     

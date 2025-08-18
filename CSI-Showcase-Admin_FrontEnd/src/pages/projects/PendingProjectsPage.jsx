@@ -24,8 +24,8 @@ const PendingProjectsPage = () => {
   return (
     <div>
       <PageTitle
-        title="โครงงานรอการอนุมัติ"
-        subtitle={`มีโครงงานรออนุมัติ ${pagination.total} รายการ`}
+        title="ผลงานรอการอนุมัติ"
+        subtitle={`มีผลงานรออนุมัติ ${pagination.total} รายการ`}
       />
       
       <ProjectList

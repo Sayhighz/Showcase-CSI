@@ -123,12 +123,25 @@ const getTop9Projects = async (req, res) => {
       const placeholders = projectIds.map(() => '?').join(',');
       
       const collaboratorsQuery = `
-        SELECT pg.project_id, pg.role, u.user_id, u.username, u.full_name, u.image
+        SELECT
+          pg.project_id,
+          pg.role,
+          pg.user_id,
+          pg.member_name,
+          pg.member_student_id,
+          pg.member_email,
+          u.username,
+          u.full_name,
+          u.image,
+          CASE
+            WHEN pg.user_id IS NOT NULL THEN 'registered'
+            ELSE 'external'
+          END as member_type
         FROM project_groups pg
-        JOIN users u ON pg.user_id = u.user_id
+        LEFT JOIN users u ON pg.user_id = u.user_id
         WHERE pg.project_id IN (${placeholders})
-        ORDER BY pg.project_id, 
-          CASE 
+        ORDER BY pg.project_id,
+          CASE
             WHEN pg.role = 'owner' THEN 1
             WHEN pg.role = 'contributor' THEN 2
             WHEN pg.role = 'advisor' THEN 3
@@ -138,18 +151,29 @@ const getTop9Projects = async (req, res) => {
       
       const [collaborators] = await pool.execute(collaboratorsQuery, projectIds);
       
-      // จัดกลุ่มผู้ร่วมโครงการตาม project_id
+      // จัดกลุ่มผู้ร่วมโครงการตาม project_id และแยกประเภทสมาชิก
       const collaboratorsByProject = collaborators.reduce((acc, collab) => {
         if (!acc[collab.project_id]) {
           acc[collab.project_id] = [];
         }
-        acc[collab.project_id].push({
-          userId: collab.user_id,
-          username: collab.username,
-          fullName: collab.full_name,
-          image: collab.image,
-          role: collab.role
-        });
+        
+        const memberData = {
+          role: collab.role,
+          memberType: collab.member_type
+        };
+        
+        if (collab.member_type === 'registered') {
+          memberData.userId = collab.user_id;
+          memberData.username = collab.username;
+          memberData.fullName = collab.full_name;
+          memberData.image = collab.image;
+        } else {
+          memberData.memberName = collab.member_name;
+          memberData.memberStudentId = collab.member_student_id;
+          memberData.memberEmail = collab.member_email;
+        }
+        
+        acc[collab.project_id].push(memberData);
         return acc;
       }, {});
       
@@ -250,9 +274,22 @@ const getLatestProjects = async (req, res) => {
       const placeholders = projectIds.map(() => '?').join(',');
       
       const collaboratorsQuery = `
-        SELECT pg.project_id, pg.role, u.user_id, u.username, u.full_name, u.image
+        SELECT
+          pg.project_id,
+          pg.role,
+          pg.user_id,
+          pg.member_name,
+          pg.member_student_id,
+          pg.member_email,
+          u.username,
+          u.full_name,
+          u.image,
+          CASE
+            WHEN pg.user_id IS NOT NULL THEN 'registered'
+            ELSE 'external'
+          END as member_type
         FROM project_groups pg
-        JOIN users u ON pg.user_id = u.user_id
+        LEFT JOIN users u ON pg.user_id = u.user_id
         WHERE pg.project_id IN (${placeholders})
         ORDER BY pg.project_id,
           CASE
@@ -265,18 +302,29 @@ const getLatestProjects = async (req, res) => {
       
       const [collaborators] = await pool.execute(collaboratorsQuery, projectIds);
       
-      // จัดกลุ่มผู้ร่วมโครงการตาม project_id
+      // จัดกลุ่มผู้ร่วมโครงการตาม project_id และแยกประเภทสมาชิก
       const collaboratorsByProject = collaborators.reduce((acc, collab) => {
         if (!acc[collab.project_id]) {
           acc[collab.project_id] = [];
         }
-        acc[collab.project_id].push({
-          userId: collab.user_id,
-          username: collab.username,
-          fullName: collab.full_name,
-          image: collab.image,
-          role: collab.role
-        });
+        
+        const memberData = {
+          role: collab.role,
+          memberType: collab.member_type
+        };
+        
+        if (collab.member_type === 'registered') {
+          memberData.userId = collab.user_id;
+          memberData.username = collab.username;
+          memberData.fullName = collab.full_name;
+          memberData.image = collab.image;
+        } else {
+          memberData.memberName = collab.member_name;
+          memberData.memberStudentId = collab.member_student_id;
+          memberData.memberEmail = collab.member_email;
+        }
+        
+        acc[collab.project_id].push(memberData);
         return acc;
       }, {});
       
@@ -474,9 +522,9 @@ const uploadProject = async (req, res) => {
   try {
     const userId = req.params.user_id;
 
-    // ตรวจสอบสิทธิ์ในการอัปโหลด
-    if (req.user.id != userId && req.user.role !== "admin") {
-      return forbiddenResponse(res, "You can only upload your own projects");
+    // ตรวจสอบสิทธิ์ในการอัปโหลด - เฉพาะ Student เท่านั้น และต้องอัปโหลดของตนเอง
+    if (req.user.role !== "student" || req.user.id != userId) {
+      return forbiddenResponse(res, "Only students can upload their own projects");
     }
 
     // เริ่มต้น transaction
@@ -681,7 +729,7 @@ const uploadProject = async (req, res) => {
       throw ownerError; // ถ้าเพิ่ม owner ไม่ได้ให้หยุดทั้งกระบวนการ
     }
 
-    // เพิ่มข้อมูลผู้ร่วมงาน (contributors) ถ้ามี
+    // เพิ่มข้อมูลผู้ร่วมงาน (contributors) ถ้ามี - รองรับการเพิ่มสมาชิกที่ไม่มีในฐานข้อมูล
     console.log("=== CONTRIBUTOR PROCESSING START ===");
     console.log("Original contributors data:", projectData.contributors);
     console.log("Type of contributors:", typeof projectData.contributors);
@@ -716,60 +764,91 @@ const uploadProject = async (req, res) => {
         console.log(`\n--- Processing contributor ${i + 1}/${contributors.length} ---`);
         console.log("Contributor data:", contributor);
         
-        // ตรวจสอบว่ามี user_id และไม่เป็น null หรือ undefined
-        if (!contributor || !contributor.user_id) {
-          console.error(`❌ Invalid contributor ${i + 1} - missing user_id:`, contributor);
+        // ตรวจสอบข้อมูลพื้นฐานที่จำเป็น
+        if (!contributor || (!contributor.user_id && !contributor.name)) {
+          console.error(`❌ Invalid contributor ${i + 1} - missing required data:`, contributor);
           skipCount++;
           continue;
         }
 
-        console.log(`✓ Contributor ${i + 1} has valid user_id: ${contributor.user_id}`);
-
         try {
-          // ตรวจสอบว่า user_id มีอยู่ในตาราง users จริงหรือไม่
-          const [userExists] = await connection.execute(
-            `SELECT user_id FROM users WHERE user_id = ?`,
-            [contributor.user_id]
-          );
+          let userId = contributor.user_id;
+          let insertData = {
+            project_id: projectId,
+            role: contributor.role || "contributor"
+          };
 
-          console.log(`User existence check for ID ${contributor.user_id}:`, userExists.length > 0 ? 'EXISTS' : 'NOT FOUND');
+          // กรณีที่มี user_id - ตรวจสอบว่ามีอยู่ในฐานข้อมูลหรือไม่
+          if (userId) {
+            const [userExists] = await connection.execute(
+              `SELECT user_id FROM users WHERE user_id = ?`,
+              [userId]
+            );
 
-          if (userExists.length === 0) {
-            console.error(`❌ User with ID ${contributor.user_id} does not exist in users table`);
-            skipCount++;
-            continue;
+            if (userExists.length > 0) {
+              console.log(`✓ User ${userId} exists in database`);
+              insertData.user_id = userId;
+            } else {
+              console.log(`⚠️ User ${userId} not found in database, treating as external member`);
+              userId = null; // Reset เพื่อใช้ข้อมูลชื่อแทน
+            }
           }
 
-          console.log(`✓ User ${contributor.user_id} exists in database`);
+          // กรณีที่ไม่มี user_id หรือไม่พบในฐานข้อมูล - ใช้ข้อมูลชื่อ
+          if (!userId) {
+            insertData.member_name = contributor.name || contributor.username || contributor.full_name;
+            insertData.member_student_id = contributor.student_id || contributor.user_id || null;
+            insertData.member_email = contributor.email || null;
+            
+            if (!insertData.member_name) {
+              console.error(`❌ No name provided for external contributor ${i + 1}`);
+              skipCount++;
+              continue;
+            }
+            
+            console.log(`✓ Processing external contributor: ${insertData.member_name}`);
+          }
 
-          // ตรวจสอบว่าไม่ได้เพิ่ม user เดียวกันซ้ำในโครงการเดียวกัน
-          const [existingMember] = await connection.execute(
-            `SELECT * FROM project_groups WHERE project_id = ? AND user_id = ?`,
-            [projectId, contributor.user_id]
-          );
+          // ตรวจสอบว่าไม่ได้เพิ่มสมาชิกซ้ำ
+          let duplicateCheckQuery;
+          let duplicateCheckParams;
+          
+          if (insertData.user_id) {
+            duplicateCheckQuery = `SELECT * FROM project_groups WHERE project_id = ? AND user_id = ?`;
+            duplicateCheckParams = [projectId, insertData.user_id];
+          } else {
+            duplicateCheckQuery = `SELECT * FROM project_groups WHERE project_id = ? AND member_name = ? AND member_student_id = ?`;
+            duplicateCheckParams = [projectId, insertData.member_name, insertData.member_student_id];
+          }
+
+          const [existingMember] = await connection.execute(duplicateCheckQuery, duplicateCheckParams);
 
           if (existingMember.length > 0) {
-            console.warn(`⚠️ User ${contributor.user_id} is already a member of project ${projectId}`);
+            console.warn(`⚠️ Member already exists in project ${projectId}`);
             skipCount++;
             continue;
           }
 
-          console.log(`✓ User ${contributor.user_id} is not yet a member, proceeding with insert`);
+          // เพิ่มสมาชิกใหม่
+          const insertQuery = insertData.user_id
+            ? `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`
+            : `INSERT INTO project_groups (project_id, member_name, member_student_id, member_email, role) VALUES (?, ?, ?, ?, ?)`;
+          
+          const insertParams = insertData.user_id
+            ? [insertData.project_id, insertData.user_id, insertData.role]
+            : [insertData.project_id, insertData.member_name, insertData.member_student_id, insertData.member_email, insertData.role];
 
-          // พยายาม insert
-          const role = contributor.role || "contributor";
-          console.log(`Inserting: projectId=${projectId}, userId=${contributor.user_id}, role=${role}`);
+          await connection.execute(insertQuery, insertParams);
           
-          await connection.execute(
-            `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
-            [projectId, contributor.user_id, role]
-          );
+          const memberInfo = insertData.user_id
+            ? `user_id: ${insertData.user_id}`
+            : `name: ${insertData.member_name}`;
           
-          console.log(`✅ Successfully added contributor: ${contributor.user_id} with role: ${role}`);
+          console.log(`✅ Successfully added contributor: ${memberInfo} with role: ${insertData.role}`);
           successCount++;
           
         } catch (insertError) {
-          console.error(`❌ Error adding contributor ${contributor.user_id}:`, insertError);
+          console.error(`❌ Error adding contributor ${i + 1}:`, insertError);
           skipCount++;
           // ไม่ให้การเพิ่ม contributor คนหนึ่งล้มเหลวทำให้ทั้งโครงการล้มเหลว
         }
@@ -1556,45 +1635,94 @@ const updateProjectWithFiles = async (req, res) => {
           if (Array.isArray(contributors) && contributors.length > 0) {
             console.log("Adding new contributors:", contributors);
             
-            // ตรวจสอบความถูกต้องของข้อมูล contributors ก่อนการ insert
-            for (const contributor of contributors) {
-              // ตรวจสอบว่ามี user_id และไม่เป็น null หรือ undefined
-              if (!contributor.user_id) {
-                console.error("Invalid contributor - missing user_id:", contributor);
-                continue; // ข้าม contributor นี้
-              }
-
-              // ตรวจสอบว่า user_id มีอยู่ในตาราง users จริงหรือไม่
-              const [userExists] = await connection.execute(
-                `SELECT user_id FROM users WHERE user_id = ?`,
-                [contributor.user_id]
-              );
-
-              if (userExists.length === 0) {
-                console.error(`User with ID ${contributor.user_id} does not exist in users table`);
-                continue; // ข้าม contributor นี้
-              }
-
-              // ตรวจสอบว่าไม่ได้เพิ่ม user เดียวกันซ้ำในโครงการเดียวกัน
-              const [existingMember] = await connection.execute(
-                `SELECT * FROM project_groups WHERE project_id = ? AND user_id = ?`,
-                [projectId, contributor.user_id]
-              );
-
-              if (existingMember.length > 0) {
-                console.warn(`User ${contributor.user_id} is already a member of project ${projectId}`);
-                continue; // ข้าม contributor นี้
+            // ตรวจสอบความถูกต้องของข้อมูล contributors ก่อนการ insert - รองรับทั้งสมาชิกที่ลงทะเบียนและภายนอก
+            for (let i = 0; i < contributors.length; i++) {
+              const contributor = contributors[i];
+              console.log(`\n--- Processing contributor ${i + 1}/${contributors.length} ---`);
+              console.log("Contributor data:", contributor);
+              
+              // ตรวจสอบข้อมูลพื้นฐานที่จำเป็น
+              if (!contributor || (!contributor.user_id && !contributor.name)) {
+                console.error(`❌ Invalid contributor ${i + 1} - missing required data:`, contributor);
+                continue;
               }
 
               try {
-                await connection.execute(
-                  `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`,
-                  [projectId, contributor.user_id, contributor.role || "contributor"]
-                );
-                console.log(`Successfully updated contributor: ${contributor.user_id} with role: ${contributor.role || "contributor"}`);
+                let userId = contributor.user_id;
+                let insertData = {
+                  project_id: projectId,
+                  role: contributor.role || "contributor"
+                };
+
+                // กรณีที่มี user_id - ตรวจสอบว่ามีอยู่ในฐานข้อมูลหรือไม่
+                if (userId) {
+                  const [userExists] = await connection.execute(
+                    `SELECT user_id FROM users WHERE user_id = ?`,
+                    [userId]
+                  );
+
+                  if (userExists.length > 0) {
+                    console.log(`✓ User ${userId} exists in database`);
+                    insertData.user_id = userId;
+                  } else {
+                    console.log(`⚠️ User ${userId} not found in database, treating as external member`);
+                    userId = null; // Reset เพื่อใช้ข้อมูลชื่อแทน
+                  }
+                }
+
+                // กรณีที่ไม่มี user_id หรือไม่พบในฐานข้อมูล - ใช้ข้อมูลชื่อ
+                if (!userId) {
+                  insertData.member_name = contributor.name || contributor.username || contributor.full_name;
+                  insertData.member_student_id = contributor.student_id || contributor.user_id || null;
+                  insertData.member_email = contributor.email || null;
+                  
+                  if (!insertData.member_name) {
+                    console.error(`❌ No name provided for external contributor ${i + 1}`);
+                    continue;
+                  }
+                  
+                  console.log(`✓ Processing external contributor: ${insertData.member_name}`);
+                }
+
+                // ตรวจสอบว่าไม่ได้เพิ่มสมาชิกซ้ำ
+                let duplicateCheckQuery;
+                let duplicateCheckParams;
+                
+                if (insertData.user_id) {
+                  duplicateCheckQuery = `SELECT * FROM project_groups WHERE project_id = ? AND user_id = ?`;
+                  duplicateCheckParams = [projectId, insertData.user_id];
+                } else {
+                  duplicateCheckQuery = `SELECT * FROM project_groups WHERE project_id = ? AND member_name = ? AND member_student_id = ?`;
+                  duplicateCheckParams = [projectId, insertData.member_name, insertData.member_student_id];
+                }
+
+                const [existingMember] = await connection.execute(duplicateCheckQuery, duplicateCheckParams);
+
+                if (existingMember.length > 0) {
+                  console.warn(`⚠️ Member already exists in project ${projectId}`);
+                  continue;
+                }
+
+                // เพิ่มสมาชิกใหม่
+                const insertQuery = insertData.user_id
+                  ? `INSERT INTO project_groups (project_id, user_id, role) VALUES (?, ?, ?)`
+                  : `INSERT INTO project_groups (project_id, member_name, member_student_id, member_email, role) VALUES (?, ?, ?, ?, ?)`;
+                
+                const insertParams = insertData.user_id
+                  ? [insertData.project_id, insertData.user_id, insertData.role]
+                  : [insertData.project_id, insertData.member_name, insertData.member_student_id, insertData.member_email, insertData.role];
+
+                await connection.execute(insertQuery, insertParams);
+                
+                const memberInfo = insertData.user_id
+                  ? `user_id: ${insertData.user_id}`
+                  : `name: ${insertData.member_name}`;
+                
+                console.log(`✅ Successfully updated contributor: ${memberInfo} with role: ${insertData.role}`);
                 newContributors.push(contributor);
+                
               } catch (insertError) {
-                console.error(`Error adding contributor ${contributor.user_id}:`, insertError);
+                console.error(`❌ Error adding contributor ${i + 1}:`, insertError);
                 // ไม่ให้การเพิ่ม contributor คนหนึ่งล้มเหลวทำให้การอัปเดตล้มเหลว
               }
             }

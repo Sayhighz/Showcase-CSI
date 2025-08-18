@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Tag, Button, Typography, Space, Dropdown, Menu, Modal, Tooltip, Badge, Avatar } from 'antd';
+import { Table, Tag, Button, Typography, Space, Dropdown, Modal, Tooltip, Badge, Avatar } from 'antd';
 import { 
   ProjectOutlined, 
   EditOutlined, 
@@ -22,7 +22,7 @@ import {
   getStatusColor 
 } from '../../utils/projectUtils';
 import SearchBar from '../common/SearchBar';
-import FilterPanel from '../common/FilterPanel';
+import ProjectFilterForm from './ProjectFilterForm';
 import EmptyState from '../common/EmptyState';
 import ErrorDisplay from '../common/ErrorDisplay';
 import ProjectReviewForm from '../projects/ProjectReviewForm';
@@ -280,57 +280,6 @@ const ProjectList = ({
     onChange: setSelectedRowKeys,
   };
 
-  // สร้างตัวกรองสำหรับ FilterPanel
-  const getFilters = () => {
-    const filterItems = [];
-
-    if (filterOptions.type) {
-      filterItems.push({
-        name: 'type',
-        label: 'ประเภทโครงงาน',
-        type: 'select',
-        options: [
-          { value: 'coursework', label: 'ผลงานการเรียน' },
-          { value: 'academic', label: 'บทความวิชาการ' },
-          { value: 'competition', label: 'การแข่งขัน' },
-        ],
-      });
-    }
-
-    if (filterOptions.level) {
-      filterItems.push({
-        name: 'level',
-        label: 'ชั้นปี',
-        type: 'select',
-        options: [
-          { value: '1', label: 'ปี 1' },
-          { value: '2', label: 'ปี 2' },
-          { value: '3', label: 'ปี 3' },
-          { value: '4', label: 'ปี 4' },
-        ],
-      });
-    }
-
-    if (filterOptions.year) {
-      // สร้างตัวเลือกปีการศึกษาย้อนหลัง 5 ปีจากปีปัจจุบัน
-      const currentYear = new Date().getFullYear() + 543; // ปี พ.ศ.
-      const yearOptions = [];
-      
-      for (let i = 0; i < 5; i++) {
-        const year = currentYear - i;
-        yearOptions.push({ value: String(year), label: String(year) });
-      }
-
-      filterItems.push({
-        name: 'year',
-        label: 'ปีการศึกษา',
-        type: 'select',
-        options: yearOptions,
-      });
-    }
-
-    return filterItems;
-  };
 
   // แสดงข้อความเมื่อไม่มีข้อมูล
   const renderEmptyState = () => {
@@ -435,12 +384,20 @@ const ProjectList = ({
       </div>
 
       {filterVisible && (
-        <FilterPanel
-          filters={getFilters()}
+        <ProjectFilterForm
+          filters={filters}
           onFilter={onFilter}
           onReset={() => onFilter({})}
-          initialValues={filters}
           loading={loading}
+          filterOptions={{
+            showTypeFilter: filterOptions.type,
+            showStatusFilter: false,
+            showYearFilter: filterOptions.year,
+            showStudyYearFilter: filterOptions.level,
+            showSemesterFilter: false,
+            showDateRangeFilter: false,
+            showTagFilter: filterOptions.tag,
+          }}
         />
       )}
 

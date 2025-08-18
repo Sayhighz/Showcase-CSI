@@ -1,6 +1,6 @@
 import React from 'react';
-import { Image, Typography } from 'antd';
-import { PictureOutlined, YoutubeOutlined } from '@ant-design/icons';
+import { Image, Typography, Button } from 'antd';
+import { PictureOutlined, YoutubeOutlined, FileOutlined, DownloadOutlined } from '@ant-design/icons';
 import { URL } from '../../../constants/apiEndpoints';
 
 const { Title } = Typography;

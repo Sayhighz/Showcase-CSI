@@ -11,32 +11,47 @@ const CreatorInfo = ({ projectDetails }) => {
   
   if (!projectDetails) return null;
   
+  // ใช้ข้อมูลผู้ที่อัปโหลด (owner) แยกจากผู้ร่วมงาน
+  const uploader = projectDetails.uploader ? {
+    userId: projectDetails.uploader.userId,
+    username: projectDetails.uploader.username,
+    fullName: projectDetails.uploader.fullName,
+    email: projectDetails.uploader.email,
+    image: projectDetails.uploader.image
+  } : {
+    userId: projectDetails.user_id,
+    username: projectDetails.username,
+    fullName: projectDetails.full_name,
+    email: projectDetails.email,
+    image: projectDetails.user_image
+  };
+  
   return (
-    <Card title="ข้อมูลผู้สร้าง" className="shadow-md">
+    <Card title="ผู้ที่อัปโหลด" className="shadow-md">
       <div className="flex flex-col items-center mb-4">
-        {projectDetails.user_image ? (
-          <Avatar 
-            src={`${URL}/${projectDetails.user_image}`} 
+        {uploader.image ? (
+          <Avatar
+            src={`${URL}/${uploader.image}`}
             size={100}
             className="mb-3"
           />
         ) : (
-          <Avatar 
-            size={100} 
+          <Avatar
+            size={100}
             className="mb-3"
             style={{ backgroundColor: '#90278E' }}
           >
-            {projectDetails.full_name?.charAt(0).toUpperCase() || 'U'}
+            {uploader.fullName?.charAt(0).toUpperCase() || 'U'}
           </Avatar>
         )}
         
-        <Title level={4} className="mb-1 text-center">{projectDetails.full_name || 'ไม่ระบุชื่อ'}</Title>
-        <Text type="secondary" className="mb-3">{projectDetails.email || ''}</Text>
+        <Title level={4} className="mb-1 text-center">{uploader.fullName || 'ไม่ระบุชื่อ'}</Title>
+        <Text type="secondary" className="mb-3">{uploader.email || ''}</Text>
         
         <div className="w-full mt-3">
           <Descriptions column={1} size="small">
             <Descriptions.Item label="ชื่อผู้ใช้">
-              {projectDetails.username || '-'}
+              {uploader.username || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="จำนวนผลงาน">
               {projectDetails.project_count || '1'} ชิ้น
@@ -45,11 +60,11 @@ const CreatorInfo = ({ projectDetails }) => {
         </div>
       </div>
       
-      <Button 
-        type="default" 
-        icon={<EyeOutlined />} 
+      <Button
+        type="default"
+        icon={<EyeOutlined />}
         block
-        onClick={() => navigate(`/users/${projectDetails.user_id}`)}
+        onClick={() => navigate(`/users/${uploader.userId}`)}
         className="mt-2"
       >
         ดูโปรไฟล์ผู้ใช้

@@ -7,7 +7,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 const { Content } = Layout;
 
 const AuthLayout = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   
   // Reference to prevent processing the authentication check multiple times
   const authCheckCompleted = useRef(false);
@@ -30,9 +30,10 @@ const AuthLayout = ({ children }) => {
     return <LoadingSpinner fullScreen />;
   }
 
-  // If authenticated, redirect to dashboard
+  // If authenticated, redirect to role-based dashboard
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    const dashboardPath = user?.role === 'student' ? '/student/dashboard' : '/dashboard';
+    return <Navigate to={dashboardPath} replace />;
   }
 
   // Not authenticated, show the login form

@@ -1,35 +1,41 @@
 @font-face {
-    font-family: 'NotoSansThai';
-    src: url('./NotoSansThai-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'NotoSansThai';
-    src: url('./NotoSansThai-Bold.ttf') format('truetype');
-    font-weight: bold;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'NotoSansThai';
-    src: url('./NotoSansThai-Light.ttf') format('truetype');
-    font-weight: 300;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'NotoSansThai';
-    src: url('./NotoSansThai-Medium.ttf') format('truetype');
-    font-weight: 500;
-    font-style: normal;
-  }
-  
-  @font-face {
-    font-family: 'NotoSansThai';
-    src: url('./NotoSansThai-ExtraBold.ttf') format('truetype');
-    font-weight: 800;
-    font-style: normal;
-  }
-  
+  font-family: 'SukhumvitSet';
+  src: url('./SukhumvitSet-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SukhumvitSet';
+  src: url('./SukhumvitSet-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SukhumvitSet';
+  src: url('./SukhumvitSet-Text.ttf') format('truetype');
+  font-weight: 400; /* Regular */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SukhumvitSet';
+  src: url('./SukhumvitSet-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SukhumvitSet';
+  src: url('./SukhumvitSet-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SukhumvitSet';
+  src: url('./SukhumvitSet-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}

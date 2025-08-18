@@ -3,7 +3,7 @@ import { message } from 'antd';
 import { getAuthToken, removeAuthToken } from './cookie-simple';
 
 // Use import.meta.env instead of process.env for Vite
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/admin';
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api';
 const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '9a73a892-06f4-4ae1-8767-c1ff07a3823f';
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
 
@@ -20,7 +20,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
     (config) => {
         // Add secret key to every API call
-        config.headers['admin_secret_key'] = SECRET_KEY;
+        config.headers['secret_key'] = SECRET_KEY;
         
         // Add token if available
         const token = getAuthToken();
@@ -55,31 +55,71 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config;
     
     // Handle 401 Unauthorized
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+    if (error.response && error.response.status === 401) {
+      const reqUrl = (originalRequest?.url || '').toString();
+      const method = (originalRequest?.method || '').toLowerCase();
+      const isLoginRequest =
+        method === 'post' && (reqUrl.includes('/auth/login') || reqUrl.includes('/admin/auth/login'));
       
-      // Remove token and notify user
-      removeAuthToken();
-      message.error({
-        content: 'เซสชั่นหมดอายุ กรุณาเข้าสู่ระบบใหม่',
-        duration: 3,
-        style: {
-          marginTop: '20vh'
-        }
-      });
+      // ถ้าเป็นการล็อกอินแล้วรหัสไม่ถูกต้อง -> ไม่ต้องแสดง "เซสชั่นหมดอายุ"
+      if (isLoginRequest) {
+        return Promise.reject(error);
+      }
       
-      // Navigate to login page with correct BASE_PATH
-      setTimeout(() => {
-        window.location.href = `${BASE_PATH}/login`;
-      }, 1500);
+      // ป้องกันลูป retry ที่ไม่จำเป็น
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+        
+        // Remove token and notify user (เฉพาะกรณี token หมดอายุจริงๆ)
+        removeAuthToken();
+        message.error({
+          content: 'เซสชั่นหมดอายุ กรุณาเข้าสู่ระบบใหม่',
+          duration: 3,
+          style: {
+            marginTop: '20vh'
+          }
+        });
+        
+        // Navigate to login page with correct BASE_PATH
+        setTimeout(() => {
+          window.location.href = `${BASE_PATH}/login`;
+        }, 1500);
+      }
       
       return Promise.reject(error);
     }
     
     // Handle 403 Forbidden
     if (error.response && error.response.status === 403) {
+      const reqUrl = (originalRequest?.url || '').toString();
+      const token = getAuthToken();
+      let role = null;
+      let backendMsg = error.response?.data?.message || '';
+      try {
+        if (token) {
+          const { jwtDecode } = await import('jwt-decode');
+          const decoded = jwtDecode(token);
+          role = decoded?.role || null;
+        }
+      } catch (_) {}
+
+      const isAdminApi = reqUrl.includes('/admin/');
+      const isAdminOnlyMsg = typeof backendMsg === 'string' && backendMsg.toLowerCase().includes('admin privileges required');
+
+      // กรณี student เรียก admin api -> ไม่เด้ง error (ให้หน้าที่ใช้ RoleBasedRoute แสดง 403 UI แทน)
+      if (role === 'student' && isAdminApi) {
+        return Promise.reject(error);
+      }
+
+      // กรณี student แต่ backend ตอบกลับว่าต้องเป็น admin (ข้อความเฉพาะ)
+      // บางครั้ง endpoint ฝั่งผู้ใช้อาจตอบข้อความนี้จาก middleware ฝั่ง admin (เช่น reverse proxy ผิดเส้น)
+      // เพื่อไม่รบกวน UX นักศึกษา ให้เงียบข้อความ popup
+      if (role === 'student' && isAdminOnlyMsg) {
+        return Promise.reject(error);
+      }
+
       message.error({
-        content: 'ไม่มีสิทธิ์เข้าถึงข้อมูล: ' + (error.response.data?.message || 'กรุณาตรวจสอบสิทธิ์การใช้งาน'),
+        content: 'ไม่มีสิทธิ์เข้าถึงข้อมูล: ' + (backendMsg || 'กรุณาตรวจสอบสิทธิ์การใช้งาน'),
         duration: 3
       });
       return Promise.reject(error);

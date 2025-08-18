@@ -199,11 +199,22 @@ const ProjectForm = ({
       const values = form.getFieldsValue(true);
       
       // แปลง contributors เป็น JSON string ตามที่ API ต้องการ
+      // รองรับทั้งสมาชิกที่ลงทะเบียน (registered) และบุคคลภายนอก (external)
       const contributorsJson = JSON.stringify(
-        contributors.map(c => ({ 
-          user_id: c.user_id, 
-          role: c.role 
-        }))
+        contributors.map(c => {
+          if (c.memberType === 'registered' && c.user_id) {
+            return {
+              user_id: c.user_id,
+              role: c.role || 'contributor'
+            };
+          }
+          return {
+            name: c.name,
+            student_id: c.student_id || null,
+            email: c.email || null,
+            role: c.role || 'contributor'
+          };
+        })
       );
       
       // สร้าง object สำหรับข้อมูลโปรเจค

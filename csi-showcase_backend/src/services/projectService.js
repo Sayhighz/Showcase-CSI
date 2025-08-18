@@ -99,12 +99,25 @@ const getAllProjects = async (filters = {}, pagination = {}) => {
       const placeholders = projectIds.map(() => '?').join(',');
       
       const collaboratorsQuery = `
-        SELECT pg.project_id, pg.role, u.user_id, u.username, u.full_name, u.image
+        SELECT
+          pg.project_id,
+          pg.role,
+          pg.user_id,
+          pg.member_name,
+          pg.member_student_id,
+          pg.member_email,
+          u.username,
+          u.full_name,
+          u.image,
+          CASE
+            WHEN pg.user_id IS NOT NULL THEN 'registered'
+            ELSE 'external'
+          END as member_type
         FROM project_groups pg
-        JOIN users u ON pg.user_id = u.user_id
+        LEFT JOIN users u ON pg.user_id = u.user_id
         WHERE pg.project_id IN (${placeholders})
-        ORDER BY pg.project_id, 
-          CASE 
+        ORDER BY pg.project_id,
+          CASE
             WHEN pg.role = 'owner' THEN 1
             WHEN pg.role = 'contributor' THEN 2
             WHEN pg.role = 'advisor' THEN 3
@@ -114,18 +127,31 @@ const getAllProjects = async (filters = {}, pagination = {}) => {
       
       const [collaborators] = await pool.execute(collaboratorsQuery, projectIds);
       
-      // จัดกลุ่มผู้ร่วมโครงการตาม project_id
+      // จัดกลุ่มผู้ร่วมโครงการตาม project_id และแยกประเภทสมาชิก
       const collaboratorsByProject = collaborators.reduce((acc, collab) => {
         if (!acc[collab.project_id]) {
           acc[collab.project_id] = [];
         }
-        acc[collab.project_id].push({
-          userId: collab.user_id,
-          username: collab.username,
-          fullName: collab.full_name,
-          image: collab.image,
-          role: collab.role
-        });
+        
+        const memberData = {
+          role: collab.role,
+          memberType: collab.member_type
+        };
+        
+        if (collab.member_type === 'registered') {
+          // สมาชิกที่ลงทะเบียนในระบบ
+          memberData.userId = collab.user_id;
+          memberData.username = collab.username;
+          memberData.fullName = collab.full_name;
+          memberData.image = collab.image;
+        } else {
+          // สมาชิกภายนอก
+          memberData.memberName = collab.member_name;
+          memberData.memberStudentId = collab.member_student_id;
+          memberData.memberEmail = collab.member_email;
+        }
+        
+        acc[collab.project_id].push(memberData);
         return acc;
       }, {});
       
@@ -172,13 +198,57 @@ const getProjectById = async (projectId, options = {}) => {
       
       const project = projects[0];
       
-      // ดึงข้อมูลสมาชิกในกลุ่ม
+      // ดึงข้อมูลสมาชิกในกลุ่ม (รวมทั้งสมาชิกที่ลงทะเบียนและสมาชิกภายนอก)
       const [contributors] = await pool.execute(`
-        SELECT u.user_id, u.username, u.full_name, u.email, u.image
+        SELECT
+          pg.project_id,
+          pg.role,
+          pg.user_id,
+          pg.member_name,
+          pg.member_student_id,
+          pg.member_email,
+          u.username,
+          u.full_name,
+          u.email,
+          u.image,
+          CASE
+            WHEN pg.user_id IS NOT NULL THEN 'registered'
+            ELSE 'external'
+          END as member_type
         FROM project_groups pg
-        JOIN users u ON pg.user_id = u.user_id
+        LEFT JOIN users u ON pg.user_id = u.user_id
         WHERE pg.project_id = ?
+        ORDER BY
+          CASE
+            WHEN pg.role = 'owner' THEN 1
+            WHEN pg.role = 'contributor' THEN 2
+            WHEN pg.role = 'advisor' THEN 3
+            ELSE 4
+          END
       `, [projectId]);
+      
+      // แยกข้อมูลผู้อัปโหลดและสมาชิกทีม
+      const uploader = contributors.find(c => c.role === 'owner');
+      const teamMembers = contributors.filter(c => c.role !== 'owner').map(member => {
+        const memberData = {
+          role: member.role,
+          memberType: member.member_type
+        };
+        
+        if (member.member_type === 'registered') {
+          memberData.userId = member.user_id;
+          memberData.username = member.username;
+          memberData.fullName = member.full_name;
+          memberData.email = member.email;
+          memberData.image = member.image;
+        } else {
+          memberData.memberName = member.member_name;
+          memberData.memberStudentId = member.member_student_id;
+          memberData.memberEmail = member.member_email;
+        }
+        
+        return memberData;
+      });
       
       // ดึงข้อมูลเพิ่มเติมตามประเภทของโครงการ
       let additionalData = {};
@@ -285,7 +355,14 @@ const getProjectById = async (projectId, options = {}) => {
       return {
         ...project,
         files,
-        contributors,
+        contributors: teamMembers, // สมาชิกทีม (ไม่รวมผู้อัปโหลด)
+        uploader: uploader ? {
+          userId: uploader.user_id,
+          username: uploader.username,
+          fullName: uploader.full_name,
+          email: uploader.email,
+          image: uploader.image
+        } : null,
         ...additionalData
       };
     } catch (error) {

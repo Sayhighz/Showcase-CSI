@@ -17,6 +17,7 @@ import {
   CreatorInfo, 
   CategoryDetails
 } from '../../components/projects/detail';
+import ProjectReviewForm from '../../components/projects/ProjectReviewForm';
 import { FileOutlined, TeamOutlined, HistoryOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 
 const { TabPane } = Tabs;
@@ -34,7 +35,8 @@ const ProjectDetailPage = () => {
     rejectProject,
     deleteProject,
     updateProject,
-    refreshProjectDetails
+    refreshProjectDetails,
+    actionLoading
   } = useProject('detail', 'detail', {}, projectId);
 
   // สถานะสำหรับแสดง modal
@@ -51,6 +53,10 @@ const ProjectDetailPage = () => {
     visibility: 1
   });
 
+  // Modal อนุมัติ (ต้องใส่เหตุผล)
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewAction, setReviewAction] = useState('approve');
+
   // เมื่อโหลดข้อมูลโปรเจคสำเร็จ ให้กำหนดค่าเริ่มต้นสำหรับฟอร์มแก้ไข
   useEffect(() => {
     if (projectDetails) {
@@ -66,13 +72,10 @@ const ProjectDetailPage = () => {
     }
   }, [projectDetails]);
 
-  // อนุมัติโปรเจค
-  const handleApproveProject = async () => {
-    const success = await approveProject(projectId);
-    if (success) {
-      message.success('อนุมัติโปรเจคสำเร็จ');
-      refreshProjectDetails();
-    }
+  // อนุมัติโปรเจค (เปิดโมดัลเพื่อระบุเหตุผลก่อน)
+  const handleApproveProject = () => {
+    setReviewAction('approve');
+    setReviewModalVisible(true);
   };
 
   // แสดง modal ปฏิเสธโปรเจค
@@ -93,6 +96,18 @@ const ProjectDetailPage = () => {
       message.success('ปฏิเสธโปรเจคสำเร็จ');
       setRejectModalVisible(false);
       refreshProjectDetails();
+    }
+  };
+
+  // ยืนยันจากฟอร์มรีวิว
+  const handleReviewFinish = async (values) => {
+    if (reviewAction === 'approve') {
+      const success = await approveProject(projectId, values.comment);
+      if (success) {
+        message.success('อนุมัติโปรเจคสำเร็จ');
+        setReviewModalVisible(false);
+        refreshProjectDetails();
+      }
     }
   };
 
@@ -279,6 +294,21 @@ const ProjectDetailPage = () => {
           value={rejectReason}
           onChange={(e) => setRejectReason(e.target.value)}
           placeholder="ระบุเหตุผลที่ปฏิเสธ เช่น ข้อมูลไม่ครบถ้วน, เนื้อหาไม่เหมาะสม..."
+        />
+      </Modal>
+
+      {/* Modal อนุมัติโปรเจค (ต้องมีเหตุผล) */}
+      <Modal
+        title="อนุมัติโปรเจค"
+        open={reviewModalVisible}
+        onCancel={() => setReviewModalVisible(false)}
+        footer={null}
+      >
+        <ProjectReviewForm
+          initialValues={{ action: 'approve' }}
+          onFinish={handleReviewFinish}
+          onCancel={() => setReviewModalVisible(false)}
+          loading={actionLoading}
         />
       </Modal>
       

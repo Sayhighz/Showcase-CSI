@@ -48,7 +48,7 @@ const LoginForm = () => {
       <div className="text-center mb-6">
         <Title level={3} style={{ color: '#90278E' }}>เข้าสู่ระบบ</Title>
         <Text type="secondary">
-          เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านของคุณ
+          ระบบจัดการผลงาน CSI ProjectManage
         </Text>
       </div>
       
@@ -133,10 +133,10 @@ const LoginForm = () => {
       <div className="mt-8 text-center">
         <Space direction="vertical" size="middle" align="center">
           <div className="text-gray-500">
-            สำหรับผู้ดูแลระบบเท่านั้น
+            สำหรับนักศึกษาและผู้ดูแลระบบ
           </div>
           <div className="text-gray-400 text-xs">
-            © {new Date().getFullYear()} CSI Showcase Admininistration
+            © {new Date().getFullYear()} CSI ProjectManage System
           </div>
         </Space>
       </div>
