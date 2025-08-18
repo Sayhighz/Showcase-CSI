@@ -20,6 +20,87 @@ const truncateText = (text, maxLength) => {
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
 };
 
+// สร้างตัวย่อจากชื่อ (อักษรแรกของ 2 คำแรก)
+const getInitials = (name = '') => {
+  try {
+    if (!name || typeof name !== 'string') return 'U';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  } catch {
+    return 'U';
+  }
+};
+
+// ดึงรายชื่อผู้ร่วมโปรเจคให้เป็นรูปแบบเดียว และตัดเจ้าของโปรเจคออก
+const normalizeContributors = (project) => {
+  try {
+    const ownerName =
+      project?.student ||
+      project?.author?.fullName ||
+      project?.author?.full_name ||
+      '';
+
+    // 1) ใช้ collaborators หากมี
+    let raw = [];
+    if (Array.isArray(project?.collaborators)) {
+      raw = project.collaborators;
+    } else if (project?.contributors) {
+      // 2) รองรับ contributors ทั้งกรณีเป็น string(JSON) หรือ array
+      if (typeof project.contributors === 'string') {
+        try {
+          const parsed = JSON.parse(project.contributors);
+          if (Array.isArray(parsed)) raw = parsed;
+        } catch {
+          raw = [];
+        }
+      } else if (Array.isArray(project.contributors)) {
+        raw = project.contributors;
+      }
+    }
+
+    // 3) แปลงให้เป็นรูปแบบ { name, image, role }
+    const mapped = raw
+      .map((c) => {
+        const name =
+          c?.fullName ||
+          c?.full_name ||
+          c?.memberName ||
+          c?.member_name ||
+          c?.username ||
+          c?.name ||
+          '';
+
+        const image = c?.image || null;
+        const role = c?.role || 'contributor';
+
+        return { name, image, role };
+      })
+      // ตัดคนที่ไม่มีชื่อทิ้ง
+      .filter((c) => c.name && typeof c.name === 'string');
+
+    // 4) ตัดเจ้าของโปรเจคออก (ถ้าชื่อซ้ำ)
+    const withoutOwner = mapped.filter(
+      (c) => c.name.trim() !== (ownerName || '').trim()
+    );
+
+    // 5) ลบรายชื่อซ้ำตามชื่อ
+    const uniqueByName = [];
+    const seen = new Set();
+    for (const c of withoutOwner) {
+      const key = c.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueByName.push(c);
+      }
+    }
+
+    return uniqueByName;
+  } catch {
+    return [];
+  }
+};
+
 const SearchBar = () => {
   const navigate = useNavigate();
   const debounceTimeout = useRef(null);
@@ -104,62 +185,110 @@ const SearchBar = () => {
   // สร้างตัวเลือกสำหรับ AutoComplete
   const getOptions = () => {
     if (searchResults.length > 0) {
-      return searchResults.map((project, index) => ({
-        value: project.id.toString(), // ใช้ ID เป็น value
-        label: (
-          <motion.div
-            key={`${project.id}-${index}`}
-            onClick={() => handleSelect(project.id)}
-            className={`flex items-start p-2 sm:p-4 cursor-pointer rounded-xl transition-all duration-200 ${index === selectedIndex ? 'bg-purple-50' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            whileHover={{ backgroundColor: '#f5eaff', boxShadow: '0 4px 12px rgba(144, 39, 142, 0.1)' }}
-          >
-            <div className="relative mr-2 sm:mr-4">
-              <div className="relative">
-                <Avatar 
-                  src={project.image ? (API_ENDPOINTS.BASE + '/' + project.image) : null} 
-                  size={isMobile ? 40 : 56} 
-                  shape="square"
-                  className="shadow-md rounded-xl"
-                  style={{ border: `2px solid ${colors.primary}` }}
-                >
-                  {project.title ? project.title.charAt(0).toUpperCase() : '?'}
-                </Avatar>
-                
-                {/* Floating Tag for Category */}
-                <Tag 
-                  color={
-                    project.category === 'academic' ? 'blue' : 
-                    project.category === 'competition' ? 'gold' : 
-                    project.category === 'coursework' ? 'green' : 
-                    'purple'
-                  } 
-                  className="absolute -top-2 -right-2 rounded-full shadow-sm border-white border-2 text-xs"
-                >
-                  {categoryIcons[project.category] || <StarOutlined className="text-purple-500" />}
-                </Tag>
-              </div>
-            </div>
-            <div className="flex-1 overflow-hidden ml-1 sm:ml-2">
-              <div className="font-bold text-sm sm:text-base text-purple-900 truncate max-w-[180px] sm:max-w-xs">
-                {truncateText(project.title, isMobile ? 30 : 50)}
-              </div>
-              <div className="text-xs sm:text-sm text-gray-600 flex flex-wrap gap-1 sm:gap-2 mt-0.5 sm:mt-1">
-                <span className="font-medium">{project.student || project.author?.fullName || 'ไม่ระบุผู้สร้าง'}</span>
-                {project.level && <span className="text-purple-600 hidden xs:inline">• ชั้นปี {project.level}</span>}
-                {project.year && <span className="text-purple-600 hidden xs:inline">• ปี {project.year}</span>}
-              </div>
-              {project.description && (
-                <div className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2 line-clamp-2 pr-2 sm:pr-4 hidden xs:block">
-                  {truncateText(project.description, isMobile ? 60 : 100)}
+      return searchResults.map((project, index) => {
+        const collabs = normalizeContributors(project);
+        const maxToShow = isMobile ? 5 : 8;
+        const shown = collabs.slice(0, maxToShow);
+        const remaining = Math.max(collabs.length - shown.length, 0);
+
+        return {
+          value: project.id.toString(), // ใช้ ID เป็น value
+          label: (
+            <motion.div
+              key={`${project.id}-${index}`}
+              onClick={() => handleSelect(project.id)}
+              className={`flex items-start p-2 sm:p-4 cursor-pointer rounded-xl transition-all duration-200 ${index === selectedIndex ? 'bg-purple-50' : ''}`}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              whileHover={{ backgroundColor: '#f5eaff', boxShadow: '0 4px 12px rgba(144, 39, 142, 0.1)' }}
+            >
+              <div className="relative mr-2 sm:mr-4">
+                <div className="relative">
+                  <Avatar
+                    src={project.image ? (API_ENDPOINTS.BASE + '/' + project.image) : null}
+                    size={isMobile ? 40 : 56}
+                    shape="square"
+                    className="shadow-md rounded-xl"
+                    style={{ border: `2px solid ${colors.primary}` }}
+                  >
+                    {project.title ? project.title.charAt(0).toUpperCase() : '?'}
+                  </Avatar>
+                  
+                  {/* Floating Tag for Category */}
+                  <Tag
+                    color={
+                      project.category === 'academic' ? 'blue' :
+                      project.category === 'competition' ? 'gold' :
+                      project.category === 'coursework' ? 'green' :
+                      'purple'
+                    }
+                    className="absolute -top-2 -right-2 rounded-full shadow-sm border-white border-2 text-xs"
+                  >
+                    {categoryIcons[project.category] || <StarOutlined className="text-purple-500" />}
+                  </Tag>
                 </div>
-              )}
-            </div>
-          </motion.div>
-        ),
-      }));
+              </div>
+              <div className="flex-1 overflow-hidden ml-1 sm:ml-2">
+                <div className="font-bold text-sm sm:text-base text-purple-900 truncate max-w-[180px] sm:max-w-xs">
+                  {truncateText(project.title, isMobile ? 30 : 50)}
+                </div>
+
+                {/* Owner + meta */}
+                <div className="text-xs sm:text-sm text-gray-600 flex flex-wrap gap-1 sm:gap-2 mt-0.5 sm:mt-1">
+                  <span className="font-medium">{project.student || project.author?.fullName || 'ไม่ระบุผู้สร้าง'}</span>
+                  {project.level && <span className="text-purple-600 hidden xs:inline">• ชั้นปี {project.level}</span>}
+                  {project.year && <span className="text-purple-600 hidden xs:inline">• ปี {project.year}</span>}
+                </div>
+
+                {/* Contributors: แสดงผู้ร่วมโปรเจคครบทุกคน (รูป/ชื่อย่อ) */}
+                {shown.length > 0 && (
+                  <div className="flex items-center flex-wrap gap-1 sm:gap-2 mt-1">
+                    <span className="text-[10px] sm:text-xs text-gray-500 mr-1">ผู้ร่วมโปรเจค:</span>
+                    <div className="flex items-center flex-wrap gap-1">
+                      {/* แสดงเป็น Avatar/ชื่อย่อ พร้อม Tooltip เป็นชื่อเต็ม */}
+                      {shown.map((c, idx) => {
+                        const title = c.name;
+                        const imgSrc =
+                          c.image
+                            ? (typeof c.image === 'string' && c.image.startsWith('http')
+                                ? c.image
+                                : `${API_ENDPOINTS.BASE}/${c.image}`)
+                            : null;
+                        return (
+                          <Tooltip key={`${c.name}-${idx}`} title={title}>
+                            <Avatar
+                              size={20}
+                              src={imgSrc || undefined}
+                              style={{ backgroundColor: '#b666ff' }}
+                              className="shadow-sm"
+                            >
+                              {!imgSrc && getInitials(c.name)}
+                            </Avatar>
+                          </Tooltip>
+                        );
+                      })}
+                      {remaining > 0 && (
+                        <Tooltip title={collabs.slice(maxToShow).map(c => c.name).join(', ')}>
+                          <Avatar size={20} style={{ backgroundColor: '#8b5cf6' }} className="shadow-sm">
+                            +{remaining}
+                          </Avatar>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {project.description && (
+                  <div className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2 line-clamp-2 pr-2 sm:pr-4 hidden xs:block">
+                    {truncateText(project.description, isMobile ? 60 : 100)}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ),
+        };
+      });
     }
     return [];
   };
@@ -220,18 +349,19 @@ const SearchBar = () => {
             onBlur={() => setIsFocused(false)}
             className="w-full text-base sm:text-lg"
             popupClassName="cosmic-search-dropdown"
+            placement="bottomLeft"
             onDropdownVisibleChange={onDropdownVisibleChange}
-            getPopupContainer={(trigger) => trigger.parentElement}
+            getPopupContainer={() => document.body}
             dropdownAlign={{
               offset: [0, 10], // ปรับระยะห่างของ dropdown จากข้อความค้นหา
             }}
-            dropdownStyle={{ 
-              borderRadius: '16px', 
-              overflow: 'hidden', 
-              boxShadow: '0 8px 32px rgba(144, 39, 142, 0.25)', 
+            dropdownStyle={{
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(144, 39, 142, 0.25)',
               border: `1px solid rgba(145, 107, 216, 0.3)`,
               padding: '8px',
-              maxWidth: '100%', 
+              maxWidth: '100%',
               width: 'min(800px, 100%)',
               position: 'absolute',
               zIndex: 1050
@@ -325,14 +455,7 @@ const SearchBar = () => {
           opacity: 0.8;
         }
         
-        /* เพิ่ม style สำหรับ dropdown container เพื่อให้แน่ใจว่าจะไม่ทับกับองค์ประกอบอื่น */
-        .ant-select-dropdown-placement-bottomLeft {
-          left: 0 !important;
-          top: 100% !important;
-          position: absolute !important;
-        }
-        
-        /* Responsive styles */
+        * Responsive styles */
         @media (max-width: 640px) {
           .cosmic-search-dropdown .ant-select-item {
             padding: 0 !important;

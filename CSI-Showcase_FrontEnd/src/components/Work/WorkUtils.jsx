@@ -193,7 +193,7 @@ export const getCategoryTheme = (category) => {
         borderColor: '#faad14',
         color: 'white'
       },
-      aspectRatio: 'aspect-square',
+      aspectRatio: 'aspect-[2/3]',
       mediaType: 'image'
     }
   };

@@ -23,98 +23,89 @@ const NavigationSidebar = ({ scrollToSection, refs }) => {
     };
   }, []);
   
-  // ติดตามตำแหน่งเลื่อนเพื่อไฮไลต์ navigation ที่กำลังดู
+  /* IntersectionObserver + hysteresis: ป้องกันการสลับไม่เนียนบริเวณด้านบนของ banner */
   useEffect(() => {
-    // กำหนดค่าเริ่มต้นเป็น 'home'
     setActiveSection('home');
-    
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-      const windowHeight = window.innerHeight;
-      
-      // ใช้ threshold ที่เล็กกว่าเพื่อให้สามารถเปลี่ยนได้เร็วขึ้น
-      const threshold = 200; // fixed threshold
-      
-      // ใช้ offsetTop สำหรับความแม่นยำสูง
-      const courseWorkElement = courseWorkRef.current;
-      const competitionElement = competitionRef.current;
-      const academicElement = academicRef.current;
-      
-      let courseWorkPos = null;
-      let competitionPos = null;
-      let academicPos = null;
-      
-      if (courseWorkElement) {
-        courseWorkPos = courseWorkElement.offsetTop;
-      }
-      if (competitionElement) {
-        competitionPos = competitionElement.offsetTop;
-      }
-      if (academicElement) {
-        academicPos = academicElement.offsetTop;
-      }
-      
-      // Debug: แสดงค่าต่าง ๆ
-      console.log('Scroll Debug:', {
-        scrollPosition,
-        threshold,
-        courseWorkPos,
-        competitionPos,
-        academicPos,
-        windowHeight
-      });
-      
-      // ปรับปรุงเงื่อนไขให้ติดตาม scroll อย่างแม่นยำ
-      let newActiveSection = 'home';
-      
-      // ถ้าอยู่ใกล้จุดเริ่มต้น (บน banner)
-      if (scrollPosition < windowHeight * 0.8) {
-        newActiveSection = 'home';
-      }
-      // เช็ค courseWork section
-      else if (courseWorkPos !== null && scrollPosition >= courseWorkPos - threshold) {
-        newActiveSection = 'courseWork';
-        
-        // เช็ค competition section
-        if (competitionPos !== null && scrollPosition >= competitionPos - threshold) {
-          newActiveSection = 'competition';
-          
-          // เช็ค academic section
-          if (academicPos !== null && scrollPosition >= academicPos - threshold) {
-            newActiveSection = 'academic';
-          }
+  
+    const sections = [
+      { id: 'courseWork', el: courseWorkRef?.current },
+      { id: 'competition', el: competitionRef?.current },
+      { id: 'academic', el: academicRef?.current },
+    ].filter(s => s.el);
+  
+    if (sections.length === 0) return;
+  
+    const visibleRatios = new Map();
+    const lastActiveRef = { current: 'home' };
+  
+    // กำหนดฮิสเทอรีซิส: ต้องเห็น section มากพอถึงจะ "เข้า" และจะ "ออก" เมื่อเห็นน้อยลงกว่าค่าที่ต่ำกว่า
+    const ENTER_THRESHOLD = 0.35;
+    const EXIT_THRESHOLD = 0.2;
+    const SLACK = 0.05; // กันสั่นเมื่อสอง section สูสี
+  
+    const updateActive = () => {
+      // หา section ที่เห็นมากที่สุด
+      let bestId = 'home';
+      let bestRatio = 0;
+  
+      sections.forEach(({ id }) => {
+        const r = visibleRatios.get(id) ?? 0;
+        if (r > bestRatio) {
+          bestRatio = r;
+          bestId = id;
         }
-      }
-      
-      console.log('Active section should be:', newActiveSection);
-      
-      // เปลี่ยน active section
-      setActiveSection(newActiveSection);
-    };
-    
-    // ใช้ requestAnimationFrame แทน throttle สำหรับ smoother animation
-    let rafId = null;
-    const smoothHandleScroll = () => {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-      rafId = requestAnimationFrame(() => {
-        handleScroll();
-        rafId = null;
       });
-    };
-    
-    window.addEventListener('scroll', smoothHandleScroll, { passive: true });
-    
-    // เรียกใช้ฟังก์ชันทันทีเพื่อตั้งค่าเริ่มต้น
-    handleScroll();
-    
-    return () => {
-      window.removeEventListener('scroll', smoothHandleScroll);
-      if (rafId) {
-        cancelAnimationFrame(rafId);
+  
+      const current = lastActiveRef.current;
+      const currentRatio = visibleRatios.get(current) ?? 0;
+  
+      if (current === 'home') {
+        // จาก home -> เข้า section ใหม่เมื่อเห็นมากพอ
+        if (bestRatio >= ENTER_THRESHOLD) {
+          lastActiveRef.current = bestId;
+          setActiveSection(bestId);
+        } else {
+          // คง home (ไม่สลับไปมาเวลาอยู่ใกล้ๆ ด้านบน)
+        }
+        return;
+      }
+  
+      // current เป็นหนึ่งใน section
+      // คง current ไว้ถ้ายังเห็นมากพอ และไม่ได้แพ้คู่แข่งแบบชัดเจน
+      if (currentRatio >= EXIT_THRESHOLD && currentRatio >= bestRatio - SLACK) {
+        return; // คงสถานะเดิมเพื่อความเนียน
+      }
+  
+      // เปลี่ยนไปหา best ถ้าเห็นมากพอ มิฉะนั้นกลับไปที่ home
+      if (bestRatio >= ENTER_THRESHOLD) {
+        lastActiveRef.current = bestId;
+        setActiveSection(bestId);
+      } else {
+        lastActiveRef.current = 'home';
+        setActiveSection('home');
       }
     };
+  
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const match = sections.find(s => s.el === entry.target);
+        if (!match) return;
+        visibleRatios.set(match.id, entry.intersectionRatio);
+      });
+      updateActive();
+    }, {
+      root: null,
+      // ลดพื้นที่ด้านล่างของ viewport ลง เพื่อให้ต้องเห็น section มากพอค่อยสลับ
+      rootMargin: '0px 0px -30% 0px',
+      threshold: [0, 0.1, 0.25, 0.35, 0.5, 0.75, 1]
+    });
+  
+    sections.forEach(s => observer.observe(s.el));
+  
+    // evaluate ครั้งแรก
+    requestAnimationFrame(updateActive);
+  
+    return () => observer.disconnect();
   }, [courseWorkRef, competitionRef, academicRef]);
   
   // แสดงสถานะปัจจุบันใน console (สามารถลบออกได้ในโค้ดจริง)

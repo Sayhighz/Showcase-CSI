@@ -175,7 +175,7 @@ const WorkCard = ({
           </motion.div>
         )}
         <p className="text-xs sm:text-sm text-[#8b949e] m-0 truncate flex-1">
-          {item.student || "ไม่ระบุเจ้าของผลงาน"}
+          {item.student || "ไม่ระบุหัวหน้าทีม"}
         </p>
       </div>
     );
@@ -235,7 +235,7 @@ const WorkCard = ({
               {renderHoverOverlay("p-2 sm:p-4 md:p-5", (
                 <Link to={item.projectLink} className="text-[#FFE6FF] hover:text-white">
                   <motion.h2 
-                    className="text-sm sm:text-base md:text-xl font-semibold mb-1 sm:mb-2"
+                    className="text-sm sm:text-base md:text-xl font-semibold mb-1 sm:mb-2 line-clamp-2 leading-snug"
                     initial={{ y: 20 }}
                     animate={{ y: isHovering === item.id ? 0 : 20 }}
                     transition={{ duration: 0.4 }}
@@ -268,7 +268,7 @@ const WorkCard = ({
         >
           <Link to={item.projectLink} className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300">
             <Tooltip title={item.title}>
-              <h3 className="text-sm sm:text-base font-semibold truncate mb-1 sm:mb-2">{item.title}</h3>
+              <h3 className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 line-clamp-2 leading-snug">{item.title}</h3>
             </Tooltip>
           </Link>
           
@@ -565,54 +565,80 @@ const WorkCard = ({
                             {(item.student || item.full_name || 'U').charAt(0).toUpperCase()}
                           </motion.div>
                         )}
-                        <Tooltip title={`${item.student || item.full_name || 'ไม่ระบุชื่อ'} (เจ้าของโปรเจค)`}>
+                        <Tooltip title={`${item.student || item.full_name || 'ไม่ระบุชื่อ'} (หัวหน้าทีม)`}>
                           <span className="ml-1 text-xs text-gray-700 max-w-20 truncate">
                             {item.student || item.full_name || 'ไม่ระบุ'}
                           </span>
                         </Tooltip>
                       </div>
 
-                      {item.collaborators && item.collaborators.length > 0 && (
-                        <div className="flex items-center">
-                          {item.collaborators.slice(0, 3).map((collaborator, idx) => (
-                            <div key={collaborator.userId || collaborator.user_id || idx} className="flex items-center mr-1 -ml-1">
-                              {collaborator.image ? (
-                                <motion.div
-                                  className="w-6 h-6 rounded-full overflow-hidden border border-white shadow-sm"
-                                  whileHover={{ scale: 1.1 }}
-                                >
-                                  <img
-                                    src={`${API_ENDPOINTS.BASE}/${collaborator.image}`}
-                                    alt={collaborator.fullName || collaborator.full_name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </motion.div>
-                              ) : (
-                                <motion.div
-                                  className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex items-center justify-center text-xs"
-                                  style={{ color: categoryTheme.primary }}
-                                  whileHover={{ scale: 1.1 }}
-                                >
-                                  {(collaborator.fullName || collaborator.full_name || 'U').charAt(0).toUpperCase()}
-                                </motion.div>
-                              )}
-                              <Tooltip title={`${collaborator.fullName || collaborator.full_name} (${collaborator.role === 'contributor' ? 'ผู้ร่วมงาน' : collaborator.role === 'advisor' ? 'ที่ปรึกษา' : collaborator.role})`}>
-                                <span className="ml-1 text-xs text-gray-600 max-w-16 truncate">
-                                  {collaborator.fullName || collaborator.full_name}
-                                </span>
+                      {(() => {
+                        const all = Array.isArray(item.collaborators) ? item.collaborators : [];
+                        // ตัดเจ้าของออกจากรายชื่อผู้ร่วมงาน
+                        const displayCollabs = all.filter(c => (c.role || '').toLowerCase() !== 'owner');
+                        if (displayCollabs.length === 0) return null;
+                        const firstThree = displayCollabs.slice(0, 3);
+                        return (
+                          <div className="flex items-center">
+                            {firstThree.map((collaborator, idx) => {
+                              const name =
+                                collaborator.fullName ||
+                                collaborator.full_name ||
+                                collaborator.memberName ||
+                                collaborator.member_name ||
+                                collaborator.username ||
+                                `สมาชิกคนที่ ${idx + 1}`;
+                              const imgSrc = collaborator.image
+                                ? (typeof collaborator.image === 'string' && collaborator.image.startsWith('http')
+                                    ? collaborator.image
+                                    : `${API_ENDPOINTS.BASE}/${collaborator.image}`)
+                                : null;
+                              const roleLabel =
+                                collaborator.role === 'contributor'
+                                  ? 'ผู้ร่วมงาน'
+                                  : collaborator.role === 'advisor'
+                                  ? 'ที่ปรึกษา'
+                                  : collaborator.role;
+                              return (
+                                <div key={collaborator.userId || collaborator.user_id || `${name}-${idx}`} className="flex items-center mr-1 -ml-1">
+                                  {imgSrc ? (
+                                    <motion.div
+                                      className="w-6 h-6 rounded-full overflow-hidden border border-white shadow-sm"
+                                      whileHover={{ scale: 1.1 }}
+                                    >
+                                      <img
+                                        src={imgSrc}
+                                        alt={name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </motion.div>
+                                  ) : (
+                                    <motion.div
+                                      className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex items-center justify-center text-xs"
+                                      style={{ color: categoryTheme.primary }}
+                                      whileHover={{ scale: 1.1 }}
+                                    >
+                                      {(name || 'U').charAt(0).toUpperCase()}
+                                    </motion.div>
+                                  )}
+                                  <Tooltip title={`${name} (${roleLabel})`}>
+                                    <span className="ml-1 text-xs text-gray-600 max-w-16 truncate">
+                                      {name}
+                                    </span>
+                                  </Tooltip>
+                                </div>
+                              );
+                            })}
+                            {displayCollabs.length > 3 && (
+                              <Tooltip title={`และอีก ${displayCollabs.length - 3} คน`}>
+                                <div className="w-6 h-6 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
+                                  +{displayCollabs.length - 3}
+                                </div>
                               </Tooltip>
-                            </div>
-                          ))}
-                          
-                          {item.collaborators.length > 3 && (
-                            <Tooltip title={`และอีก ${item.collaborators.length - 3} คน`}>
-                              <div className="w-6 h-6 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center text-xs text-gray-500">
-                                +{item.collaborators.length - 3}
-                              </div>
-                            </Tooltip>
-                          )}
-                        </div>
-                      )}
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <motion.div

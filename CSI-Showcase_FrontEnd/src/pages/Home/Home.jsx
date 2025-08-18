@@ -151,7 +151,7 @@ const Home = () => {
       {/* Enhanced Banner Section - Minimal Animation */}
       <motion.div
         ref={homeRef}
-        style={{ opacity: bannerOpacity }}
+        style={{ opacity: bannerOpacity, willChange: 'opacity' }}
         className="w-full h-screen flex items-center justify-center fixed top-0 left-0 right-0 z-10"
         initial={false}
       >

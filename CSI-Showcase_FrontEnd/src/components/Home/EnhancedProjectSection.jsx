@@ -118,6 +118,7 @@ const EnhancedProjectSection = ({
           {displayProjects.map((project) => (
             <div
               key={project.id}
+              className="w-full max-w-[260px] md:max-w-[280px] lg:max-w-[300px] mx-auto"
             >
               <Card
                   hoverable
@@ -128,17 +129,17 @@ const EnhancedProjectSection = ({
                     transform: 'translateZ(0)',
                   }}
                 cover={
-                  <div className="relative h-48 overflow-hidden group-hover:h-52 transition-all duration-500">
+                  <div className={`relative overflow-hidden ${project.category === 'academic' ? 'aspect-[16/9]' : 'aspect-[2/3]'}`}>
                     {project.image ? (
                       <img
                         src={`${API_ENDPOINTS.BASE}/${project.image}`}
                         alt={project.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-110"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 group-hover:brightness-110"
                       />
                     ) : (
                       // Enhanced poster-style placeholder
                       <div
-                        className="w-full h-full flex flex-col relative overflow-hidden"
+                        className="absolute inset-0 w-full h-full flex flex-col overflow-hidden"
                         style={{
                           background: project.category === 'academic'
                             ? `linear-gradient(135deg, ${sectionColor}, ${accentColor})`
@@ -257,9 +258,13 @@ const EnhancedProjectSection = ({
               >
                 <div className="space-y-4">
                   {/* Project Title */}
-                  <Title level={4} className="mb-2 line-clamp-2 h-14">
+                  <Paragraph
+                    className="mb-2 leading-snug break-words hyphens-auto line-clamp-2 min-h-[3.25rem]"
+                    ellipsis={{ rows: 2, tooltip: he.decode(project.title) }}
+                    style={{ fontWeight: 600, marginBottom: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                  >
                     {he.decode(project.title)}
-                  </Title>
+                  </Paragraph>
 
                   {/* Project Description */}
                   <Paragraph className="text-gray-600 text-sm line-clamp-3 h-16 mb-4">

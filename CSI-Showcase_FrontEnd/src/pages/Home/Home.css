@@ -24,7 +24,7 @@
   );
 }
 
-/* Floating particles animation */
+/* Disabled animated sparkle layer to prevent continuous repaints */
 .space-background-container::before {
   content: '';
   position: absolute;
@@ -32,7 +32,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     radial-gradient(2px 2px at 20px 30px, #fff, transparent),
     radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
     radial-gradient(1px 1px at 90px 40px, #fff, transparent),
@@ -40,14 +40,12 @@
     radial-gradient(2px 2px at 160px 30px, #fff, transparent);
   background-repeat: repeat;
   background-size: 200px 100px;
-  animation: sparkle 8s linear infinite;
-  opacity: 0.6;
+  /* animation removed for performance */
+  opacity: 0.35;
 }
 
-@keyframes sparkle {
-  from { transform: translateY(0px); }
-  to { transform: translateY(-200px); }
-}
+/* sparkle keyframes retained intentionally unused for future optional re-enable */
+/* @keyframes sparkle { ... } */
 
 /* Enhanced Banner Section */
 .enhanced-banner {
@@ -74,19 +72,10 @@
     transparent 70%
   );
   border-radius: 50%;
-  animation: pulse-glow 4s ease-in-out infinite;
+  /* animation removed for performance */
 }
 
-@keyframes pulse-glow {
-  0%, 100% {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 0.3;
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.1);
-    opacity: 0.6;
-  }
-}
+/* @keyframes pulse-glow removed for performance */
 
 /* Enhanced Project Sections */
 .project-section-container {
@@ -119,13 +108,10 @@
   border-radius: 42px 42px 2px 2px;
   z-index: -1;
   opacity: 0.5;
-  animation: border-flow 6s linear infinite;
+  /* animation removed for performance */
 }
 
-@keyframes border-flow {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 200% 200%; }
-}
+/* @keyframes border-flow removed for performance */
 
 /* Enhanced Cards */
 .project-card {

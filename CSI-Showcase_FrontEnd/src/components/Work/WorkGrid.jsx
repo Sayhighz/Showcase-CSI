@@ -39,6 +39,36 @@ const WorkGrid = ({
     window.innerWidth <= 640 ? 1 : window.innerWidth <= 1024 ? 2 : 3
   );
   
+const [reducedEffects, setReducedEffects] = useState(false);
+
+  // Detect reduced-motion / low-end devices and disable heavy effects
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const getLowEnd = () => {
+      const deviceMemory = ('deviceMemory' in navigator) ? navigator.deviceMemory : 8;
+      const cores = navigator.hardwareConcurrency || 8;
+      return deviceMemory <= 4 || cores <= 4 || window.innerWidth <= 768;
+    };
+
+    const update = () => setReducedEffects(media.matches || getLowEnd());
+
+    update();
+    media.addEventListener?.('change', update);
+    window.addEventListener('resize', update, { passive: true });
+
+    return () => {
+      media.removeEventListener?.('change', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  // Turn off auto-play if effects are reduced for better performance
+  useEffect(() => {
+    if (reducedEffects) setIsAutoPlay(false);
+  }, [reducedEffects]);
   // Optimized scroll animation - reduce computational overhead
   const { scrollYProgress } = useScroll();
   const sectionOpacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0.8, 1, 1, 0.8]);
@@ -128,7 +158,7 @@ const WorkGrid = ({
 
   // สร้างดาวประกอบฉากหลัง - ปรับให้มีจำนวนน้อยลงบนอุปกรณ์มือถือ
   const renderStars = () => {
-    const starCount = window.innerWidth <= 768 ? 15 : 30;
+    const starCount = reducedEffects ? 0 : (window.innerWidth <= 768 ? 8 : 20);
     
     return Array.from({ length: starCount }).map((_, i) => {
       const size = Math.random() * 3 + 1;
@@ -300,13 +330,13 @@ const WorkGrid = ({
     <motion.div
       className={`work-section py-8 sm:py-12 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto relative ${getSectionBackground()}`}
       style={{
-        opacity: sectionOpacity
+        opacity: reducedEffects ? 1 : sectionOpacity
       }}
       onMouseEnter={() => setIsAutoPlay(false)}
       onMouseLeave={() => setIsAutoPlay(autoPlay)}
     >
       {/* Background decoration blob */}
-      {displayMode !== "list" && getRenderDecorationBlob(displayMode === "column" ? "left" : "right")}
+      {displayMode !== "list" && !reducedEffects && getRenderDecorationBlob(displayMode === "column" ? "left" : "right")}
       
       {/* Background stars decoration */}
       <div className="absolute inset-0 overflow-hidden -z-10 opacity-30">
@@ -353,11 +383,11 @@ const WorkGrid = ({
         <motion.div
           key={currentPage}
           className={displayMode === "list" ? getGridColumns() : `grid ${getGridColumns()} w-full`}
-          variants={containerVariants}
-          initial={{ opacity: 0, x: direction * 30 }}
+          variants={reducedEffects ? undefined : containerVariants}
+          initial={reducedEffects ? false : { opacity: 0, x: direction * 30 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -direction * 30 }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
+          exit={reducedEffects ? undefined : { opacity: 0, x: -direction * 30 }}
+          transition={{ duration: reducedEffects ? 0.2 : 0.4, ease: reducedEffects ? "linear" : "easeInOut" }}
         >
           {loading ? (
             renderSkeletons()

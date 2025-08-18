@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { cn } from "../../../lib/utils";
 
-const Globe = ({ className, size = 600, points = [], ...props }) => {
+const Globe = ({ className, size = 600, points = [], animated = true, rotationSpeed = 0.2, fps = 30, ...props }) => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -213,27 +213,33 @@ const Globe = ({ className, size = 600, points = [], ...props }) => {
     let animationId;
     
     let lastTime = 0;
-    const targetFPS = 30; // Limit to 30 FPS for better performance
+    const targetFPS = fps; // configurable FPS
     const frameInterval = 1000 / targetFPS;
     
     function animate(currentTime) {
+      if (!animated) return; // stop looping when animation disabled
       if (currentTime - lastTime >= frameInterval) {
-        rotation += 0.2; // Even slower rotation
+        rotation += rotationSpeed; // configurable rotation speed
         drawGlobe();
         lastTime = currentTime;
       }
       animationId = requestAnimationFrame(animate);
     }
 
-    // Start animation
-    animate();
+    // Initial draw
+    drawGlobe();
+
+    // Start animation only when enabled
+    if (animated) {
+      animationId = requestAnimationFrame(animate);
+    }
 
     return () => {
       if (animationId) {
         cancelAnimationFrame(animationId);
       }
     };
-  }, [size, points]);
+  }, [size, points, animated, rotationSpeed, fps]);
 
   return (
     <div className={cn("relative", className)} {...props}>

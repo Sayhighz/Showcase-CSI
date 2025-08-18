@@ -119,25 +119,43 @@ const RelatedProjects = ({ projects = [] }) => {
                           </div>
                           
                           {/* Collaborators */}
-                          {project.collaborators && project.collaborators.length > 0 ? (
-                            project.collaborators.map((collaborator, idx) => (
-                              <div key={idx} className="truncate">
-                                <span className="inline-block w-2 h-2 bg-[#B252B0] rounded-full mr-2 flex-shrink-0"></span>
-                                <span>{truncateText(collaborator.fullName || collaborator.full_name || `สมาชิกคนที่ ${idx + 1}`, 20)}</span>
-                                {collaborator.role && (
-                                  <span className="text-[#8b949e] ml-1">
-                                    ({collaborator.role === 'contributor' ? 'ผู้ร่วมงาน' :
-                                      collaborator.role === 'advisor' ? 'ที่ปรึกษา' :
-                                      collaborator.role})
-                                  </span>
-                                )}
+                          {(() => {
+                            const all = Array.isArray(project.collaborators) ? project.collaborators : [];
+                            // ตัดเจ้าของออกจากรายชื่อผู้ร่วมงาน
+                            const displayCollabs = all.filter(c => (c.role || '').toLowerCase() !== 'owner');
+                            return displayCollabs.length > 0 ? (
+                              displayCollabs.map((collaborator, idx) => {
+                                const name =
+                                  collaborator.fullName ||
+                                  collaborator.full_name ||
+                                  collaborator.memberName ||
+                                  collaborator.member_name ||
+                                  collaborator.username ||
+                                  `สมาชิกคนที่ ${idx + 1}`;
+                                const roleLabel =
+                                  collaborator.role === 'contributor'
+                                    ? 'ผู้ร่วมงาน'
+                                    : collaborator.role === 'advisor'
+                                    ? 'ที่ปรึกษา'
+                                    : collaborator.role;
+                                return (
+                                  <div key={idx} className="truncate">
+                                    <span className="inline-block w-2 h-2 bg-[#B252B0] rounded-full mr-2 flex-shrink-0"></span>
+                                    <span>{truncateText(name, 20)}</span>
+                                    {collaborator.role && (
+                                      <span className="text-[#8b949e] ml-1">
+                                        ({roleLabel})
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="text-[#8b949e] italic text-xs">
+                                ไม่มีข้อมูลสมาชิกอื่น
                               </div>
-                            ))
-                          ) : (
-                            <div className="text-[#8b949e] italic text-xs">
-                              ไม่มีข้อมูลสมาชิกอื่น
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

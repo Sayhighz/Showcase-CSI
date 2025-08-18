@@ -1,103 +1,128 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { motion, useAnimation } from 'framer-motion';
-import { Typography } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import SearchBar from '../SearchBar/SearchBar';
-import SpaceBackground from './SpaceBackground';
-import BorderBeam from '../ui/magicui/border-beam';
-import Particles from '../ui/magicui/particles';
-import Globe from '../ui/magicui/globe';
-import Meteors from '../ui/magicui/meteors';
 import WordRotate from '../ui/magicui/word-rotate';
 import TextReveal from '../ui/magicui/text-reveal';
+import Globe from '../ui/magicui/globe';
 
-// eslint-disable-next-line no-unused-vars
-const _motion = motion; // Suppress eslint warning for motion usage in JSX
 
-const { Title, Text } = Typography;
 
+const MAIN_TITLE = 'CSI  SHOWCASE';
 const EnhancedBanner = () => {
-  const textControls = useAnimation();
-  const containerRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
-  const rafId = useRef();
-  const ticking = useRef(false);
-  
-  // Throttled scroll handler using requestAnimationFrame
-  const handleScroll = useCallback(() => {
-    if (!ticking.current) {
-      requestAnimationFrame(() => {
-        const currentScrollY = window.scrollY;
-        
-        if (currentScrollY > 0) {
-          textControls.start({
-            y: -currentScrollY * 0.2, // Reduced parallax intensity for smoother performance
-            opacity: Math.max(0, 1 - currentScrollY / 600),
-            transition: {
-              duration: 0, // Remove transition for immediate response
-              ease: "linear"
-            }
-          });
-        } else {
-          textControls.start({ y: 0, opacity: 1 });
-        }
-        ticking.current = false;
-      });
-      ticking.current = true;
-    }
-  }, [textControls]);
+  const [reducedEffects, setReducedEffects] = useState(false);
+  const [typedTitle, setTypedTitle] = useState('');
+  const [showCursor, setShowCursor] = useState(false);
 
-  // Optimized resize handler
-  const handleResize = useCallback(() => {
-    setIsMobile(window.innerWidth <= 768);
-  }, []);
-  
   useEffect(() => {
-    handleResize();
-    textControls.start({ y: 0, opacity: 1 });
-    
-    // Use passive listeners for better performance
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleResize, { passive: true });
-    
-    // Initial call
-    handleScroll();
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-      if (rafId.current) {
-        cancelAnimationFrame(rafId.current);
-      }
+    const updateIsMobile = () => setIsMobile(window.innerWidth <= 768);
+    updateIsMobile();
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateReduced = () => {
+      const deviceMemory = (navigator && 'deviceMemory' in navigator) ? navigator.deviceMemory : 8;
+      setReducedEffects(media.matches || isMobile || deviceMemory <= 4);
     };
-  }, [textControls, handleScroll, handleResize]);
+
+    updateReduced();
+
+    window.addEventListener('resize', updateIsMobile, { passive: true });
+    media.addEventListener?.('change', updateReduced);
+
+    return () => {
+      window.removeEventListener('resize', updateIsMobile);
+      media.removeEventListener?.('change', updateReduced);
+    };
+  }, [isMobile]);
+
+  // Typewriter effect for main title (first visit per session)
+  useEffect(() => {
+    const KEY = 'csiBannerTypeDone';
+    const full = MAIN_TITLE;
+
+    if (typeof window === 'undefined') {
+      setTypedTitle(full);
+      setShowCursor(false);
+      return;
+    }
+
+    const alreadyDone = sessionStorage.getItem(KEY) === '1';
+    const shouldType = !reducedEffects && !alreadyDone;
+
+    if (!shouldType) {
+      setTypedTitle(full);
+      setShowCursor(false);
+      return;
+    }
+
+    setTypedTitle('');
+    setShowCursor(true);
+
+    let i = 0;
+    const speed = isMobile ? 85 : 65;
+    const startDelay = 400;
+
+    let intervalId;
+    const start = () => {
+      intervalId = setInterval(() => {
+        i += 1;
+        setTypedTitle(full.slice(0, i));
+        if (i >= full.length) {
+          clearInterval(intervalId);
+          sessionStorage.setItem(KEY, '1');
+          setTimeout(() => setShowCursor(false), 800);
+        }
+      }, speed);
+    };
+
+    const delayId = setTimeout(start, startDelay);
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(delayId);
+    };
+  }, [reducedEffects, isMobile]);
   
+  // Globe/light config (performance aware)
+  const globeSize = isMobile ? 520 : 1100;
+  const globeBottomOffset = -Math.round(globeSize * 0.55); // show top half
+  const globeAnimated = !reducedEffects; // stop animation on low-end/reduced devices
+  const globeFps = 24;
+  const globeRotationSpeed = 0.08;
 
   return (
-    <div 
-      ref={containerRef}
+    <div
       className="w-full h-screen flex flex-col items-center justify-center text-center text-white relative overflow-hidden"
       style={{ perspective: isMobile ? 'none' : '1000px' }}
     >
-      {/* Enhanced Space Background */}
-      <SpaceBackground isMobile={isMobile} />
-
-      {/* Enhanced 3D Globe - Bottom center with only top half visible */}
-      <div className="fixed opacity-90 z-15 will-change-transform"
-           style={{
-             left: '48%',
-             transform: 'translateX(-50%)',
-             bottom: isMobile ? '-550px' : '-900px',
-           }}>
+      {/* Globe - bottom center, top half visible. Animation gated for performance */}
+      <div
+        className="pointer-events-none absolute z-10"
+        style={{
+          left: '50%',
+          transform: 'translateX(-50%)',
+          bottom: `${globeBottomOffset}px`
+        }}
+      >
         <Globe
-          size={isMobile ? 900 : 1500}
-          className="performance-optimized"
+          size={globeSize}
+          animated={globeAnimated}
+          fps={globeFps}
+          rotationSpeed={globeRotationSpeed}
+          className="opacity-95"
         />
       </div>
 
-      {/* MagicUI Meteors - Reduced for performance */}
-      <div className="absolute inset-0 z-5 pointer-events-none will-change-transform">
-        <Meteors number={isMobile ? 8 : 12} className="opacity-60" />
-      </div>
+      {/* Light gradient simulating illumination from the globe */}
+      <div
+        className="pointer-events-none absolute inset-0 z-20"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 85%, rgba(144,39,142,0.45) 0%, rgba(144,39,142,0.22) 20%, rgba(178,82,176,0.12) 40%, rgba(0,0,0,0) 70%)',
+          mixBlendMode: 'screen'
+        }}
+      />
+
+
 
       {/* Main Content - Enhanced z-index to stay above Globe */}
       <motion.div
@@ -107,14 +132,6 @@ const EnhancedBanner = () => {
         transition={{ duration: 0.8, delay: 0.2 }}
       >
         <div className="text-center w-full max-w-4xl">
-          {/* MagicUI Particles Background - Optimized */}
-          <Particles
-            className="absolute inset-0 -z-10 will-change-transform"
-            quantity={isMobile ? 20 : 35}
-            ease={80}
-            color="#9027be"
-            refresh={false}
-          />
           
           {/* Hero Text with MagicUI BorderBeam */}
           <motion.div
@@ -126,14 +143,15 @@ const EnhancedBanner = () => {
             {/* CSI SHOWCASE with BorderBeam and TextReveal Effect */}
             <div className="relative inline-block mb-4 p-8 rounded-2xl overflow-visible">
               
-              <TextReveal
-                delay={0.2}
-                duration={0.6}
-                stagger={0.1}
+              <div
                 className="csi-main-title relative z-10 overflow-visible"
+                aria-label="CSI Showcase"
               >
-                CSI  SHOWCASE
-              </TextReveal>
+                {typedTitle}
+                {!reducedEffects && showCursor && (
+                  <span className="typewriter-cursor">|</span>
+                )}
+              </div>
             </div>
             
             {/* Thai Subtitle with Word Rotation and TextReveal */}
@@ -186,58 +204,60 @@ const EnhancedBanner = () => {
         </div>
       </motion.div>
       
-      {/* Enhanced Scroll Indicator */}
-      <motion.div
-        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-30 cursor-pointer"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{
-          opacity: 1,
-          y: 0,
-        }}
-        transition={{
-          opacity: { duration: 0.8, delay: 1 },
-          y: { duration: 0.8, delay: 1 }
-        }}
-        whileHover={{ scale: 1.05 }}
-        onClick={() => {
-          if (window.scrollToSmooth) {
-            window.scrollToSmooth(window.innerHeight);
-          } else {
-            window.scrollTo({ top: window.innerHeight, behavior: 'smooth' });
-          }
-        }}
-        style={{
-          left: '50%',
-          marginLeft: '-50px',
-          width: '100px'
-        }}
-      >
-        <div className="flex flex-col items-center justify-center w-full">
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="text-white/80 text-sm mb-3 font-light tracking-wide font-ubuntu text-center"
-          >
-            Scroll to explore
-          </motion.div>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-            className="flex justify-center"
-          >
-            <svg width="20" height="12" viewBox="0 0 20 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M2 2L10 10L18 2"
-                stroke="rgba(255,255,255,0.6)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="drop-shadow(0 0 8px rgba(255,255,255,0.3))"
-              />
-            </svg>
-          </motion.div>
-        </div>
-      </motion.div>
+      {/* Enhanced Scroll Indicator (disabled on reduced effects devices) */}
+      {!reducedEffects && (
+        <motion.div
+          className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-30 cursor-pointer"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            opacity: { duration: 0.8, delay: 1 },
+            y: { duration: 0.8, delay: 1 }
+          }}
+          whileHover={{ scale: 1.05 }}
+          onClick={() => {
+            if (window.scrollToSmooth) {
+              window.scrollToSmooth(window.innerHeight);
+            } else {
+              window.scrollTo({ top: window.innerHeight, behavior: 'smooth' });
+            }
+          }}
+          style={{
+            left: '50%',
+            marginLeft: '-50px',
+            width: '100px'
+          }}
+        >
+          <div className="flex flex-col items-center justify-center w-full">
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="text-white/80 text-sm mb-3 font-light tracking-wide font-ubuntu text-center"
+            >
+              Scroll to explore
+            </motion.div>
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+              className="flex justify-center"
+            >
+              <svg width="20" height="12" viewBox="0 0 20 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M2 2L10 10L18 2"
+                  stroke="rgba(255,255,255,0.6)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  filter="drop-shadow(0 0 8px rgba(255,255,255,0.3))"
+                />
+              </svg>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
       
       {/* Clean MagicUI Styles */}
       <style jsx>{`
@@ -256,7 +276,7 @@ const EnhancedBanner = () => {
           font-family: 'Ubuntu', 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
           font-size: ${isMobile ? '4rem' : '6.5rem'};
           font-weight: 900;
-          letter-spacing: -0.08em;
+          letter-spacing: 0.06em;
           line-height: 1.0;
           margin: 0;
           padding: 0.5rem 0;
@@ -335,7 +355,7 @@ const EnhancedBanner = () => {
           
           .csi-main-title {
             font-size: 3.5rem;
-            letter-spacing: -0.06em;
+            letter-spacing: 0.04em;
             line-height: 1.0;
             padding: 0.4rem 0;
           }
@@ -358,7 +378,7 @@ const EnhancedBanner = () => {
           
           .csi-main-title {
             font-size: 2.8rem;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.12em;
             line-height: 1.0;
             padding: 0.3rem 0;
           }
@@ -372,6 +392,23 @@ const EnhancedBanner = () => {
           .csi-sub-title-container {
             margin-top: -0.1rem;
           }
+        }
+
+        /* Typewriter cursor */
+        .typewriter-cursor {
+          display: inline-block;
+          margin-left: 2px;
+          font-weight: 900;
+          color: rgba(255,255,255,0.85);
+          text-shadow:
+            0 0 10px rgba(255,255,255,0.7),
+            0 0 20px rgba(178,82,176,0.6);
+          animation: cursor-blink 1s steps(2, start) infinite;
+        }
+
+        @keyframes cursor-blink {
+          0%, 50% { opacity: 1; }
+          50.01%, 100% { opacity: 0; }
         }
 
         /* Reduced motion support */
