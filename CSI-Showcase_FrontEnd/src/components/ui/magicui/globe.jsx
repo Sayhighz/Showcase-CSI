@@ -56,18 +56,27 @@ const Globe = ({ className, size = 600, points = [], animated = true, rotationSp
       
       // Enhanced 3D globe with realistic lighting gradient
       const gradient = ctx.createRadialGradient(
-        centerX - radius * 0.4, centerY - radius * 0.4, 0,
-        centerX, centerY, radius * 1.2
+        centerX - radius * 0.3, centerY - radius * 0.3, 0,
+        centerX, centerY, radius
       );
-      gradient.addColorStop(0, "rgba(144, 39, 142, 0.15)");
-      gradient.addColorStop(0.3, "rgba(144, 39, 142, 0.08)");
-      gradient.addColorStop(0.7, "rgba(144, 39, 142, 0.05)");
-      gradient.addColorStop(1, "rgba(144, 39, 142, 0.25)");
+      gradient.addColorStop(0, "rgba(144, 39, 142, 0.2)");
+      gradient.addColorStop(0.5, "rgba(144, 39, 142, 0.1)");
+      gradient.addColorStop(1, "rgba(144, 39, 142, 0.05)");
       
       // Draw globe background with depth
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
       ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Add a subtle specular highlight for a 3D effect
+      const highlightGradient = ctx.createRadialGradient(
+        centerX - radius * 0.2, centerY - radius * 0.2, 0,
+        centerX - radius * 0.2, centerY - radius * 0.2, radius * 0.5
+      );
+      highlightGradient.addColorStop(0, "rgba(255, 255, 255, 0.1)");
+      highlightGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = highlightGradient;
       ctx.fill();
       
       // Enhanced globe outline with static glow - increased clarity
@@ -94,11 +103,9 @@ const Globe = ({ className, size = 600, points = [], animated = true, rotationSp
     }
 
     function drawGridLines() {
-      const baseOpacity = 0.6; // Increased from 0.3 for clearer lines
-      ctx.lineWidth = 2.0; // Increased from 1.5 for thicker lines
+      ctx.lineWidth = 1.5;
 
-      // Simplified meridians
-      ctx.strokeStyle = `rgba(144, 39, 142, ${baseOpacity})`;
+      // Draw meridians with varying opacity for 3D effect
       for (let lng = -180; lng <= 180; lng += 30) {
         ctx.beginPath();
         let firstPoint = true;
@@ -107,19 +114,25 @@ const Globe = ({ className, size = 600, points = [], animated = true, rotationSp
           if (point.z > 0) {
             const screenX = centerX + point.x;
             const screenY = centerY - point.y;
-            
+            const lineOpacity = 0.2 + (point.depth * 0.4); // Opacity based on depth
+
             if (firstPoint) {
               ctx.moveTo(screenX, screenY);
               firstPoint = false;
             } else {
               ctx.lineTo(screenX, screenY);
             }
+            
+            // Set stroke style for each segment to allow varying opacity
+            ctx.strokeStyle = `rgba(144, 39, 142, ${lineOpacity})`;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(screenX, screenY);
           }
         }
-        ctx.stroke();
       }
 
-      // Simplified parallels
+      // Draw parallels with varying opacity for 3D effect
       for (let lat = -60; lat <= 60; lat += 30) {
         ctx.beginPath();
         let firstPoint = true;
@@ -128,16 +141,22 @@ const Globe = ({ className, size = 600, points = [], animated = true, rotationSp
           if (point.z > 0) {
             const screenX = centerX + point.x;
             const screenY = centerY - point.y;
-            
+            const lineOpacity = 0.2 + (point.depth * 0.4); // Opacity based on depth
+
             if (firstPoint) {
               ctx.moveTo(screenX, screenY);
               firstPoint = false;
             } else {
               ctx.lineTo(screenX, screenY);
             }
+            
+            // Set stroke style for each segment to allow varying opacity
+            ctx.strokeStyle = `rgba(144, 39, 142, ${lineOpacity})`;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(screenX, screenY);
           }
         }
-        ctx.stroke();
       }
     }
 
@@ -157,6 +176,20 @@ const Globe = ({ className, size = 600, points = [], animated = true, rotationSp
           ctx.beginPath();
           ctx.arc(screenX, screenY, pointSize, 0, 2 * Math.PI);
           ctx.fillStyle = `rgba(144, 39, 142, ${pointOpacity})`;
+          ctx.fill();
+          
+          // Add a subtle glow effect to the point
+          const glowRadius = pointSize * 2;
+          const glowGradient = ctx.createRadialGradient(
+            screenX, screenY, 0,
+            screenX, screenY, glowRadius
+          );
+          glowGradient.addColorStop(0, `rgba(144, 39, 142, ${pointOpacity * 0.5})`);
+          glowGradient.addColorStop(1, 'rgba(144, 39, 142, 0)');
+          
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, glowRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = glowGradient;
           ctx.fill();
           
           // Simple highlight
@@ -198,14 +231,15 @@ const Globe = ({ className, size = 600, points = [], animated = true, rotationSp
     function drawAtmosphere() {
       // Add atmospheric glow around the globe
       const atmosphereGradient = ctx.createRadialGradient(
-        centerX, centerY, radius * 0.95,
-        centerX, centerY, radius * 1.1
+        centerX, centerY, radius,
+        centerX, centerY, radius * 1.2
       );
-      atmosphereGradient.addColorStop(0, "rgba(144, 39, 142, 0)");
-      atmosphereGradient.addColorStop(1, "rgba(144, 39, 142, 0.1)");
+      atmosphereGradient.addColorStop(0, "rgba(144, 39, 142, 0.1)");
+      atmosphereGradient.addColorStop(0.5, "rgba(144, 39, 142, 0.05)");
+      atmosphereGradient.addColorStop(1, "rgba(144, 39, 142, 0)");
       
       ctx.beginPath();
-      ctx.arc(centerX, centerY, radius * 1.1, 0, 2 * Math.PI);
+      ctx.arc(centerX, centerY, radius * 1.2, 0, 2 * Math.PI);
       ctx.fillStyle = atmosphereGradient;
       ctx.fill();
     }

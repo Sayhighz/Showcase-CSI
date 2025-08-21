@@ -169,6 +169,7 @@ const Home = () => {
         }}
       />
 
+
       {/* Main Content Sections - No Animation */}
       <div
         className="relative z-30"

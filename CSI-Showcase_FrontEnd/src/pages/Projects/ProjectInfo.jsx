@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Skeleton, Tag, message, Modal, Divider } from 'antd';
 import { 
@@ -81,8 +81,7 @@ const ProjectInfo = () => {
   const [isOwner, setIsOwner] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   
-  // ใช้ useRef เพื่อป้องกันการเรียก API ซ้ำ
-  const hasFetchedRelatedProjects = useRef(false);
+  // Removed hasFetchedRelatedProjects ref - handled via effect dependencies
 
   // ตรวจสอบขนาดหน้าจอและอัปเดต state
   useEffect(() => {
@@ -126,44 +125,32 @@ const ProjectInfo = () => {
   // ดึงโปรเจคที่น่าสนใจโดยใช้ fetchTopProjects
   const [relatedProjects, setRelatedProjects] = useState([]);
   
+  // ดึง "ผลงานที่เกี่ยวข้อง" โดยจับคู่ประเภทเดียวกันกับโปรเจคปัจจุบัน และตัดโปรเจคปัจจุบันออก
   useEffect(() => {
-    const getTopProjects = async () => {
-      // ป้องกันการเรียก API ซ้ำ
-      if (hasFetchedRelatedProjects.current) return;
-      
+    const getRelated = async () => {
+      if (!projectId || !project) return;
       try {
-        hasFetchedRelatedProjects.current = true;
-        
-        // ใช้ fetchTopProjects เพื่อดึงโปรเจคยอดนิยม
-        const topProjects = await fetchTopProjects(4);
-        
-        if (topProjects && topProjects.length > 0) {
-          // กรองโปรเจคปัจจุบันออก
-          const filtered = topProjects.filter(
-            item => item.id !== parseInt(projectId) &&
-                   item.projectId !== parseInt(projectId)
-          );
-          
-          // กำหนดข้อมูลโปรเจคที่น่าสนใจ
-          setRelatedProjects(filtered);
-        }
+        const top = await fetchTopProjects();
+        const currentType = (project.type || project.category || '').toLowerCase();
+
+        const filtered = (top || [])
+          .filter((item) => {
+            const id = item.id ?? item.projectId ?? item.project_id;
+            if (String(id) === String(projectId)) return false;
+            const t = (item.type || item.category || '').toLowerCase();
+            return currentType ? t === currentType : true;
+          })
+          .slice(0, 4);
+
+        setRelatedProjects(filtered);
       } catch (err) {
-        console.error('Error fetching top projects:', err);
-        // ถ้าเกิดข้อผิดพลาด ให้ใช้ข้อมูลว่าง
+        console.error('Error fetching related projects:', err);
         setRelatedProjects([]);
       }
     };
-    
-    // เรียกใช้ฟังก์ชันดึงข้อมูลโปรเจคยอดนิยม
-    if (projectId) {
-      getTopProjects();
-    }
-    
-    // Reset flags เมื่อ projectId เปลี่ยน
-    return () => {
-      hasFetchedRelatedProjects.current = false;
-    };
-  }, [projectId, fetchTopProjects]);
+
+    getRelated();
+  }, [projectId, project, fetchTopProjects]);
 
   useEffect(() => {
     if (project && user) {

@@ -11,7 +11,7 @@ import {
   FileImageOutlined,
   TrophyOutlined
 } from "@ant-design/icons";
-import { API_ENDPOINTS } from "../../constants";
+import { API_ENDPOINTS, PROJECT } from "../../constants";
 import {
   getCategoryIcon,
   getTypeLabel,
@@ -30,6 +30,10 @@ const WorkCard = ({
   const cardRef = useRef(null);
   const categoryTheme = getCategoryTheme(item.category);
   const placeholderConfig = getCategoryPlaceholder(item.category);
+
+  // Compute safe internal link respecting app basename
+  const projectId = item?.id ?? item?.projectId ?? item?.project_id;
+  const to = projectId ? PROJECT.VIEW(projectId) : (typeof item?.projectLink === 'string' ? item.projectLink : '#');
 
   const handleMouseLeave = () => {
     onMouseLeave(null);
@@ -233,7 +237,7 @@ const WorkCard = ({
               />
               
               {renderHoverOverlay("p-2 sm:p-4 md:p-5", (
-                <Link to={item.projectLink} className="text-[#FFE6FF] hover:text-white">
+                <Link to={to} className="text-[#FFE6FF] hover:text-white">
                   <motion.h2 
                     className="text-sm sm:text-base md:text-xl font-semibold mb-1 sm:mb-2 line-clamp-2 leading-snug"
                     initial={{ y: 20 }}
@@ -266,7 +270,7 @@ const WorkCard = ({
           }
           styles={{ body: { padding: '12px 16px' } }}
         >
-          <Link to={item.projectLink} className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300">
+          <Link to={to} className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300">
             <Tooltip title={item.title}>
               <h3 className="text-sm sm:text-base font-semibold mb-1 sm:mb-2 line-clamp-2 leading-snug">{item.title}</h3>
             </Tooltip>
@@ -301,8 +305,8 @@ const WorkCard = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Link 
-              to={item.projectLink}
+            <Link
+              to={to}
               className="text-[#90278E] hover:text-[#B252B0] text-xs sm:text-sm font-medium flex items-center"
             >
               ดูเพิ่มเติม <ArrowRightOutlined className="ml-1" />
@@ -384,7 +388,7 @@ const WorkCard = ({
               <div className="flex flex-col h-full">
                 <div>
                   <Link
-                    to={item.projectLink}
+                    to={to}
                     className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300"
                   >
                     <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-2 sm:mb-3 line-clamp-1">{item.title}</h2>
@@ -456,7 +460,7 @@ const WorkCard = ({
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
                   >
                     <Link
-                      to={item.projectLink}
+                      to={to}
                       className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-white font-medium text-xs sm:text-sm bg-gradient-to-r from-[#90278E] to-[#B252B0] hover:from-[#B252B0] hover:to-[#90278E] shadow-md transition-all duration-300"
                     >
                       ดูเพิ่มเติม <ArrowRightOutlined className="ml-1" />
@@ -511,7 +515,7 @@ const WorkCard = ({
               <div className="flex flex-col h-full">
                 <div className="flex justify-between items-start mb-2">
                   <Link
-                    to={item.projectLink}
+                    to={to}
                     className="text-[#90278E] hover:text-[#B252B0] transition-colors duration-300 flex-1 mr-3"
                   >
                     <h3 className="text-base sm:text-lg font-semibold line-clamp-2 mb-1">{item.title}</h3>
@@ -646,7 +650,7 @@ const WorkCard = ({
                       whileTap={{ scale: 0.95 }}
                     >
                       <Link
-                        to={item.projectLink}
+                        to={to}
                         className="inline-flex items-center px-3 py-1.5 rounded-full text-white font-medium text-xs bg-gradient-to-r from-[#90278E] to-[#B252B0] hover:from-[#B252B0] hover:to-[#90278E] shadow-sm transition-all duration-300"
                       >
                         ดูรายละเอียด <ArrowRightOutlined className="ml-1" />

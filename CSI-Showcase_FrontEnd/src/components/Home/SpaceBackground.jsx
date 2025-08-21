@@ -1,7 +1,7 @@
 import React from 'react';
+import Starfield from './Starfield';
 
 const SpaceBackground = ({ isMobile = false, className = "" }) => {
-  // Optimized: static, GPU-friendly gradient only (no per-frame JS animations)
   return (
     <div
       className={`absolute inset-0 ${className}`}
@@ -12,8 +12,10 @@ const SpaceBackground = ({ isMobile = false, className = "" }) => {
         backfaceVisibility: 'hidden',
         transform: 'translateZ(0)'
       }}
-    />
+    >
+      <Starfield />
+    </div>
   );
 };
 
-export default SpaceBackground;
+export default React.memo(SpaceBackground);

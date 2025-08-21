@@ -13,8 +13,19 @@ import CourseworkProjects from "./pages/Projects/CourseworkProjects";
 import CompetitionProjects from "./pages/Projects/CompetitionProjects";
 import ProjectInfo from "./pages/Projects/ProjectInfo";
 
-// Add a configuration for your deployment base path
-const BASE_PATH = import.meta.env.REACT_APP_BASE_PATH || '/csie';
+// Add a configuration for your deployment base path (normalized)
+// Use Vite-style env var and normalize to no trailing slash, ensure leading slash.
+const rawBase = import.meta.env.VITE_BASE_PATH || '/csie';
+const BASE_PATH = (() => {
+  try {
+    let b = String(rawBase || '').trim();
+    if (!b.startsWith('/')) b = '/' + b;
+    b = b.replace(/\/+$/, ''); // remove trailing slashes
+    return b || '/';
+  } catch {
+    return '/csie';
+  }
+})();
 
 const App = () => {
   return (
