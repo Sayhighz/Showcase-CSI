@@ -6,6 +6,8 @@ const logger = require('./logger.js');
 dotenv.config();
 
 // กำหนดค่าสำหรับการเชื่อมต่อฐานข้อมูล
+const isProduction = process.env.NODE_ENV === 'production';
+
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -13,15 +15,25 @@ const dbConfig = {
   database: process.env.DB_DATABASE || 'csi_showcase',
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
-  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
+  // ลด connection limit สำหรับ production เพื่อไม่ให้ใช้ resource มากเกินไป
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || (isProduction ? 5 : 10),
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000, // เพิ่มค่านี้เป็น 10 วินาที
-  connectTimeout: 60000, // 60 วินาที timeout เมื่อพยายามเชื่อมต่อ
-  acquireTimeout: 60000, // 60 วินาที timeout สำหรับการรอคิวการเชื่อมต่อ
-  timeout: parseInt(process.env.DB_TIMEOUT) || 60000, // 60 วินาที timeout ทั่วไป
-  maxIdle: 10, // จำนวนการเชื่อมต่อ idle สูงสุด
-  idleTimeout: 60000 // 60 วินาที timeout สำหรับการเชื่อมต่อที่ไม่ได้ใช้งาน
+  // ลด timeout สำหรับ production เพื่อให้ fail fast
+  connectTimeout: isProduction ? 10000 : 60000, // 10 วินาที สำหรับ production
+  acquireTimeout: isProduction ? 10000 : 60000, // 10 วินาที สำหรับ production
+  timeout: parseInt(process.env.DB_TIMEOUT) || (isProduction ? 10000 : 60000), // 10 วินาที สำหรับ production
+  maxIdle: isProduction ? 3 : 10, // ลดจำนวนการเชื่อมต่อ idle สำหรับ production
+  idleTimeout: isProduction ? 30000 : 60000, // 30 วินาที สำหรับ production
+  // เพิ่ม options สำหรับ production
+  ...(isProduction && {
+    decimalNumbers: true,
+    dateStrings: true,
+    supportBigNumbers: true,
+    bigNumberStrings: false,
+    charset: 'utf8mb4'
+  })
 };
 
 logger.debug('Database configuration:', { ...dbConfig, password: '******' });

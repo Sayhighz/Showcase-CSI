@@ -1,13 +1,14 @@
 // src/constants/apiEndpoints.js
+import { BASE_API_URL, getApiBaseUrl } from '../lib/apiBase';
 
 /**
  * เก็บ endpoint ของ API ทั้งหมดในระบบ
  * แยกตามกลุ่มการใช้งาน
  */
 
-// Base URL
-export const URL = import.meta.env.VITE_API_URL;
-export const BASE_URL = import.meta.env.VITE_API_URL + '/api' || 'http://localhost:4000/api';
+// Base URL (อ่านจาก helper เพื่อรองรับ .env ทุกโหมด + fallback ตาม origin)
+export const URL = getApiBaseUrl();
+export const BASE_URL = BASE_API_URL;
 export const ADMIN_BASE_URL = `${BASE_URL}/admin`;
 
 // การยืนยันตัวตนของแอดมิน (Admin Authentication)

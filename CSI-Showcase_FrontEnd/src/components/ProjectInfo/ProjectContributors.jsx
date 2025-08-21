@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Card, Avatar, Row, Col, Tooltip, Button, Modal } from 'antd';
 import { TeamOutlined, CrownOutlined, EllipsisOutlined } from '@ant-design/icons';
+import { getApiBaseUrl } from '../../config/apiBase';
 
 const ProjectContributors = ({ author, contributors = [] }) => {
   const [showAllModal, setShowAllModal] = useState(false);
   const [displayLimit] = useState(6); // จำนวนผู้ร่วมโปรเจคที่แสดงในหน้าหลัก
 
   if (!author) return null;
-
-  const baseUrl = import.meta.env.VITE_API_URL || '';
+ 
+  const baseUrl = getApiBaseUrl();
 
   // แปลง path รูปภาพให้เป็น URL ที่เข้าถึงได้
   const getProfileImageUrl = (imagePath) => {

@@ -93,15 +93,15 @@ const router = express.Router();
 
 
 // เข้าสู่ระบบ
-router.post(API_ROUTES.AUTH.LOGIN, login);
+router.post('/login', login);
 
 // ตรวจสอบ token
-router.get(API_ROUTES.AUTH.VERIFY_TOKEN, authenticateToken, verifyToken);
+router.get('/verify-token', authenticateToken, verifyToken);
 
 // ออกจากระบบ (สำหรับการเรียกโดย frontend)
-router.post(API_ROUTES.AUTH.LOGOUT, logout);
+router.post('/logout', logout);
 
 // ดึงข้อมูลผู้ใช้ปัจจุบัน
-router.get(API_ROUTES.AUTH.ME, authenticateToken, getCurrentUser);
+router.get('/me', authenticateToken, getCurrentUser);
 
 module.exports = router;

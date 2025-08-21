@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Tabs, Image, Button, Card } from 'antd';
 import { FileTextOutlined, FilePdfOutlined, DownloadOutlined, PictureOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { getVideoEmbedUrl } from '../../utils/fileUtils';
+import { getApiBaseUrl } from '../../config/apiBase';
 
 const { TabPane } = Tabs;
+const BASE = getApiBaseUrl();
 
 const ProjectMediaDisplay = ({ project }) => {
   const [activeTab, setActiveTab] = useState('1');
@@ -70,9 +72,9 @@ const ProjectMediaDisplay = ({ project }) => {
             icon: <PictureOutlined />,
             content: (
               <div className="p-4 text-center bg-gradient-to-b from-[#F5EAFF] to-white">
-                <Image 
-                  src={`${import.meta.env.VITE_API_URL}/${project.coursework.poster}`} 
-                  alt="Poster" 
+                <Image
+                  src={`${BASE}/${project.coursework.poster}`}
+                  alt="Poster"
                   className="max-h-[500px] object-contain rounded-lg shadow-lg"
                   preview={{
                     mask: <div className="text-white bg-[#90278E] bg-opacity-70 px-3 py-1 rounded-md transition-all">ดูเต็มจอ</div>
@@ -91,9 +93,9 @@ const ProjectMediaDisplay = ({ project }) => {
             icon: <PictureOutlined />,
             content: (
               <div className="p-4 text-center bg-gradient-to-b from-[#F5EAFF] to-white">
-                <Image 
-                  src={`${import.meta.env.VITE_API_URL}/${project.coursework.image}`} 
-                  alt="Additional Image" 
+                <Image
+                  src={`${BASE}/${project.coursework.image}`}
+                  alt="Additional Image"
                   className="max-h-[500px] object-contain rounded-lg shadow-lg"
                   preview={{
                     mask: <div className="text-white bg-[#90278E] bg-opacity-70 px-3 py-1 rounded-md transition-all">ดูเต็มจอ</div>
@@ -161,9 +163,9 @@ const ProjectMediaDisplay = ({ project }) => {
             icon: <VideoCameraOutlined />,
             content: (
               <div className="relative w-full h-0 pb-[56.25%] overflow-hidden my-4 rounded-lg shadow-lg">
-                <video 
-                  controls 
-                  src={`${import.meta.env.VITE_API_URL}/${project.coursework.courseworkVideo}`}
+                <video
+                  controls
+                  src={`${BASE}/${project.coursework.courseworkVideo}`}
                   className="absolute top-0 left-0 w-full h-full rounded-lg"
                 />
               </div>
@@ -193,10 +195,10 @@ const ProjectMediaDisplay = ({ project }) => {
                 >
                   <p className="mb-4 text-[#24292f]">คุณสามารถดาวน์โหลดหรือเปิดดูเอกสารบทความได้จากลิงก์ด้านล่าง</p>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button 
-                      type="primary" 
+                    <Button
+                      type="primary"
                       icon={<DownloadOutlined />}
-                      href={`${import.meta.env.VITE_API_URL}/${project.academic.paper_file}`}
+                      href={`${BASE}/${project.academic.paper_file}`}
                       target="_blank"
                       className="bg-[#90278E] hover:bg-[#5E1A5C] shadow-md transition-all duration-300"
                     >
@@ -204,7 +206,7 @@ const ProjectMediaDisplay = ({ project }) => {
                     </Button>
                     <Button
                       icon={<FileTextOutlined />}
-                      href={`${import.meta.env.VITE_API_URL}/${project.academic.paper_file}`}
+                      href={`${BASE}/${project.academic.paper_file}`}
                       target="_blank"
                       className="border-[#90278E] border-opacity-20 text-[#90278E] hover:bg-[#F5EAFF] shadow-sm hover:shadow transition-all duration-300"
                     >
@@ -227,9 +229,9 @@ const ProjectMediaDisplay = ({ project }) => {
             icon: <PictureOutlined />,
             content: (
               <div className="p-4 text-center bg-gradient-to-b from-[#F5EAFF] to-white">
-                <Image 
-                  src={`${import.meta.env.VITE_API_URL}/${project.competition.poster}`} 
-                  alt="Competition Poster" 
+                <Image
+                  src={`${BASE}/${project.competition.poster}`}
+                  alt="Competition Poster"
                   className="max-h-[500px] object-contain rounded-lg shadow-lg"
                   preview={{
                     mask: <div className="text-white bg-[#90278E] bg-opacity-70 px-3 py-1 rounded-md transition-all">ดูเต็มจอ</div>

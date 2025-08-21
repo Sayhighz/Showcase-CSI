@@ -1,13 +1,24 @@
 import axios from 'axios';
 import { getAuthCookie } from '../lib/cookie';
 
-// Get API URL from environment variables (set in .env)
-const API_URL = import.meta.env.VITE_API_URL || '';
+// Env-driven base API URL resolver
+const getBaseApiUrl = () => {
+  const isProd = import.meta.env.PROD;
+  const base =
+    (isProd ? (import.meta.env.VITE_API_URL_PROD || import.meta.env.VITE_API_URL) : import.meta.env.VITE_API_URL)
+    || '';
+  // Optional prefix if only path is configured
+  const apiPrefix = import.meta.env.VITE_API_BASE_PREFIX || '/csie/backend2';
+  const resolved = base || `${window.location.origin}${apiPrefix}`;
+  // Ensure no trailing slash
+  return resolved.replace(/\/+$/, '');
+};
+const BASE_API_URL = `${getBaseApiUrl()}/api`;
 const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '';
 
 // Create axios instance with default configuration
 const axiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: BASE_API_URL,
   timeout: 15000, // 15 seconds timeout
   headers: {
     'Content-Type': 'application/json',

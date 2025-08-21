@@ -522,9 +522,9 @@ const uploadProject = async (req, res) => {
   try {
     const userId = req.params.user_id;
 
-    // ตรวจสอบสิทธิ์ในการอัปโหลด - เฉพาะ Student เท่านั้น และต้องอัปโหลดของตนเอง
-    if (req.user.role !== "student" || req.user.id != userId) {
-      return forbiddenResponse(res, "Only students can upload their own projects");
+    // ตรวจสอบสิทธิ์ในการอัปโหลด
+    if (req.user.id != userId && req.user.role !== "admin") {
+      return forbiddenResponse(res, "You can only upload your own projects");
     }
 
     // เริ่มต้น transaction

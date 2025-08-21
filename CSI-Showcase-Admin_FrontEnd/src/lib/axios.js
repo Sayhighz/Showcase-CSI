@@ -2,14 +2,25 @@ import axios from 'axios';
 import { message } from 'antd';
 import { getAuthToken, removeAuthToken } from './cookie-simple';
 
-// Use import.meta.env instead of process.env for Vite
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api';
+// Env-driven base API URL resolver
+const getBaseApiUrl = () => {
+  const isProd = import.meta.env.PROD;
+  const base =
+    (isProd ? (import.meta.env.VITE_API_URL_PROD || import.meta.env.VITE_API_URL) : import.meta.env.VITE_API_URL)
+    || '';
+  // Optional prefix if only path is configured
+  const apiPrefix = import.meta.env.VITE_API_BASE_PREFIX || '/csie/backend2';
+  const resolved = base || `${window.location.origin}${apiPrefix}`;
+  // Ensure no trailing slash
+  return resolved.replace(/\/+$/, '');
+};
+const BASE_API_URL = `${getBaseApiUrl()}/api`;
 const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '9a73a892-06f4-4ae1-8767-c1ff07a3823f';
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
 
 // Create an axios instance with basic configuration
 const axiosInstance = axios.create({
-    baseURL: BASE_URL,
+    baseURL: BASE_API_URL,
     timeout: 15000, // 15 seconds timeout
     headers: {
         'Content-Type': 'application/json',

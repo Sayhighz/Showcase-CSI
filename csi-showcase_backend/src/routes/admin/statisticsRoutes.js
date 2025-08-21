@@ -8,7 +8,6 @@ const {
   getStudyYearStats
 } = require('../../controllers/admin/statisticsController.js');
 const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
-const { checkAdminSecretKey } = require('../../middleware/secretKeyMiddleware.js');
 const { API_ROUTES } = require('../../constants/routes.js');
 
 const router = express.Router();

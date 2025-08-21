@@ -22,6 +22,7 @@ const checkSecretKey = (req, res, next) => {
     '/api/auth/forgot-password', // หน้ารีเซ็ตรหัสผ่าน
     '/api/auth/reset-password',  // หน้าตั้งรหัสผ่านใหม่
     '/api/admin/auth/login',   // หน้า login สำหรับ admin
+    '/api/test-top9-bypass',   // Diagnostic bypass endpoint (no secret key required)
   ];
   
   // ตรวจสอบว่าเป็น path ที่ต้องผ่านการตรวจสอบ secret key หรือไม่
@@ -105,6 +106,5 @@ const checkAdminSecretKey = (req, res, next) => {
 
 // Export functions using CommonJS
 module.exports = {
-  checkSecretKey,
-  checkAdminSecretKey
+  checkSecretKey
 };

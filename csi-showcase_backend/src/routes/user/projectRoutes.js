@@ -379,7 +379,7 @@ router.post(
  *       500:
  *         description: Server error
  */
-router.get(API_ROUTES.PROJECT.GET_ALL, getAllProjects);
+router.get('/all', getAllProjects);
 
 /**
  * @swagger
@@ -422,7 +422,7 @@ router.get(API_ROUTES.PROJECT.GET_ALL, getAllProjects);
  *       500:
  *         description: Server error
  */
-router.get(API_ROUTES.PROJECT.TOP, getTop9Projects);
+router.get('/top9', getTop9Projects);
 
 /**
  * @swagger
@@ -472,7 +472,7 @@ router.get(API_ROUTES.PROJECT.TOP, getTop9Projects);
  *       500:
  *         description: Server error
  */
-router.get(API_ROUTES.PROJECT.LATEST, getLatestProjects);
+router.get('/latest', getLatestProjects);
 
 /**
  * @swagger
@@ -552,6 +552,8 @@ router.get(API_ROUTES.PROJECT.LATEST, getLatestProjects);
  *         description: Server error
  */
 router.get('/user/:user_id/my-projects', authenticateToken, isResourceOwner, getMyProjects);
+// Backward-compatible alias to match frontend expectation
+router.get('/myprojects/:user_id', authenticateToken, isResourceOwner, getMyProjects);
 
 /**
  * @swagger
@@ -592,7 +594,7 @@ router.get('/user/:user_id/my-projects', authenticateToken, isResourceOwner, get
  *       500:
  *         description: Server error
  */
-router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDetails);
+router.get('/project/:projectId', optionalAuthenticateToken, getProjectDetails);
 
 /**
  * @swagger
@@ -743,7 +745,7 @@ router.get(API_ROUTES.PROJECT.GET_BY_ID, optionalAuthenticateToken, getProjectDe
  *         description: Server error
  */
 router.put(
-  API_ROUTES.PROJECT.UPDATE, 
+  '/update/:projectId',
   authenticateToken, 
   isResourceOwner,
   projectUpdateMiddleware, // ใช้ middleware สำหรับการอัปเดต
@@ -789,7 +791,7 @@ router.put(
  *         description: Server error
  */
 router.delete(
-  API_ROUTES.PROJECT.DELETE,
+  '/delete/:projectId',
   authenticateToken,
   isResourceOwner,
   deleteProject
@@ -836,6 +838,6 @@ router.delete(
  *       500:
  *         description: Server error
  */
-router.post(API_ROUTES.PROJECT.VIEW_COUNT, incrementViewCount);
+router.post('/:projectId/view', incrementViewCount);
 
 module.exports = router;

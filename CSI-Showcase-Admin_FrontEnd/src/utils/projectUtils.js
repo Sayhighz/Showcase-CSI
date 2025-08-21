@@ -180,15 +180,17 @@ export const groupProjectsByYear = (projects) => {
  * @param {string} filePath - พาธของไฟล์
  * @returns {string} - URL สำหรับดาวน์โหลด
  */
+import { BASE_API_URL } from '../lib/apiBase';
+
 export const getFileDownloadUrl = (filePath) => {
   if (!filePath) return null;
-  
+
   // ถ้าเป็น URL เต็มอยู่แล้ว ให้ใช้เลย
   if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
     return filePath;
   }
-  
-  // ถ้าไม่ใช่ ให้ต่อกับ API URL
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-  return `${apiUrl}/files/${filePath}`;
+
+  // ถ้าไม่ใช่ ให้ใช้ BASE_API_URL ที่รวม /api แล้ว และเข้ากับโครงสร้าง backend: /api/upload/files/<path>
+  const normalized = String(filePath).replace(/^\/+/, '');
+  return `${BASE_API_URL}/upload/files/${normalized}`;
 };

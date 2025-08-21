@@ -3,7 +3,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const { API_ROUTES } = require('../../constants/routes.js');
+ // const { API_ROUTES } = require('../../constants/routes.js'); // unused: use relative paths within mounted base
 const { createDirectoryIfNotExists } = require('../../utils/fileHelper.js');
 const { importUsersFromCSV, downloadCSVTemplate } = require('../../controllers/admin/batchUserController.js');
 const { 
@@ -183,7 +183,7 @@ const csvUpload = multer({
  *         description: Internal Server Error
  */
 router.post(
-  API_ROUTES.ADMIN.USER.BATCH_IMPORT,
+  '/batch-import',
   [authenticateToken, isAdmin, csvUpload.single('file')],
   importUsersFromCSV
 );
@@ -213,7 +213,7 @@ router.post(
  *         description: Internal Server Error
  */
 router.get(
-  API_ROUTES.ADMIN.USER.CSV_TEMPLATE,
+  '/csv-template',
   [authenticateToken, isAdmin],
   downloadCSVTemplate
 );
@@ -312,8 +312,8 @@ const adminAuth = [authenticateToken, isAdmin];
  *         description: Internal Server Error
  */
 router.get(
-  API_ROUTES.ADMIN.USER.ALL, 
-  adminAuth, 
+  '/all',
+  adminAuth,
   getAllUsers
 );
 
@@ -430,8 +430,8 @@ router.get(
  *         description: Internal Server Error
  */
 router.get(
-  API_ROUTES.ADMIN.USER.GET_BY_ID, 
-  adminAuth, 
+  '/user/:userId',
+  adminAuth,
   getUserById
 );
 
@@ -536,7 +536,7 @@ router.get(
  *         description: Internal Server Error
  */
 router.post(
-  API_ROUTES.ADMIN.USER.CREATE, 
+  '/create',
   adminAuth,
   uploadProfileImage,
   createUser
@@ -633,8 +633,8 @@ router.post(
  *         description: Internal Server Error
  */
 router.put(
-  API_ROUTES.ADMIN.USER.UPDATE, 
-  adminAuth, 
+  '/update/:userId',
+  adminAuth,
   updateUser
 );
 
@@ -680,8 +680,8 @@ router.put(
  *         description: Internal Server Error
  */
 router.delete(
-  API_ROUTES.ADMIN.USER.DELETE, 
-  adminAuth, 
+  '/delete/:userId',
+  adminAuth,
   deleteUser
 );
 
@@ -789,8 +789,8 @@ router.delete(
  *         description: Internal Server Error
  */
 router.get(
-  API_ROUTES.ADMIN.USER.STATS, 
-  adminAuth, 
+  '/stats',
+  adminAuth,
   getUserStats
 );
 

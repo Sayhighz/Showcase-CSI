@@ -1,0 +1,98 @@
+# .htaccess for Node.js backend on cPanel with reverse proxy
+# Path: /csie/backend2
+
+# Prevent direct access to .env and other sensitive files
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Prevent access to node_modules
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^node_modules/ - [F,L]
+    RewriteRule ^src/ - [F,L]
+    RewriteRule ^migrations/ - [F,L]
+    RewriteRule ^\.git/ - [F,L]
+</IfModule>
+
+# Set proper headers for proxy
+<IfModule mod_headers.c>
+    # Allow CORS from frontend domains
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, secret_key, admin_secret_key"
+    Header set Access-Control-Allow-Credentials "true"
+    
+    # Security headers
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Remove server signature
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# Proxy configuration for Node.js app
+<IfModule mod_proxy.c>
+    # Enable proxy modules
+    ProxyRequests Off
+    ProxyPreserveHost On
+    
+    # Set timeout values to prevent 503 errors
+    ProxyTimeout 30
+    ProxyBadHeader Ignore
+    
+    # Forward requests to Node.js app running on port 4000
+    ProxyPass /csie/backend2 http://127.0.0.1:4000/csie/backend2 retry=0 timeout=30 keepalive=On
+    ProxyPassReverse /csie/backend2 http://127.0.0.1:4000/csie/backend2
+    
+    # Handle WebSocket connections if needed
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/?(.*) "ws://127.0.0.1:4000/$1" [P,L]
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+</IfModule>
+
+# Cache static files
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/x-icon "access plus 1 month"
+    
+    # Video
+    ExpiresByType video/mp4 "access plus 1 month"
+    ExpiresByType video/mpeg "access plus 1 month"
+    ExpiresByType video/webm "access plus 1 month"
+    
+    # CSS, JavaScript
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType text/javascript "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    
+    # Others
+    ExpiresByType application/pdf "access plus 1 month"
+    ExpiresByType application/x-shockwave-flash "access plus 1 month"
+</IfModule>
+
+# Error handling
+ErrorDocument 503 "Service Temporarily Unavailable. Please try again later."
+ErrorDocument 502 "Bad Gateway. The backend server is not responding."
+ErrorDocument 504 "Gateway Timeout. The request took too long to process."

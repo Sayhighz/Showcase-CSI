@@ -130,7 +130,7 @@ const router = express.Router();
  */
 
 
-router.get(API_ROUTES.SEARCH.PROJECTS, searchProjects);
-router.get(API_ROUTES.SEARCH.USERS, authenticateToken, searchStudents);
+router.get('/projects', searchProjects);
+router.get('/users', authenticateToken, searchStudents);
 
 module.exports = router;

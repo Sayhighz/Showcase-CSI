@@ -6,10 +6,10 @@
  * เพื่อให้การเปลี่ยนแปลง endpoint ทำได้ที่จุดเดียว
  */
 
-// Base API URL (ปกติจะดึงจาก environment variable)
-const URL = import.meta.env.VITE_API_URL;
-const API_BASE_URL = URL + '/api';
-// console.log("asdasd",API_BASE_URL)
+// Base API URL (อ่านจาก helper เพื่อรองรับ .env ทุกโหมด)
+import { BASE_API_URL, getApiBaseUrl } from '../config/apiBase';
+const URL = getApiBaseUrl();
+const API_BASE_URL = BASE_API_URL; // resolved from helper
 
 /**
  * เส้นทาง API ทั้งหมดในระบบ
@@ -106,7 +106,7 @@ export const isAuthRequired = (path) => {
 
 // Export ทั้งหมดในออบเจกต์เดียว
 export default {
-  BASE_URL: API_BASE_URL,
+  BASE_URL: BASE_API_URL,
   ...API_ENDPOINTS,
   isAuthRequired
 };

@@ -86,8 +86,8 @@ const router = express.Router();
  *         description: Not an admin user
  */
 router.post(
-  API_ROUTES.ADMIN.AUTH.LOGIN, 
-  checkSecretKey, 
+  '/login',
+  checkSecretKey,
   adminLogin
 );
 
@@ -142,9 +142,9 @@ router.post(
  *         description: Not an admin user
  */
 router.get(
-  API_ROUTES.ADMIN.AUTH.VERIFY_TOKEN, 
-  authenticateToken, 
-  isAdmin, 
+  '/verify-token',
+  authenticateToken,
+  isAdmin,
   verifyAdminToken
 );
 
@@ -198,9 +198,9 @@ router.get(
  *         description: Admin user not found
  */
 router.get(
-  API_ROUTES.ADMIN.AUTH.ME, 
-  authenticateToken, 
-  isAdmin, 
+  '/me',
+  authenticateToken,
+  isAdmin,
   getCurrentAdmin
 );
 
@@ -231,9 +231,9 @@ router.get(
  *         description: Authentication required
  */
 router.post(
-  API_ROUTES.ADMIN.AUTH.LOGOUT, 
-  authenticateToken, 
-  isAdmin, 
+  '/logout',
+  authenticateToken,
+  isAdmin,
   adminLogout
 );
 

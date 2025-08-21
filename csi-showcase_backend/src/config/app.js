@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const { requestLogger, errorLogger } = require('../middleware/loggerMiddleware.js');
@@ -13,93 +14,85 @@ const { checkSecretKey } = require('../middleware/secretKeyMiddleware.js');
 const logger = require('./logger.js');
 const { API_ROUTES } = require('../constants/routes.js');
 
-// __dirname มีอยู่แล้วใน CommonJS ไม่ต้องกำหนดเพิ่ม
-
 /**
- * กำหนดค่า Express application
+ * กำหนดค่า Express application สำหรับ cPanel
  * @param {Object} options - ตัวเลือกการตั้งค่า
  * @returns {express.Application} - Express application
  */
 const createApp = (options = {}) => {
   const app = express();
   
-  // Trust proxy เพราะอยู่หลัง Apache
+  // Trust proxy สำหรับ cPanel/shared hosting
   app.set('trust proxy', true);
   
-  // ตั้งค่า middleware พื้นฐาน - ปรับแต่งสำหรับ Apache proxy
+  // ตั้งค่า middleware พื้นฐาน - ปรับแต่งสำหรับ cPanel
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: false, // ปิดเพราะ Apache จัดการแล้ว
-    hsts: false, // Apache จัดการ HTTPS แล้ว
+    contentSecurityPolicy: false, // ปิดเพราะอาจขัดแย้งกับ cPanel
+    hsts: false, // cPanel จัดการ HTTPS เอง
+    crossOriginEmbedderPolicy: false, // ปิดเพื่อความเข้ากันได้
+    crossOriginOpenerPolicy: false
   }));
   
-  // กำหนดค่า CORS ที่ปรับแต่งสำหรับ production
-  const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? [
-        // Production origins
-        'https://sitspu.com',
-        'https://www.sitspu.com',
-      ]
-    : [
-        // Development origins
-        '*',
-        'https://sitspu.com',
-        'https://www.sitspu.com',
-      ];
-  
+  // กำหนดค่า CORS ที่เหมาะสมกับ cPanel
+  const isProd = process.env.NODE_ENV === 'production';
+  const rawOrigins = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '';
+  const envOrigins = rawOrigins
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const allowedOrigins = isProd ? envOrigins : ['*', ...envOrigins];
+
   app.use(cors({
     origin: function(origin, callback) {
-      // อนุญาต requests ที่ไม่มี origin (เช่น mobile apps, curl requests)
+      // อนุญาต requests ที่ไม่มี origin (mobile apps, curl)
       if (!origin) return callback(null, true);
-      
-      // ใน development อนุญาตทุก origin
-      if (process.env.NODE_ENV !== 'production') {
-        return callback(null, true);
-      }
-      
+
+      // ใน development อนุญาตทั้งหมด
+      if (!isProd) return callback(null, true);
+
       // ใน production ตรวจสอบ allowed origins
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.warn(`CORS blocked origin: ${origin}`);
-        // ใน production ควรจะ strict มากขึ้น
-        callback(new Error(`CORS policy doesn't allow origin: ${origin}`));
+        // ใน cPanel ให้อนุญาตเพื่อหลีกเลี่ยงปัญหา CORS
+        logger.warn(`CORS warning for origin: ${origin}`);
+        callback(null, true);
       }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'X-Requested-With', 
-      'secret_key', 
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'secret_key',
       'admin_secret_key',
       'Accept',
       'Origin',
-      'Cache-Control',
-      'X-Forwarded-For',
-      'X-Real-IP'
+      'Cache-Control'
     ],
-    credentials: true, // สำคัญมาก! ต้องเปิดใช้เพื่อให้ส่ง cookies ข้าม domain ได้
-    optionsSuccessStatus: 200 // สำหรับ legacy browser support
+    credentials: true,
+    optionsSuccessStatus: 200
   }));
   
   // Handle preflight requests
   app.options('*', cors());
   
-  app.use(compression()); // บีบอัดข้อมูลเพื่อลดขนาดการส่งข้อมูล
+  app.use(compression());
   app.use(express.json({ 
-    limit: '10mb',
+    limit: '5mb', // ลดขนาดใน cPanel เพื่อประหยัด memory
     verify: (req, res, buf) => {
-      req.rawBody = buf; // เก็บ raw body สำหรับการใช้งานพิเศษ
+      req.rawBody = buf;
     }
   }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use(cookieParser()); // แปลง Cookie headers
+  app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+  app.use(cookieParser());
   
-  // ตั้งค่า rate limiter เพื่อป้องกัน brute force - ปรับแต่งสำหรับ proxy
+  // ตั้งค่า rate limiter ที่อ่อนโยนกว่าสำหรับ cPanel
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 นาที
-    max: process.env.NODE_ENV === 'production' ? 100 : 1000, // production เข้มงวดกว่า
+    max: isProd ? 300 : 1000, // เพิ่มขีดจำกัดใน production
     message: {
       success: false,
       statusCode: 429,
@@ -108,80 +101,54 @@ const createApp = (options = {}) => {
     },
     standardHeaders: true,
     legacyHeaders: false,
-    // ใช้ IP ที่แท้จริงจาก proxy headers
     keyGenerator: (req) => {
       return req.ip || 
              req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-             req.headers['x-real-ip'] || 
              req.connection.remoteAddress ||
              'unknown';
     },
     skip: (req) => {
-      // Skip rate limiting สำหรับ health check
-      return req.url === '/health';
+      // Skip สำหรับ health check และ static files
+      return req.url === '/health' || 
+             req.url.includes('/uploads/') ||
+             req.url.includes('/health');
     }
   });
   
   // กำหนด base prefix
-  const BASE_PREFIX = '/csie/backend';
-  
-  // ใช้ rate limiter สำหรับเส้นทาง auth เท่านั้น
+  const BASE_PREFIX = options.basePrefix || process.env.API_BASE_PREFIX || '/csie/backend2';
+
+  // ใช้ rate limiter เฉพาะ auth routes
   app.use(`${BASE_PREFIX}${API_ROUTES.AUTH.BASE}`, limiter);
-  app.use(`${BASE_PREFIX}${API_ROUTES.ADMIN.AUTH.BASE}`, limiter);
+  if (API_ROUTES.ADMIN && API_ROUTES.ADMIN.AUTH) {
+    app.use(`${BASE_PREFIX}${API_ROUTES.ADMIN.AUTH.BASE}`, limiter);
+  }
   
-  // ตั้งค่า logging
+  // ตั้งค่า logging - ลดความซับซ้อนใน cPanel
   if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
   } else {
     app.use(morgan('combined', {
-      stream: {
-        write: (message) => logger.info(message.trim())
-      },
       skip: (req, res) => {
-        // Skip logging สำหรับ health checks ใน production
-        return req.url === '/health' && res.statusCode < 400;
+        return req.url === '/health' || req.url.includes('/health');
       }
     }));
-  }
-  
-  // Custom middleware สำหรับ log request details ใน development
-  if (process.env.NODE_ENV === 'development') {
-    app.use((req, res, next) => {
-      logger.debug('Request details:', {
-        method: req.method,
-        url: req.url,
-        origin: req.get('Origin'),
-        userAgent: req.get('User-Agent'),
-        realIP: req.get('X-Real-IP'),
-        forwardedFor: req.get('X-Forwarded-For')
-      });
-      next();
-    });
   }
   
   // ใช้ middleware บันทึกข้อมูล request
   app.use(requestLogger);
   
-  // ตรวจสอบ API secret key (เฉพาะเส้นทางที่ต้องการ)
+  // ตรวจสอบ API secret key
   if (options.useSecretKey !== false) {
-    // ใช้ secret key middleware เฉพาะกับ API routes ที่มี prefix
-    app.use(`${BASE_PREFIX}/*`, checkSecretKey);
+    app.use(`${BASE_PREFIX}/api/admin/*`, checkSecretKey);
   }
   
-  // กำหนดเส้นทางสำหรับไฟล์ static พร้อมกับเพิ่ม CORS headers
+  // Static file serving - ลบ image resize เพื่อประหยัด CPU
   app.use(`${BASE_PREFIX}/uploads`, (req, res, next) => {
-    // เพิ่ม CORS headers ให้ไฟล์ static
-    const origin = req.headers.origin;
-    if (origin && allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-    }
+    // เพิ่ม CORS headers สำหรับ static files
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    // เพิ่ม cache headers สำหรับ static files
     res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
     next();
   }, express.static(path.join(__dirname, '..', '..', 'uploads'), {
@@ -190,7 +157,7 @@ const createApp = (options = {}) => {
     lastModified: true
   }));
   
-  // กำหนดเส้นทางสำหรับ health check (ไม่มี prefix)
+  // Health check endpoint
   app.get('/health', (req, res) => {
     res.status(200).json({
       success: true,
@@ -198,13 +165,11 @@ const createApp = (options = {}) => {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      version: process.version,
       basePrefix: BASE_PREFIX
     });
   });
   
-  // เพิ่ม info endpoint สำหรับ API information
+  // API info endpoint
   app.get(`${BASE_PREFIX}/info`, (req, res) => {
     res.json({
       name: 'CSIE Backend API',
@@ -212,7 +177,6 @@ const createApp = (options = {}) => {
       environment: process.env.NODE_ENV || 'development',
       basePrefix: BASE_PREFIX,
       endpoints: {
-        swagger: `${BASE_PREFIX}/api-docs`,
         health: '/health',
         uploads: `${BASE_PREFIX}/uploads`
       },
@@ -228,23 +192,15 @@ const createApp = (options = {}) => {
 };
 
 /**
- * เริ่มต้น Express server
- * @param {express.Application} app - Express application
- * @param {number} port - หมายเลขพอร์ต
- * @returns {http.Server} - HTTP server
+ * เริ่มต้น Express server (ไม่ใช้ใน cPanel)
  */
-const startServer = (app, port = process.env.PORT || 5000) => {
-  // Bind เฉพาะ localhost เพราะอยู่หลัง Apache proxy
+const startServer = (app, port = process.env.PORT || 5000, basePrefix = '/csie/backend2') => {
   const host = process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0';
   
   return app.listen(port, host, () => {
     logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode`);
     logger.info(`Listening on ${host}:${port}`);
-    logger.info(`API base path: /csie/backend`);
-    
-    if (process.env.NODE_ENV === 'production') {
-      logger.info('Server is running behind Apache proxy');
-    }
+    logger.info(`API base path: ${basePrefix}`);
   });
 };
 
