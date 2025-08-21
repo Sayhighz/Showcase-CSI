@@ -29,20 +29,26 @@ const axiosInstance = axios.create({
 
 // Request interceptor to add headers
 axiosInstance.interceptors.request.use(
-    (config) => {
-        // Add secret key to every API call
-        config.headers['secret_key'] = SECRET_KEY;
-        
-        // Add token if available
-        const token = getAuthToken();
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        return config;
+  (config) => {
+    // Add secret key to every API call
+    config.headers['secret_key'] = SECRET_KEY;
+
+    // Add token if available
+    const token = getAuthToken();
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // If sending FormData, let the browser set proper multipart boundary
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      // Remove default JSON header so axios/browser can set multipart/form-data with boundary
+      delete config.headers['Content-Type'];
+    }
+
+    return config;
   },
   (error) => {
-    console.error('Request error:', error);
+    // Suppress console noise; let interceptors/consumers handle notifications
     return Promise.reject(error);
   }
 );
@@ -190,7 +196,7 @@ export const axiosGet = async (url, params = {}) => {
     }
     return [];
   } catch (error) {
-    console.error(`GET ${url} error:`, error);
+    // Avoid noisy console logs; errors are handled by response interceptor
     throw error;
   }
 };
@@ -201,7 +207,6 @@ export const axiosPost = async (url, data = {}) => {
     const response = await axiosInstance.post(url, data);
     return response;
   } catch (error) {
-    console.error(`POST ${url} error:`, error);
     throw error;
   }
 };
@@ -210,10 +215,8 @@ export const axiosPost = async (url, data = {}) => {
 export const axiosPut = async (url, data = {}) => {
   try {
     const response = await axiosInstance.put(url, data);
-    console.log(response)
     return response;
   } catch (error) {
-    console.error(`PUT ${url} error:`, error);
     throw error;
   }
 };
@@ -224,7 +227,6 @@ export const axiosDelete = async (url) => {
     const response = await axiosInstance.delete(url);
     return response;
   } catch (error) {
-    console.error(`DELETE ${url} error:`, error);
     throw error;
   }
 };
@@ -244,7 +246,6 @@ export const axiosUpload = async (url, formData, onProgress = () => {}) => {
     });
     return response;
   } catch (error) {
-    console.error(`UPLOAD ${url} error:`, error);
     throw error;
   }
 };

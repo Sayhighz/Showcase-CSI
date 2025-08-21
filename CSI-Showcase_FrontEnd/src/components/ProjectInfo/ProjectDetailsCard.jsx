@@ -72,9 +72,9 @@ const ProjectDetailsCard = ({ project }) => {
               <span className="font-medium text-[#24292f]">ประเภท</span>
               <Tag color="gold" icon={<TrophyOutlined />} className="m-0">การแข่งขัน</Tag>
             </div>
-            <div className="flex justify-between border-b border-opacity-20 border-[#90278E] pb-3">
-              <span className="font-medium text-[#24292f]">ชื่อการแข่งขัน</span>
-              <span className="text-[#24292f]">{project.competition?.competition_name || 'ไม่ระบุ'}</span>
+            <div className="border-b border-opacity-20 border-[#90278E] pb-3">
+              <div className="font-medium text-[#24292f] mb-1">ชื่อการแข่งขัน</div>
+              <div className="text-[#24292f] text-left break-words">{project.competition?.competition_name || 'ไม่ระบุ'}</div>
             </div>
             <div className="flex justify-between border-b border-opacity-20 border-[#90278E] pb-3">
               <span className="font-medium text-[#24292f]">ปีที่แข่งขัน</span>

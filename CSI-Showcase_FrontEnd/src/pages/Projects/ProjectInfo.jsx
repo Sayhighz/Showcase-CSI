@@ -82,7 +82,6 @@ const ProjectInfo = () => {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   
   // ใช้ useRef เพื่อป้องกันการเรียก API ซ้ำ
-  const hasFetchedProject = useRef(false);
   const hasFetchedRelatedProjects = useRef(false);
 
   // ตรวจสอบขนาดหน้าจอและอัปเดต state
@@ -112,14 +111,11 @@ const ProjectInfo = () => {
   const isMobile = responsiveSize === 'xs';
   const isTablet = responsiveSize === 'sm' || responsiveSize === 'md';
 
-  // ดึงโปรเจค - ป้องกันการเรียกซ้ำด้วย useRef
+  // ดึงโปรเจคใหม่เมื่อเปลี่ยน route param
   // หมายเหตุ: fetchProjectDetails จะนับ view count ให้อัตโนมัติใน backend
   useEffect(() => {
     window.scrollTo(0, 0);
-    
-    // ตรวจสอบว่าได้ fetch ข้อมูลแล้วหรือยัง
-    if (projectId && !hasFetchedProject.current) {
-      hasFetchedProject.current = true;
+    if (projectId) {
       fetchProjectDetails(projectId);
     }
   }, [projectId, fetchProjectDetails]);

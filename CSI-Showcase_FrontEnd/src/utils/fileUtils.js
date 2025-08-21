@@ -133,7 +133,7 @@ export const getFileTypeFromMimetype = (mimetype) => {
       return url.replace('watch?v=', 'embed/');
     }
     
-    // YouTube (รูปแบบย่อ)
+    // YouTube (short)
     if (url.includes('youtu.be/')) {
       const videoId = url.split('youtu.be/')[1].split('?')[0];
       return `https://www.youtube.com/embed/${videoId}`;
@@ -141,7 +141,7 @@ export const getFileTypeFromMimetype = (mimetype) => {
     
     // TikTok
     if (url.includes('tiktok.com')) {
-      // ถ้าเป็น URL ธรรมดา ให้แปลงเป็น embed URL
+      // Convert to embed if normal URL
       if (!url.includes('/embed/')) {
         const videoId = url.split('/').pop();
         return `https://www.tiktok.com/embed/${videoId}`;
@@ -153,8 +153,39 @@ export const getFileTypeFromMimetype = (mimetype) => {
     if (url.includes('facebook.com/watch')) {
       return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`;
     }
+
+    // Google Drive
+    // Supported forms:
+    // - https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    // - https://drive.google.com/open?id=FILE_ID
+    // - https://drive.google.com/uc?export=download&id=FILE_ID
+    if (url.includes('drive.google.com')) {
+      try {
+        let fileId = null;
+
+        // /file/d/FILE_ID/
+        const matchFileD = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (matchFileD && matchFileD[1]) {
+          fileId = matchFileD[1];
+        }
+
+        // open?id=FILE_ID or uc?export=download&id=FILE_ID
+        if (!fileId) {
+          const u = new URL(url);
+          const idParam = u.searchParams.get('id');
+          if (idParam) fileId = idParam;
+        }
+
+        if (fileId) {
+          // Use preview endpoint for iframe embedding
+          return `https://drive.google.com/file/d/${fileId}/preview`;
+        }
+      } catch (_) {
+        // fall through to return original url
+      }
+    }
     
-    // ถ้าไม่ใช่ URL ที่รองรับ ส่งคืน URL เดิม
+    // Fallback to original URL
     return url;
   };
   

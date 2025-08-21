@@ -6,7 +6,9 @@ import {
   getProjectDetails,
   reviewProject,
   getMyProjects,
-  getProjectStats
+  getProjectStats,
+  updateProject,
+  updateProjectWithFiles
 } from '../services/projectService';
 import { message } from 'antd';
 import { useAuth } from '../context/AuthContext';
@@ -356,13 +358,63 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         return false;
       }
     } catch (err) {
-      console.error(`Error reviewing project ${id}:`, err);
       message.error('เกิดข้อผิดพลาดในการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
       return false;
     } finally {
       setActionLoading(false);
     }
   }, [actionLoading, pagination.current, pagination.pageSize, fetchProjectDetails, fetchProjects]);
+
+  // Update project with files (poster + video URL/file)
+  const updateProjectAction = useCallback(async (id, payload) => {
+    if (!id) return false;
+    setActionLoading(true);
+    try {
+      let formData;
+      if (typeof FormData !== 'undefined' && payload instanceof FormData) {
+        formData = payload;
+      } else {
+        formData = new FormData();
+        const fields = payload?.fields || payload || {};
+        Object.keys(fields).forEach((k) => {
+          const v = fields[k];
+          if (v !== undefined && v !== null && v !== '') {
+            formData.append(k, v);
+          }
+        });
+
+        const files = payload?.files || {};
+        if (files.posterFile) {
+          // Pick poster field name by type (fallback to coursework)
+          const t = fields.type || projectDetails?.type || '';
+          const posterKey = t === 'competition' ? 'competitionPoster' : 'courseworkPoster';
+          formData.append(posterKey, files.posterFile);
+        }
+        if (files.videoFile) {
+          formData.append('courseworkVideo', files.videoFile);
+        }
+      }
+
+      const resp = await updateProjectWithFiles(id, formData);
+      if (resp.success) {
+        message.success(resp.message || 'อัปเดตโปรเจคสำเร็จ');
+        cacheRef.current.clear();
+        if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
+          await fetchProjectDetails(initialProjectIdRef.current, false);
+        } else {
+          await fetchProjects(pagination.current, pagination.pageSize, false);
+        }
+        return true;
+      }
+      message.error(resp.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค');
+      return false;
+    } catch (_err) {
+      message.error('เกิดข้อผิดพลาดในการอัปเดตโปรเจค กรุณาลองใหม่อีกครั้ง');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  }, [fetchProjectDetails, fetchProjects, pagination.current, pagination.pageSize, projectDetails]);
 
   // Consolidated data fetching effect - prevents multiple simultaneous API calls
   useEffect(() => {
@@ -463,6 +515,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     handlePaginationChange,
     
     // Actions
+    updateProject: (id, payload) => updateProjectAction(id, payload),
     approveProject: (id, comment = '') => reviewProjectAction(id, 'approved', comment),
     rejectProject: (id, comment) => reviewProjectAction(id, 'rejected', comment),
     

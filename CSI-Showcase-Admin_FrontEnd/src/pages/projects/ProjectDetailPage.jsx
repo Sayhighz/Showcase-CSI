@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
+import {
   Card, Tabs, Modal, Input, message,
-  Empty, Button, Select
+  Empty, Button, Select, Upload
 } from 'antd';
 import useProject from '../../hooks/useProject';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -52,6 +52,8 @@ const ProjectDetailPage = () => {
     semester: '',
     visibility: 1
   });
+  const [posterFileList, setPosterFileList] = useState([]);
+  const [clipVideoLink, setClipVideoLink] = useState('');
 
   // Modal อนุมัติ (ต้องใส่เหตุผล)
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -69,6 +71,8 @@ const ProjectDetailPage = () => {
         semester: projectDetails.semester || '',
         visibility: projectDetails.visibility !== undefined ? projectDetails.visibility : 1
       });
+      // Prefill clip video (coursework)
+      setClipVideoLink(projectDetails?.coursework?.clip_video || '');
     }
   }, [projectDetails]);
 
@@ -122,6 +126,7 @@ const ProjectDetailPage = () => {
 
   // แสดง modal แก้ไขโปรเจค
   const showEditModal = () => {
+    setPosterFileList([]);
     setEditModalVisible(true);
   };
 
@@ -132,7 +137,30 @@ const ProjectDetailPage = () => {
       return;
     }
 
-    const success = await updateProject(projectId, editForm);
+    // Prepare FormData to support file replacement and video URL update
+    const formData = new FormData();
+    Object.entries(editForm).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        formData.append(k, v);
+      }
+    });
+
+    if (editForm.type === 'coursework' && clipVideoLink !== undefined) {
+      formData.append('clip_video', clipVideoLink || '');
+    }
+
+    if (posterFileList.length > 0) {
+      const fileItem = posterFileList[0];
+      const fileObj = fileItem.originFileObj || fileItem;
+      const posterKey =
+        editForm.type === 'competition' ? 'competitionPoster' :
+        editForm.type === 'coursework' ? 'courseworkPoster' : null;
+      if (posterKey && fileObj) {
+        formData.append(posterKey, fileObj);
+      }
+    }
+
+    const success = await updateProject(projectId, formData);
     if (success) {
       message.success('แก้ไขโปรเจคสำเร็จ');
       setEditModalVisible(false);
@@ -403,6 +431,42 @@ const ProjectDetailPage = () => {
             </div>
           </div>
           
+          {/* Poster upload for coursework/competition */}
+          {(editForm.type === 'coursework' || editForm.type === 'competition') && (
+            <div>
+              <label className="block mb-1 font-medium">
+                {editForm.type === 'competition' ? 'โปสเตอร์การแข่งขัน (อัปโหลดใหม่เพื่อแทนที่)' : 'โปสเตอร์งานในชั้นเรียน (อัปโหลดใหม่เพื่อแทนที่)'}
+              </label>
+              <Upload.Dragger
+                name="poster"
+                accept=".jpg,.jpeg,.png,.gif,.webp"
+                maxCount={1}
+                multiple={false}
+                beforeUpload={() => false}
+                fileList={posterFileList}
+                onChange={(info) => setPosterFileList(info.fileList.slice(-1))}
+              >
+                <p className="ant-upload-drag-icon">🖼️</p>
+                <p className="ant-upload-text">คลิกหรือลากรูปภาพมาที่นี่เพื่ออัปโหลด</p>
+                <p className="ant-upload-hint">รองรับ JPG, PNG, GIF, WebP</p>
+              </Upload.Dragger>
+            </div>
+          )}
+
+          {/* Video link for coursework */}
+          {editForm.type === 'coursework' && (
+            <div>
+              <label htmlFor="clip_video" className="block mb-1 font-medium">ลิงก์วิดีโอ (YouTube/TikTok/Facebook)</label>
+              <Input
+                id="clip_video"
+                value={clipVideoLink}
+                onChange={(e) => setClipVideoLink(e.target.value)}
+                placeholder="เช่น https://www.youtube.com/watch?v=XXXXXXXXXXX"
+              />
+              <small className="text-gray-500">เว้นว่างหากไม่ต้องการเปลี่ยน</small>
+            </div>
+          )}
+
           <div>
             <label htmlFor="description" className="block mb-1 font-medium">รายละเอียด</label>
             <Input.TextArea

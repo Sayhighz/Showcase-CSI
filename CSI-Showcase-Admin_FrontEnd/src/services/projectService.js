@@ -303,7 +303,40 @@ export const updateProject = async (projectId, projectData) => {
       message: response.message || 'อัปเดตโปรเจคสำเร็จ'
     };
   } catch (error) {
-    console.error(`Update project ${projectId} error:`, error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค'
+    };
+  }
+};
+
+/**
+ * อัปเดตข้อมูลโปรเจค (รองรับไฟล์โปสเตอร์และลิงก์วิดีโอ)
+ * บังคับใช้ endpoint ฝั่งผู้ใช้ซึ่งรองรับ multipart/form-data และจัดการแทนที่ไฟล์เก่า
+ * - courseworkPoster | competitionPoster: รูปโปสเตอร์ตามประเภท
+ * - courseworkVideo: ไฟล์วิดีโอ หรือใช้ clip_video (URL) แทน
+ * - clip_video: URL วิดีโอ (YouTube/TikTok/Facebook) จะไปแทนที่ค่าก่อนหน้า
+ * หมายเหตุ: ควรส่งเป็น FormData เสมอ แม้จะแก้เฉพาะ URL เพื่อให้ middleware ประมวลผลถูกต้อง
+ */
+export const updateProjectWithFiles = async (projectId, formData) => {
+  try {
+    if (!projectId || !formData) {
+      return {
+        success: false,
+        message: 'ข้อมูลไม่ครบถ้วนสำหรับการอัปเดตโปรเจค'
+      };
+    }
+
+    // ใช้เส้นทางฝั่งผู้ใช้เสมอ เพราะรองรับ multipart/form-data + file replace
+    const url = PROJECT.UPDATE(projectId);
+
+    const response = await axiosPut(url, formData);
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'อัปเดตโปรเจคสำเร็จ'
+    };
+  } catch (error) {
     return {
       success: false,
       message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค'
@@ -596,6 +629,7 @@ export default {
   getProjectDetails,
   reviewProject,
   updateProject,
+  updateProjectWithFiles,
   deleteProject,
   getProjectReviews,
   getAdminReviewStats,

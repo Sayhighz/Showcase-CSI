@@ -12,6 +12,12 @@ const truncateText = (text, maxLength = 60) => {
   return text.substring(0, maxLength).trim() + '...';
 };
 
+// Resolve project type robustly (fallback to multiple possible fields)
+const resolveType = (p) => {
+  const t = p?.type ?? p?.category ?? p?.projectType ?? p?.project_type ?? '';
+  return typeof t === 'string' ? t.toLowerCase() : '';
+};
+
 const { Title } = Typography;
 
 /**
@@ -53,9 +59,12 @@ const RelatedProjects = ({ projects = [] }) => {
         </div>
 
         <Row gutter={[16, 24]}>
-          {displayProjects.map((project, index) => (
-            <Col xs={24} sm={12} md={12} lg={6} key={index}>
-              <Link to={PROJECT.VIEW(project.id)}>
+          {displayProjects.map((project, index) => {
+            const type = resolveType(project);
+            const to = PROJECT.VIEW(project.id || project.projectId || project.project_id);
+            return (
+              <Col xs={24} sm={12} md={12} lg={6} key={index}>
+                <Link to={to} className="block">
                 <Card
                   hoverable
                   className="h-full flex flex-col overflow-hidden rounded-xl transition-all duration-300 hover:shadow-lg border border-[#90278E] border-opacity-20 bg-white bg-opacity-80 backdrop-filter backdrop-blur-md transform hover:-translate-y-1 hover:shadow-xl"
@@ -69,9 +78,9 @@ const RelatedProjects = ({ projects = [] }) => {
                         />
                       ) : (
                         <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-gradient-to-b from-[#F5EAFF] to-white">
-                          {project.type === 'academic' ? (
+                          {type === 'academic' ? (
                             <BookOutlined className="text-4xl text-[#B252B0] opacity-40" />
-                          ) : project.type === 'coursework' ? (
+                          ) : type === 'coursework' ? (
                             <TeamOutlined className="text-4xl text-[#B252B0] opacity-40" />
                           ) : (
                             <TrophyOutlined className="text-4xl text-[#B252B0] opacity-40" />
@@ -79,16 +88,16 @@ const RelatedProjects = ({ projects = [] }) => {
                         </div>
                       )}
                       <div className="absolute top-2 right-2">
-                        <Tag 
+                        <Tag
                           color={
-                            project.type === 'academic' ? 'blue' : 
-                            project.type === 'coursework' ? 'green' : 
+                            type === 'academic' ? 'blue' :
+                            type === 'coursework' ? 'green' :
                             'gold'
                           }
                           className="opacity-90 shadow-md"
                         >
-                          {project.type === 'academic' ? 'บทความวิชาการ' : 
-                          project.type === 'coursework' ? 'งานในชั้นเรียน' : 
+                          {type === 'academic' ? 'บทความวิชาการ' :
+                          type === 'coursework' ? 'งานในชั้นเรียน' :
                           'การแข่งขัน'}
                         </Tag>
                       </div>
@@ -169,7 +178,7 @@ const RelatedProjects = ({ projects = [] }) => {
                 </Card>
               </Link>
             </Col>
-          ))}
+          )})}
         </Row>
       </div>
     </div>
