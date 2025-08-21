@@ -1,15 +1,16 @@
 // src/hooks/useUser.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 import _ from 'lodash';
-import { 
-  getAllUsers, 
-  getUserById, 
-  createUser, 
-  updateUser, 
+import {
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
   deleteUser,
   getUserStats,
   importUsersFromCSV,
-  downloadCSVTemplate
+  downloadCSVTemplate,
+  changeUserPassword
 } from '../services/userService';
 import { message } from 'antd';
 
@@ -475,6 +476,37 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     }, []);
 
 
+ /**
+  * เปลี่ยนรหัสผ่านผู้ใช้ (แอดมิน)
+  * @param {string|number} id - รหัสผู้ใช้
+  * @param {string} newPassword - รหัสผ่านใหม่
+  * @returns {Promise<boolean>}
+  */
+ const changeUserPasswordAction = useCallback(async (id, newPassword) => {
+   if (actionLoading) return false;
+   setActionLoading(true);
+   try {
+     if (!id) {
+       message.error('ไม่ระบุรหัสผู้ใช้');
+       return false;
+     }
+     const resp = await changeUserPassword(id, newPassword);
+     if (resp.success) {
+       message.success(resp.message || 'เปลี่ยนรหัสผ่านสำเร็จ');
+       return true;
+     }
+     message.error(resp.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
+     return false;
+   } catch (err) {
+     console.error('Error changing user password:', err);
+     message.error('เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน กรุณาลองใหม่อีกครั้ง');
+     return false;
+   } finally {
+     setActionLoading(false);
+   }
+ }, [actionLoading]);
+
+
   return {
     // สถานะข้อมูล
     users,
@@ -501,6 +533,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     createUser: createUserAction,
     updateUser: updateUserAction,
     deleteUser: deleteUserAction,
+    changeUserPassword: changeUserPasswordAction,
     
     // รีเฟรชข้อมูล
     refreshUsers: () => {

@@ -1,6 +1,8 @@
-import React, { useState } from "react";
-import { Button, Input, Select, Card, Typography, Space, Empty, Radio, Divider } from "antd";
-import { PlusOutlined, DeleteOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
+import React, { useState, useRef } from "react";
+import { Button, Input, Select, Card, Typography, Space, Empty, Radio, Divider, message } from "antd";
+import { PlusOutlined, DeleteOutlined, UserOutlined, TeamOutlined, LockOutlined } from "@ant-design/icons";
+import { useAuth } from "../../../context/AuthContext";
+import { searchStudents as searchStudentsApi } from "../../../services/searchService";
 
 const { Text } = Typography;
 
@@ -25,6 +27,46 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
     role: 'contributor'
   });
 
+  // Current logged-in user (prevent self-adding)
+  const { user: authUser } = useAuth();
+
+  // Autocomplete state
+  const [options, setOptions] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimerRef = useRef(null);
+
+  const handleSearchUsers = (query) => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        if (!query || !query.trim()) {
+          setOptions([]);
+          return;
+        }
+        setSearchLoading(true);
+        const results = await searchStudentsApi(query, 10);
+        setOptions(
+          (Array.isArray(results) ? results : []).map((s) => ({
+            value: String(s.user_id),
+            label: `${s.full_name} (${s.username}) - ${s.email || "-"}`,
+            user_id: s.user_id,
+            username: s.username,
+          }))
+        );
+      } catch (e) {
+        console.error("Search students error:", e);
+        setOptions([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+  };
+
+  const isSelfSelected =
+    authUser && newContributor.user_id && String(newContributor.user_id) === String(authUser.id);
+
   // เพิ่มผู้ร่วมโครงการ
   const addContributor = () => {
     // ตรวจสอบข้อมูลที่จำเป็นตามประเภทสมาชิก
@@ -32,9 +74,15 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
       if (!newContributor.user_id || !newContributor.username) {
         return;
       }
+      // ป้องกันไม่ให้ใส่ตัวเอง
+      if (isSelfSelected) {
+        message.warning('ไม่สามารถเพิ่มตนเองเป็นผู้ร่วมโครงการได้');
+        return;
+      }
       // ตรวจสอบว่าไม่ซ้ำ (สมาชิกที่ลงทะเบียน)
-      const exists = contributors.find(c => c.user_id === newContributor.user_id);
+      const exists = contributors.find(c => String(c.user_id) === String(newContributor.user_id));
       if (exists) {
+        message.warning('รายชื่อผู้ใช้นี้ถูกเพิ่มอยู่แล้ว');
         return;
       }
     } else {
@@ -46,6 +94,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
         c.name === newContributor.name && c.student_id === newContributor.student_id
       );
       if (exists) {
+        message.warning('รายชื่อนี้ถูกเพิ่มอยู่แล้ว');
         return;
       }
     }
@@ -144,52 +193,70 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
 
         {/* ฟอร์มสำหรับสมาชิกที่ลงทะเบียน */}
         {memberType === 'registered' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-              <Text className="block mb-1">รหัสนักศึกษา</Text>
-              <Input
-                placeholder="เช่น 640610001"
-                value={newContributor.user_id}
-                onChange={(e) => setNewContributor({
-                  ...newContributor,
-                  user_id: e.target.value
-                })}
-              />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Text className="block mb-1">ค้นหาสมาชิกที่ลงทะเบียน</Text>
+                <Select
+                  showSearch
+                  placeholder="ค้นหา username / ชื่อ / อีเมล"
+                  filterOption={false}
+                  onSearch={handleSearchUsers}
+                  onSelect={(_, option) =>
+                    setNewContributor({
+                      ...newContributor,
+                      user_id: option.user_id,
+                      username: option.username
+                    })
+                  }
+                  options={options}
+                  loading={searchLoading}
+                  style={{ width: '100%' }}
+                  value={
+                    newContributor.user_id
+                      ? `${newContributor.username}`
+                      : undefined
+                  }
+                  allowClear
+                  onClear={() =>
+                    setNewContributor({
+                      ...newContributor,
+                      user_id: '',
+                      username: ''
+                    })
+                  }
+                />
+                {isSelfSelected && (
+                  <Text type="danger" className="mt-2 block">
+                    ไม่สามารถเพิ่มตนเองเป็นผู้ร่วมโครงการได้
+                  </Text>
+                )}
+              </div>
+
+              <div>
+                <Text className="block mb-1">บทบาท</Text>
+                <Select
+                  value={newContributor.role}
+                  onChange={(role) =>
+                    setNewContributor({
+                      ...newContributor,
+                      role
+                    })
+                  }
+                  style={{ width: '100%' }}
+                  options={[
+                    { value: 'contributor', label: 'ผู้ร่วมงาน' },
+                    { value: 'advisor', label: 'อาจารย์ที่ปรึกษา' }
+                  ]}
+                />
+              </div>
             </div>
-            
-            <div>
-              <Text className="block mb-1">ชื่อผู้ใช้</Text>
-              <Input
-                placeholder="username"
-                value={newContributor.username}
-                onChange={(e) => setNewContributor({
-                  ...newContributor,
-                  username: e.target.value
-                })}
-              />
-            </div>
-            
-            <div>
-              <Text className="block mb-1">บทบาท</Text>
-              <Select
-                value={newContributor.role}
-                onChange={(role) => setNewContributor({
-                  ...newContributor,
-                  role
-                })}
-                style={{ width: '100%' }}
-                options={[
-                  { value: 'contributor', label: 'ผู้ร่วมงาน' },
-                  { value: 'advisor', label: 'อาจารย์ที่ปรึกษา' }
-                ]}
-              />
-            </div>
-            
+
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={addContributor}
-              disabled={!canAdd()}
+              disabled={!canAdd() || isSelfSelected}
             >
               เพิ่ม
             </Button>

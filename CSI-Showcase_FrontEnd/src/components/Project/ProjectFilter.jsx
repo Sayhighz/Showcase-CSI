@@ -243,16 +243,19 @@ const handleReset = useCallback(() => {
   }
 }, [loading, form, onReset]);
 
-// สร้างรายการตัวเลือกปีโปรเจค
+// สร้างรายการตัวเลือกปีโปรเจค (ใช้ พ.ศ. ทั้งแสดงผลและค่า filter)
 const yearOptions = useMemo(() => {
   if (projectYears.length > 0) {
-    return projectYears.map(year => (
-      <Option key={year} value={year}>{year}</Option>
+    // projectYears ถูกสร้างให้เป็น พ.ศ. แล้วจาก hook
+    return projectYears.map((yearBE) => (
+      <Option key={yearBE} value={yearBE}>{yearBE}</Option>
     ));
   } else {
-    return Array.from({ length: 5 }, (_, i) => {
-      const year = new Date().getFullYear() - i;
-      return <Option key={year} value={year}>{year}</Option>;
+    // fallback: สร้างย้อนหลัง 10 ปีเป็น พ.ศ.
+    const currentBE = new Date().getFullYear() + 543;
+    return Array.from({ length: 10 }, (_, i) => {
+      const yearBE = currentBE - i;
+      return <Option key={yearBE} value={yearBE}>{yearBE}</Option>;
     });
   }
 }, [projectYears]);
@@ -438,7 +441,7 @@ return (
                     fontWeight: 500,
                     fontSize: isMobile ? '13px' : (isTablet ? '14px' : '15px')
                   }}>
-                    ปีของโปรเจค
+                    ปีการศึกษา (พ.ศ.)
                   </span>
                 }
                 labelCol={formLayout.layout === 'horizontal' ? { span: formLayout.labelCol.span } : undefined}

@@ -256,6 +256,49 @@ export const deleteUser = async (userId) => {
     };
   }
 };
+/**
+ * เปลี่ยนรหัสผ่านผู้ใช้ (สำหรับแอดมิน)
+ * @param {string|number} userId - รหัสผู้ใช้
+ * @param {string} newPassword - รหัสผ่านใหม่
+ * @returns {Promise<Object>} - ผลลัพธ์การเปลี่ยนรหัสผ่าน
+ */
+export const changeUserPassword = async (userId, newPassword) => {
+  try {
+    if (!userId) {
+      return {
+        success: false,
+        message: 'ไม่ระบุรหัสผู้ใช้'
+      };
+    }
+    if (!newPassword) {
+      return {
+        success: false,
+        message: 'กรุณาระบุรหัสผ่านใหม่'
+      };
+    }
+    if (newPassword.length < 8) {
+      return {
+        success: false,
+        message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร'
+      };
+    }
+
+    const url = ADMIN.USER.CHANGE_PASSWORD(userId);
+    const response = await axiosPost(url, { new_password: newPassword });
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'เปลี่ยนรหัสผ่านสำเร็จ'
+    };
+  } catch (error) {
+    console.error(`Change user password ${userId} error:`, error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
+    };
+  }
+};
 
 /**
  * ดึงสถิติผู้ใช้งาน

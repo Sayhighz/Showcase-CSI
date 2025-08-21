@@ -267,16 +267,15 @@ const useProject = (projectId = null) => {
 
 
 
-  // สร้างข้อมูลปีโปรเจคย้อนหลัง 10 ปี
+  // สร้างข้อมูลปีโปรเจคย้อนหลัง 10 ปี (แสดงและกรองเป็น พ.ศ.)
   useEffect(() => {
-    const currentYear = new Date().getFullYear();
-    const years = [];
-    
+    const currentCE = new Date().getFullYear();
+    const yearsBE = [];
     for (let i = 0; i < 10; i++) {
-      years.push(currentYear - i);
+      const ce = currentCE - i;
+      yearsBE.push(ce + 543); // ใช้ พ.ศ. สำหรับตัวเลือกและการกรอง
     }
-    
-    setProjectYears(years);
+    setProjectYears(yearsBE);
   }, []);
 
   // Effect สำหรับดึงข้อมูลรายละเอียดของโปรเจคเมื่อมี projectId - ปิดใช้งานเพื่อไม่ให้ fetch ซ้ำ

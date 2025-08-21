@@ -113,7 +113,7 @@ const StudentDashboard = () => {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <Title level={2}>
-          สวัสดี {user?.username} 👋
+          สวัสดี {user?.full_name || user?.username} 👋
         </Title>
         <Text type="secondary">
           ยินดีต้อนรับสู่ระบบจัดการผลงาน CSI ProjectManage

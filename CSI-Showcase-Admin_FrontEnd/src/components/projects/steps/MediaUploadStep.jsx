@@ -2,9 +2,7 @@ import React from "react";
 import { Upload, message, Form, Typography } from "antd";
 import {
   FileTextOutlined,
-  PictureOutlined,
-  VideoCameraOutlined,
-  UploadOutlined,
+  PictureOutlined
 } from "@ant-design/icons";
 
 const { Dragger } = Upload;
@@ -139,102 +137,35 @@ const MediaUploadStep = ({ projectType, fileList, onFileChange }) => {
       )}
 
       {projectType === PROJECT_TYPE.COURSEWORK && (
-        <div className="space-y-8">
-          <div>
-            <h3 className="text-lg font-medium mb-2">
-              อัปโหลดโปสเตอร์งานในชั้นเรียน
-            </h3>
-            <Form.Item label="รูปโปสเตอร์" required={true}>
-              <Dragger
-                name="courseworkPoster"
-                fileList={fileList.courseworkPoster}
-                onChange={(info) =>
-                  onFileChange(info, "courseworkPoster")
-                }
-                beforeUpload={(file) =>
-                  beforeUpload(file, "courseworkPoster")
-                }
-                accept=".jpg,.jpeg,.png,.gif,.webp"
-                maxCount={1}
-                multiple={false}
-                height={160}
-              >
-                <p className="ant-upload-drag-icon">
-                  <PictureOutlined style={{ fontSize: 36 }} />
-                </p>
-                <p className="ant-upload-text">
-                  คลิกหรือลากรูปภาพมาที่นี่เพื่ออัปโหลด
-                </p>
-                <p className="ant-upload-hint">
-                  รองรับไฟล์รูปภาพ JPG, PNG, GIF, WebP ขนาดไม่เกิน 5MB
-                </p>
-              </Dragger>
-            </Form.Item>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-medium mb-2">
-              อัปโหลดรูปภาพเพิ่มเติม (ถ้ามี)
-            </h3>
-            <Form.Item label="รูปภาพเพิ่มเติม">
-              <Upload
-                name="courseworkImage"
-                listType="picture-card"
-                fileList={fileList.courseworkImage}
-                onChange={(info) =>
-                  onFileChange(info, "courseworkImage")
-                }
-                beforeUpload={(file) =>
-                  beforeUpload(file, "courseworkImage")
-                }
-                accept=".jpg,.jpeg,.png,.gif,.webp"
-                maxCount={3}
-                multiple={true}
-              >
-                {fileList.courseworkImage.length >= 3 ? null : (
-                  <div>
-                    <UploadOutlined style={{ fontSize: 20 }} />
-                    <div style={{ marginTop: 8 }}>อัปโหลด</div>
-                  </div>
-                )}
-              </Upload>
-              <p className="text-gray-500 text-sm">
-                อัปโหลดได้สูงสุด 3 รูป
+        <div>
+          <h3 className="text-lg font-medium mb-2">
+            อัปโหลดโปสเตอร์งานในชั้นเรียน
+          </h3>
+          <Form.Item label="รูปโปสเตอร์" required={true}>
+            <Dragger
+              name="courseworkPoster"
+              fileList={fileList.courseworkPoster}
+              onChange={(info) => onFileChange(info, "courseworkPoster")}
+              beforeUpload={(file) => beforeUpload(file, "courseworkPoster")}
+              accept=".jpg,.jpeg,.png,.gif,.webp"
+              maxCount={1}
+              multiple={false}
+              height={160}
+            >
+              <p className="ant-upload-drag-icon">
+                <PictureOutlined style={{ fontSize: 36 }} />
               </p>
-            </Form.Item>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-medium mb-2">
-              อัปโหลดวิดีโอ (ถ้ามี)
-            </h3>
-            <Form.Item label="ไฟล์วิดีโอ">
-              <Dragger
-                name="courseworkVideo"
-                fileList={fileList.courseworkVideo}
-                onChange={(info) =>
-                  onFileChange(info, "courseworkVideo")
-                }
-                beforeUpload={(file) =>
-                  beforeUpload(file, "courseworkVideo")
-                }
-                accept=".mp4,.webm,.mov"
-                maxCount={1}
-                multiple={false}
-                height={160}
-              >
-                <p className="ant-upload-drag-icon">
-                  <VideoCameraOutlined style={{ fontSize: 36 }} />
-                </p>
-                <p className="ant-upload-text">
-                  คลิกหรือลากไฟล์วิดีโอมาที่นี่เพื่ออัปโหลด
-                </p>
-                <p className="ant-upload-hint">
-                  รองรับไฟล์วิดีโอ MP4, WebM, QuickTime ขนาดไม่เกิน 50MB
-                </p>
-              </Dragger>
-            </Form.Item>
-          </div>
+              <p className="ant-upload-text">
+                คลิกหรือลากรูปภาพมาที่นี่เพื่ออัปโหลด
+              </p>
+              <p className="ant-upload-hint">
+                รองรับไฟล์รูปภาพ JPG, PNG, GIF, WebP ขนาดไม่เกิน 5MB
+              </p>
+            </Dragger>
+          </Form.Item>
+          <Text type="secondary">
+            วิดีโอให้กรอกเป็นลิงก์ในขั้นตอน "ข้อมูลเฉพาะ" ของผลงานในชั้นเรียน
+          </Text>
         </div>
       )}
 

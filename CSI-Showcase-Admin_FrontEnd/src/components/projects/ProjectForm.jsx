@@ -239,6 +239,10 @@ const ProjectForm = ({
       } else if (projectType === PROJECT_TYPE.COMPETITION) {
         projectData.competition_name = values.competition_name;
         projectData.competition_year = values.competition_year;
+        // รองรับลิงก์วิดีโอสำหรับการแข่งขัน (เก็บเป็น clip_video เช่นเดียวกับ coursework)
+        if (values.clip_video) {
+          projectData.clip_video = values.clip_video;
+        }
       } else if (projectType === PROJECT_TYPE.COURSEWORK) {
         projectData.clip_video = values.clip_video;
       }
@@ -271,23 +275,8 @@ const ProjectForm = ({
           }
         }
         
-        if (fileList.courseworkImage.length > 0) {
-          const imageFile = fileList.courseworkImage[0];
-          if (imageFile.originFileObj) {
-            filesData.courseworkImage = imageFile.originFileObj;
-          } else if (imageFile instanceof File) {
-            filesData.courseworkImage = imageFile;
-          }
-        }
-        
-        if (fileList.courseworkVideo.length > 0) {
-          const videoFile = fileList.courseworkVideo[0];
-          if (videoFile.originFileObj) {
-            filesData.courseworkVideo = videoFile.originFileObj;
-          } else if (videoFile instanceof File) {
-            filesData.courseworkVideo = videoFile;
-          }
-        }
+        // ตามนโยบายใหม่ งานในชั้นเรียนให้แนบเฉพาะโปสเตอร์ (ลิงก์วิดีโอกรอกในฟอร์ม)
+        // ไม่แนบรูปภาพเพิ่มเติมและไฟล์วิดีโอ
       }
       
       console.log("Data to submit:", { data: projectData, files: filesData });

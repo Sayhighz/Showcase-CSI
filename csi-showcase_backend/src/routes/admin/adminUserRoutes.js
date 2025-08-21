@@ -6,13 +6,14 @@ const path = require('path');
  // const { API_ROUTES } = require('../../constants/routes.js'); // unused: use relative paths within mounted base
 const { createDirectoryIfNotExists } = require('../../utils/fileHelper.js');
 const { importUsersFromCSV, downloadCSVTemplate } = require('../../controllers/admin/batchUserController.js');
-const { 
+const {
   getAllUsers,
   getUserById,
   createUser,
   updateUser,
   deleteUser,
-  getUserStats
+  getUserStats,
+  changeUserPassword
 } = require('../../controllers/admin/adminUserController.js');
 const { authenticateToken, isAdmin } = require('../../middleware/authMiddleware.js');
 const { uploadProfileImage } = require('../../controllers/common/uploadController.js');
@@ -636,6 +637,13 @@ router.put(
   '/update/:userId',
   adminAuth,
   updateUser
+);
+
+// Change user password (Admin)
+router.post(
+  '/change-password/:userId',
+  adminAuth,
+  changeUserPassword
 );
 
 /**

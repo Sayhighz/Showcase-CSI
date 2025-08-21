@@ -18,6 +18,10 @@ const PROJECT_TYPES = [
  * @returns {JSX.Element} - BasicInfoStep component
  */
 const BasicInfoStep = ({ form, onProjectTypeChange }) => {
+  // Year options (Thai Buddhist Era)
+  const thaiYear = new Date().getFullYear() + 543;
+  const years = Array.from({ length: 31 }, (_, i) => thaiYear - i);
+
   return (
     <div className="space-y-6">
       <Form.Item
@@ -91,13 +95,16 @@ const BasicInfoStep = ({ form, onProjectTypeChange }) => {
         <Form.Item
           name="year"
           label="ปีการศึกษา"
-          rules={[{ required: true, message: "กรุณากรอกปีการศึกษา" }]}
+          rules={[{ required: true, message: "กรุณาเลือกปีการศึกษา" }]}
         >
-          <InputNumber
-            min={2520}
-            max={2600}
-            placeholder="เช่น 2566"
+          <Select
+            showSearch
+            placeholder="เลือกปีการศึกษา"
+            options={years.map(y => ({ value: y, label: String(y) }))}
             style={{ width: "100%" }}
+            filterOption={(input, option) =>
+              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+            }
           />
         </Form.Item>
       </div>

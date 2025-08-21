@@ -27,7 +27,8 @@ export const ADMIN = {
     DELETE: (userId) => `${ADMIN_BASE_URL}/users/delete/${userId}`,
     STATS: `${ADMIN_BASE_URL}/users/stats`,
     BATCH_IMPORT: `${ADMIN_BASE_URL}/users/batch-import`,
-    CSV_TEMPLATE: `${ADMIN_BASE_URL}/users/csv-template`
+    CSV_TEMPLATE: `${ADMIN_BASE_URL}/users/csv-template`,
+    CHANGE_PASSWORD: (userId) => `${ADMIN_BASE_URL}/users/change-password/${userId}`
   },
   PROJECT: {
     ALL: `${ADMIN_BASE_URL}/projects/all`,

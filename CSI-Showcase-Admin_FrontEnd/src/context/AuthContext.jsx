@@ -128,7 +128,10 @@ export const AuthProvider = ({ children }) => {
         const decoded = jwtDecode(token);
         const userData = {
           id: decoded.id || decoded.userId,
+          // username kept for backward compatibility (may already be full name)
           username: decoded.user?.fullName || decoded.fullName || decoded.username || decoded.name || 'User',
+          // expose full_name explicitly for UI display
+          full_name: decoded.user?.fullName || decoded.fullName || decoded.name || null,
           role: decoded.role,
           avatar: decoded.user?.image || decoded.image || decoded.avatar || null
         };
@@ -198,6 +201,7 @@ export const AuthProvider = ({ children }) => {
         // Set user data
         const userData = {
           id: decoded.id || decoded.userId,
+          // username kept for backward compatibility (may already be full name)
           username: response.data.user?.fullName ||
                    response.data.user?.username ||
                    decoded.user?.fullName ||
@@ -205,6 +209,11 @@ export const AuthProvider = ({ children }) => {
                    decoded.username ||
                    decoded.name ||
                    username,
+          // expose full_name explicitly for UI display
+          full_name: response.data.user?.fullName ||
+                     decoded.user?.fullName ||
+                     decoded.fullName ||
+                     null,
           role: decoded.role,
           avatar: response.data.user?.image ||
                  response.data.user?.avatar ||

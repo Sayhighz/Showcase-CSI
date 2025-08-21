@@ -19,6 +19,7 @@ import PageTitle from '../components/common/PageTitle';
 import useProject from '../hooks/useProject';
 import useUser from '../hooks/useUser';
 import useLog from '../hooks/useLog';
+import { useAuth } from '../context/AuthContext';
 
 const DashboardPage = () => {
   const [error, setError] = useState(null);
@@ -49,6 +50,11 @@ const DashboardPage = () => {
     error: logError,
     refreshLogs,
   } = useLog('dashboard');
+
+  // Greeting name
+  const { user: authUser, admin: authAdmin } = useAuth();
+  const currentUser = authUser || authAdmin;
+  const displayName = currentUser?.full_name || currentUser?.username || 'ผู้ใช้';
 
   useEffect(() => {
     if (!projectLoading && !userLoading && !logLoading) {
@@ -159,7 +165,7 @@ const DashboardPage = () => {
     <div>
       <PageTitle
         title="แดชบอร์ด"
-        subtitle="ภาพรวมของระบบจัดการผลงาน CSI ProjectManage"
+        subtitle={`สวัสดี ${displayName} • ยินดีต้อนรับสู่ระบบจัดการผลงาน CSI ProjectManage`}
         actions={[{ label: 'รีเฟรช', icon: <ReloadOutlined />, onClick: handleRefresh }]}
       />
 

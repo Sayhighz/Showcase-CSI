@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Modal } from 'antd';
+import { Modal, Input, message } from 'antd';
 import UserDetail from '../../components/users/UserDetail';
 import UserForm from '../../components/users/UserForm';
 import useUser from '../../hooks/useUser';
@@ -9,6 +9,9 @@ const UserDetailPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isPwdModalVisible, setIsPwdModalVisible] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
   const {
     userDetails,
@@ -17,7 +20,8 @@ const UserDetailPage = () => {
     updateUser,
     deleteUser,
     refreshUserDetails,
-    actionLoading
+    actionLoading,
+    changeUserPassword
   } = useUser('all', 'detail', {}, userId);
   console.log(userDetails)
 
@@ -48,6 +52,37 @@ const UserDetailPage = () => {
     }
   };
 
+  // เปลี่ยนรหัสผ่าน - เปิด/ปิดโมดัล
+  const openChangePasswordModal = () => {
+    setNewPassword('');
+    setConfirmPassword('');
+    setIsPwdModalVisible(true);
+  };
+  const closeChangePasswordModal = () => {
+    setIsPwdModalVisible(false);
+  };
+
+  // ยืนยันการเปลี่ยนรหัสผ่าน
+  const handleConfirmChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      message.error('กรุณากรอกรหัสผ่านใหม่และยืนยันรหัสผ่าน');
+      return;
+    }
+    if (newPassword.length < 8) {
+      message.error('รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      message.error('รหัสผ่านไม่ตรงกัน');
+      return;
+    }
+    const ok = await changeUserPassword(userId, newPassword);
+    if (ok) {
+      setIsPwdModalVisible(false);
+      refreshUserDetails();
+    }
+  };
+
   return (
     <div>
       <UserDetail
@@ -57,6 +92,7 @@ const UserDetailPage = () => {
         onEdit={showEditModal}
         onDelete={handleDeleteUser}
         onRefresh={refreshUserDetails}
+        onChangePassword={openChangePasswordModal}
       />
       
       <Modal
@@ -73,6 +109,35 @@ const UserDetailPage = () => {
           loading={actionLoading}
           isEdit={true}
         />
+      </Modal>
+      {/* Modal เปลี่ยนรหัสผ่าน */}
+      <Modal
+        title="เปลี่ยนรหัสผ่านผู้ใช้"
+        open={isPwdModalVisible}
+        onOk={handleConfirmChangePassword}
+        okText="ยืนยัน"
+        cancelText="ยกเลิก"
+        confirmLoading={actionLoading}
+        onCancel={closeChangePasswordModal}
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block mb-1">รหัสผ่านใหม่</label>
+            <Input.Password
+              placeholder="อย่างน้อย 8 ตัวอักษร พร้อมตัวเลขและตัวอักษร"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block mb-1">ยืนยันรหัสผ่านใหม่</label>
+            <Input.Password
+              placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+        </div>
       </Modal>
     </div>
   );

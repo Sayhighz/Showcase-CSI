@@ -1,5 +1,5 @@
 import React from "react";
-import { Form, Input, InputNumber, DatePicker } from "antd";
+import { Form, Input, DatePicker, Select } from "antd";
 
 const PROJECT_TYPE = {
   COURSEWORK: 'coursework',
@@ -23,6 +23,10 @@ const SpecificInfoStep = ({ form, projectType }) => {
     );
   }
 
+  // สร้างรายการปี พ.ศ. ย้อนหลัง 30 ปีจากปีปัจจุบัน
+  const thaiYear = new Date().getFullYear() + 543;
+  const years = Array.from({ length: 31 }, (_, i) => thaiYear - i);
+
   return (
     <div className="space-y-6">
       {projectType === PROJECT_TYPE.ACADEMIC && (
@@ -32,13 +36,16 @@ const SpecificInfoStep = ({ form, projectType }) => {
           <Form.Item
             name="published_year"
             label="ปีที่ตีพิมพ์"
-            rules={[{ required: true, message: "กรุณากรอกปีที่ตีพิมพ์" }]}
+            rules={[{ required: true, message: "กรุณาเลือกปีที่ตีพิมพ์" }]}
           >
-            <InputNumber
-              min={2500}
-              max={2600}
-              placeholder="เช่น 2566"
+            <Select
+              showSearch
+              placeholder="เลือกปีที่ตีพิมพ์"
+              options={years.map(y => ({ value: y, label: String(y) }))}
               style={{ width: "100%" }}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
             />
           </Form.Item>
 
@@ -80,13 +87,32 @@ const SpecificInfoStep = ({ form, projectType }) => {
           <Form.Item
             name="competition_year"
             label="ปีที่จัดการแข่งขัน"
-            rules={[{ required: true, message: "กรุณากรอกปีที่จัดการแข่งขัน" }]}
+            rules={[{ required: true, message: "กรุณาเลือกปีที่จัดการแข่งขัน" }]}
           >
-            <InputNumber
-              min={2500}
-              max={2600}
-              placeholder="เช่น 2566"
+            <Select
+              showSearch
+              placeholder="เลือกปีที่จัดการแข่งขัน"
+              options={years.map(y => ({ value: y, label: String(y) }))}
               style={{ width: "100%" }}
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="clip_video"
+            label="ลิงก์วิดีโอ (ถ้ามี)"
+            rules={[
+              {
+                type: "url",
+                message: "กรุณากรอก URL ที่ถูกต้อง",
+              },
+            ]}
+          >
+            <Input
+              placeholder="https://www.youtube.com/watch?v=... หรือ https://www.tiktok.com/..."
+              maxLength={500}
             />
           </Form.Item>
         </>

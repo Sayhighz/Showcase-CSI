@@ -188,7 +188,7 @@ const Sidebar = ({
             />
             <div className="ml-3 overflow-hidden">
               <Text strong className="text-white block truncate">
-                {admin?.username || (admin?.role === 'student' ? 'นักศึกษา' : 'ผู้ดูแลระบบ')}
+                {admin?.full_name || admin?.username || (admin?.role === 'student' ? 'นักศึกษา' : 'ผู้ดูแลระบบ')}
               </Text>
               <Text className="text-white text-opacity-70 text-xs block">
                 {admin?.role === 'admin' ? 'ผู้ดูแลระบบ' : 'นักศึกษา'}

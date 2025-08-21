@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Descriptions, Card, Avatar, Typography, Tag, Button, Tabs, Table, Space, Divider, Modal } from 'antd';
-import { 
-  UserOutlined, 
-  MailOutlined, 
-  CalendarOutlined, 
+import {
+  UserOutlined,
+  MailOutlined,
+  CalendarOutlined,
   ProjectOutlined,
   EyeOutlined,
   EditOutlined,
   DeleteOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  KeyOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
@@ -27,6 +28,7 @@ const UserDetail = ({
   onEdit,
   onDelete,
   onRefresh,
+  onChangePassword
 }) => {
   const [activeTab, setActiveTab] = useState('info');
 
@@ -224,17 +226,24 @@ const UserDetail = ({
             />
             
             <Space direction="vertical" className="w-full mb-4 md:mb-0">
-              <Button 
-                type="primary" 
-                icon={<EditOutlined />} 
+              <Button
+                type="primary"
+                icon={<EditOutlined />}
                 onClick={() => onEdit && onEdit(user.user_id)}
                 block
               >
                 แก้ไขข้อมูล
               </Button>
-              <Button 
-                danger 
-                icon={<DeleteOutlined />} 
+              <Button
+                icon={<KeyOutlined />}
+                onClick={() => onChangePassword && onChangePassword(user.user_id)}
+                block
+              >
+                เปลี่ยนรหัสผ่าน
+              </Button>
+              <Button
+                danger
+                icon={<DeleteOutlined />}
                 onClick={showDeleteConfirm}
                 block
               >
