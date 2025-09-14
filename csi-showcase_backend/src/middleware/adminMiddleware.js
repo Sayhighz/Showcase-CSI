@@ -65,7 +65,7 @@ const authenticateAdminToken = async (req, res, next) => {
     }
     
     // ตรวจสอบว่า user มีอยู่จริงในฐานข้อมูลหรือไม่
-    const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ? AND role = "admin"', [decoded.id]);
+    const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ? AND role = "admin" AND status = "active"', [decoded.id]);
     
     if (users.length === 0) {
       return res.status(403).json({

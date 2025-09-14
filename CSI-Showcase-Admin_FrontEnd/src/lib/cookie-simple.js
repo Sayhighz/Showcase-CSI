@@ -1,70 +1,97 @@
 import Cookies from 'js-cookie';
 
-// Simplified cookie management without encryption for debugging
+// Production detection: Vite sets import.meta.env.PROD
+const isProd = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD;
 const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+const BASE_PATH = (() => {
+  try {
+    const bp = (import.meta?.env?.VITE_BASE_PATH ?? '/csif');
+    const trimmed = (typeof bp === 'string' ? bp : '/csif').replace(/\/+$/, '');
+    return trimmed || '/';
+  } catch {
+    return '/csif';
+  }
+})();
+
+const AUTH_COOKIE_NAME_V1 = 'csi_auth_token';
+const AUTH_COOKIE_NAME_V2 = 'csi_auth_token_v2';
+
+const DEBUG = String(import.meta?.env?.VITE_AUTH_COOKIE_DEBUG || '').toLowerCase() === 'true' || String(import.meta?.env?.VITE_DEBUG || '').toLowerCase() === 'true';
 
 const SECURITY_CONFIG = {
-  isProduction: import.meta.env.NODE_ENV === 'production',
-  // Fix: Only use secure cookies on HTTPS, never force in development
-  isSecure: isHttps && import.meta.env.NODE_ENV === 'production',
-  // Fix: Use None for cross-origin requests, fallback to Lax for same-site
-  sameSite: import.meta.env.VITE_COOKIE_SAME_SITE || 'None',
-  defaultExpiry: parseInt(import.meta.env.VITE_AUTH_TOKEN_EXPIRY) || 7,
-  // Fix: Only set domain in production, never in development
-  domain: import.meta.env.NODE_ENV === 'production' ? (import.meta.env.VITE_COOKIE_DOMAIN || '.sitspu.com') : undefined
+  isProduction: !!isProd,
+  isSecure: isHttps && !!isProd,
+  sameSite: import.meta?.env?.VITE_COOKIE_SAME_SITE || 'None',
+  defaultExpiry: parseInt(import.meta?.env?.VITE_AUTH_TOKEN_EXPIRY) || 7,
+  domain: isProd ? (import.meta?.env?.VITE_COOKIE_DOMAIN || '.sitspu.com') : undefined,
+  path: BASE_PATH
 };
 
-// Simple cookie name - remove __Secure- prefix to avoid conflicts
-const AUTH_COOKIE_NAME = 'csi_auth_token';
+const unique = (arr) => Array.from(new Set(arr.filter(Boolean)));
+const PATHS_TO_CLEAN = unique(['/', SECURITY_CONFIG.path, '/csif', '/csie', '/admin']);
+const SAMESITE_TO_TRY = ['Lax', 'None', 'Strict'];
 
-/**
- * Get secure cookie options
- */
 const getSecureCookieOptions = (expires = SECURITY_CONFIG.defaultExpiry) => {
   const baseOptions = {
     expires,
-    path: '/',
+    path: SECURITY_CONFIG.path || '/',
     secure: SECURITY_CONFIG.isSecure,
     sameSite: SECURITY_CONFIG.sameSite
   };
-
-  // Fix: Only set domain in production to prevent development issues
   if (SECURITY_CONFIG.domain && SECURITY_CONFIG.isProduction) {
     baseOptions.domain = SECURITY_CONFIG.domain;
   }
-
-  // Fix: For development, use more permissive settings
+  // In dev, be permissive
   if (!SECURITY_CONFIG.isProduction) {
     baseOptions.secure = false;
     baseOptions.sameSite = 'Lax';
   }
-
   return baseOptions;
 };
 
-/**
- * Set authentication token (simple version)
- */
+const tryRemoveAll = (name) => {
+  try {
+    const domainVariants = unique([SECURITY_CONFIG.domain, undefined]);
+    const secureVariants = [true, false];
+    PATHS_TO_CLEAN.forEach((p) => {
+      domainVariants.forEach((d) => {
+        SAMESITE_TO_TRY.forEach((ss) => {
+          secureVariants.forEach((sec) => {
+            const opt = { path: p };
+            if (d) opt.domain = d;
+            try { Cookies.remove(name, opt); } catch (e) { if (DEBUG) console.debug('[cookie-remove]', e?.message || ''); }
+            try { Cookies.remove(name, { ...opt, sameSite: ss }); } catch (e) { if (DEBUG) console.debug('[cookie-remove]', e?.message || ''); }
+            try { Cookies.remove(name, { ...opt, secure: sec }); } catch (e) { if (DEBUG) console.debug('[cookie-remove]', e?.message || ''); }
+            try { Cookies.remove(name, { ...opt, sameSite: ss, secure: sec }); } catch (e) { if (DEBUG) console.debug('[cookie-remove]', e?.message || ''); }
+          });
+        });
+      });
+    });
+  } catch (e) {
+    if (DEBUG) console.error('❌ Error in tryRemoveAll:', e);
+  }
+};
+
 export const setAuthToken = (token, expires = SECURITY_CONFIG.defaultExpiry) => {
   if (!token || typeof token !== 'string') {
-    console.error('❌ Invalid token for cookie storage');
+    if (DEBUG) console.error('❌ Invalid token for cookie storage');
     return false;
   }
-
   try {
     const cookieOptions = getSecureCookieOptions(expires);
-    console.log('🔐 Setting auth token cookie with options:', cookieOptions);
-    
-    Cookies.set(AUTH_COOKIE_NAME, token, cookieOptions);
-    
-    // Verify cookie was set
-    const verification = Cookies.get(AUTH_COOKIE_NAME);
+    // Set new v2 cookie at canonical path
+    Cookies.set(AUTH_COOKIE_NAME_V2, token, cookieOptions);
+
+    // Remove legacy v1 cookies across paths
+    tryRemoveAll(AUTH_COOKIE_NAME_V1);
+
+    // Verify
+    const verification = Cookies.get(AUTH_COOKIE_NAME_V2);
     if (verification !== token) {
-      console.error('❌ Cookie verification failed');
-      return false;
+      if (DEBUG) console.warn('⚠️ Cookie verification mismatch for v2; attempting permissive set for dev');
+      Cookies.set(AUTH_COOKIE_NAME_V2, token, { expires, path: '/', secure: false, sameSite: 'Lax' });
     }
-    
-    console.log('✅ Auth token cookie set successfully');
+
     return true;
   } catch (error) {
     console.error('❌ Error setting auth token cookie:', error);
@@ -72,68 +99,38 @@ export const setAuthToken = (token, expires = SECURITY_CONFIG.defaultExpiry) => 
   }
 };
 
-/**
- * Get authentication token (simple version)
- */
 export const getAuthToken = () => {
   try {
-    const token = Cookies.get(AUTH_COOKIE_NAME);
-    
-    if (!token) {
-      console.log('🔍 No auth token cookie found');
-      return null;
+    // Prefer v2
+    let token = Cookies.get(AUTH_COOKIE_NAME_V2);
+    if (token && typeof token === 'string') {
+      if (!token.includes('.')) {
+        if (DEBUG) console.warn('⚠️ Invalid token format in v2 cookie, cleaning up');
+        tryRemoveAll(AUTH_COOKIE_NAME_V2);
+        token = null;
+      } else {
+        return token;
+      }
     }
 
-    // Basic token format validation
-    if (typeof token !== 'string' || !token.includes('.')) {
-      console.warn('⚠️ Invalid token format in cookie');
-      removeAuthToken();
-      return null;
+    // Fallback to v1 then migrate
+    const legacy = Cookies.get(AUTH_COOKIE_NAME_V1);
+    if (legacy && typeof legacy === 'string' && legacy.includes('.')) {
+      setAuthToken(legacy);
+      tryRemoveAll(AUTH_COOKIE_NAME_V1);
+      return legacy;
     }
-
-    console.log('✅ Auth token retrieved successfully');
-    return token;
+    return null;
   } catch (error) {
     console.error('❌ Error retrieving auth token:', error);
     return null;
   }
 };
 
-/**
- * Remove authentication token
- */
 export const removeAuthToken = () => {
   try {
-    const cookieOptions = getSecureCookieOptions(0);
-    
-    console.log('🗑️ Removing auth token cookie');
-    Cookies.remove(AUTH_COOKIE_NAME, cookieOptions);
-    
-    // Fix: More thorough cleanup for different cookie scenarios
-    const cleanupOptions = [
-      cookieOptions,
-      { path: '/', secure: false, sameSite: 'Lax' },
-      { path: '/', secure: true, sameSite: 'None' },
-      { path: '/' }
-    ];
-
-    // Try removing with different options to ensure cleanup
-    cleanupOptions.forEach(options => {
-      try {
-        Cookies.remove(AUTH_COOKIE_NAME, options);
-      } catch {
-        // Ignore cleanup errors
-      }
-    });
-
-    // Also try removing without domain for localhost
-    if (cookieOptions.domain) {
-      const optionsWithoutDomain = { ...cookieOptions };
-      delete optionsWithoutDomain.domain;
-      Cookies.remove(AUTH_COOKIE_NAME, optionsWithoutDomain);
-    }
-    
-    console.log('✅ Auth token cookie removed successfully');
+    tryRemoveAll(AUTH_COOKIE_NAME_V2);
+    tryRemoveAll(AUTH_COOKIE_NAME_V1);
     return true;
   } catch (error) {
     console.error('❌ Error removing auth token cookie:', error);
@@ -141,37 +138,33 @@ export const removeAuthToken = () => {
   }
 };
 
-/**
- * Check if valid auth cookies exist
- */
 export const hasValidAuthCookies = () => {
   try {
     const token = getAuthToken();
-    return !!(token && typeof token === 'string' && token.length > 0);
+    return !!(token && typeof token === 'string' && token.includes('.'));
   } catch (error) {
     console.error('❌ Error checking auth cookies validity:', error);
     return false;
   }
 };
 
-/**
- * Get CSRF token (placeholder)
- */
 export const getCSRFToken = () => {
-  // Simple CSRF token for now
   return 'csrf-token-placeholder';
 };
 
-/**
- * Initialize cookie security
- */
 export const initializeCookieSecurity = () => {
   try {
-    console.log('🔒 Cookie security initialized (simple mode):', {
-      secure: SECURITY_CONFIG.isSecure,
-      sameSite: SECURITY_CONFIG.sameSite,
-      production: SECURITY_CONFIG.isProduction
-    });
+    // One-time sanitation/migration on init
+    // If only legacy exists, migrate to v2 and clean up
+    const v2 = Cookies.get(AUTH_COOKIE_NAME_V2);
+    const v1 = Cookies.get(AUTH_COOKIE_NAME_V1);
+    if (!v2 && v1 && typeof v1 === 'string' && v1.includes('.')) {
+      setAuthToken(v1);
+      tryRemoveAll(AUTH_COOKIE_NAME_V1);
+    } else if (v2 && v1) {
+      // If both exist, prefer v2 and remove v1 to avoid path-based overshadowing
+      tryRemoveAll(AUTH_COOKIE_NAME_V1);
+    }
     return true;
   } catch (error) {
     console.error('❌ Error initializing cookie security:', error);
@@ -179,7 +172,6 @@ export const initializeCookieSecurity = () => {
   }
 };
 
-// Export default object
 export default {
   setAuthToken,
   getAuthToken,

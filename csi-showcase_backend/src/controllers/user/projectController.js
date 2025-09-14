@@ -397,9 +397,30 @@ const getMyProjects = async (req, res) => {
       return forbiddenResponse(res, "You can only view your own projects");
     }
 
+    // Normalize duplicated query params (caused by both query string and axios params)
+    const pickOne = (v) => {
+      if (Array.isArray(v)) return v[0] ?? null;
+      if (v && typeof v === 'object') {
+        // common shapes when axios sends both query and params
+        return v.value ?? v.keyword ?? v.status ?? v.category ?? v.level ?? v.year ?? null;
+      }
+      return v ?? null;
+    };
+
+    const qStatus = pickOne(req.query.status);
+    const qCategory = pickOne(req.query.category);
+    const qYear = pickOne(req.query.year);
+    const qLevel = pickOne(req.query.level);
+    const qKeyword = pickOne(req.query.keyword);
+
     const filters = {
       userId: userId,
       onlyOwned: true, // Only show projects where the user is the owner, not just a contributor
+      status: qStatus || null,                    // pending | approved | rejected
+      type: qCategory || null,                    // coursework | competition | academic
+      year: qYear ? parseInt(qYear, 10) || null : null,         // academic year
+      studyYear: qLevel ? parseInt(qLevel, 10) || null : null,  // student study year
+      search: typeof qKeyword === 'string' ? qKeyword : null    // text search (title/description)
     };
 
     const pagination = getPaginationParams(req);
@@ -426,11 +447,35 @@ const getMyProjects = async (req, res) => {
       updatedAt: project.updated_at,
     }));
 
+    // Defensive in-memory re-filter to ensure status and category are applied
+    const page = parseInt(req.query.page) || pagination.page || 1;
+    const limit = parseInt(req.query.limit) || pagination.limit || 10;
+
+    const fStatus = qStatus ? String(qStatus).toLowerCase() : null;
+    const fType = qCategory ? String(qCategory).toLowerCase() : null;
+
+    const filtered = formattedProjects.filter(p => {
+      const typeOk = !fType || (p.category && String(p.category).toLowerCase() === fType);
+      const statusOk = !fStatus || (p.status && String(p.status).toLowerCase() === fStatus);
+      return typeOk && statusOk;
+    });
+
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const paginated = filtered.slice(start, end);
+
     return res.json(
       successResponse(
         {
-          projects: formattedProjects,
-          pagination: result.pagination,
+          projects: paginated,
+          pagination: {
+            page,
+            limit,
+            totalItems,
+            totalPages
+          },
         },
         "My projects retrieved successfully"
       )

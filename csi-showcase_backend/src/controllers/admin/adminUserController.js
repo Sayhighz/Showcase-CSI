@@ -46,6 +46,16 @@ const getAllUsers = asyncHandler(async (req, res) => {
       queryParams.push(role);
     }
 
+    // Status filter (default active unless provided)
+    const status = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
+    if (status && ['active','inactive','suspended'].includes(status)) {
+      conditions.push('status = ?');
+      queryParams.push(status);
+    } else {
+      conditions.push('status = ?');
+      queryParams.push('active');
+    }
+
     // Search filter
     const search = req.query.search ? String(req.query.search).trim() : null;
     if (search) {
@@ -55,8 +65,8 @@ const getAllUsers = asyncHandler(async (req, res) => {
     }
 
     // Construct WHERE clause
-    const whereClause = conditions.length > 0 
-      ? `WHERE ${conditions.join(' AND ')}` 
+    const whereClause = conditions.length > 0
+      ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
     // เริ่ม transaction
@@ -73,17 +83,18 @@ const getAllUsers = asyncHandler(async (req, res) => {
 
     // ดึงข้อมูลผู้ใช้ตามการแบ่งหน้า - ใช้ค่า LIMIT และ OFFSET โดยตรงในคำสั่ง SQL
     const [users] = await connection.execute(`
-      SELECT 
-        user_id, 
-        username, 
-        full_name, 
-        email, 
-        role, 
-        image, 
+      SELECT
+        user_id,
+        username,
+        full_name,
+        email,
+        role,
+        image,
+        status,
         created_at,
         (
-          SELECT COUNT(*) 
-          FROM projects 
+          SELECT COUNT(*)
+          FROM projects
           WHERE user_id = users.user_id
         ) as project_count
       FROM users
@@ -232,7 +243,7 @@ const getUserById = asyncHandler(async (req, res) => {
     
     // ดึงข้อมูลผู้ใช้
     const [users] = await pool.execute(`
-      SELECT user_id, username, full_name, email, role, image, created_at
+      SELECT user_id, username, full_name, email, role, image, status, created_at
       FROM users WHERE user_id = ?
     `, [userId]);
     
@@ -526,25 +537,17 @@ const deleteUser = asyncHandler(async (req, res) => {
     
     const currentUser = users[0];
     
-    // ลบรูปโปรไฟล์ถ้ามี
-    if (currentUser.image && currentUser.image.startsWith('uploads/')) {
-      try {
-        deleteFile(currentUser.image);
-      } catch (fileError) {
-        logger.warn(`Failed to delete profile image: ${currentUser.image}`, fileError);
-        // ดำเนินการต่อถึงแม้จะลบไฟล์ไม่สำเร็จ
-      }
-    }
-    
-    // ลบผู้ใช้
+    // เปลี่ยนสถานะผู้ใช้เป็น inactive (soft delete)
     await connection.execute(`
-      DELETE FROM users WHERE user_id = ?
-    `, [userId]);
+      UPDATE users
+      SET status = ?, deleted_at = NOW()
+      WHERE user_id = ?
+    `, ['inactive', userId]);
     
     // Commit transaction
     await commitTransaction(connection);
     
-    return res.json(successResponse(null, 'User deleted successfully'));
+    return res.json(successResponse(null, 'User deactivated successfully'));
     
   } catch (error) {
     if (connection) {

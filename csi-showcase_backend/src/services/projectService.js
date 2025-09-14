@@ -34,18 +34,25 @@ const getAllProjects = async (filters = {}, pagination = {}) => {
     const queryParams = [];
     
     // เพิ่มเงื่อนไขการกรอง
-    if (filters.status) {
-      if (isValidStatus(filters.status)) {
-        baseQuery += ` AND p.status = ?`;
-        queryParams.push(filters.status);
-      }
+    // status
+    if (filters.status !== undefined && filters.status !== null && String(filters.status).trim() !== '') {
+      const s = String(filters.status).trim().toLowerCase();
+      // Use case-insensitive match defensively
+      baseQuery += ` AND LOWER(p.status) = ?`;
+      queryParams.push(s);
     }
     
-    if (filters.type) {
-      if (isValidType(filters.type)) {
-        baseQuery += ` AND p.type = ?`;
-        queryParams.push(filters.type);
-      }
+    // type/category (รองรับทั้งชื่อคีย์ type และ category)
+    const passedType = (filters.type !== undefined && filters.type !== null && String(filters.type).trim() !== '')
+      ? String(filters.type).trim()
+      : ((filters.category !== undefined && filters.category !== null && String(filters.category).trim() !== '')
+          ? String(filters.category).trim()
+          : '');
+    if (passedType) {
+      const t = passedType.toLowerCase();
+      // Use case-insensitive match defensively
+      baseQuery += ` AND LOWER(p.type) = ?`;
+      queryParams.push(t);
     }
     
     if (filters.year) {
@@ -80,6 +87,16 @@ const getAllProjects = async (filters = {}, pagination = {}) => {
     if (filters.onlyVisible && (!filters.role || filters.role !== 'admin')) {
       baseQuery += ` AND (p.visibility = 1 AND p.status = 'approved')`;
     }
+    
+    // Debug: log applied filters and where clause for diagnostics
+    try {
+      const debugPayload = { filters, where: baseQuery, params: queryParams };
+      if (logger && typeof logger.debug === 'function') {
+        logger.debug(`getAllProjects debug: ${JSON.stringify(debugPayload)}`);
+      } else if (logger && typeof logger.info === 'function') {
+        logger.info(`getAllProjects debug: ${JSON.stringify(debugPayload)}`);
+      }
+    } catch (_) { /* ignore logging error */ }
     
     // ดึงข้อมูลจำนวนทั้งหมดสำหรับการแบ่งหน้า
     const countQuery = `SELECT COUNT(*) as total FROM (${baseQuery}) as countTable`;

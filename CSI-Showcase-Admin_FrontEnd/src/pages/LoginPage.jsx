@@ -1,119 +1,173 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Typography, Alert, Spin } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Alert, Checkbox, Typography, Divider } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import LoginForm from '../components/auth/LoginForm';
+import { UserOutlined, LockOutlined, EyeOutlined, EyeInvisibleOutlined, SafetyOutlined } from '@ant-design/icons';
+import Logo from '../assets/Logo_CSI.png';
+import { colors } from '../config/themeConfig';
 
 const { Title, Text } = Typography;
 
 const LoginPage = () => {
-  const { user, isAuthenticated, isLoading, error: authError } = useAuth();
+  const { user, isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [localError, setLocalError] = useState(null);
-  const hasNavigatedRef = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [form] = Form.useForm();
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && user && !hasNavigatedRef.current) {
-      console.log("✅ LoginPage: User authenticated, navigating to dashboard", user);
-      hasNavigatedRef.current = true;
-      
-      // Determine dashboard path based on user role
-      let dashboardPath = '/dashboard'; // default admin dashboard
-      if (user.role === 'student') {
-        dashboardPath = '/student/dashboard';
-      }
-      
+    if (isAuthenticated && user) {
+      const dashboardPath = user.role === 'student' ? '/student/dashboard' : '/dashboard';
       const from = location.state?.from?.pathname || dashboardPath;
-      console.log("🔄 LoginPage: Navigating to:", from);
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, user, navigate, location]);
 
-  // Display error from context or local
-  const error = authError || localError;
+  const onFinish = async (values) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const success = await login(values.username, values.password, values.remember);
+      
+      if (!success) {
+        throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spin size="large" tip="กำลังตรวจสอบการเข้าสู่ระบบ..." />
-      </div>
-    );
-  }
-  
-  // If already authenticated, show loading while navigating
   if (isAuthenticated && user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spin size="large" tip="กำลังเข้าสู่ระบบ..." />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-600 text-xl">
+          กำลังเข้าสู่ระบบ...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
-      {/* Simplified background */}
-      <div 
-        className="absolute inset-0 z-0"
-        style={{ 
-          background: 'linear-gradient(135deg, #ffffff 0%, #f9f0fc 100%)',
-        }}
-      />
-      
-      {/* Content Container */}
-      <div className="w-full max-w-lg z-10 relative">
-        
-        {/* Error Alert */}
-        {error && (
-          <Alert
-            message="เกิดข้อผิดพลาดในการเข้าสู่ระบบ"
-            description={error}
-            type="error"
-            showIcon
-            className="mb-6"
-            closable
-            onClose={() => setLocalError(null)}
-          />
-        )}
-        
-        {/* Login Card */}
-        <Card 
-          className="shadow-md rounded-md overflow-hidden"
+    <div className="w-full">
+      {/* Header Section */}
+      <div className="text-center mb-8">
+        <div
+          className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 shadow-sm"
           style={{
-            border: '1px solid rgba(144, 39, 142, 0.2)',
+            background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
           }}
         >
-          <div className="pt-6 pb-8 px-8">
-            {/* Logo or Brand Element */}
-            <div className="flex justify-center mb-6">
-              <div 
-                className="h-16 w-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#90278E' }}
-              >
-                <svg viewBox="0 0 24 24" fill="white" width="32" height="32">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-14h2v6h-2zm0 8h2v2h-2z" />
-                </svg>
-              </div>
-            </div>
-            
-            <Title 
-              level={2} 
-              className="text-center mb-6"
-              style={{ color: '#90278E' }}
-            >
-              เข้าสู่ระบบ
-            </Title>
-            <LoginForm />
-          </div>
-        </Card>
-        
-        {/* Footer */}
-        <div className="text-center mt-8 text-gray-600 text-sm">
-          <p>สงวนลิขสิทธิ์ © {new Date().getFullYear()} ภาควิชาวิทยาการคอมพิวเตอร์</p>
+          <img src={Logo} alt="CSI Logo" className="w-10 h-10 object-contain" />
         </div>
+        
+        <Title level={2} className="mb-2" style={{ color: colors.primary, fontWeight: 600 }}>
+          CSI Showcase
+        </Title>
+        <Text type="secondary" className="text-base">
+          ระบบจัดการผลงานักศึกษา
+        </Text>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+          className="mb-6"
+          style={{
+            borderRadius: '8px',
+          }}
+        />
+      )}
+
+      {/* Login Form */}
+      <Form
+        form={form}
+        onFinish={onFinish}
+        size="large"
+        layout="vertical"
+      >
+        <Form.Item
+          name="username"
+          label={<span className="font-medium text-gray-700">ชื่อผู้ใช้</span>}
+          rules={[{ required: true, message: 'กรุณากรอกชื่อผู้ใช้' }]}
+          className="mb-6"
+        >
+          <Input
+            prefix={<UserOutlined className="text-gray-400" />}
+            placeholder="กรอกชื่อผู้ใช้ของคุณ"
+            className="h-12 rounded-lg"
+            style={{
+              fontSize: '16px',
+            }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="password"
+          label={<span className="font-medium text-gray-700">รหัสผ่าน</span>}
+          rules={[{ required: true, message: 'กรุณากรอกรหัสผ่าน' }]}
+          className="mb-6"
+        >
+          <Input
+            prefix={<LockOutlined className="text-gray-400" />}
+            suffix={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </button>
+            }
+            type={showPassword ? 'text' : 'password'}
+            placeholder="กรอกรหัسผ่านของคุณ"
+            className="h-12 rounded-lg"
+            style={{
+              fontSize: '16px',
+            }}
+          />
+        </Form.Item>
+
+        <Form.Item name="remember" className="mb-6">
+          <div className="flex items-center justify-between">
+            <Checkbox>จดจำการเข้าสู่ระบบ</Checkbox>
+            <a
+              href="#"
+              className="text-sm hover:underline"
+              style={{ color: colors.primary }}
+            >
+              ลืมรหัสผ่าน?
+            </a>
+          </div>
+        </Form.Item>
+
+        <Form.Item className="mb-0">
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+            className="w-full h-12 rounded-lg font-medium text-base shadow-sm hover:shadow-md transition-all duration-200"
+            style={{
+              background: colors.primaryGradient,
+              border: 'none',
+            }}
+          >
+            {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+          </Button>
+        </Form.Item>
+      </Form>
+
+      <Divider className="my-8" />
     </div>
   );
 };

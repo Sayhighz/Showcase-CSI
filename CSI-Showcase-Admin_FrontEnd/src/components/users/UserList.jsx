@@ -147,11 +147,6 @@ const UserList = ({
               label: <Link to={`/users/${record.user_id}`}>ดูรายละเอียด</Link>
             },
             {
-              key: 'edit',
-              icon: <EditOutlined />,
-              label: <Link to={`/users/${record.user_id}/edit`}>แก้ไข</Link>
-            },
-            {
               type: 'divider'
             },
             {

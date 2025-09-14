@@ -1,10 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Form, Input, Select, Upload, Button, Card, Row, Col, message } from 'antd';
 import { UserOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import ImgCrop from 'antd-img-crop';
 import { URL } from '../../constants/apiEndpoints';
-import { uploadUserProfileImage } from '../../services/userService';
+import { uploadUserProfileImage, adminUploadUserProfileImage } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
+
+const toDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (err) => reject(err);
+    } catch (err) {
+      reject(err);
+    }
+  });
+
+const getBase64 = toDataUrl;
 
 const { Option } = Select;
 
@@ -21,11 +35,21 @@ const UserForm = ({
   const [uploadLoading, setUploadLoading] = useState(false);
   const [fileList, setFileList] = useState([]);
   const { updateUserData } = useAuth();
-  const [imgTs, setImgTs] = useState(Date.now());
+  
+  // Local selection for create flow (no existing user_id)
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Target user id for profile image uploads
+  const targetUserId = initialValues?.user_id || initialValues?.id;
 
   // Set form values when initialValues change
   useEffect(() => {
     form.setFieldsValue(initialValues || {});
+    
+    // Reset local states
+    setSelectedFile(null);
+    setImagePreview(null);
 
     if (initialValues?.image) {
       setImageUrl(initialValues.image);
@@ -37,41 +61,96 @@ const UserForm = ({
           url: `${URL}/${initialValues.image}`,
         },
       ]);
+    } else {
+      setImageUrl(null);
+      setFileList([]);
     }
   }, [form, initialValues]);
 
-  // refresh preview cache-buster whenever imageUrl changes
+  // Revoke blob preview URL when changed/unmounted
   useEffect(() => {
-    setImgTs(Date.now());
-  }, [imageUrl]);
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  // Calculate preview source with proper priority
+  const previewSrc = useMemo(() => {
+    // For create flow: prioritize local preview over server image
+    if (!targetUserId) {
+      if (imagePreview) return imagePreview;
+      if (fileList.length > 0 && fileList[0].url) return fileList[0].url;
+    }
+    
+    // For edit flow: prioritize server image
+    if (imageUrl) return `${URL}/${imageUrl}`;
+    if (fileList.length > 0 && fileList[0].url) return fileList[0].url;
+    if (imagePreview) return imagePreview;
+    
+    return null;
+  }, [targetUserId, imagePreview, fileList, imageUrl]);
 
   // Handle image upload status from Upload component
-  const handleImageChange = (info) => {
-    // Keep file list in sync with Upload
-    setFileList(info.fileList);
-
-    // When using customRequest, show notifications only in handleCustomUpload to avoid duplicates.
-    if (info.file.status === 'done') {
-      setImageUrl(info.file.response?.filename || info.file.response?.data?.image || imageUrl);
+  const handleImageChange = async (info) => {
+    const file = info?.file?.originFileObj || info?.file;
+    
+    // Create flow (no user id): generate preview and manage local state
+    if (!targetUserId) {
+      if (file && ['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+        setSelectedFile(file);
+        
+        try {
+          const preview = await getBase64(file);
+          setImagePreview(preview);
+          setFileList([{
+            uid: String(Date.now()),
+            name: file.name || 'profile-image',
+            status: 'done',
+            url: preview,
+            thumbUrl: preview,
+            originFileObj: file,
+          }]);
+          // Clear server image URL since we have local preview
+          setImageUrl(null);
+        } catch (error) {
+          console.error('Error generating preview:', error);
+          message.error('ไม่สามารถสร้างตัวอย่างรูปภาพได้');
+        }
+      }
+      return;
     }
-    // Do not toggle uploadLoading or show message here; handleCustomUpload manages those.
-  };
 
-  // Target user id for profile image uploads
-  const targetUserId = initialValues?.user_id || initialValues?.id;
+    // Edit flow (has user id): let Upload manage the list; preview comes from server path
+    setFileList(info.fileList || []);
+    if (info?.file?.status === 'done') {
+      const newImagePath = info.file.response?.filename || 
+                           info.file.response?.data?.image || 
+                           imageUrl;
+      setImageUrl(newImagePath);
+    }
+  };
 
   // Validate file before upload
   const beforeUpload = (file) => {
-    const isImage = ['image/jpeg','image/png','image/gif'].includes(file.type);
+    const isImage = ['image/jpeg', 'image/png', 'image/gif'].includes(file.type);
     if (!isImage) {
       message.error('รองรับเฉพาะไฟล์ JPG, PNG หรือ GIF');
       return Upload.LIST_IGNORE;
     }
+    
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
       message.error('ขนาดไฟล์ต้องไม่เกิน 5MB');
       return Upload.LIST_IGNORE;
     }
+    
+    // In create flow (no user id yet), prevent auto upload so we can send with form submit
+    if (!targetUserId) {
+      return false; // antd will add to fileList and not upload
+    }
+    
     return true;
   };
 
@@ -83,11 +162,17 @@ const UserForm = ({
         onError(new Error('Missing user id'));
         return;
       }
+      
       setUploadLoading(true);
-      const resp = await uploadUserProfileImage(targetUserId, file);
+      
+      // Choose proper endpoint: self update vs admin updating another user
+      const uploader = isOwnProfile ? uploadUserProfileImage : adminUploadUserProfileImage;
+      const resp = await uploader(targetUserId, file);
+      
       if (!resp.success) {
         throw new Error(resp.message || 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ');
       }
+      
       const updatedUser = resp?.data?.user || resp?.user || resp?.data?.data?.user || null;
       const newImagePath = updatedUser?.image || resp?.data?.image || resp?.image || null;
 
@@ -101,13 +186,13 @@ const UserForm = ({
             url: `${URL}/${newImagePath}`,
           },
         ]);
+        
         // Immediately update auth context so header/sidebar refresh the avatar
         if (isOwnProfile && typeof updateUserData === 'function') {
           updateUserData({ image: newImagePath });
         }
-        // Bump local timestamp to bypass browser cache on preview
-        setImgTs(Date.now());
       }
+      
       message.success('อัปโหลดรูปภาพสำเร็จ');
       onSuccess(resp, file);
     } catch (e) {
@@ -120,7 +205,7 @@ const UserForm = ({
   };
 
   // Handle form submission
-  const handleSubmit = (values) => {
+  const handleSubmit = async (values) => {
     // Prepare the data according to API requirements
     const formData = {
       full_name: values.full_name,
@@ -142,14 +227,65 @@ const UserForm = ({
       formData.password = values.password;
     }
 
-    // Add image if available
-    if (imageUrl) {
+    // Attach image: for create flow send selected file; for edit send image path if present
+    if (!isEdit && selectedFile) {
+      formData.profileImage = selectedFile;
+    } else if (imageUrl) {
       formData.image = imageUrl;
     }
 
-    if (onFinish) {
-      onFinish(formData);
+    // Submit to parent
+    try {
+      if (onFinish) {
+        const maybePromise = onFinish(formData);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          await maybePromise;
+        }
+      }
+    } finally {
+      // Clear form and local preview after creating a new user
+      if (!isEdit) {
+        clearForm();
+      }
     }
+  };
+
+  // Clear form function
+  const clearForm = () => {
+    try {
+      form.resetFields();
+    } catch (e) {
+      // ignore
+    }
+    
+    // Clean up blob URL
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    
+    setSelectedFile(null);
+    setImagePreview(null);
+    setImageUrl(null);
+    setFileList([]);
+  };
+
+  // Handle remove image
+  const handleRemoveImage = () => {
+    if (!targetUserId) {
+      // Create flow: clean up local preview
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(imagePreview);
+        } catch {
+          // ignore
+        }
+      }
+      setSelectedFile(null);
+      setImagePreview(null);
+      setImageUrl(null);
+      setFileList([]);
+    }
+    return true;
   };
 
   // Upload button component
@@ -159,19 +295,6 @@ const UserForm = ({
       <div className="mt-2">เลือกรูปภาพ</div>
     </div>
   );
-
-  // Upload configuration
-//   const uploadProps = {
-//     name: 'profileImage',
-//     action: '/api/admin/upload/profile-image',
-//     headers: {
-//       authorization: 'auth-token',
-//     },
-//     fileList,
-//     onChange: handleImageChange,
-//     accept: 'image/png, image/jpeg, image/gif',
-//     maxCount: 1,
-//   };
 
   return (
     <Card>
@@ -199,23 +322,23 @@ const UserForm = ({
                   listType="picture-card"
                   className="avatar-uploader"
                   showUploadList={false}
-                  fileList={fileList}
+                  fileList={targetUserId ? fileList : []}
                   beforeUpload={beforeUpload}
-                  customRequest={handleCustomUpload}
+                  customRequest={targetUserId ? handleCustomUpload : undefined}
                   accept="image/png,image/jpeg,image/gif"
                   onChange={handleImageChange}
+                  maxCount={1}
+                  onRemove={handleRemoveImage}
                 >
-                  {imageUrl ? (
+                  {previewSrc ? (
                     <img
-                      src={`${URL}/${imageUrl}${imgTs ? `?v=${imgTs}` : ''}`}
+                      src={previewSrc}
                       alt="avatar"
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       loading="lazy"
                       onError={(e) => {
                         const img = e.currentTarget;
-                        // ป้องกันการ onError loop กรณี fallback โหลดไม่ได้
                         img.onerror = null;
-                        // ใช้ data URI ที่มีอยู่แน่นอน เพื่อตัดปัญหา 404 ซ้ำ
                         img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
                       }}
                     />
@@ -341,7 +464,13 @@ const UserForm = ({
         </Row>
         
         <Form.Item className="mt-4 text-right">
-          <Button onClick={onCancel} className="mr-2">
+          <Button
+            onClick={() => {
+              clearForm();
+              if (onCancel) onCancel();
+            }}
+            className="mr-2"
+          >
             ยกเลิก
           </Button>
           <Button type="primary" htmlType="submit" loading={loading}>

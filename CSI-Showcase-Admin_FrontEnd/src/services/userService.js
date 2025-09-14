@@ -1,6 +1,6 @@
 // src/services/adminUserService.js
 import { axiosGet, axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/axios';
-import { cachedGet } from '../lib/axiosCached';
+import { cachedGet, clearCacheByUrl } from '../lib/axiosCached';
 import { ADMIN, AUTH } from '../constants/apiEndpoints';
 import { getAuthToken } from '../lib/cookie-simple';
 
@@ -16,6 +16,11 @@ export const getAllUsers = async (filters = {}) => {
     
     if (filters.role) {
       queryParams.append('role', filters.role);
+    }
+
+    // สถานะ (active | inactive | suspended)
+    if (filters.status) {
+      queryParams.append('status', filters.status);
     }
     
     if (filters.search) {
@@ -162,7 +167,10 @@ export const createUser = async (formData) => {
         userData = response.data;
       }
     }
-    
+
+    // Clear cached user lists/details so UI updates immediately after creation
+    try { clearCacheByUrl('/api/admin/users'); clearCacheByUrl('admin/users'); } catch (e) { void e; }
+
     return {
       success: true,
       data: userData,
@@ -205,6 +213,9 @@ export const updateUser = async (userId, userData) => {
         updatedUserData = response.data;
       }
     }
+
+    // Clear cached user lists/details so UI updates immediately after update
+    try { clearCacheByUrl('/api/admin/users'); clearCacheByUrl('admin/users'); } catch (e) { void e; }
     
     return {
       success: true,
@@ -235,6 +246,9 @@ export const deleteUser = async (userId) => {
     
     const url = ADMIN.USER.DELETE(userId);
     const response = await axiosDelete(url);
+
+    // Clear cached user lists/details so UI updates immediately after delete
+    try { clearCacheByUrl('/api/admin/users'); clearCacheByUrl('admin/users'); } catch (e) { void e; }
     
     return {
       success: true,
@@ -458,6 +472,51 @@ export const uploadUserProfileImage = async (userId, file) => {
 };
 
 /**
+* อัปโหลดรูปโปรไฟล์ผู้ใช้ (สำหรับแอดมินอัปเดตให้ผู้ใช้อื่น)
+* @param {number|string} userId
+* @param {File|Blob} file
+* @returns {Promise<{success:boolean, data:any, message?:string}>}
+*/
+export const adminUploadUserProfileImage = async (userId, file) => {
+  try {
+    if (!userId || !file) {
+      return { success: false, message: 'ข้อมูลไม่ครบถ้วนสำหรับการอัปโหลดรูปโปรไฟล์' };
+    }
+
+    const form = new FormData();
+    form.append('profileImage', file);
+
+    const url = ADMIN.USER.UPLOAD_PROFILE_IMAGE(userId);
+    const resp = await axiosUpload(url, form);
+
+    const raw = resp?.data || resp;
+
+    let updatedUser =
+      raw?.data?.user ||
+      raw?.user ||
+      raw?.data?.data?.user ||
+      null;
+
+    let imagePath =
+      updatedUser?.image ||
+      raw?.data?.image ||
+      raw?.image ||
+      null;
+
+    return {
+      success: true,
+      data: { user: updatedUser, image: imagePath },
+      message: raw?.message || 'อัปโหลดรูปโปรไฟล์สำเร็จ'
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์'
+    };
+  }
+};
+
+/**
 * อัปเดตข้อมูลโปรไฟล์ผู้ใช้ตัวเอง
 * @param {Object} userData - ข้อมูลผู้ใช้ที่ต้องการอัปเดต
 * @returns {Promise<Object>} - ผลลัพธ์การอัปเดต
@@ -512,6 +571,7 @@ export default {
  importUsersFromCSV,
  downloadCSVTemplate,
  uploadUserProfileImage,
+ adminUploadUserProfileImage,
  updateMyProfile,
  changeMyPassword
 };

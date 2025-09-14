@@ -41,6 +41,14 @@ const login = async (req, res) => {
     }
     
     const user = users[0];
+
+    // บล็อกการเข้าสู่ระบบถ้าบัญชีไม่ได้อยู่ในสถานะ active (รองรับฐานข้อมูลที่ยังไม่มีคอลัมน์ status)
+    if (user.status && String(user.status).toLowerCase() !== 'active') {
+      logLogin(username, req.ip, false);
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        errorResponse(getErrorMessage('AUTH.INVALID_CREDENTIALS'), STATUS_CODES.UNAUTHORIZED)
+      );
+    }
     
     // ตรวจสอบรหัสผ่าน
     const isMatch = await comparePassword(password, user.password_hash);

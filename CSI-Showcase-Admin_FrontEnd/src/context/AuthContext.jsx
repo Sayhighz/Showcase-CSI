@@ -87,17 +87,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (initCompleteRef.current) return;
 
-    console.log("🚀 Initial authentication check");
-
     const checkAuth = async () => {
       setIsLoading(true);
 
       try {
         const token = getAuthToken();
-        console.log("Token check:", token ? "found" : "not found");
 
         if (!token) {
-          console.log("No token, setting unauthenticated");
           setIsAuthenticated(false);
           setUser(null);
           setIsLoading(false);
@@ -106,7 +102,6 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (isTokenExpired(token)) {
-          console.log("Token expired, clearing");
           removeAuthToken();
           setIsAuthenticated(false);
           setUser(null);
@@ -116,7 +111,6 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (!validateToken(token)) {
-          console.log("Token invalid, clearing");
           removeAuthToken();
           setIsAuthenticated(false);
           setUser(null);
@@ -150,7 +144,6 @@ export const AuthProvider = ({ children }) => {
                 stats: userData.data.stats || {}
               };
 
-              console.log("✅ Setting authenticated user with fresh data:", freshUserData);
               setUser(freshUserData);
               setIsAuthenticated(true);
               setIsLoading(false);
@@ -175,8 +168,6 @@ export const AuthProvider = ({ children }) => {
           createdAt: decoded.user?.createdAt || null,
           stats: {}
         };
-
-        console.log("✅ Setting authenticated user (fallback):", userData);
         setUser(userData);
         setIsAuthenticated(true);
         setIsLoading(false);
@@ -199,17 +190,14 @@ export const AuthProvider = ({ children }) => {
    * Login function
    */
   const handleLogin = useCallback(async (username, password) => {
-    console.log("🔐 Login attempt for:", username);
     setIsLoading(true);
     
     try {
       // พยายามล็อกอินเป็นแอดมินก่อน
       let response = await adminLogin(username, password);
-      console.log("Admin login response received");
       
       // ถ้าไม่สำเร็จ ลองล็อกอินด้วย endpoint ผู้ใช้ทั่วไป (สำหรับ student)
       if (!(response && response.success && response.data && response.data.token)) {
-        console.log("Admin login failed or no token, trying user login...");
         response = await userLogin(username, password);
       }
       
@@ -272,7 +260,6 @@ export const AuthProvider = ({ children }) => {
                  null
         };
         
-        console.log("✅ Login successful, setting user:", userData);
         setUser(userData);
         setIsAuthenticated(true);
         setIsLoading(false);
@@ -307,10 +294,6 @@ export const AuthProvider = ({ children }) => {
         
         // Force a small delay to ensure state is updated before navigation
         setTimeout(() => {
-          console.log("🔄 Post-login: Authentication state set", {
-            isAuthenticated: true,
-            user: userData
-          });
         }, 100);
         
         return true;
@@ -331,7 +314,6 @@ export const AuthProvider = ({ children }) => {
    * Logout function
    */
   const handleLogout = useCallback(() => {
-    console.log("🚪 Logging out");
     
     removeAuthToken();
     setIsAuthenticated(false);
@@ -341,7 +323,6 @@ export const AuthProvider = ({ children }) => {
     
     // For session timeout or logout, redirect to external login path
     setTimeout(() => {
-      console.log("Redirecting to login with full path:", getFullPath('/login'));
       window.location.replace(getFullPath('/login'));
     }, 100);
   }, []);
@@ -350,13 +331,11 @@ export const AuthProvider = ({ children }) => {
     * Refresh authentication status
     */
   const refreshAuth = useCallback(async () => {
-    console.log("🔄 Refreshing auth");
 
     try {
       const token = getAuthToken();
 
       if (!token || isTokenExpired(token) || !validateToken(token)) {
-        console.log("Token invalid during refresh");
         removeAuthToken();
         setIsAuthenticated(false);
         setUser(null);
@@ -374,7 +353,6 @@ export const AuthProvider = ({ children }) => {
     * Update user data in context (for profile updates)
     */
   const updateUserData = useCallback((updatedData) => {
-    console.log("🔄 Updating user data:", updatedData);
     setUser(prevUser => {
       if (!prevUser) return prevUser;
       const hasNewImage = Boolean(updatedData?.image || updatedData?.avatar);

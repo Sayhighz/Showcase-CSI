@@ -5,21 +5,14 @@ import { Row, Col, Spin, Alert, Button } from 'antd';
 import {
   UserOutlined,
   ProjectOutlined,
-  EyeOutlined,
   ClockCircleOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import StatCard from '../components/dashboard/StatCard';
-import ProjectTypeChart from '../components/dashboard/ProjectTypeChart';
-import ProjectStatusChart from '../components/dashboard/ProjectStatusChart';
-import RecentProjects from '../components/dashboard/RecentProjects';
-import RecentLogins from '../components/dashboard/RecentLogins';
-import PageTitle from '../components/common/PageTitle';
 import useProject from '../hooks/useProject';
 import useUser from '../hooks/useUser';
 import useLog from '../hooks/useLog';
-import { useAuth } from '../context/AuthContext';
 
 const DashboardPage = () => {
   const [error, setError] = useState(null);
@@ -50,11 +43,6 @@ const DashboardPage = () => {
     error: logError,
     refreshLogs,
   } = useLog('dashboard');
-
-  // Greeting name
-  const { user: authUser, admin: authAdmin } = useAuth();
-  const currentUser = authUser || authAdmin;
-  const displayName = currentUser?.full_name || currentUser?.username || 'ผู้ใช้';
 
   useEffect(() => {
     if (!projectLoading && !userLoading && !logLoading) {
@@ -158,9 +146,6 @@ const DashboardPage = () => {
     activities: dashboardData.logs?.recentActivities || [],
   };
 
-  // ใช้ข้อมูลโปรเจคจาก stats API สำหรับ charts
-  const projectsForCharts = dashboardData.projects?.recent_projects || [];
-
   return (
     <div>
 
@@ -200,45 +185,6 @@ const DashboardPage = () => {
             icon={<UserOutlined style={{ fontSize: 24 }} />}
             color="#1890ff"
             footer={<Link to="/users" className="text-purple-700 text-sm">ดูทั้งหมด</Link>}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            title="การเข้าชมทั้งหมด"
-            value={stats.totalViews}
-            icon={<EyeOutlined style={{ fontSize: 24 }} />}
-            color="#52c41a"
-            footer={<Link to="/logs/visitor-views" className="text-purple-700 text-sm">ดูทั้งหมด</Link>}
-          />
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col xs={24} lg={12}>
-          <ProjectTypeChart 
-            projects={projectsForCharts} 
-            height={300} 
-          />
-        </Col>
-        <Col xs={24} lg={12}>
-          <ProjectStatusChart 
-            projects={projectsForCharts} 
-            height={300} 
-          />
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col xs={24} lg={12}>
-          <RecentProjects
-            projects={stats.recentProjects}
-            onViewMore={() => (window.location.href = '/projects')}
-          />
-        </Col>
-        <Col xs={24} lg={12}>
-          <RecentLogins
-            logins={stats.recentLogins}
-            onViewMore={() => (window.location.href = '/logs/login')}
           />
         </Col>
       </Row>

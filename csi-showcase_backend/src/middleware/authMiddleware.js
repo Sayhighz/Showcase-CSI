@@ -32,24 +32,45 @@ const authenticateToken = async (req, res, next) => {
       });
     }
     
-    // ตรวจสอบว่าผู้ใช้มีอยู่จริงในฐานข้อมูลหรือไม่
-    const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ?', [decoded.id]);
-    
-    if (users.length === 0) {
-      return res.status(403).json({
-        success: false,
-        statusCode: 403,
-        message: 'User not found'
-      });
+    // ตรวจสอบว่าผู้ใช้มีอยู่จริงในฐานข้อมูลและยังใช้งานอยู่ (active) หรือไม่
+    let userRow = null;
+    try {
+      const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ? AND status = "active"', [decoded.id]);
+      if (users.length === 0) {
+        return res.status(403).json({
+          success: false,
+          statusCode: 403,
+          message: 'User not found or access revoked'
+        });
+      }
+      userRow = users[0];
+    } catch (e) {
+      // Fallback สำหรับสภาพแวดล้อมที่ยังไม่มีคอลัมน์ status
+      const [users] = await pool.execute('SELECT * FROM users WHERE user_id = ?', [decoded.id]);
+      if (users.length === 0) {
+        return res.status(403).json({
+          success: false,
+          statusCode: 403,
+          message: 'User not found'
+        });
+      }
+      if (users[0].status && String(users[0].status).toLowerCase() !== 'active') {
+        return res.status(403).json({
+          success: false,
+          statusCode: 403,
+          message: 'User not found or access revoked'
+        });
+      }
+      userRow = users[0];
     }
     
     // เก็บข้อมูลผู้ใช้ไว้ใน req object เพื่อใช้ในฟังก์ชันถัดไป
     req.user = {
-      id: users[0].user_id,
-      username: users[0].username,
-      fullName: users[0].full_name,
-      email: users[0].email,
-      role: users[0].role
+      id: userRow.user_id,
+      username: userRow.username,
+      fullName: userRow.full_name,
+      email: userRow.email,
+      role: userRow.role
     };
     
     // เพิ่ม token เดิมลใน req สำหรับการ revoke token ภายหลัง

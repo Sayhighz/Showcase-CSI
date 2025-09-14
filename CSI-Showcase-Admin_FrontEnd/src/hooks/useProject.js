@@ -46,6 +46,18 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
   const initialProjectIdRef = useRef(projectId);
   const abortControllerRef = useRef(null);
   const cacheRef = useRef(new Map());
+  // Skip the next auto-fetch effect when we manually apply filters and fetch
+  const skipNextFetchRef = useRef(false);
+  // Track previous deps to detect if only filters changed (for my-projects)
+  const prevDepsRef = useRef({
+    page: 1,
+    pageSize: 10,
+    search: '',
+    type: '',
+    status: '',
+    year: '',
+    level: ''
+  });
   void _viewMode;
   
   // State management
@@ -144,7 +156,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
 
     try {
       const apiFunction = initialModeRef.current === 'pending' ? getPendingProjects : getAllProjects;
-      const response = await apiFunction(queryParams);
+      const response = await apiFunction(queryParams, { useCache });
 
       if (signal.aborted) return;
 
@@ -170,9 +182,8 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจค กรุณาลองใหม่อีกครั้ง');
       }
     } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      // Always clear loading; prevents UI from getting stuck if an older signal was aborted
+      setLoading(false);
     }
   }, [debouncedSearch, filters.type, filters.status, filters.year, filters.level, getCacheKey, getFromCache, setCache, cancelPreviousRequest]);
 
@@ -210,24 +221,23 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจค กรุณาลองใหม่อีกครั้ง');
       }
     } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      // Always clear loading; prevents UI from getting stuck if an older signal was aborted
+      setLoading(false);
     }
   }, [getCacheKey, getFromCache, setCache, cancelPreviousRequest]);
 
-  const fetchMyProjects = useCallback(async (userId, filterParams = {}) => {
+  const fetchMyProjects = useCallback(async (userId, filterParams = {}, options = {}) => {
     if (!userId) return;
-
+  
     const signal = cancelPreviousRequest();
     setLoading(true);
     setError(null);
-
+  
     try {
-      const response = await getMyProjects(userId, filterParams);
+      const response = await getMyProjects(userId, filterParams, options);
       
       if (signal.aborted) return;
-
+  
       if (response.success) {
         setProjects(response.data.projects || response.data || []);
         setPagination({
@@ -244,9 +254,8 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลโปรเจคของคุณ กรุณาลองใหม่อีกครั้ง');
       }
     } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      // Always clear loading to prevent stuck spinner when previous request was aborted
+      setLoading(false);
     }
   }, [cancelPreviousRequest]);
 
@@ -283,9 +292,8 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         setError('เกิดข้อผิดพลาดในการโหลดข้อมูลสถิติโปรเจค กรุณาลองใหม่อีกครั้ง');
       }
     } finally {
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      // Always clear loading; prevents UI from getting stuck if an older signal was aborted
+      setLoading(false);
     }
   }, [getCacheKey, getFromCache, setCache, cancelPreviousRequest]);
 
@@ -301,6 +309,35 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     });
     setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
+
+  // Apply filters and immediately fetch (skip the auto-effect fetch once)
+  const applyFilters = useCallback((newFilters = {}) => {
+    // Mark to skip the very next auto-effect fetch
+    skipNextFetchRef.current = true;
+
+    // Update filters + reset page
+    setFilters(prev => ({ ...prev, ...newFilters }));
+    setPagination(prev => ({ ...prev, current: 1 }));
+
+    // Important: delay manual fetch to run AFTER the auto-effect cleanup aborts any prior request
+    if (initialModeRef.current === 'my-projects' && (user || admin)?.id) {
+      const uid = (user || admin).id;
+      const params = {
+        page: 1,
+        limit: pagination.pageSize
+      };
+      if (newFilters.search) params.search = newFilters.search;
+      if (newFilters.type) params.type = newFilters.type;
+      if (newFilters.status) params.status = newFilters.status;
+      if (newFilters.year) params.year = newFilters.year;
+      if (newFilters.level) params.level = newFilters.level;
+
+      // Schedule to avoid the old effect cleanup aborting this manual request
+      setTimeout(() => {
+        fetchMyProjects(uid, params, { useCache: false });
+      }, 0);
+    }
+  }, [admin, user, pagination.pageSize, fetchMyProjects]);
 
   const resetFilters = useCallback(() => {
     setFilters({
@@ -356,9 +393,19 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         cacheRef.current.clear();
         
         if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
-          fetchProjectDetails(initialProjectIdRef.current, false);
+          await fetchProjectDetails(initialProjectIdRef.current, false);
+        } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+          await fetchMyProjects(currentUser.id, {
+            page: pagination.current,
+            limit: pagination.pageSize,
+            search: filters.search,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          }, { useCache: false });
         } else {
-          fetchProjects(pagination.current, pagination.pageSize, false);
+          await fetchProjects(pagination.current, pagination.pageSize, false);
         }
         
         return true;
@@ -372,7 +419,20 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     } finally {
       setActionLoading(false);
     }
-  }, [actionLoading, pagination.current, pagination.pageSize, fetchProjectDetails, fetchProjects]);
+  }, [
+    actionLoading,
+    pagination.current,
+    pagination.pageSize,
+    fetchProjectDetails,
+    fetchProjects,
+    fetchMyProjects,
+    currentUser?.id,
+    filters.search,
+    filters.type,
+    filters.status,
+    filters.year,
+    filters.level
+  ]);
 
   // Update project with files (poster + video URL/file)
   const updateProjectAction = useCallback(async (id, payload) => {
@@ -410,6 +470,16 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         cacheRef.current.clear();
         if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
           await fetchProjectDetails(initialProjectIdRef.current, false);
+        } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+          await fetchMyProjects(currentUser.id, {
+            page: pagination.current,
+            limit: pagination.pageSize,
+            search: filters.search,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          }, { useCache: false });
         } else {
           await fetchProjects(pagination.current, pagination.pageSize, false);
         }
@@ -423,7 +493,20 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     } finally {
       setActionLoading(false);
     }
-  }, [fetchProjectDetails, fetchProjects, pagination.current, pagination.pageSize, projectDetails]);
+  }, [
+    fetchProjectDetails,
+    fetchProjects,
+    fetchMyProjects,
+    pagination.current,
+    pagination.pageSize,
+    projectDetails,
+    currentUser?.id,
+    filters.search,
+    filters.type,
+    filters.status,
+    filters.year,
+    filters.level
+  ]);
 
   // Helper to refresh current project's details and bypass cache
   const refreshProjectDetails = useCallback(async () => {
@@ -443,7 +526,17 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
       if (resp.success) {
         message.success(resp.message || 'ลบโปรเจคสำเร็จ');
         cacheRef.current.clear();
-        if (initialModeRef.current !== 'detail') {
+        if (initialModeRef.current === 'my-projects' && currentUser?.id) {
+          await fetchMyProjects(currentUser.id, {
+            page: pagination.current,
+            limit: pagination.pageSize,
+            search: filters.search,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          }, { useCache: false });
+        } else if (initialModeRef.current !== 'detail') {
           await fetchProjects(pagination.current, pagination.pageSize, false);
         }
         return true;
@@ -457,27 +550,118 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     } finally {
       setActionLoading(false);
     }
-  }, [fetchProjects, pagination.current, pagination.pageSize]);
+  }, [
+    fetchProjects,
+    fetchMyProjects,
+    pagination.current,
+    pagination.pageSize,
+    currentUser?.id,
+    filters.search,
+    filters.type,
+    filters.status,
+    filters.year,
+    filters.level
+  ]);
 
   // Consolidated data fetching effect - prevents multiple simultaneous API calls
   useEffect(() => {
     const fetchData = async () => {
+      // If we manually applied filters and already fetched, skip this auto-fetch once
+      if (skipNextFetchRef.current) {
+        skipNextFetchRef.current = false;
+        // Update prev deps snapshot
+        prevDepsRef.current = {
+          page: pagination.current,
+          pageSize: pagination.pageSize,
+          search: debouncedSearch,
+          type: filters.type,
+          status: filters.status,
+          year: filters.year,
+          level: filters.level
+        };
+        return;
+      }
+
       // Skip if already loading to prevent race conditions
       if (loading) return;
+
+      // Detect changes
+      const prev = prevDepsRef.current;
+      const changedPagination = (pagination.current !== prev.page) || (pagination.pageSize !== prev.pageSize);
+      const changedFilters =
+        (debouncedSearch !== prev.search) ||
+        (filters.type !== prev.type) ||
+        (filters.status !== prev.status) ||
+        (filters.year !== prev.year) ||
+        (filters.level !== prev.level);
 
       // Initial load on mount - only run once
       if (pagination.current === 1 && !debouncedSearch && !filters.type && !filters.status && !filters.year && !filters.level) {
         if (initialModeRef.current === 'detail' && initialProjectIdRef.current) {
           await fetchProjectDetails(initialProjectIdRef.current);
+          prevDepsRef.current = {
+            page: pagination.current,
+            pageSize: pagination.pageSize,
+            search: debouncedSearch,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          };
           return;
         } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
           await fetchMyProjects(currentUser.id, { page: 1, limit: pagination.pageSize });
+          prevDepsRef.current = {
+            page: 1,
+            pageSize: pagination.pageSize,
+            search: debouncedSearch,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          };
           return;
         } else if (initialModeRef.current === 'stats') {
           await fetchProjectStats();
+          prevDepsRef.current = {
+            page: pagination.current,
+            pageSize: pagination.pageSize,
+            search: debouncedSearch,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          };
           return;
         } else {
           await fetchProjects(1, pagination.pageSize);
+          prevDepsRef.current = {
+            page: 1,
+            pageSize: pagination.pageSize,
+            search: debouncedSearch,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          };
+          return;
+        }
+      }
+
+      // For my-projects: do not auto-fetch on filter changes (apply button drives fetch).
+      // Allow auto-fetch only for pagination changes.
+      if (initialModeRef.current === 'my-projects') {
+        if (changedFilters && !changedPagination) {
+          // Just update snapshot and skip
+          prevDepsRef.current = {
+            page: pagination.current,
+            pageSize: pagination.pageSize,
+            search: debouncedSearch,
+            type: filters.type,
+            status: filters.status,
+            year: filters.year,
+            level: filters.level
+          };
           return;
         }
       }
@@ -499,6 +683,17 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         } else {
           await fetchProjects(fetchParams.page, fetchParams.limit, false);
         }
+
+        // Update snapshot after fetch
+        prevDepsRef.current = {
+          page: pagination.current,
+          pageSize: pagination.pageSize,
+          search: debouncedSearch,
+          type: filters.type,
+          status: filters.status,
+          year: filters.year,
+          level: filters.level
+        };
       }
     };
 
@@ -556,6 +751,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     handleFilterChange,
     resetFilters,
     handlePaginationChange,
+    applyFilters,
     
     // Actions
     updateProject: (id, payload) => updateProjectAction(id, payload),
@@ -576,7 +772,15 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
       if (initialModeRef.current === 'stats') {
         fetchProjectStats(false);
       } else if (initialModeRef.current === 'my-projects' && currentUser?.id) {
-        fetchMyProjects(currentUser.id, { limit: pagination.pageSize });
+        fetchMyProjects(currentUser.id, {
+          page: pagination.current,
+          limit: pagination.pageSize,
+          search: filters.search,
+          type: filters.type,
+          status: filters.status,
+          year: filters.year,
+          level: filters.level
+        }, { useCache: false });
       } else {
         fetchProjects(pagination.current, pagination.pageSize, false);
       }

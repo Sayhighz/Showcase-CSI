@@ -15,7 +15,7 @@ const getBaseApiUrl = () => {
   return resolved.replace(/\/+$/, '');
 };
 const BASE_API_URL = `${getBaseApiUrl()}/api`;
-const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '9a73a892-06f4-4ae1-8767-c1ff07a3823f';
+const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '';
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
 
 // Create an axios instance with basic configuration
@@ -33,10 +33,25 @@ axiosInstance.interceptors.request.use(
     // Add secret key to every API call
     config.headers['secret_key'] = SECRET_KEY;
 
-    // Add token if available
+    // Add token unless endpoint is authless (login/register/forgot/reset)
+    const urlStr = (config.url || '').toString();
+    const fullUrl = urlStr.startsWith('http') ? urlStr : `${config.baseURL || ''}${urlStr}`;
+    const pathLower = fullUrl.toLowerCase();
+    const method = (config.method || '').toLowerCase();
+    const isAuthlessEndpoint =
+      method === 'post' && (
+        pathLower.includes('/api/auth/login') ||
+        pathLower.includes('/api/admin/auth/login') ||
+        pathLower.includes('/api/auth/register') ||
+        pathLower.includes('/api/auth/forgot-password') ||
+        pathLower.includes('/api/auth/reset-password')
+      );
+
     const token = getAuthToken();
-    if (token) {
+    if (token && !isAuthlessEndpoint) {
       config.headers['Authorization'] = `Bearer ${token}`;
+    } else if (isAuthlessEndpoint && config.headers['Authorization']) {
+      delete config.headers['Authorization'];
     }
 
     // Identify requests coming from Admin FrontEnd (used by backend to skip view increments)

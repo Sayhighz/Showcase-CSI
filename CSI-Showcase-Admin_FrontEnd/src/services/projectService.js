@@ -1,6 +1,6 @@
 // src/services/projectService.js
 import { axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/axios';
-import { cachedGet } from '../lib/axiosCached';
+import { cachedGet, clearCacheByUrl } from '../lib/axiosCached';
 import API_ROUTES, { BASE_URL, ADMIN, PROJECT } from '../constants/apiEndpoints';
 import { getAuthToken } from '../lib/cookie-simple';
 import { jwtDecode } from 'jwt-decode';
@@ -24,7 +24,7 @@ const getCurrentRole = () => {
  * @param {Object} filters - ตัวกรองข้อมูลโปรเจค
  * @returns {Promise<Object>} - ข้อมูลโปรเจค
  */
-export const getAllProjects = async (filters = {}) => {
+export const getAllProjects = async (filters = {}, options = {}) => {
   try {
     // สร้าง query string จาก filters - แก้ไขการ mapping ให้ตรงกับ backend
     const queryParams = new URLSearchParams();
@@ -64,7 +64,7 @@ export const getAllProjects = async (filters = {}) => {
     // สร้าง URL พร้อม query string
     const url = ADMIN.PROJECT.ALL + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await cachedGet(url, { params: queryParams });
+    const response = await cachedGet(url, { params: queryParams }, options);
 
     return {
       success: true,
@@ -90,7 +90,7 @@ export const getAllProjects = async (filters = {}) => {
  * @param {Object} filters - ตัวกรองข้อมูลโปรเจค
  * @returns {Promise<Object>} - ข้อมูลโปรเจคที่รอการอนุมัติ
  */
-export const getPendingProjects = async (filters = {}) => {
+export const getPendingProjects = async (filters = {}, options = {}) => {
   try {
     // สร้าง query string จาก filters - แก้ไขการ mapping ให้ตรงกับ backend
     const queryParams = new URLSearchParams();
@@ -122,7 +122,7 @@ export const getPendingProjects = async (filters = {}) => {
     // สร้าง URL พร้อม query string
     const url = ADMIN.PROJECT.PENDING + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await cachedGet(url, { params: queryParams });
+    const response = await cachedGet(url, { params: queryParams }, options);
 
     return {
       success: true,
@@ -371,11 +371,18 @@ export const deleteProject = async (projectId) => {
         message: 'ไม่ระบุรหัสโปรเจค'
       };
     }
-
+  
     const role = getCurrentRole();
     const url = role === 'admin' ? ADMIN.PROJECT.DELETE(projectId) : PROJECT.DELETE(projectId);
-
+  
     const response = await axiosDelete(url);
+    
+    // Invalidate cached GETs so admin lists (/csif/projects) reflect deletion immediately
+    try {
+      clearCacheByUrl('/admin/projects');
+      clearCacheByUrl('/projects');
+    } catch { /* ignore cache clear errors */ }
+    
     return {
       success: true,
       message: response.message || 'ลบโปรเจคสำเร็จ'
@@ -432,7 +439,7 @@ export const createProject = async (userId, projectData) => {
  * @param {Object} filters - ตัวกรองข้อมูลโปรเจค
  * @returns {Promise<Object>} - ข้อมูลโปรเจคของผู้ใช้
  */
-export const getMyProjects = async (userId, filters = {}) => {
+export const getMyProjects = async (userId, filters = {}, options = {}) => {
   try {
     if (!userId) {
       return {
@@ -440,7 +447,7 @@ export const getMyProjects = async (userId, filters = {}) => {
         message: 'ไม่ระบุรหัสผู้ใช้'
       };
     }
-
+  
     // สร้าง query string จาก filters - แก้ไขการ mapping ให้ตรงกับ backend
     const queryParams = new URLSearchParams();
     
@@ -471,11 +478,12 @@ export const getMyProjects = async (userId, filters = {}) => {
     if (filters.status) {
       queryParams.append('status', filters.status);
     }
-
+  
     const url = `${BASE_URL}/projects/user/${userId}/my-projects` +
                 (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await cachedGet(url, { params: queryParams });
+    // Important: avoid passing params again (it duplicates query keys and Express receives arrays)
+    const response = await cachedGet(url, {}, options);
     
     return {
       success: true,
