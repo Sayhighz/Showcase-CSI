@@ -61,12 +61,12 @@ const ProjectForm = ({
     courseworkImage: initialValues.courseworkImage
       ? [initialValues.courseworkImage]
       : [],
-    courseworkVideo: initialValues.courseworkVideo
-      ? [initialValues.courseworkVideo]
-      : [],
     competitionPoster: initialValues.competitionPoster
       ? [initialValues.competitionPoster]
       : [],
+    competitionImage: initialValues.competitionImage
+      ? [initialValues.competitionImage]
+      : []
   });
   const [contributors, setContributors] = useState(initialValues.contributors || []);
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -103,12 +103,11 @@ const ProjectForm = ({
     if (
       fileType === "courseworkPoster" ||
       fileType === "competitionPoster" ||
-      fileType === "paperFile" ||
-      fileType === "courseworkVideo"
+      fileType === "paperFile"
     ) {
       fileListCopy = fileListCopy.slice(-1); // เก็บแค่ไฟล์ล่าสุด
-    } else if (fileType === "courseworkImage") {
-      fileListCopy = fileListCopy.slice(-3); // เก็บแค่ 3 ไฟล์ล่าสุด
+    } else if (fileType === "courseworkImage" || fileType === "competitionImage") {
+      fileListCopy = fileListCopy.slice(-10); // เก็บแค่ 10 ไฟล์ล่าสุด
     }
 
     setFileList({
@@ -233,16 +232,13 @@ const ProjectForm = ({
       if (projectType === PROJECT_TYPE.ACADEMIC) {
         projectData.published_year = values.published_year;
         if (values.publication_date) {
-          projectData.publication_date = values.publication_date.format ? 
+          projectData.publication_date = values.publication_date.format ?
             values.publication_date.format('YYYY-MM-DD') : values.publication_date;
         }
       } else if (projectType === PROJECT_TYPE.COMPETITION) {
         projectData.competition_name = values.competition_name;
         projectData.competition_year = values.competition_year;
-        // รองรับลิงก์วิดีโอสำหรับการแข่งขัน (เก็บเป็น clip_video เช่นเดียวกับ coursework)
-        if (values.clip_video) {
-          projectData.clip_video = values.clip_video;
-        }
+        // ตามสเปคใหม่: ผลงานการแข่งขันไม่มีลิงก์วิดีโอ ส่งเฉพาะโปสเตอร์และรูปเพิ่มเติม
       } else if (projectType === PROJECT_TYPE.COURSEWORK) {
         projectData.clip_video = values.clip_video;
       }
@@ -258,12 +254,23 @@ const ProjectForm = ({
         } else if (paperFile instanceof File) {
           filesData.paperFile = paperFile;
         }
-      } else if (projectType === PROJECT_TYPE.COMPETITION && fileList.competitionPoster.length > 0) {
-        const posterFile = fileList.competitionPoster[0];
-        if (posterFile.originFileObj) {
-          filesData.competitionPoster = posterFile.originFileObj;
-        } else if (posterFile instanceof File) {
-          filesData.competitionPoster = posterFile;
+      } else if (projectType === PROJECT_TYPE.COMPETITION) {
+        if (fileList.competitionPoster.length > 0) {
+          const posterFile = fileList.competitionPoster[0];
+          if (posterFile.originFileObj) {
+            filesData.competitionPoster = posterFile.originFileObj;
+          } else if (posterFile instanceof File) {
+            filesData.competitionPoster = posterFile;
+          }
+        }
+        // เพิ่มรูปภาพประกอบ competition หลายรูป
+        if (fileList.competitionImage && fileList.competitionImage.length > 0) {
+          const arr = [];
+          fileList.competitionImage.forEach((file) => {
+            const fileObj = file.originFileObj || file;
+            if (fileObj instanceof File) arr.push(fileObj);
+          });
+          if (arr.length > 0) filesData.competitionImage = arr;
         }
       } else if (projectType === PROJECT_TYPE.COURSEWORK) {
         if (fileList.courseworkPoster.length > 0) {
@@ -274,12 +281,22 @@ const ProjectForm = ({
             filesData.courseworkPoster = posterFile;
           }
         }
-        
-        // ตามนโยบายใหม่ งานในชั้นเรียนให้แนบเฉพาะโปสเตอร์ (ลิงก์วิดีโอกรอกในฟอร์ม)
-        // ไม่แนบรูปภาพเพิ่มเติมและไฟล์วิดีโอ
+        // เพิ่มรูปภาพประกอบ coursework หลายรูป
+        if (fileList.courseworkImage && fileList.courseworkImage.length > 0) {
+          const arr = [];
+          fileList.courseworkImage.forEach((file) => {
+            const fileObj = file.originFileObj || file;
+            if (fileObj instanceof File) arr.push(fileObj);
+          });
+          if (arr.length > 0) filesData.courseworkImage = arr;
+        }
+        // (ตามสเปคใหม่) ไม่รองรับไฟล์เอกสาร/ไฟล์เพิ่มเติมสำหรับ coursework
       }
+ 
+      // (ตามสเปคใหม่) ไม่รองรับไฟล์เอกสารสำหรับ competition
+ 
+      // (ตามสเปคใหม่) ไม่มีไฟล์เพิ่มเติมทั่วไป
       
-      console.log("Data to submit:", { data: projectData, files: filesData });
       
       // ส่งข้อมูลไปยัง API
       await onSubmit({ data: projectData, files: filesData });

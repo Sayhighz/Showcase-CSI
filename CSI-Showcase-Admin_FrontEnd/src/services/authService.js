@@ -165,10 +165,62 @@ export const getCurrentAdmin = async () => {
   }
 };
 
+/**
+ * ส่งคำขอลืมรหัสผ่าน
+ * @param {string} email - อีเมลที่ต้องการรีเซ็ตรหัสผ่าน
+ * @returns {Promise<Object>} - ผลลัพธ์การส่งคำขอ
+ */
+export const forgotPassword = async (email) => {
+  try {
+    const response = await axiosPost(AUTH.FORGOT_PASSWORD, { email });
+    
+    return {
+      success: true,
+      message: response.message || 'ส่งลิงก์รีเซ็ตรหัสผ่านเรียบร้อยแล้ว'
+    };
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการส่งคำขอรีเซ็ตรหัสผ่าน'
+    };
+  }
+};
+
+/**
+ * รีเซ็ตรหัสผ่านด้วย token
+ * @param {string} token - Token สำหรับรีเซ็ตรหัสผ่าน
+ * @param {string} newPassword - รหัสผ่านใหม่
+ * @returns {Promise<Object>} - ผลลัพธ์การรีเซ็ตรหัสผ่าน
+ */
+export const resetPassword = async (token, newPassword) => {
+  try {
+    const response = await axiosPost(AUTH.RESET_PASSWORD, {
+      token,
+      new_password: newPassword
+    });
+    
+    return {
+      success: true,
+      message: response.message || 'รีเซ็ตรหัสผ่านเรียบร้อยแล้ว'
+    };
+  } catch (error) {
+    console.error('Reset password error:', error);
+    
+    return {
+      success: false,
+      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการรีเซ็ตรหัสผ่าน'
+    };
+  }
+};
+
 export default {
   adminLogin,
   userLogin,
   adminLogout,
   verifyAdminToken,
-  getCurrentAdmin
+  getCurrentAdmin,
+  forgotPassword,
+  resetPassword
 };

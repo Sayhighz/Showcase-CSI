@@ -288,34 +288,40 @@ const getUserById = asyncHandler(async (req, res) => {
  */
 const updateUser = asyncHandler(async (req, res) => {
   let connection;
-  
+
   try {
     const userId = req.params.userId;
-    const { username, full_name, email, role } = req.body;
-    
+    const { username, full_name, email, role, image } = req.body;
+
     if (!userId) {
       return validationErrorResponse(res, 'User ID is required');
     }
-    
+
+    // ตรวจสอบว่าผู้ใช้กำลังแก้ไขข้อมูลของตัวเองหรือไม่
+    const isUpdatingOwnProfile = req.user && req.user.id == userId;
+
+    // ถ้าผู้ใช้กำลังแก้ไขข้อมูลของตัวเอง ไม่ให้แก้ไข role
+    const effectiveRole = isUpdatingOwnProfile ? undefined : role;
+
     // เริ่ม transaction
     connection = await beginTransaction();
-    
+
     // ตรวจสอบว่าผู้ใช้มีอยู่จริงหรือไม่
     const [users] = await connection.execute(`
       SELECT * FROM users WHERE user_id = ?
     `, [userId]);
-    
+
     if (users.length === 0) {
       await rollbackTransaction(connection);
       return notFoundResponse(res, getErrorMessage('USER.NOT_FOUND'));
     }
-    
+
     const currentUser = users[0];
-    
+
     // ตรวจสอบความถูกต้องของข้อมูลที่จะอัปเดต
     const updateData = {};
     const validationErrors = {};
-    
+
     if (username !== undefined) {
       if (!isValidUsername(username)) {
         validationErrors.username = getErrorMessage('USER.INVALID_USERNAME');
@@ -323,7 +329,7 @@ const updateUser = asyncHandler(async (req, res) => {
         updateData.username = username;
       }
     }
-    
+
     if (email !== undefined) {
       if (!isValidEmail(email)) {
         validationErrors.email = getErrorMessage('USER.INVALID_EMAIL');
@@ -331,19 +337,23 @@ const updateUser = asyncHandler(async (req, res) => {
         updateData.email = email;
       }
     }
-    
-    if (role !== undefined) {
-      if (!isValidRole(role)) {
+
+    if (effectiveRole !== undefined) {
+      if (!isValidRole(effectiveRole)) {
         validationErrors.role = getErrorMessage('USER.INVALID_ROLE');
       } else {
-        updateData.role = role;
+        updateData.role = effectiveRole;
       }
     }
-    
+
     if (full_name !== undefined) {
       updateData.full_name = full_name;
     }
-    
+
+    if (image !== undefined) {
+      updateData.image = image;
+    }
+
     // ถ้ามีข้อผิดพลาดในการตรวจสอบ
     if (Object.keys(validationErrors).length > 0) {
       await rollbackTransaction(connection);
@@ -386,7 +396,8 @@ const updateUser = asyncHandler(async (req, res) => {
           username: currentUser.username,
           full_name: currentUser.full_name,
           email: currentUser.email,
-          role: currentUser.role
+          role: currentUser.role,
+          image: currentUser.image
         }
       }, 'No changes made to user'));
     }
@@ -411,7 +422,8 @@ const updateUser = asyncHandler(async (req, res) => {
         username: updateData.username || currentUser.username,
         full_name: updateData.full_name || currentUser.full_name,
         email: updateData.email || currentUser.email,
-        role: updateData.role || currentUser.role
+        role: updateData.role || currentUser.role,
+        image: updateData.image || currentUser.image
       }
     }, 'User updated successfully'));
     

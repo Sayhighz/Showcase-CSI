@@ -6,8 +6,12 @@ const {
   getCurrentUser,
   verifyToken,
   logout,
+  forgotPassword,
+  resetPassword,
 } = require('../../controllers/user/authController.js');
-const { authenticateToken } = require('../../middleware/authMiddleware.js');
+const { authenticateToken, isResourceOwner } = require('../../middleware/authMiddleware.js');
+const { uploadProfileImage } = require('../../controllers/common/uploadController.js');
+const { updateUser, changeUserPassword } = require('../../controllers/admin/adminUserController.js');
 const { API_ROUTES } = require('../../constants/routes.js');
 
 const router = express.Router();
@@ -95,6 +99,12 @@ const router = express.Router();
 // เข้าสู่ระบบ
 router.post('/login', login);
 
+// ขออีเมลลิงก์รีเซ็ตรหัสผ่าน (ไม่ต้อง authenticate)
+router.post('/forgot-password', forgotPassword);
+
+// รีเซ็ตรหัสผ่านด้วย token (ไม่ต้อง authenticate)
+router.post('/reset-password', resetPassword);
+
 // ตรวจสอบ token
 router.get('/verify-token', authenticateToken, verifyToken);
 
@@ -103,5 +113,52 @@ router.post('/logout', logout);
 
 // ดึงข้อมูลผู้ใช้ปัจจุบัน
 router.get('/me', authenticateToken, getCurrentUser);
+
+// อัปเดตข้อมูลผู้ใช้ปัจจุบัน
+router.put('/me',
+  authenticateToken,
+  (req, res, next) => {
+    // Set the user_id parameter for the middleware
+    req.params.userId = req.user.id;
+    next();
+  },
+  updateUser
+);
+
+// อัปโหลดรูปโปรไฟล์ผู้ใช้ปัจจุบัน
+router.post('/me/profile-image',
+  authenticateToken,
+  uploadProfileImage,
+  (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: 'No file uploaded'
+        });
+      }
+      // Set the user_id parameter for the middleware
+      req.params.userId = req.user.id;
+      // Forward to updateUser controller with only the image field
+      req.body = { image: req.file.path };
+      next();
+    } catch (err) {
+      next(err);
+    }
+  },
+  updateUser
+);
+
+// เปลี่ยนรหัสผ่านผู้ใช้ปัจจุบัน
+router.post('/me/change-password',
+  authenticateToken,
+  (req, res, next) => {
+    // Set the user_id parameter for the middleware
+    req.params.userId = req.user.id;
+    next();
+  },
+  changeUserPassword
+);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Tag, Button, Avatar, Typography, Space, Dropdown, Modal, Menu } from 'antd';
+import { Table, Tag, Button, Avatar, Typography, Space, Dropdown, Modal } from 'antd';
 import { 
   UserOutlined, 
   EditOutlined, 
@@ -15,6 +15,7 @@ import SearchBar from '../common/SearchBar';
 import EmptyState from '../common/EmptyState';
 import ErrorDisplay from '../common/ErrorDisplay';
 import { URL } from '../../constants/apiEndpoints';
+import { getSafeAvatarSrc, markImageMissing } from '../../lib/imageFallback';
 
 const { Text, Title } = Typography;
 const { confirm } = Modal;
@@ -84,26 +85,6 @@ const UserList = ({
     });
   };
 
-  // สร้าง menu items สำหรับ dropdown
-  const getMenu = (record) => (
-    <Menu>
-      <Menu.Item key="view" icon={<EyeOutlined />}>
-        <Link to={`/users/${record.user_id}`}>ดูรายละเอียด</Link>
-      </Menu.Item>
-      <Menu.Item key="edit" icon={<EditOutlined />}>
-        <Link to={`/users/${record.user_id}/edit`}>แก้ไข</Link>
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item 
-        key="delete" 
-        icon={<DeleteOutlined />} 
-        danger
-        onClick={() => showDeleteConfirm(record.user_id, record.username)}
-      >
-        ลบ
-      </Menu.Item>
-    </Menu>
-  );
 
   // คอลัมน์สำหรับตาราง - ปรับให้ตรงกับข้อมูลตัวอย่าง
   const columns = [
@@ -113,12 +94,13 @@ const UserList = ({
       key: 'username',
       render: (text, record) => (
         <div className="flex items-center">
-          <Avatar 
-            src={record.image ? `${URL}/${record.image}` : null}
+          <Avatar
+            src={getSafeAvatarSrc(record.image ? `${URL}/${record.image}` : null)}
+            onError={() => { if (record.image) markImageMissing(`${URL}/${record.image}`); return false; }}
             icon={!record.image && <UserOutlined />}
             size="large"
             className="mr-3"
-            style={{ 
+            style={{
               backgroundColor: !record.image ? '#90278E' : undefined,
             }}
           />

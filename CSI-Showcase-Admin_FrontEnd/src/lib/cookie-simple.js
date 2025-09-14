@@ -1,16 +1,21 @@
 import Cookies from 'js-cookie';
 
 // Simplified cookie management without encryption for debugging
+const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+
 const SECURITY_CONFIG = {
   isProduction: import.meta.env.NODE_ENV === 'production',
-  isSecure: import.meta.env.VITE_COOKIE_SECURE === 'true' || import.meta.env.NODE_ENV === 'production',
-  sameSite: import.meta.env.VITE_COOKIE_SAME_SITE || 'Strict',
+  // Fix: Only use secure cookies on HTTPS, never force in development
+  isSecure: isHttps && import.meta.env.NODE_ENV === 'production',
+  // Fix: Use None for cross-origin requests, fallback to Lax for same-site
+  sameSite: import.meta.env.VITE_COOKIE_SAME_SITE || 'None',
   defaultExpiry: parseInt(import.meta.env.VITE_AUTH_TOKEN_EXPIRY) || 7,
-  domain: import.meta.env.NODE_ENV === 'production' ? '.sitspu.com' : undefined
+  // Fix: Only set domain in production, never in development
+  domain: import.meta.env.NODE_ENV === 'production' ? (import.meta.env.VITE_COOKIE_DOMAIN || '.sitspu.com') : undefined
 };
 
-// Simple cookie name
-const AUTH_COOKIE_NAME = `${SECURITY_CONFIG.isProduction ? '__Secure-' : ''}csi_auth_token`;
+// Simple cookie name - remove __Secure- prefix to avoid conflicts
+const AUTH_COOKIE_NAME = 'csi_auth_token';
 
 /**
  * Get secure cookie options
@@ -23,8 +28,15 @@ const getSecureCookieOptions = (expires = SECURITY_CONFIG.defaultExpiry) => {
     sameSite: SECURITY_CONFIG.sameSite
   };
 
+  // Fix: Only set domain in production to prevent development issues
   if (SECURITY_CONFIG.domain && SECURITY_CONFIG.isProduction) {
     baseOptions.domain = SECURITY_CONFIG.domain;
+  }
+
+  // Fix: For development, use more permissive settings
+  if (!SECURITY_CONFIG.isProduction) {
+    baseOptions.secure = false;
+    baseOptions.sameSite = 'Lax';
   }
 
   return baseOptions;
@@ -97,15 +109,29 @@ export const removeAuthToken = () => {
     console.log('🗑️ Removing auth token cookie');
     Cookies.remove(AUTH_COOKIE_NAME, cookieOptions);
     
+    // Fix: More thorough cleanup for different cookie scenarios
+    const cleanupOptions = [
+      cookieOptions,
+      { path: '/', secure: false, sameSite: 'Lax' },
+      { path: '/', secure: true, sameSite: 'None' },
+      { path: '/' }
+    ];
+
+    // Try removing with different options to ensure cleanup
+    cleanupOptions.forEach(options => {
+      try {
+        Cookies.remove(AUTH_COOKIE_NAME, options);
+      } catch {
+        // Ignore cleanup errors
+      }
+    });
+
     // Also try removing without domain for localhost
     if (cookieOptions.domain) {
       const optionsWithoutDomain = { ...cookieOptions };
       delete optionsWithoutDomain.domain;
       Cookies.remove(AUTH_COOKIE_NAME, optionsWithoutDomain);
     }
-    
-    // Legacy cleanup
-    Cookies.remove(AUTH_COOKIE_NAME, { path: '/', secure: false, sameSite: 'Lax' });
     
     console.log('✅ Auth token cookie removed successfully');
     return true;

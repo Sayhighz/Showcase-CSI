@@ -58,7 +58,6 @@ const MyProjectPage = () => {
   const {
     projects,
     loading,
-    error,
     pagination,
     fetchMyProjects,
     deleteProject,
@@ -114,11 +113,11 @@ const MyProjectPage = () => {
 
   // Handle project actions
   const handleEdit = useCallback((projectId) => {
-    navigate(`/projects/edit/${projectId}`);
+    navigate(`/projects/${projectId}`);
   }, [navigate]);
 
   const handleView = useCallback((projectId) => {
-    navigate(`/projects/detail/${projectId}`);
+    navigate(`/projects/${projectId}`);
   }, [navigate]);
 
   const handleDelete = useCallback(async (projectId) => {
@@ -141,7 +140,7 @@ const MyProjectPage = () => {
         
         fetchMyProjects(currentUser.id, queryParams);
       }
-    } catch (error) {
+    } catch {
       message.error('เกิดข้อผิดพลาดในการลบโปรเจค');
     }
   }, [deleteProject, currentUser?.id, pagination.current, pagination.pageSize, filters.search, filters.type, filters.status]); // Remove fetchMyProjects from dependencies
@@ -272,21 +271,23 @@ const MyProjectPage = () => {
               onClick={() => handleEdit(record.id)}
             />
           </Tooltip>
-          <Popconfirm
-            title="ลบโปรเจค"
-            description="คุณแน่ใจหรือไม่ที่จะลบโปรเจคนี้?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="ลบ"
-            cancelText="ยกเลิก"
-          >
-            <Tooltip title="ลบ">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Tooltip>
-          </Popconfirm>
+          {((currentUser?.role === 'admin') || record.status !== 'approved') && (
+            <Popconfirm
+              title="ลบโปรเจค"
+              description="คุณแน่ใจหรือไม่ที่จะลบโปรเจคนี้?"
+              onConfirm={() => handleDelete(record.id)}
+              okText="ลบ"
+              cancelText="ยกเลิก"
+            >
+              <Tooltip title="ลบ">
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

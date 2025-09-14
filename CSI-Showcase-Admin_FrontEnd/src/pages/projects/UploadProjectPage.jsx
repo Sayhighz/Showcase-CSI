@@ -6,6 +6,8 @@ import ProjectForm from '../../components/projects/ProjectForm';
 import { createProject } from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 import { message } from 'antd';
+import { clearCacheByUrl } from '../../lib/axiosCached';
+import { BASE_URL } from '../../constants/apiEndpoints';
 
 const UploadProjectPage = () => {
   const navigate = useNavigate();
@@ -54,11 +56,18 @@ const UploadProjectPage = () => {
         }
       });
       
-      // เพิ่มไฟล์ที่อัปโหลด
+      // เพิ่มไฟล์ที่อัปโหลด (รองรับทั้งค่าเดี่ยวและอาร์เรย์)
       if (files) {
         Object.keys(files).forEach(fileKey => {
-          if (files[fileKey]) {
-            formData.append(fileKey, files[fileKey]);
+          const val = files[fileKey];
+          if (!val) return;
+
+          if (Array.isArray(val)) {
+            val.forEach((f) => {
+              if (f) formData.append(fileKey, f);
+            });
+          } else {
+            formData.append(fileKey, val);
           }
         });
       }
@@ -68,6 +77,8 @@ const UploadProjectPage = () => {
       
       if (result.success) {
         message.success('อัปโหลดโปรเจคสำเร็จ! รอการอนุมัติจากแอดมิน');
+        // ล้างแคชรายการ "โปรเจคของฉัน" เพื่อให้แสดงรายการล่าสุดทันที
+        clearCacheByUrl(`${BASE_URL}/projects/user/${currentUser.id}/my-projects`);
         // นำทางไปยังหน้าโปรเจคของฉัน
         navigate('/projects/my-projects');
       } else {

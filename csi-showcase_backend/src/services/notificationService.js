@@ -167,50 +167,58 @@ const notifyProjectDeleted = async (userId, projectTitle, reason = '') => {
 };
 
 /**
- * บันทึกการเปลี่ยนแปลงโครงการ
- * @param {number} projectId - ID ของโครงการ
- * @param {string} changeType - ประเภทการเปลี่ยนแปลง
- * @param {string} fieldChanged - ฟิลด์ที่เปลี่ยน
- * @param {any} oldValue - ค่าเดิม
- * @param {any} newValue - ค่าใหม่
- * @param {number} changedBy - ID ของผู้ที่ทำการเปลี่ยนแปลง
- * @param {string} reason - เหตุผลในการเปลี่ยนแปลง
- * @param {string} ipAddress - IP Address ของผู้ใช้
- * @param {string} userAgent - User Agent ของผู้ใช้
+ * บันทึกการเปลี่ยนแปลงโครงการ (ไม่บล็อก flow หลัก)
+ * หมายเหตุ:
+ * - เดิมมีการ await INSERT ขณะ transaction หลักยังเปิดอยู่ ทำให้เกิด lock wait timeout
+ * - เปลี่ยนเป็น schedule งานด้วย setImmediate แล้ว return ทันทีเพื่อไม่บล็อก
  */
 const logProjectChange = async (
-  projectId, 
-  changeType, 
-  fieldChanged, 
-  oldValue, 
-  newValue, 
-  changedBy, 
+  projectId,
+  changeType,
+  fieldChanged,
+  oldValue,
+  newValue,
+  changedBy,
   reason = null,
   ipAddress = null,
   userAgent = null
 ) => {
   try {
-    await pool.execute(`
-      INSERT INTO project_changes (
-        project_id, change_type, field_changed, old_value, new_value, 
-        changed_by, reason, ip_address, user_agent, changed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    `, [
-      projectId,
-      changeType,
-      fieldChanged,
-      JSON.stringify(oldValue),
-      JSON.stringify(newValue),
-      changedBy,
-      reason,
-      ipAddress,
-      userAgent
-    ]);
-    
-    logger.info(`Project change logged: ${changeType} for project ${projectId}`);
+    // Schedule non-blocking insert to avoid holding up the main transaction flow
+    setImmediate(() => {
+      pool.execute(
+        `
+        INSERT INTO project_changes (
+          project_id, change_type, field_changed, old_value, new_value,
+          changed_by, reason, ip_address, user_agent, changed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          projectId,
+          changeType,
+          fieldChanged,
+          JSON.stringify(oldValue),
+          JSON.stringify(newValue),
+          changedBy,
+          reason,
+          ipAddress,
+          userAgent
+        ]
+      )
+        .then(() => {
+          logger.info(`Project change logged: ${changeType} for project ${projectId}`);
+        })
+        .catch((error) => {
+          logger.error('Error logging project change:', error);
+        });
+    });
+
+    // Return immediately so callers are never blocked by logging side-effects
+    return true;
   } catch (error) {
-    logger.error('Error logging project change:', error);
-    throw error;
+    // Extremely unlikely here since setImmediate defers actual work
+    logger.error('Error scheduling project change log:', error);
+    return false;
   }
 };
 

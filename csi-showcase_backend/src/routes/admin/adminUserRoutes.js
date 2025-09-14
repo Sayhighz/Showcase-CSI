@@ -638,6 +638,95 @@ router.put(
   adminAuth,
   updateUser
 );
+/**
+ * @swagger
+ * /api/admin/users/{userId}/profile-image:
+ *   post:
+ *     summary: Upload or replace a user's profile image
+ *     description: Uploads a profile image for the specified user and updates the user's image path. Admin only.
+ *     tags: [Admin Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID of the user to update profile image for
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - profileImage
+ *             properties:
+ *               profileImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: User profile image file (max 5MB, JPEG/PNG/GIF)
+ *     responses:
+ *       200:
+ *         description: Profile image uploaded and user updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 5
+ *                         username:
+ *                           type: string
+ *                           example: "john"
+ *                         image:
+ *                           type: string
+ *                           example: "uploads/profiles/profile-123.jpg"
+ *       400:
+ *         description: Bad Request - No file uploaded or invalid file
+ *       401:
+ *         description: Unauthorized - Authentication required
+ *       403:
+ *         description: Forbidden - Admin privileges required
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post(
+  '/:userId/profile-image',
+  adminAuth,
+  uploadProfileImage,
+  (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: 'No file uploaded'
+        });
+      }
+      // Forward to updateUser controller with only the image field
+      req.body = { image: req.file.path };
+      next();
+    } catch (err) {
+      next(err);
+    }
+  },
+  updateUser
+);
 
 // Change user password (Admin)
 router.post(

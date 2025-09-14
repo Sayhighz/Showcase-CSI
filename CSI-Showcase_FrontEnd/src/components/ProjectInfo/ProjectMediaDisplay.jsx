@@ -43,19 +43,7 @@ const ProjectMediaDisplay = ({ project }) => {
   };
 
   // ฟังก์ชั่นสำหรับตรวจสอบประเภทไฟล์จาก URL
-  const getFileType = (url) => {
-    if (!url) return null;
-    
-    const extension = url.split('.').pop().toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
-      return 'image';
-    } else if (['pdf'].includes(extension)) {
-      return 'pdf';
-    } else if (['mp4', 'webm', 'mov'].includes(extension)) {
-      return 'video';
-    }
-    return 'unknown';
-  };
+  
 
   // สร้างข้อมูลสำหรับแท็บที่จะแสดง
   const getTabs = () => {
@@ -85,25 +73,52 @@ const ProjectMediaDisplay = ({ project }) => {
           });
         }
         
-        // Image Tab
-        if (project.coursework?.image) {
-          tabs.push({
-            key: '2',
-            title: 'รูปภาพเพิ่มเติม',
-            icon: <PictureOutlined />,
-            content: (
-              <div className="p-4 text-center bg-gradient-to-b from-[#F5EAFF] to-white">
-                <Image
-                  src={`${BASE}/${project.coursework.image}`}
-                  alt="Additional Image"
-                  className="max-h-[500px] object-contain rounded-lg shadow-lg"
-                  preview={{
-                    mask: <div className="text-white bg-[#90278E] bg-opacity-70 px-3 py-1 rounded-md transition-all">ดูเต็มจอ</div>
-                  }}
-                />
-              </div>
-            )
-          });
+        // Images Tab (multiple via JSON array)
+        {
+          const cwImages = Array.isArray(project.coursework?.images)
+            ? project.coursework.images
+            : (() => {
+                try {
+                  if (typeof project.coursework?.image === 'string') {
+                    const trimmed = project.coursework.image.trim();
+                    if (!trimmed) return [];
+                    if (trimmed.startsWith('[')) {
+                      const parsed = JSON.parse(trimmed);
+                      return Array.isArray(parsed) ? parsed : (trimmed ? [trimmed] : []);
+                    }
+                    return [trimmed];
+                  }
+                } catch {
+                  return project.coursework?.image ? [project.coursework.image] : [];
+                }
+                return [];
+              })();
+
+          if (Array.isArray(cwImages) && cwImages.length > 0) {
+            tabs.push({
+              key: '2',
+              title: 'รูปภาพเพิ่มเติม',
+              icon: <PictureOutlined />,
+              content: (
+                <div className="p-4 bg-gradient-to-b from-[#F5EAFF] to-white">
+                  <Image.PreviewGroup>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {cwImages.map((src, idx) => (
+                        <Image
+                          key={idx}
+                          src={`${BASE}/${src}`}
+                          alt={`รูปภาพเพิ่มเติม ${idx + 1}`}
+                          width={150}
+                          height={150}
+                          className="object-cover rounded-lg"
+                        />
+                      ))}
+                    </div>
+                  </Image.PreviewGroup>
+                </div>
+              )
+            });
+          }
         }
         
         // Video Tab (URL)
@@ -240,6 +255,74 @@ const ProjectMediaDisplay = ({ project }) => {
               </div>
             )
           });
+        }
+ 
+        // Images Tab (merge competitions.images + project.files as fallback, exclude poster, de-duplicate)
+        {
+          const posterPath = project.competition?.poster || null;
+ 
+          // Images from API field (JSON array or legacy string)
+          const imagesFromApi = Array.isArray(project.competition?.images)
+            ? project.competition.images
+            : (() => {
+                try {
+                  if (typeof project.competition?.image === 'string') {
+                    const trimmed = project.competition.image.trim();
+                    if (!trimmed) return [];
+                    if (trimmed.startsWith('[')) {
+                      const parsed = JSON.parse(trimmed);
+                      return Array.isArray(parsed) ? parsed : (trimmed ? [trimmed] : []);
+                    }
+                    return [trimmed];
+                  }
+                } catch {
+                  return project.competition?.image ? [project.competition.image] : [];
+                }
+                return [];
+              })();
+ 
+          // Images from project.files (legacy stored in project_files)
+          const imagesFromFiles = Array.isArray(project.files)
+            ? project.files
+                .filter(f => f && f.file_type === 'image' && typeof f.file_path === 'string' && f.file_path)
+                .map(f => f.file_path)
+            : [];
+ 
+          // Merge + de-duplicate + exclude poster
+          const set = new Set();
+          const mergedImages = [];
+          [...imagesFromApi, ...imagesFromFiles].forEach(p => {
+            if (typeof p === 'string' && p && p !== posterPath && !set.has(p)) {
+              set.add(p);
+              mergedImages.push(p);
+            }
+          });
+ 
+          if (mergedImages.length > 0) {
+            tabs.push({
+              key: '2',
+              title: 'รูปภาพเพิ่มเติม',
+              icon: <PictureOutlined />,
+              content: (
+                <div className="p-4 bg-gradient-to-b from-[#F5EAFF] to-white">
+                  <Image.PreviewGroup>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {mergedImages.map((src, idx) => (
+                        <Image
+                          key={idx}
+                          src={`${BASE}/${src}`}
+                          alt={`รูปภาพเพิ่มเติม ${idx + 1}`}
+                          width={150}
+                          height={150}
+                          className="object-cover rounded-lg"
+                        />
+                      ))}
+                    </div>
+                  </Image.PreviewGroup>
+                </div>
+              )
+            });
+          }
         }
         break;
         

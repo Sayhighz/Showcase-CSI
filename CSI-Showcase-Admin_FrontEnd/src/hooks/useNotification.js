@@ -67,8 +67,7 @@ const useNotification = (userRole = null) => {
       ];
       
       setNotifications(mockNotifications);
-    } catch (err) {
-      console.error('Error fetching notifications:', err);
+    } catch {
       setError('ไม่สามารถโหลดการแจ้งเตือนได้');
       message.error('ไม่สามารถโหลดการแจ้งเตือนได้');
     } finally {
@@ -89,8 +88,7 @@ const useNotification = (userRole = null) => {
             : notification
         )
       );
-    } catch (err) {
-      console.error('Error marking notification as read:', err);
+    } catch {
       message.error('ไม่สามารถอัปเดตสถานะการแจ้งเตือนได้');
     }
   }, []);
@@ -106,8 +104,7 @@ const useNotification = (userRole = null) => {
       );
       
       message.success('ทำเครื่องหมายอ่านทั้งหมดเรียบร้อย');
-    } catch (err) {
-      console.error('Error marking all notifications as read:', err);
+    } catch {
       message.error('ไม่สามารถอัปเดตสถานะการแจ้งเตือนได้');
     }
   }, []);
@@ -123,8 +120,7 @@ const useNotification = (userRole = null) => {
       );
       
       message.success('ลบการแจ้งเตือนเรียบร้อย');
-    } catch (err) {
-      console.error('Error deleting notification:', err);
+    } catch {
       message.error('ไม่สามารถลบการแจ้งเตือนได้');
     }
   }, []);

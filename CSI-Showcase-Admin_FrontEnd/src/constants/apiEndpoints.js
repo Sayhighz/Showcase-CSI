@@ -28,7 +28,9 @@ export const ADMIN = {
     STATS: `${ADMIN_BASE_URL}/users/stats`,
     BATCH_IMPORT: `${ADMIN_BASE_URL}/users/batch-import`,
     CSV_TEMPLATE: `${ADMIN_BASE_URL}/users/csv-template`,
-    CHANGE_PASSWORD: (userId) => `${ADMIN_BASE_URL}/users/change-password/${userId}`
+    CHANGE_PASSWORD: (userId) => `${ADMIN_BASE_URL}/users/change-password/${userId}`,
+    // Upload profile image via admin route
+    UPLOAD_PROFILE_IMAGE: (userId) => `${ADMIN_BASE_URL}/users/${userId}/profile-image`
   },
   PROJECT: {
     ALL: `${ADMIN_BASE_URL}/projects/all`,
@@ -63,6 +65,11 @@ export const AUTH = {
   LOGOUT: `${BASE_URL}/auth/logout`,
   VERIFY_TOKEN: `${BASE_URL}/auth/verify-token`,
   ME: `${BASE_URL}/auth/me`,
+  UPDATE_ME: `${BASE_URL}/auth/me`,
+  UPLOAD_PROFILE_IMAGE: `${BASE_URL}/auth/me/profile-image`,
+  CHANGE_PASSWORD: `${BASE_URL}/auth/me/change-password`,
+  FORGOT_PASSWORD: `${BASE_URL}/auth/forgot-password`,
+  RESET_PASSWORD: `${BASE_URL}/auth/reset-password`,
 };
 
 // การจัดการผู้ใช้งาน (User Management)

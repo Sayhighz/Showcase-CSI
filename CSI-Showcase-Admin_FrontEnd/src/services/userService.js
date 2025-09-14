@@ -1,6 +1,8 @@
 // src/services/adminUserService.js
 import { axiosGet, axiosPost, axiosPut, axiosDelete, axiosUpload } from '../lib/axios';
-import { ADMIN } from '../constants/apiEndpoints';
+import { cachedGet } from '../lib/axiosCached';
+import { ADMIN, AUTH } from '../constants/apiEndpoints';
+import { getAuthToken } from '../lib/cookie-simple';
 
 /**
  * ดึงรายการผู้ใช้ทั้งหมด
@@ -31,8 +33,8 @@ export const getAllUsers = async (filters = {}) => {
     // สร้าง URL พร้อม query string
     const url = ADMIN.USER.ALL + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await axiosGet(url);
-    
+    const response = await cachedGet(url, { params: queryParams });
+
     // รับข้อมูลตามโครงสร้างที่ server ส่งกลับมาจริง
     let users = [];
     let pagination = {
@@ -65,12 +67,10 @@ export const getAllUsers = async (filters = {}) => {
       data: users,
       pagination: pagination
     };
-  } catch (error) {
-    console.error('Get all users error:', error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้',
+      message: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้',
       data: [],
       pagination: {
         current: parseInt(filters.page) || 1,
@@ -96,9 +96,8 @@ export const getUserById = async (userId) => {
     }
     
     const url = ADMIN.USER.GET_BY_ID(userId);
-    const response = await axiosGet(url);
-    // console.log(response)
-    
+    const response = await cachedGet(url);
+
     let userData = null;
     
     if (response) {
@@ -113,12 +112,10 @@ export const getUserById = async (userId) => {
       success: true,
       data: userData
     };
-  } catch (error) {
-    console.error(`Get user ${userId} error:`, error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้'
+      message: 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ใช้'
     };
   }
 };
@@ -171,12 +168,10 @@ export const createUser = async (formData) => {
       data: userData,
       message: response.message || response.data?.message || 'สร้างผู้ใช้สำเร็จ'
     };
-  } catch (error) {
-    console.error('Create user error:', error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการสร้างผู้ใช้'
+      message: 'เกิดข้อผิดพลาดในการสร้างผู้ใช้'
     };
   }
 };
@@ -216,12 +211,10 @@ export const updateUser = async (userId, userData) => {
       data: updatedUserData,
       message: response.message || response.data?.message || 'อัปเดตข้อมูลผู้ใช้สำเร็จ'
     };
-  } catch (error) {
-    console.error(`Update user ${userId} error:`, error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้'
+      message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลผู้ใช้'
     };
   }
 };
@@ -247,12 +240,10 @@ export const deleteUser = async (userId) => {
       success: true,
       message: response.message || response.data?.message || 'ลบผู้ใช้สำเร็จ'
     };
-  } catch (error) {
-    console.error(`Delete user ${userId} error:`, error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการลบผู้ใช้'
+      message: 'เกิดข้อผิดพลาดในการลบผู้ใช้'
     };
   }
 };
@@ -291,11 +282,10 @@ export const changeUserPassword = async (userId, newPassword) => {
       data: response.data || response,
       message: response.message || 'เปลี่ยนรหัสผ่านสำเร็จ'
     };
-  } catch (error) {
-    console.error(`Change user password ${userId} error:`, error);
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
+      message: 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
     };
   }
 };
@@ -306,11 +296,10 @@ export const changeUserPassword = async (userId, newPassword) => {
  */
 export const getUserStats = async () => {
   try {
-    const response = await axiosGet(ADMIN.USER.STATS);
+    const response = await cachedGet(ADMIN.USER.STATS);
     
     let statsData = null;
-    // console.log(response)
-    
+
     if (response) {
       statsData = response;
     }
@@ -319,12 +308,10 @@ export const getUserStats = async () => {
       success: true,
       data: statsData || {}
     };
-  } catch (error) {
-    console.error('Get user stats error:', error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลสถิติผู้ใช้งาน',
+      message: 'เกิดข้อผิดพลาดในการดึงข้อมูลสถิติผู้ใช้งาน',
       data: {}
     };
   }
@@ -365,12 +352,10 @@ export const importUsersFromCSV = async (formData) => {
       data: response.data,
       message: response.message || response.data?.message || 'นำเข้าผู้ใช้สำเร็จ'
     };
-  } catch (error) {
-    console.error('Import users error:', error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการนำเข้าผู้ใช้'
+      message: 'เกิดข้อผิดพลาดในการนำเข้าผู้ใช้'
     };
   }
 };
@@ -381,50 +366,152 @@ export const importUsersFromCSV = async (formData) => {
  */
 export const downloadCSVTemplate = async () => {
   try {
-    // ใช้ axios แบบปกติสำหรับการดาวน์โหลดไฟล์
-    const response = await axios.get(ADMIN.USER.CSV_TEMPLATE, {
-      responseType: 'blob',
+    const token = getAuthToken();
+    const resp = await fetch(ADMIN.USER.CSV_TEMPLATE, {
+      method: 'GET',
       headers: {
-        Authorization: `Bearer ${getToken()}`
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     });
-    
-    // สร้าง URL object สำหรับการดาวน์โหลด
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    
-    // สร้าง element a เพื่อเริ่มการดาวน์โหลด
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const blob = await resp.blob();
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', 'users_import_template.csv');
     document.body.appendChild(link);
     link.click();
-    
-    // ทำความสะอาด
-    link.parentNode.removeChild(link);
+    document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+    return { success: true, message: 'เริ่มดาวน์โหลดเทมเพลต CSV แล้ว' };
+  } catch {
+    return {
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการดาวน์โหลดเทมเพลต CSV'
+    };
+  }
+};
+
+/**
+* อัปโหลดรูปโปรไฟล์ผู้ใช้ (สำหรับผู้ใช้อัปเดตโปรไฟล์ตัวเอง)
+* @param {number|string} userId
+* @param {File|Blob} file
+* @returns {Promise<{success:boolean, data:any, message?:string}>}
+*/
+export const uploadUserProfileImage = async (userId, file) => {
+  try {
+    if (!userId || !file) {
+      return { success: false, message: 'ข้อมูลไม่ครบถ้วนสำหรับการอัปโหลดรูปโปรไฟล์' };
+    }
+
+    const form = new FormData();
+    form.append('profileImage', file);
+
+    // ใช้ endpoint ผู้ใช้สำหรับอัปเดตโปรไฟล์ตัวเอง
+    const url = AUTH.UPLOAD_PROFILE_IMAGE;
+    const resp = await axiosUpload(url, form);
+
+    // ปรับรูปแบบข้อมูลผลลัพธ์ให้แน่นอน และพยายามดึง path ของรูปใหม่ให้ได้เสมอ
+    const raw = resp?.data || resp;
+
+    let updatedUser =
+      raw?.data?.user ||
+      raw?.user ||
+      raw?.data?.data?.user ||
+      null;
+
+    let imagePath =
+      updatedUser?.image ||
+      raw?.data?.image ||
+      raw?.image ||
+      null;
+
+    // Fallback: ถ้า response ไม่ได้ส่ง path ของรูปมา ให้เรียก /auth/me เพื่อดึงข้อมูลล่าสุด
+    if (!imagePath) {
+      try {
+        const me = await axiosGet(AUTH.ME);
+        const meData = me?.data?.data || me?.data || me;
+        if (meData?.image) {
+          imagePath = meData.image;
+        }
+        if (!updatedUser && meData) {
+          updatedUser = meData.user || meData;
+        }
+      } catch {
+        // ignore fallback fetch errors
+      }
+    }
+
+    return {
+      success: true,
+      data: { user: updatedUser, image: imagePath },
+      message: raw?.message || 'อัปโหลดรูปโปรไฟล์สำเร็จ'
+    };
+  } catch (err) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปโปรไฟล์'
+    };
+  }
+};
+
+/**
+* อัปเดตข้อมูลโปรไฟล์ผู้ใช้ตัวเอง
+* @param {Object} userData - ข้อมูลผู้ใช้ที่ต้องการอัปเดต
+* @returns {Promise<Object>} - ผลลัพธ์การอัปเดต
+*/
+export const updateMyProfile = async (userData) => {
+  try {
+    const response = await axiosPut(AUTH.UPDATE_ME, userData);
     
     return {
       success: true,
-      message: 'เริ่มดาวน์โหลดเทมเพลต CSV แล้ว'
+      data: response.data || response,
+      message: response.message || 'อัปเดตข้อมูลโปรไฟล์สำเร็จ'
     };
-  } catch (error) {
-    console.error('Download CSV template error:', error);
-    
+  } catch {
     return {
       success: false,
-      message: error.response?.data?.message || 'เกิดข้อผิดพลาดในการดาวน์โหลดเทมเพลต CSV'
+      message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลโปรไฟล์'
+    };
+  }
+};
+
+/**
+* เปลี่ยนรหัสผ่านผู้ใช้ตัวเอง
+* @param {string} newPassword - รหัสผ่านใหม่
+* @returns {Promise<Object>} - ผลลัพธ์การเปลี่ยนรหัสผ่าน
+*/
+export const changeMyPassword = async (newPassword) => {
+  try {
+    const response = await axiosPost(AUTH.CHANGE_PASSWORD, { new_password: newPassword });
+    
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'เปลี่ยนรหัสผ่านสำเร็จ'
+    };
+  } catch {
+    return {
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน'
     };
   }
 };
 
 // Don't forget to add these to the default export
 export default {
-  getAllUsers,
-  getUserById,
-  createUser,
-  updateUser,
-  deleteUser,
-  getUserStats,
-  importUsersFromCSV,
-  downloadCSVTemplate
+ getAllUsers,
+ getUserById,
+ createUser,
+ updateUser,
+ deleteUser,
+ getUserStats,
+ importUsersFromCSV,
+ downloadCSVTemplate,
+ uploadUserProfileImage,
+ updateMyProfile,
+ changeMyPassword
 };

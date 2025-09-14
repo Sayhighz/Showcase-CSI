@@ -14,16 +14,30 @@ const multer = require('multer');
 // ใช้ค่าที่กำหนดจาก services/storageService.js
 const UPLOAD_PATHS = storageService.UPLOAD_PATHS;
 
-// สร้าง multer uploader สำหรับแต่ละประเภท
+// สร้าง multer uploader สำหรับแต่ละประเภท - รองรับการอัปโหลดหลายรูป
 const uploadProfileImage = createUploader('profiles').single('profileImage');
-const uploadImages = createUploader('images').array('images', 5);
+const uploadImages = createUploader('images').array('images', 15); // เพิ่มจาก 5 เป็น 15
 const uploadVideo = createUploader('videos').single('video');
-const uploadDocuments = createUploader('documents').array('documents', 3);
-const uploadFiles = createUploader('others').array('files', 5);
+const uploadDocuments = createUploader('documents').array('documents', 10); // เพิ่มจาก 3 เป็น 10
+const uploadFiles = createUploader('others').array('files', 15); // เพิ่มจาก 5 เป็น 15
 const uploadMultiple = createUploader('others').fields([
-  { name: 'images', maxCount: 5 },
+  { name: 'images', maxCount: 15 }, // เพิ่มจาก 5 เป็น 15
   { name: 'video', maxCount: 1 },
-  { name: 'documents', maxCount: 3 }
+  { name: 'documents', maxCount: 10 }, // เพิ่มจาก 3 เป็น 10
+  { name: 'gallery', maxCount: 20 }, // เพิ่มฟิลด์ gallery
+  { name: 'courseworkImage', maxCount: 10 },
+  { name: 'competitionImage', maxCount: 10 },
+  { name: 'paperImage', maxCount: 10 }
+]);
+
+// สร้าง uploader สำหรับโครงการที่รองรับรูปหลายรูป
+const uploadProjectImages = createUploader('images').fields([
+  { name: 'courseworkImage', maxCount: 10 },
+  { name: 'competitionImage', maxCount: 10 },
+  { name: 'paperImage', maxCount: 10 },
+  { name: 'images', maxCount: 15 },
+  { name: 'gallery', maxCount: 20 },
+  { name: 'additionalFiles', maxCount: 10 }
 ]);
 
 /**
@@ -69,6 +83,11 @@ const handleFileUpload = async (req, res) => {
     // บันทึกข้อมูลการอัปโหลดลงในฐานข้อมูล (ถ้ามี project_id)
     if (req.body.project_id) {
       await saveUploadedFileToDatabase(req);
+    }
+
+    // บันทึกข้อมูลไฟล์หลายรูปสำหรับโครงการ
+    if (req.body.project_id && (req.files && !Array.isArray(req.files))) {
+      await saveMultipleProjectFilesToDatabase(req);
     }
     
     return successResponse(
@@ -284,6 +303,49 @@ async function deleteFileFromDatabase(fileId) {
   }
 }
 
+/**
+ * บันทึกไฟล์หลายรูปสำหรับโครงการลงในฐานข้อมูล
+ * @param {Object} req - Express request object
+ */
+async function saveMultipleProjectFilesToDatabase(req) {
+  try {
+    const projectId = req.body.project_id;
+    
+    if (!projectId || !req.files) return;
+    
+    // วนลูปผ่านทุก fieldname
+    const fieldNames = ['courseworkImage', 'competitionImage', 'paperImage', 'images', 'gallery'];
+    
+    for (const fieldName of fieldNames) {
+      if (req.files[fieldName] && req.files[fieldName].length > 0) {
+        logger.info(`Saving ${req.files[fieldName].length} files for field: ${fieldName}`);
+        
+        for (const file of req.files[fieldName]) {
+          const fileType = getFileTypeFromMimetype(file.mimetype);
+          
+          await pool.execute(`
+            INSERT INTO project_files (
+              project_id, file_type, file_path, file_name, file_size, field_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+          `, [
+            projectId,
+            fileType,
+            file.path,
+            file.originalname,
+            file.size,
+            fieldName
+          ]);
+        }
+      }
+    }
+    
+    logger.info(`Successfully saved multiple project files to database for project ${projectId}`);
+  } catch (error) {
+    logger.error('Error saving multiple project files to database:', error);
+    throw error;
+  }
+}
+
 // Export functions และ constants
 module.exports = {
   uploadProfileImage,
@@ -292,6 +354,7 @@ module.exports = {
   uploadDocuments,
   uploadFiles,
   uploadMultiple,
+  uploadProjectImages, // เพิ่ม uploader สำหรับโครงการ
   handleFileUpload,
   deleteFile,
   getStorageStatus,

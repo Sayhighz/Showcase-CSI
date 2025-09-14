@@ -3,7 +3,7 @@ import { Card, Table, Tag, Typography, Tooltip, Button, Badge, Space } from 'ant
 import { EyeOutlined, UserOutlined, CalendarOutlined, LinkOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
-import { getCategoryName, getCategoryColor, getStatusName, getStatusColor } from '../../utils/projectUtils';
+import { getCategoryName, getCategoryColor, getStatusName } from '../../utils/projectUtils';
 import { URL } from '../../constants/apiEndpoints';
 
 const { Text } = Typography;
@@ -24,11 +24,16 @@ const RecentProjects = ({
       render: (text, record) => (
         <div className="flex items-center">
           {record.image ? (
-            <img 
-              src={`${URL}${record.image}`} 
-              alt={text} 
+            <img
+              src={`${URL}${record.image}`}
+              alt={text}
               className="w-10 h-10 object-cover rounded mr-3"
-              onError={(e) => { e.target.src = '/images/project-placeholder.png'; }}
+              loading="lazy"
+              onError={(e) => {
+                const img = e.currentTarget;
+                img.onerror = null;
+                img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+              }}
             />
           ) : (
             <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center mr-3">
@@ -66,11 +71,16 @@ const RecentProjects = ({
           <Tooltip title={record.full_name}>
             <div className="flex items-center">
               {record.user_image ? (
-                <img 
-                  src={`${URL}/${record.user_image}`} 
-                  alt={text} 
+                <img
+                  src={`${URL}/${record.user_image}`}
+                  alt={text}
                   className="w-6 h-6 object-cover rounded-full mr-2"
-                  onError={(e) => { e.target.src = '/images/user-placeholder.png'; }}
+                  loading="lazy"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    img.onerror = null;
+                    img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+                  }}
                 />
               ) : (
                 <UserOutlined className="mr-2" />

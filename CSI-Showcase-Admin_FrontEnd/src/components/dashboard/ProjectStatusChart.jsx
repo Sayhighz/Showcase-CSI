@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Empty, Spin, Select, Tooltip } from 'antd';
+import React, { useState, useMemo, memo } from 'react';
+import { Card, Empty, Spin, Select } from 'antd';
 import { 
   BarChart, 
   Bar, 
@@ -15,15 +15,15 @@ import { createProjectStatusChartData, getStatusName, getStatusColor } from '../
 const { Option } = Select;
 
 // คอมโพเนนต์ tooltip ที่กำหนดเอง
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = memo(({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-3 border border-gray-200 shadow-md">
         <p className="font-medium text-gray-800">{label}</p>
         {payload.map((entry, index) => (
           <div key={`item-${index}`} className="flex items-center mt-1">
-            <div 
-              className="w-3 h-3 rounded-full mr-2" 
+            <div
+              className="w-3 h-3 rounded-full mr-2"
               style={{ backgroundColor: entry.fill }}
             ></div>
             <span className="text-gray-800">{entry.name}: </span>
@@ -35,27 +35,23 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
 
   return null;
-};
+});
 
 const ProjectStatusChart = ({
   projects = [],
   loading = false,
-  error = null,
   title = 'สถานะโครงงาน',
   height = 300,
 }) => {
-  const [chartData, setChartData] = useState([]);
   const [displayType, setDisplayType] = useState('status'); // 'status' หรือ 'month'
 
-  // สร้างข้อมูลสำหรับแผนภูมิ
-  useEffect(() => {
+  const chartData = useMemo(() => {
     if (!projects || projects.length === 0) {
-      setChartData([]);
-      return;
+      return [];
     }
 
     let data = [];
-    
+
     if (displayType === 'status') {
       // แสดงตามสถานะ
       data = createProjectStatusChartData(projects);
@@ -94,7 +90,7 @@ const ProjectStatusChart = ({
       });
     }
 
-    setChartData(data);
+    return data;
   }, [projects, displayType]);
 
   // จัดการเมื่อเปลี่ยนประเภทการแสดงผล
@@ -160,16 +156,17 @@ const ProjectStatusChart = ({
             <RechartsTooltip content={<CustomTooltip />} />
             <Legend />
             {displayType === 'status' ? (
-              <Bar 
-                dataKey="value" 
-                name="จำนวนโครงงาน" 
-                fill="#90278E" 
+              <Bar
+                dataKey="value"
+                name="จำนวนโครงงาน"
+                fill="#90278E"
+                isAnimationActive={false}
               />
             ) : (
               <>
-                <Bar dataKey="pending" name={getStatusName('pending')} fill={getStatusColor('pending')} />
-                <Bar dataKey="approved" name={getStatusName('approved')} fill={getStatusColor('approved')} />
-                <Bar dataKey="rejected" name={getStatusName('rejected')} fill={getStatusColor('rejected')} />
+                <Bar dataKey="pending" name={getStatusName('pending')} fill={getStatusColor('pending')} isAnimationActive={false} />
+                <Bar dataKey="approved" name={getStatusName('approved')} fill={getStatusColor('approved')} isAnimationActive={false} />
+                <Bar dataKey="rejected" name={getStatusName('rejected')} fill={getStatusColor('rejected')} isAnimationActive={false} />
               </>
             )}
           </BarChart>
@@ -179,4 +176,4 @@ const ProjectStatusChart = ({
   );
 };
 
-export default ProjectStatusChart;
+export default memo(ProjectStatusChart);

@@ -3,6 +3,8 @@ import { Form, Input, Select, Upload, Button, Card, Row, Col, message } from 'an
 import { UserOutlined, LoadingOutlined, PlusOutlined } from '@ant-design/icons';
 import ImgCrop from 'antd-img-crop';
 import { URL } from '../../constants/apiEndpoints';
+import { uploadUserProfileImage } from '../../services/userService';
+import { useAuth } from '../../context/AuthContext';
 
 const { Option } = Select;
 
@@ -12,17 +14,20 @@ const UserForm = ({
   onFinish,
   onCancel,
   isEdit = false,
+  isOwnProfile = false,
 }) => {
   const [form] = Form.useForm();
-  const [imageUrl, setImageUrl] = useState(initialValues.image || null);
+  const [imageUrl, setImageUrl] = useState(initialValues?.image || null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [fileList, setFileList] = useState([]);
+  const { updateUserData } = useAuth();
+  const [imgTs, setImgTs] = useState(Date.now());
 
   // Set form values when initialValues change
   useEffect(() => {
-    form.setFieldsValue(initialValues);
-    
-    if (initialValues.image) {
+    form.setFieldsValue(initialValues || {});
+
+    if (initialValues?.image) {
       setImageUrl(initialValues.image);
       setFileList([
         {
@@ -35,22 +40,82 @@ const UserForm = ({
     }
   }, [form, initialValues]);
 
-  // Handle image upload
+  // refresh preview cache-buster whenever imageUrl changes
+  useEffect(() => {
+    setImgTs(Date.now());
+  }, [imageUrl]);
+
+  // Handle image upload status from Upload component
   const handleImageChange = (info) => {
+    // Keep file list in sync with Upload
     setFileList(info.fileList);
-    
-    if (info.file.status === 'uploading') {
-      setUploadLoading(true);
-      return;
-    }
-    
+
+    // When using customRequest, show notifications only in handleCustomUpload to avoid duplicates.
     if (info.file.status === 'done') {
-      setUploadLoading(false);
-      setImageUrl(info.file.response.filename);
+      setImageUrl(info.file.response?.filename || info.file.response?.data?.image || imageUrl);
+    }
+    // Do not toggle uploadLoading or show message here; handleCustomUpload manages those.
+  };
+
+  // Target user id for profile image uploads
+  const targetUserId = initialValues?.user_id || initialValues?.id;
+
+  // Validate file before upload
+  const beforeUpload = (file) => {
+    const isImage = ['image/jpeg','image/png','image/gif'].includes(file.type);
+    if (!isImage) {
+      message.error('รองรับเฉพาะไฟล์ JPG, PNG หรือ GIF');
+      return Upload.LIST_IGNORE;
+    }
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('ขนาดไฟล์ต้องไม่เกิน 5MB');
+      return Upload.LIST_IGNORE;
+    }
+    return true;
+  };
+
+  // Custom upload via API
+  const handleCustomUpload = async ({ file, onSuccess, onError }) => {
+    try {
+      if (!targetUserId) {
+        message.error('ไม่พบรหัสผู้ใช้สำหรับอัปโหลดรูปโปรไฟล์');
+        onError(new Error('Missing user id'));
+        return;
+      }
+      setUploadLoading(true);
+      const resp = await uploadUserProfileImage(targetUserId, file);
+      if (!resp.success) {
+        throw new Error(resp.message || 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ');
+      }
+      const updatedUser = resp?.data?.user || resp?.user || resp?.data?.data?.user || null;
+      const newImagePath = updatedUser?.image || resp?.data?.image || resp?.image || null;
+
+      if (newImagePath) {
+        setImageUrl(newImagePath);
+        setFileList([
+          {
+            uid: String(Date.now()),
+            name: file.name,
+            status: 'done',
+            url: `${URL}/${newImagePath}`,
+          },
+        ]);
+        // Immediately update auth context so header/sidebar refresh the avatar
+        if (isOwnProfile && typeof updateUserData === 'function') {
+          updateUserData({ image: newImagePath });
+        }
+        // Bump local timestamp to bypass browser cache on preview
+        setImgTs(Date.now());
+      }
       message.success('อัปโหลดรูปภาพสำเร็จ');
-    } else if (info.file.status === 'error') {
+      onSuccess(resp, file);
+    } catch (e) {
+      console.error('Profile image upload error:', e);
+      message.error(e.message || 'อัปโหลดรูปภาพล้มเหลว');
+      onError(e);
+    } finally {
       setUploadLoading(false);
-      message.error('อัปโหลดรูปภาพล้มเหลว');
     }
   };
 
@@ -58,22 +123,30 @@ const UserForm = ({
   const handleSubmit = (values) => {
     // Prepare the data according to API requirements
     const formData = {
-      username: values.username,
       full_name: values.full_name,
       email: values.email,
-      role: values.role,
     };
-    
+
+    // Add username only when not editing own profile
+    if (!isOwnProfile) {
+      formData.username = values.username;
+    }
+
+    // Add role only when not editing own profile
+    if (!isOwnProfile && values.role) {
+      formData.role = values.role;
+    }
+
     // Add password only for new users
     if (!isEdit && values.password) {
       formData.password = values.password;
     }
-    
+
     // Add image if available
     if (imageUrl) {
       formData.image = imageUrl;
     }
-    
+
     if (onFinish) {
       onFinish(formData);
     }
@@ -109,7 +182,7 @@ const UserForm = ({
         initialValues={initialValues}
       >
         <Row gutter={24}>
-          {/* <Col xs={24} md={8} className="mb-4 text-center">
+          <Col xs={24} md={8} className="mb-4 text-center">
             <Form.Item
               name="profileImage"
               label="รูปโปรไฟล์"
@@ -123,18 +196,27 @@ const UserForm = ({
             >
               <ImgCrop rotationSlider>
                 <Upload
-                  {...uploadProps}
                   listType="picture-card"
                   className="avatar-uploader"
                   showUploadList={false}
+                  fileList={fileList}
+                  beforeUpload={beforeUpload}
+                  customRequest={handleCustomUpload}
+                  accept="image/png,image/jpeg,image/gif"
+                  onChange={handleImageChange}
                 >
                   {imageUrl ? (
                     <img
-                      src={`${URL}/${imageUrl}`}
+                      src={`${URL}/${imageUrl}${imgTs ? `?v=${imgTs}` : ''}`}
                       alt="avatar"
                       style={{ width: '100%' }}
+                      loading="lazy"
                       onError={(e) => {
-                        e.target.src = '/images/user-placeholder.png';
+                        const img = e.currentTarget;
+                        // ป้องกันการ onError loop กรณี fallback โหลดไม่ได้
+                        img.onerror = null;
+                        // ใช้ data URI ที่มีอยู่แน่นอน เพื่อตัดปัญหา 404 ซ้ำ
+                        img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
                       }}
                     />
                   ) : (
@@ -147,7 +229,7 @@ const UserForm = ({
               แนะนำรูปภาพขนาด 300x300 พิกเซล<br />
               รองรับไฟล์ JPG, PNG และ GIF
             </div>
-          </Col> */}
+          </Col>
           
           <Col xs={24} md={16}>
             <Row gutter={16}>
@@ -236,22 +318,24 @@ const UserForm = ({
                 </Col>
               )}
               
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="role"
-                  label="บทบาท"
-                  rules={[
-                    { required: true, message: 'กรุณาเลือกบทบาท' }
-                  ]}
-                  initialValue="student"
-                >
-                  <Select placeholder="เลือกบทบาท">
-                    <Option value="admin">ผู้ดูแลระบบ</Option>
-                    <Option value="student">นักศึกษา</Option>
-                    <Option value="visitor">ผู้เยี่ยมชม</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
+              {!isOwnProfile && (
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    name="role"
+                    label="บทบาท"
+                    rules={[
+                      { required: true, message: 'กรุณาเลือกบทบาท' }
+                    ]}
+                    initialValue="student"
+                  >
+                    <Select placeholder="เลือกบทบาท">
+                      <Option value="admin">ผู้ดูแลระบบ</Option>
+                      <Option value="student">นักศึกษา</Option>
+                      <Option value="visitor">ผู้เยี่ยมชม</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
           </Col>
         </Row>

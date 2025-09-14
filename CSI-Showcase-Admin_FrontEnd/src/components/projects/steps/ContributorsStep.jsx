@@ -19,6 +19,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
     // สำหรับสมาชิกที่ลงทะเบียน
     user_id: '',
     username: '',
+    full_name: '', // เพิ่ม full_name สำหรับแสดงชื่อเต็ม
     // สำหรับสมาชิกภายนอก
     name: '',
     student_id: '',
@@ -53,6 +54,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
             label: `${s.full_name} (${s.username}) - ${s.email || "-"}`,
             user_id: s.user_id,
             username: s.username,
+            full_name: s.full_name,
           }))
         );
       } catch (e) {
@@ -71,7 +73,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
   const addContributor = () => {
     // ตรวจสอบข้อมูลที่จำเป็นตามประเภทสมาชิก
     if (memberType === 'registered') {
-      if (!newContributor.user_id || !newContributor.username) {
+      if (!newContributor.user_id || !newContributor.username || !newContributor.full_name) {
         return;
       }
       // ป้องกันไม่ให้ใส่ตัวเอง
@@ -108,6 +110,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
     if (memberType === 'registered') {
       contributorData.user_id = newContributor.user_id;
       contributorData.username = newContributor.username;
+      contributorData.full_name = newContributor.full_name;
     } else {
       contributorData.name = newContributor.name;
       contributorData.student_id = newContributor.student_id;
@@ -121,6 +124,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
     setNewContributor({
       user_id: '',
       username: '',
+      full_name: '',
       name: '',
       student_id: '',
       email: '',
@@ -145,7 +149,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
   // ตรวจสอบว่าสามารถเพิ่มได้หรือไม่
   const canAdd = () => {
     if (memberType === 'registered') {
-      return newContributor.user_id && newContributor.username;
+      return newContributor.user_id && newContributor.username && newContributor.full_name;
     } else {
       return newContributor.name;
     }
@@ -173,6 +177,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
               setNewContributor({
                 user_id: '',
                 username: '',
+                full_name: '',
                 name: '',
                 student_id: '',
                 email: '',
@@ -206,7 +211,8 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
                     setNewContributor({
                       ...newContributor,
                       user_id: option.user_id,
-                      username: option.username
+                      username: option.username,
+                      full_name: option.full_name
                     })
                   }
                   options={options}
@@ -214,7 +220,7 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
                   style={{ width: '100%' }}
                   value={
                     newContributor.user_id
-                      ? `${newContributor.username}`
+                      ? `${newContributor.full_name} (${newContributor.username})`
                       : undefined
                   }
                   allowClear
@@ -222,7 +228,8 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
                     setNewContributor({
                       ...newContributor,
                       user_id: '',
-                      username: ''
+                      username: '',
+                      full_name: ''
                     })
                   }
                 />
@@ -360,10 +367,10 @@ const ContributorsStep = ({ contributors = [], onChange }) => {
                     <div>
                       {contributor.memberType === 'registered' ? (
                         <>
-                          <Text strong>{contributor.username}</Text>
+                          <Text strong>{contributor.full_name || contributor.username}</Text>
                           <br />
                           <Text type="secondary" className="text-sm">
-                            รหัส: {contributor.user_id}
+                            {contributor.username} (รหัส: {contributor.user_id})
                           </Text>
                         </>
                       ) : (

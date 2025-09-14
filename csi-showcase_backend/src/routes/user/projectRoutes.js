@@ -9,6 +9,7 @@ const {
   getProjectDetails,
   uploadProject,
   updateProjectWithFiles,
+  deleteProjectImages,
   deleteProject,
   incrementViewCount,
 } = require('../../controllers/user/projectController.js');
@@ -746,10 +747,21 @@ router.get('/project/:projectId', optionalAuthenticateToken, getProjectDetails);
  */
 router.put(
   '/update/:projectId',
-  authenticateToken, 
+  authenticateToken,
   isResourceOwner,
   projectUpdateMiddleware, // ใช้ middleware สำหรับการอัปเดต
   updateProjectWithFiles
+);
+
+/**
+ * Delete specific images/media from a project
+ * - Body: { file_ids?: number[], file_paths?: string[], remove_primary_image?: boolean, remove_poster?: boolean }
+ */
+router.post(
+  '/update/:projectId/images/delete',
+  authenticateToken,
+  isResourceOwner,
+  deleteProjectImages
 );
 
 /**

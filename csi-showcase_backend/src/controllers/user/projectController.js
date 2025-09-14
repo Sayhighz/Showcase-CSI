@@ -23,6 +23,18 @@ const notificationService = require("../../services/notificationService.js");
 const { sanitizeHTML } = require("../../utils/validationHelper.js");
 const { truncateText } = require("../../utils/stringHelper.js");
 
+// Fallback non-blocking logger for project_changes when no request-scoped queue is available
+function queueLogChange(...args) {
+  try {
+    setImmediate(() => {
+      notificationService.logProjectChange(...args).catch((e) => {
+        logger.error('Error logging project change (fallback):', e);
+      });
+    });
+  } catch (e) {
+    logger.warn('queueLogChange fallback failed:', e);
+  }
+}
 /**
  * ดึงข้อมูลโครงการทั้งหมดที่ได้รับการอนุมัติแล้ว
  * @param {Object} req - Express request object
@@ -442,9 +454,11 @@ const getProjectDetails = async (req, res) => {
     const projectId = req.params.projectId;
     const viewerId = req.user ? req.user.id : null;
 
+    const isAdminClient = req.user && req.user.role === "admin";
+    const isAdminFE = String(req.headers['x-admin-client'] || '').toLowerCase() === 'true' || String(req.headers['x-admin-client'] || '') === '1';
     const options = {
-      includeReviews: req.user && req.user.role === "admin",
-      recordView: true, // Always record view for analytics - count every access
+      includeReviews: isAdminClient,
+      recordView: !(isAdminClient || isAdminFE), // Do not count Admin FE views (any role)
       viewerId: viewerId,
     };
 
@@ -483,6 +497,7 @@ const getProjectDetails = async (req, res) => {
             : undefined,
       },
       contributors: project.contributors || [],
+      files: project.files || [],
       viewsCount: project.views_count || 0,
       createdAt: project.created_at,
       updatedAt: project.updated_at,
@@ -594,6 +609,14 @@ const uploadProject = async (req, res) => {
     let clipVideoPath = clip_video || null; // ใช้ URL ที่รับจาก form ถ้ามี
     let imagePath = null;
     let paperFilePath = null;
+    let courseworkImageFiles = [];
+    let courseworkDocumentFiles = [];
+    let competitionImageFiles = [];
+    let competitionDocumentFiles = [];
+    let paperImageFiles = [];
+    let additionalFiles = [];
+    let generalImageFiles = [];
+    let galleryImageFiles = [];
 
     // ----------------------------------------
     // ตรวจสอบการอัปโหลดไฟล์จากหลายแหล่งที่เป็นไปได้
@@ -614,9 +637,38 @@ const uploadProject = async (req, res) => {
         posterPath = req.files.competitionPoster[0].path;
         console.log("Found competitionPoster in req.files:", posterPath);
       }
-      if (req.files.courseworkImage) {
-        imagePath = req.files.courseworkImage[0].path;
-        console.log("Found courseworkImage in req.files:", imagePath);
+      if (req.files.courseworkImage && req.files.courseworkImage.length > 0) {
+        courseworkImageFiles = req.files.courseworkImage;
+        imagePath = courseworkImageFiles[0].path;
+        console.log("Found courseworkImage files in req.files:", courseworkImageFiles.length, "primary:", imagePath);
+      }
+      if (req.files.courseworkFiles && req.files.courseworkFiles.length > 0) {
+        courseworkDocumentFiles = req.files.courseworkFiles;
+        console.log("Found courseworkFiles in req.files:", courseworkDocumentFiles.length);
+      }
+      if (req.files.competitionImage && req.files.competitionImage.length > 0) {
+        competitionImageFiles = req.files.competitionImage;
+        console.log("Found competitionImage files in req.files:", competitionImageFiles.length);
+      }
+      if (req.files.competitionFiles && req.files.competitionFiles.length > 0) {
+        competitionDocumentFiles = req.files.competitionFiles;
+        console.log("Found competitionFiles in req.files:", competitionDocumentFiles.length);
+      }
+      if (req.files.paperImage && req.files.paperImage.length > 0) {
+        paperImageFiles = req.files.paperImage;
+        console.log("Found paperImage files in req.files:", paperImageFiles.length);
+      }
+      if (req.files.additionalFiles && req.files.additionalFiles.length > 0) {
+        additionalFiles = req.files.additionalFiles;
+        console.log("Found additionalFiles in req.files:", additionalFiles.length);
+      }
+      if (req.files.images && req.files.images.length > 0) {
+        generalImageFiles = req.files.images;
+        console.log("Found general images in req.files:", generalImageFiles.length);
+      }
+      if (req.files.gallery && req.files.gallery.length > 0) {
+        galleryImageFiles = req.files.gallery;
+        console.log("Found gallery images in req.files:", galleryImageFiles.length);
       }
       if (req.files.courseworkVideo) {
         clipVideoPath = req.files.courseworkVideo[0].path;
@@ -642,8 +694,12 @@ const uploadProject = async (req, res) => {
           console.log("Using courseworkPoster:", posterPath);
         }
         if (req.project.files.courseworkImage && !imagePath) {
-          imagePath = req.project.files.courseworkImage.path;
-          console.log("Using courseworkImage:", imagePath);
+          const imgs = Array.isArray(req.project.files.courseworkImage)
+            ? req.project.files.courseworkImage
+            : [req.project.files.courseworkImage];
+          courseworkImageFiles = imgs;
+          imagePath = imgs[0]?.path;
+          console.log("Using courseworkImage array from middleware:", imagePath, "count:", imgs.length);
         }
         if (req.project.files.courseworkVideo && !clipVideoPath) {
           clipVideoPath = req.project.files.courseworkVideo.path;
@@ -656,6 +712,13 @@ const uploadProject = async (req, res) => {
           posterPath = req.project.files.competitionPoster.path;
           console.log("Using competitionPoster:", posterPath);
         }
+        if (req.project.files.competitionImage && competitionImageFiles.length === 0) {
+          const imgs = Array.isArray(req.project.files.competitionImage)
+            ? req.project.files.competitionImage
+            : [req.project.files.competitionImage];
+          competitionImageFiles = imgs;
+          console.log("Using competitionImage array from middleware:", imgs.length);
+        }
       }
       else if (type === PROJECT_TYPES.ACADEMIC) {
         // สำหรับประเภท academic
@@ -663,6 +726,30 @@ const uploadProject = async (req, res) => {
           paperFilePath = req.project.files.paperFile.path;
           console.log("Using paperFile from middleware:", paperFilePath);
         }
+        if (req.project.files.paperImage && paperImageFiles.length === 0) {
+          const imgs = Array.isArray(req.project.files.paperImage)
+            ? req.project.files.paperImage
+            : [req.project.files.paperImage];
+          paperImageFiles = imgs;
+          console.log("Using paperImage array from middleware:", imgs.length);
+        }
+      }
+      
+      // จัดการไฟล์ทั่วไป
+      if (req.project.files.images && generalImageFiles.length === 0) {
+        const imgs = Array.isArray(req.project.files.images)
+          ? req.project.files.images
+          : [req.project.files.images];
+        generalImageFiles = imgs;
+        console.log("Using general images array from middleware:", imgs.length);
+      }
+      
+      if (req.project.files.gallery && galleryImageFiles.length === 0) {
+        const imgs = Array.isArray(req.project.files.gallery)
+          ? req.project.files.gallery
+          : [req.project.files.gallery];
+        galleryImageFiles = imgs;
+        console.log("Using gallery images array from middleware:", imgs.length);
       }
     }
     
@@ -881,17 +968,22 @@ const uploadProject = async (req, res) => {
       );
     } else if (projectData.type === PROJECT_TYPES.COMPETITION) {
       console.log("Inserting competition data");
+      // Build JSON array for competition additional images
+      const compImagesArray = (competitionImageFiles || []).map(f => f.path);
+      const compImagesJson = compImagesArray.length > 0 ? JSON.stringify(compImagesArray) : null;
+
       await connection.execute(
         `
         INSERT INTO competitions (
-          project_id, competition_name, competition_year, poster
-        ) VALUES (?, ?, ?, ?)
+          project_id, competition_name, competition_year, poster, image
+        ) VALUES (?, ?, ?, ?, ?)
       `,
         [
           projectId,
           projectData.competition_name,
           projectData.competition_year,
           posterPath, // ใช้ path จากไฟล์ที่อัปโหลด
+          compImagesJson
         ]
       );
     } else if (projectData.type === PROJECT_TYPES.COURSEWORK) {
@@ -900,27 +992,206 @@ const uploadProject = async (req, res) => {
         projectId,
         posterPath,
         clipVideoPath,
-        imagePath
+        courseworkImageCount: (courseworkImageFiles || []).length
       });
       
-      await connection.execute(
-        `
-        INSERT INTO courseworks (
-          project_id, poster, clip_video, image
-        ) VALUES (?, ?, ?, ?)
-      `,
-        [
-          projectId,
-          posterPath, // ใช้ path จากไฟล์ที่อัปโหลด
-          clipVideoPath, // ใช้ path จากไฟล์ที่อัปโหลดหรือ URL ที่รับมา
-          imagePath, // ใช้ path จากไฟล์ที่อัปโหลด
-        ]
-      );
+      // Prepare JSON array for courseworks.image
+      const imagesArray = (courseworkImageFiles || []).map(f => f.path);
+      const imagesJson = imagesArray.length > 0 ? JSON.stringify(imagesArray) : null;
+
+      try {
+        await connection.execute(
+          `
+          INSERT INTO courseworks (
+            project_id, poster, clip_video, image
+          ) VALUES (?, ?, ?, ?)
+        `,
+          [
+            projectId,
+            posterPath,
+            clipVideoPath,
+            imagesJson
+          ]
+        );
+      } catch (e) {
+        // Fallback: หากคอลัมน์ image เป็น VARCHAR และเก็บ JSON ไม่ได้ ให้เก็บเฉพาะรูปแรก
+        const fallbackPrimary = (Array.isArray(imagesArray) && imagesArray.length > 0) ? imagesArray[0] : imagePath || null;
+        if (e && (e.code === 'ER_DATA_TOO_LONG' || e.errno === 1406)) {
+          await connection.execute(
+            `
+            INSERT INTO courseworks (
+              project_id, poster, clip_video, image
+            ) VALUES (?, ?, ?, ?)
+          `,
+            [
+              projectId,
+              posterPath,
+              clipVideoPath,
+              fallbackPrimary
+            ]
+          );
+        } else {
+          throw e;
+        }
+      }
+
+      // Images for coursework are stored only in courseworks.image (JSON).
+      // Skipping project_files persistence for coursework images.
+      if (courseworkImageFiles && courseworkImageFiles.length > 0) {
+        console.log("Coursework images stored in courseworks.image JSON; skip project_files");
+      }
+
+      // บันทึกไฟล์เอกสาร coursework
+      if (courseworkDocumentFiles && courseworkDocumentFiles.length > 0) {
+        try {
+          for (const f of courseworkDocumentFiles) {
+            await connection.execute(
+              `
+              INSERT INTO project_files (
+                project_id, file_type, file_path, file_name, file_size
+              ) VALUES (?, ?, ?, ?, ?)
+            `,
+              [projectId, 'document', f.path, f.originalname || f.filename || null, f.size || 0]
+            );
+          }
+          console.log("Saved", courseworkDocumentFiles.length, "coursework documents to project_files");
+        } catch (pfErr) {
+          console.warn("Could not save coursework documents to project_files:", pfErr.message);
+        }
+      }
+    }
+    
+    if (projectData.type === PROJECT_TYPES.COMPETITION) {
+      // บันทึกรูปภาพ competition หลายไฟล์ลงตาราง project_files
+      // Images for competition are stored only in competitions.image (JSON).
+      // Skipping project_files persistence for competition images.
+      if (competitionImageFiles && competitionImageFiles.length > 0) {
+        console.log("Competition images stored in competitions.image JSON; skip project_files");
+      }
+      
+      // บันทึกไฟล์เอกสาร competition
+      if (competitionDocumentFiles && competitionDocumentFiles.length > 0) {
+        try {
+          for (const f of competitionDocumentFiles) {
+            await connection.execute(
+              `
+              INSERT INTO project_files (
+                project_id, file_type, file_path, file_name, file_size
+              ) VALUES (?, ?, ?, ?, ?)
+            `,
+              [projectId, 'document', f.path, f.originalname || f.filename || null, f.size || 0]
+            );
+          }
+          console.log("Saved", competitionDocumentFiles.length, "competition documents to project_files");
+        } catch (pfErr) {
+          console.warn("Could not save competition documents to project_files:", pfErr.message);
+        }
+      }
+    }
+    
+    if (projectData.type === PROJECT_TYPES.ACADEMIC) {
+      // บันทึกรูปภาพ academic paper หลายไฟล์ลงตาราง project_files
+      if (paperImageFiles && paperImageFiles.length > 0) {
+        try {
+          for (const f of paperImageFiles) {
+            await connection.execute(
+              `
+              INSERT INTO project_files (
+                project_id, file_type, file_path, file_name, file_size
+              ) VALUES (?, ?, ?, ?, ?)
+            `,
+              [projectId, 'image', f.path, f.originalname || f.filename || null, f.size || 0]
+            );
+          }
+          console.log("Saved", paperImageFiles.length, "academic paper images to project_files");
+        } catch (pfErr) {
+          console.warn("Could not save academic paper images to project_files:", pfErr.message);
+        }
+      }
+    }
+
+    // บันทึกไฟล์เพิ่มเติมทั่วไป
+    if (additionalFiles && additionalFiles.length > 0) {
+      try {
+        for (const f of additionalFiles) {
+          const fileType = f.mimetype.startsWith('image/') ? 'image' : 'document';
+          await connection.execute(
+            `
+            INSERT INTO project_files (
+              project_id, file_type, file_path, file_name, file_size
+            ) VALUES (?, ?, ?, ?, ?)
+          `,
+            [projectId, fileType, f.path, f.originalname || f.filename || null, f.size || 0]
+          );
+        }
+        console.log("Saved", additionalFiles.length, "additional files to project_files");
+      } catch (pfErr) {
+        console.warn("Could not save additional files to project_files:", pfErr.message);
+      }
+    }
+
+    // บันทึกรูปภาพทั่วไป
+    if (generalImageFiles && generalImageFiles.length > 0) {
+      try {
+        for (const f of generalImageFiles) {
+          await connection.execute(
+            `
+            INSERT INTO project_files (
+              project_id, file_type, file_path, file_name, file_size
+            ) VALUES (?, ?, ?, ?, ?)
+          `,
+            [projectId, 'image', f.path, f.originalname || f.filename || null, f.size || 0]
+          );
+        }
+        console.log("Saved", generalImageFiles.length, "general images to project_files");
+      } catch (pfErr) {
+        console.warn("Could not save general images to project_files:", pfErr.message);
+      }
+    }
+
+    // บันทึกรูปภาพแกลเลอรี่
+    if (galleryImageFiles && galleryImageFiles.length > 0) {
+      try {
+        for (const f of galleryImageFiles) {
+          await connection.execute(
+            `
+            INSERT INTO project_files (
+              project_id, file_type, file_path, file_name, file_size, field_name
+            ) VALUES (?, ?, ?, ?, ?, ?)
+          `,
+            [projectId, 'image', f.path, f.originalname || f.filename || null, f.size || 0, 'gallery']
+          );
+        }
+        console.log("Saved", galleryImageFiles.length, "gallery images to project_files");
+      } catch (pfErr) {
+        console.warn("Could not save gallery images with field_name, falling back:", pfErr.message);
+        for (const f of galleryImageFiles) {
+          await connection.execute(
+            `
+            INSERT INTO project_files (
+              project_id, file_type, file_path, file_name, file_size
+            ) VALUES (?, ?, ?, ?, ?)
+          `,
+            [projectId, 'image', f.path, f.originalname || f.filename || null, f.size || 0]
+          );
+        }
+        console.log("Saved", galleryImageFiles.length, "gallery images to project_files (fallback mode)");
+      }
     }
 
     // Commit transaction
     await connection.commit();
     console.log("Transaction committed successfully");
+// Flush queued project-change logs after commit (if any)
+try {
+  if (typeof postCommitLogs !== 'undefined' && Array.isArray(postCommitLogs) && postCommitLogs.length) {
+    setImmediate(() => {
+      try { postCommitLogs.forEach(fn => typeof fn === 'function' && fn()); } catch (e) { logger.warn('postCommitLogs flush error:', e); }
+    });
+  }
+} catch (e) {
+  logger.warn('postCommitLogs handling error:', e);
+}
 
     // แจ้งเตือนผู้ดูแลระบบเกี่ยวกับโครงการใหม่
     try {
@@ -971,6 +1242,15 @@ const updateProjectWithFiles = async (req, res) => {
     const projectId = req.params.projectId;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
+// Defer project change logs until after commit to avoid lock contention
+const postCommitLogs = [];
+const queueLogChange = (...args) => {
+  try {
+    postCommitLogs.push(() => notificationService.logProjectChange(...args));
+  } catch (e) {
+    logger.warn('Failed to queue project change log:', e);
+  }
+};
  
     // ดึงข้อมูลโครงการเพื่อตรวจสอบความเป็นเจ้าของ
     const [projects] = await pool.execute(
@@ -1001,6 +1281,38 @@ const updateProjectWithFiles = async (req, res) => {
  
     // ดึงข้อมูลที่จะอัปเดต
     const updateData = req.body;
+
+    // บังคับกติกาตามประเภทผลงาน - Academic รับเฉพาะ PDF เท่านั้น
+    if (project.type === PROJECT_TYPES.ACADEMIC) {
+      const hasInvalidFiles =
+        (req.files && (
+          req.files.courseworkPoster ||
+          req.files.competitionPoster ||
+          req.files.courseworkImage ||
+          req.files.competitionImage ||
+          req.files.images ||
+          req.files.gallery ||
+          req.files.courseworkVideo
+        )) ||
+        (req.projectUpdate && req.projectUpdate.files && (
+          req.projectUpdate.files.courseworkPoster ||
+          req.projectUpdate.files.competitionPoster ||
+          (Array.isArray(req.projectUpdate.files.courseworkImage) || req.projectUpdate.files.courseworkImage) ||
+          (Array.isArray(req.projectUpdate.files.competitionImage) || req.projectUpdate.files.competitionImage) ||
+          req.projectUpdate.files.images ||
+          req.projectUpdate.files.gallery ||
+          req.projectUpdate.files.courseworkVideo
+        )) ||
+        (updateData.clip_video !== undefined);
+
+      if (hasInvalidFiles) {
+        await connection.rollback();
+        return validationErrorResponse(res, "Academic projects accept only PDF (paperFile).");
+      }
+    }
+
+    // ตัวนับเพื่อใช้ตรวจสอบว่า request นี้มีการเปลี่ยนแปลงจริงหรือไม่
+    let changesCount = 0;
  
     // สร้าง query สำหรับอัปเดตเฉพาะฟิลด์ที่มี
     let updateFields = [];
@@ -1011,7 +1323,7 @@ const updateProjectWithFiles = async (req, res) => {
       updateParams.push(sanitizeHTML(updateData.title));
       
       // บันทึกการเปลี่ยนแปลง
-      await notificationService.logProjectChange(
+      queueLogChange(
         projectId,
         'updated',
         'title',
@@ -1029,7 +1341,7 @@ const updateProjectWithFiles = async (req, res) => {
       updateParams.push(sanitizeHTML(updateData.description));
       
       // บันทึกการเปลี่ยนแปลง
-      await notificationService.logProjectChange(
+      queueLogChange(
         projectId,
         'updated',
         'description',
@@ -1046,7 +1358,7 @@ const updateProjectWithFiles = async (req, res) => {
       updateFields.push("study_year = ?");
       updateParams.push(updateData.study_year);
       
-      await notificationService.logProjectChange(
+      queueLogChange(
         projectId,
         'updated',
         'study_year',
@@ -1063,7 +1375,7 @@ const updateProjectWithFiles = async (req, res) => {
       updateFields.push("year = ?");
       updateParams.push(updateData.year);
       
-      await notificationService.logProjectChange(
+      queueLogChange(
         projectId,
         'updated',
         'year',
@@ -1080,7 +1392,7 @@ const updateProjectWithFiles = async (req, res) => {
       updateFields.push("semester = ?");
       updateParams.push(updateData.semester);
       
-      await notificationService.logProjectChange(
+      queueLogChange(
         projectId,
         'updated',
         'semester',
@@ -1097,7 +1409,7 @@ const updateProjectWithFiles = async (req, res) => {
       updateFields.push("visibility = ?");
       updateParams.push(updateData.visibility);
       
-      await notificationService.logProjectChange(
+      queueLogChange(
         projectId,
         'updated',
         'visibility',
@@ -1111,37 +1423,42 @@ const updateProjectWithFiles = async (req, res) => {
     }
  
     // เปลี่ยนสถานะกลับเป็น pending เพื่อรอการตรวจสอบจากผู้ดูแล
-    if (project.status !== PROJECT_STATUSES.PENDING) {
+    // หมายเหตุ: เฉพาะผู้ใช้ทั่วไปเท่านั้นที่แก้ไขแล้วต้องกลับเป็น pending
+    // แอดมินแก้ไขให้สถานะคงเดิม (เช่น approved) ตามนโยบาย
+    if (req.user.role !== "admin" && project.status !== PROJECT_STATUSES.PENDING) {
       updateFields.push("status = ?");
       updateParams.push(PROJECT_STATUSES.PENDING);
-      
-      await notificationService.logProjectChange(
+
+      queueLogChange(
         projectId,
         'updated',
         'status',
         project.status,
         PROJECT_STATUSES.PENDING,
         req.user.id,
-        'Status changed to pending after user update',
+        'Status changed to pending after user (non-admin) update',
         ipAddress,
         userAgent
       );
     }
  
-    // อัปเดตเวลาการแก้ไข
-    updateFields.push("updated_at = NOW()");
- 
+    // อัปเดตเวลาการแก้ไข (เฉพาะเมื่อมีการเปลี่ยนแปลง)
+    if (updateFields.length > 0) {
+      updateFields.push("updated_at = NOW()");
+    }
+    
     // เพิ่ม project ID เข้าไปใน parameters
     updateParams.push(projectId);
- 
+    
     // อัปเดตข้อมูลโครงการหลัก
     if (updateFields.length > 0) {
+      changesCount += updateFields.length;
       const updateQuery = `
-        UPDATE projects 
-        SET ${updateFields.join(", ")} 
+        UPDATE projects
+        SET ${updateFields.join(", ")}
         WHERE project_id = ?
       `;
- 
+
       await connection.execute(updateQuery, updateParams);
       console.log("Updated main project data");
     }
@@ -1163,11 +1480,25 @@ const updateProjectWithFiles = async (req, res) => {
       }
     } else if (project.type === PROJECT_TYPES.COMPETITION) {
       const [competitionData] = await connection.execute(
-        `SELECT poster FROM competitions WHERE project_id = ?`,
+        `SELECT poster, image FROM competitions WHERE project_id = ?`,
         [projectId]
       );
       if (competitionData.length > 0) {
         oldFiles.competitionPoster = competitionData[0].poster;
+        // Parse competition existing images (JSON array or single string)
+        try {
+          const imgVal = competitionData[0].image;
+          if (Array.isArray(imgVal)) {
+            oldFiles.competitionImages = imgVal;
+          } else if (typeof imgVal === 'string' && imgVal.trim().length > 0) {
+            const parsed = JSON.parse(imgVal);
+            oldFiles.competitionImages = Array.isArray(parsed) ? parsed : [imgVal];
+          } else {
+            oldFiles.competitionImages = [];
+          }
+        } catch (_) {
+          oldFiles.competitionImages = competitionData[0].image ? [competitionData[0].image] : [];
+        }
       }
     } else if (project.type === PROJECT_TYPES.COURSEWORK) {
       const [courseworkData] = await connection.execute(
@@ -1177,7 +1508,20 @@ const updateProjectWithFiles = async (req, res) => {
       if (courseworkData.length > 0) {
         oldFiles.courseworkPoster = courseworkData[0].poster;
         oldFiles.clipVideoPath = courseworkData[0].clip_video;
-        oldFiles.courseworkImage = courseworkData[0].image;
+        // Parse image JSON array (backward compatible with string)
+        try {
+          const imgVal = courseworkData[0].image;
+          if (Array.isArray(imgVal)) {
+            oldFiles.courseworkImages = imgVal;
+          } else if (typeof imgVal === 'string' && imgVal.trim().length > 0) {
+            const parsed = JSON.parse(imgVal);
+            oldFiles.courseworkImages = Array.isArray(parsed) ? parsed : [imgVal];
+          } else {
+            oldFiles.courseworkImages = [];
+          }
+        } catch (e) {
+          oldFiles.courseworkImages = courseworkData[0].image ? [courseworkData[0].image] : [];
+        }
       }
     }
     
@@ -1188,6 +1532,11 @@ const updateProjectWithFiles = async (req, res) => {
     let posterPath = null;
     let clipVideoPath = null;
     let imagePath = null;
+    let newCourseworkImageFiles = [];
+    let newCompetitionImageFiles = [];
+    let newPaperImageFiles = [];
+    let newGeneralImageFiles = [];
+    let newGalleryImageFiles = [];
     
     // 1. ตรวจสอบไฟล์จาก req.files (จาก multer โดยตรง)
     if (req.files) {
@@ -1209,7 +1558,7 @@ const updateProjectWithFiles = async (req, res) => {
         }
         
         // บันทึกการเปลี่ยนแปลงไฟล์
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'paper_file',
@@ -1237,7 +1586,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'coursework_poster',
@@ -1264,7 +1613,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'competition_poster',
@@ -1278,28 +1627,19 @@ const updateProjectWithFiles = async (req, res) => {
       }
       
       // ตรวจสอบไฟล์ภาพประกอบ
-      if (req.files.courseworkImage) {
-        imagePath = req.files.courseworkImage[0].path;
-        console.log("Found courseworkImage in req.files:", imagePath);
+      if (req.files.courseworkImage && req.files.courseworkImage.length > 0) {
+        newCourseworkImageFiles = req.files.courseworkImage;
+        imagePath = newCourseworkImageFiles[0].path;
+        console.log("Found courseworkImage files in req.files:", newCourseworkImageFiles.length, "primary:", imagePath);
         
-        // ลบไฟล์เดิมถ้ามี
-        if (oldFiles.courseworkImage) {
-          try {
-            fs.unlinkSync(oldFiles.courseworkImage);
-            console.log("Deleted old courseworkImage:", oldFiles.courseworkImage);
-          } catch (err) {
-            console.error("Error deleting old courseworkImage:", err);
-          }
-        }
-        
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
-          'coursework_image',
-          oldFiles.courseworkImage,
-          imagePath,
+          'coursework_images',
+          oldFiles.courseworkImages || [],
+          newCourseworkImageFiles.map(f => f.path),
           req.user.id,
-          'User updated coursework image',
+          'User uploaded additional coursework image(s)',
           ipAddress,
           userAgent
         );
@@ -1320,7 +1660,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'coursework_video',
@@ -1353,7 +1693,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'paper_file',
@@ -1381,7 +1721,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'coursework_poster',
@@ -1408,7 +1748,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'competition_poster',
@@ -1423,27 +1763,21 @@ const updateProjectWithFiles = async (req, res) => {
       
       // ไฟล์ภาพประกอบ
       if (req.projectUpdate.files.courseworkImage && !imagePath) {
-        imagePath = req.projectUpdate.files.courseworkImage.path;
-        console.log("Using courseworkImage from middleware:", imagePath);
+        const imgs = Array.isArray(req.projectUpdate.files.courseworkImage)
+          ? req.projectUpdate.files.courseworkImage
+          : [req.projectUpdate.files.courseworkImage];
+        newCourseworkImageFiles = imgs;
+        imagePath = imgs[0]?.path;
+        console.log("Using courseworkImage array from middleware:", imagePath, "count:", imgs.length);
         
-        // ลบไฟล์เดิมถ้ามี
-        if (oldFiles.courseworkImage) {
-          try {
-            fs.unlinkSync(oldFiles.courseworkImage);
-            console.log("Deleted old courseworkImage:", oldFiles.courseworkImage);
-          } catch (err) {
-            console.error("Error deleting old courseworkImage:", err);
-          }
-        }
-        
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
-          'coursework_image',
-          oldFiles.courseworkImage,
-          imagePath,
+          'coursework_images',
+          oldFiles.courseworkImages || [],
+          imgs.map(f => f.path),
           req.user.id,
-          'User updated coursework image',
+          'User uploaded additional coursework image(s) via middleware',
           ipAddress,
           userAgent
         );
@@ -1464,7 +1798,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'coursework_video',
@@ -1475,6 +1809,39 @@ const updateProjectWithFiles = async (req, res) => {
           ipAddress,
           userAgent
         );
+      }
+      
+      // จัดการไฟล์รูปภาพเพิ่มเติมจาก middleware
+      if (req.projectUpdate.files.competitionImage && newCompetitionImageFiles.length === 0) {
+        const imgs = Array.isArray(req.projectUpdate.files.competitionImage)
+          ? req.projectUpdate.files.competitionImage
+          : [req.projectUpdate.files.competitionImage];
+        newCompetitionImageFiles = imgs;
+        console.log("Using competitionImage array from middleware:", imgs.length);
+      }
+      
+      if (req.projectUpdate.files.paperImage && newPaperImageFiles.length === 0) {
+        const imgs = Array.isArray(req.projectUpdate.files.paperImage)
+          ? req.projectUpdate.files.paperImage
+          : [req.projectUpdate.files.paperImage];
+        newPaperImageFiles = imgs;
+        console.log("Using paperImage array from middleware:", imgs.length);
+      }
+      
+      if (req.projectUpdate.files.images && newGeneralImageFiles.length === 0) {
+        const imgs = Array.isArray(req.projectUpdate.files.images)
+          ? req.projectUpdate.files.images
+          : [req.projectUpdate.files.images];
+        newGeneralImageFiles = imgs;
+        console.log("Using general images array from middleware:", imgs.length);
+      }
+      
+      if (req.projectUpdate.files.gallery && newGalleryImageFiles.length === 0) {
+        const imgs = Array.isArray(req.projectUpdate.files.gallery)
+          ? req.projectUpdate.files.gallery
+          : [req.projectUpdate.files.gallery];
+        newGalleryImageFiles = imgs;
+        console.log("Using gallery images array from middleware:", imgs.length);
       }
     }
     
@@ -1497,7 +1864,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'paper_file',
@@ -1533,7 +1900,7 @@ const updateProjectWithFiles = async (req, res) => {
         const fileType = project.type === PROJECT_TYPES.COURSEWORK ? 'coursework_poster' : 'competition_poster';
         const oldFile = project.type === PROJECT_TYPES.COURSEWORK ? oldFiles.courseworkPoster : oldFiles.competitionPoster;
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           fileType,
@@ -1558,7 +1925,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'coursework_video',
@@ -1589,7 +1956,7 @@ const updateProjectWithFiles = async (req, res) => {
           }
         }
         
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'clip_video_url',
@@ -1610,6 +1977,18 @@ const updateProjectWithFiles = async (req, res) => {
       imagePath,
       paperFilePath
     });
+
+    // คำนวณจำนวนการเปลี่ยนแปลงจากไฟล์/แฟล็กต่างๆ
+    if (paperFilePath !== null) changesCount++;
+    if (posterPath !== null) changesCount++;
+    if (clipVideoPath !== null || (updateData.clip_video !== undefined && updateData.clip_video !== oldFiles.clipVideoPath)) changesCount++;
+    if ((Array.isArray(newCourseworkImageFiles) && newCourseworkImageFiles.length > 0) ||
+        (String(updateData.replace_existing_images || updateData.replace_images || '').toLowerCase() === 'true')) {
+      changesCount++;
+    }
+    if (Array.isArray(newCompetitionImageFiles) && newCompetitionImageFiles.length > 0) {
+      changesCount++;
+    }
  
     // Update contributors if provided
     if (updateData.contributors !== undefined && updateData.contributors !== '') {
@@ -1620,12 +1999,12 @@ const updateProjectWithFiles = async (req, res) => {
           [projectId]
         );
         
-        // Delete existing contributors
+        // Delete existing contributors (keep owner row intact)
         await connection.execute(
-          `DELETE FROM project_groups WHERE project_id = ?`,
+          `DELETE FROM project_groups WHERE project_id = ? AND role != 'owner'`,
           [projectId]
         );
-        console.log("Deleted existing contributors");
+        console.log("Deleted existing non-owner contributors");
  
         // Add new contributors only if contributors is not empty
         let newContributors = [];
@@ -1730,7 +2109,7 @@ const updateProjectWithFiles = async (req, res) => {
         }
         
         // บันทึกการเปลี่ยนแปลง contributors
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'updated',
           'contributors',
@@ -1748,18 +2127,77 @@ const updateProjectWithFiles = async (req, res) => {
       }
     }
  
+    // เพิ่มนับการเปลี่ยนแปลงหากมีการส่ง contributors มา (รวมถึงเคสลบ/แทนที่สมาชิก)
+    if (updateData.contributors !== undefined) {
+      changesCount++;
+    }
+
+    // No-op guard: ไม่มีข้อมูลที่เปลี่ยนแปลงจริง
+    if (changesCount === 0) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: 'No changes to update'
+      });
+    }
+
     // อัปเดตข้อมูลตามประเภทโปรเจกต์
     if (project.type === PROJECT_TYPES.ACADEMIC) {
       await updateAcademicDataWithFiles(connection, projectId, updateData, project.year, paperFilePath);
     } else if (project.type === PROJECT_TYPES.COMPETITION) {
-      await updateCompetitionDataWithFiles(connection, projectId, updateData, project.year, posterPath);
+      // Combine existing JSON images with new uploads (or replace)
+      const newCompPaths = (newCompetitionImageFiles || []).map(f => f.path);
+      const replaceFlagComp = String(updateData.replace_existing_images || updateData.replace_images || '').toLowerCase();
+      const shouldReplaceComp = replaceFlagComp === 'true' || replaceFlagComp === '1';
+      const existingCompImages = Array.isArray(oldFiles.competitionImages) ? oldFiles.competitionImages : [];
+      let compImagesArray = [];
+      if (shouldReplaceComp) {
+        compImagesArray = newCompPaths;
+      } else {
+        const set = new Set(existingCompImages);
+        newCompPaths.forEach(p => set.add(p));
+        compImagesArray = Array.from(set);
+      }
+
+      await updateCompetitionDataWithFiles(connection, projectId, updateData, project.year, posterPath, compImagesArray);
     } else if (project.type === PROJECT_TYPES.COURSEWORK) {
-      await updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagePath);
+      // Combine existing JSON images with new uploads (or replace)
+      const newPaths = (newCourseworkImageFiles || []).map(f => f.path);
+      const replaceFlag = String(updateData.replace_existing_images || updateData.replace_images || '').toLowerCase();
+      const shouldReplace = replaceFlag === 'true' || replaceFlag === '1';
+      const existingImages = Array.isArray(oldFiles.courseworkImages) ? oldFiles.courseworkImages : [];
+      let imagesArray = [];
+      if (shouldReplace) {
+        imagesArray = newPaths;
+      } else {
+        const set = new Set(existingImages);
+        newPaths.forEach(p => set.add(p));
+        imagesArray = Array.from(set);
+      }
+
+      await updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagesArray);
+
+      // Images for coursework are stored only in courseworks.image (JSON).
+      // Skipping project_files persistence for coursework images on update.
+      if (newCourseworkImageFiles && newCourseworkImageFiles.length > 0) {
+        console.log("Coursework images updated in courseworks.image JSON; skip project_files");
+      }
     }
  
     // Commit transaction
     await connection.commit();
     console.log("Transaction committed successfully");
+// Flush queued project-change logs after commit (if any)
+try {
+  if (typeof postCommitLogs !== 'undefined' && Array.isArray(postCommitLogs) && postCommitLogs.length) {
+    setImmediate(() => {
+      try { postCommitLogs.forEach(fn => typeof fn === 'function' && fn()); } catch (e) { logger.warn('postCommitLogs flush error:', e); }
+    });
+  }
+} catch (e) {
+  logger.warn('postCommitLogs handling error:', e);
+}
  
     // Notify admins of updated project
     try {
@@ -1870,9 +2308,9 @@ async function updateAcademicDataWithFiles(connection, projectId, updateData, de
 /**
  * อัปเดตข้อมูลการแข่งขันพร้อมไฟล์
  */
-async function updateCompetitionDataWithFiles(connection, projectId, updateData, defaultYear, posterPath) {
+async function updateCompetitionDataWithFiles(connection, projectId, updateData, defaultYear, posterPath, imagesArray) {
   console.log("Updating competition data with files");
-  
+
   // ตรวจสอบว่ามีข้อมูลในตารางหรือไม่
   const [competition] = await connection.execute(
     `SELECT * FROM competitions WHERE project_id = ?`,
@@ -1893,11 +2331,17 @@ async function updateCompetitionDataWithFiles(connection, projectId, updateData,
       updateFields.push("competition_year = ?");
       updateParams.push(updateData.competition_year);
     }
-    
+
     // อัปเดตโปสเตอร์ถ้ามี
     if (posterPath !== null) {
       updateFields.push("poster = ?");
       updateParams.push(posterPath);
+    }
+
+    // อัปเดตรูปภาพ (JSON array) ถ้ามี
+    if (Array.isArray(imagesArray)) {
+      updateFields.push("image = ?");
+      updateParams.push(imagesArray.length > 0 ? JSON.stringify(imagesArray) : null);
     }
 
     // เพิ่ม project ID
@@ -1918,17 +2362,19 @@ async function updateCompetitionDataWithFiles(connection, projectId, updateData,
     await connection.execute(
       `
       INSERT INTO competitions (
-        project_id, 
-        competition_name, 
-        competition_year, 
-        poster
-      ) VALUES (?, ?, ?, ?)
+        project_id,
+        competition_name,
+        competition_year,
+        poster,
+        image
+      ) VALUES (?, ?, ?, ?, ?)
     `,
       [
         projectId,
         sanitizeHTML(updateData.competition_name || ""),
         updateData.competition_year || defaultYear,
         posterPath,
+        (Array.isArray(imagesArray) && imagesArray.length > 0) ? JSON.stringify(imagesArray) : null
       ]
     );
     console.log("Created new competition record");
@@ -1938,7 +2384,7 @@ async function updateCompetitionDataWithFiles(connection, projectId, updateData,
 /**
  * อัปเดตข้อมูลผลงานการเรียนพร้อมไฟล์
  */
-async function updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagePath) {
+async function updateCourseworkDataWithFiles(connection, projectId, updateData, posterPath, clipVideoPath, imagesArray) {
   console.log("Updating coursework data with files");
   
   // ตรวจสอบว่ามีข้อมูลในตารางหรือไม่
@@ -1980,10 +2426,10 @@ async function updateCourseworkDataWithFiles(connection, projectId, updateData, 
       }
     }
     
-    // อัปเดตรูปภาพถ้ามี
-    if (imagePath !== null) {
+    // อัปเดตรูปภาพ (JSON array) ถ้ามี
+    if (Array.isArray(imagesArray)) {
       updateFields.push("image = ?");
-      updateParams.push(imagePath);
+      updateParams.push(imagesArray.length > 0 ? JSON.stringify(imagesArray) : null);
     }
 
     // เพิ่ม project ID
@@ -1996,28 +2442,73 @@ async function updateCourseworkDataWithFiles(connection, projectId, updateData, 
         WHERE project_id = ?
       `;
 
-      await connection.execute(updateQuery, updateParams);
-      console.log("Updated existing coursework record:", { updateFields, updateParams });
+      try {
+        await connection.execute(updateQuery, updateParams);
+        console.log("Updated existing coursework record:", { updateFields, updateParams });
+      } catch (e) {
+        const errCode = e && (e.code || '');
+        if ((errCode === 'ER_DATA_TOO_LONG' || e.errno === 1406)) {
+          // Fallback: ลด image เป็น path เดี่ยว
+          const idx = updateFields.findIndex(f => f.trim().startsWith('image ='));
+          if (idx !== -1) {
+            const fallbackPrimary = (Array.isArray(imagesArray) && imagesArray.length > 0) ? imagesArray[0] : null;
+            const newParams = [...updateParams];
+            // image param อยู่ที่ index เดียวกับ updateFields
+            newParams[idx] = fallbackPrimary;
+            await connection.execute(updateQuery, newParams);
+            console.log("Updated coursework with fallback image (single path) due to column size limit");
+          } else {
+            throw e;
+          }
+        } else {
+          throw e;
+        }
+      }
     }
   } else {
     // สร้างข้อมูลใหม่
-    await connection.execute(
-      `
-      INSERT INTO courseworks (
-        project_id,
-        poster,
-        clip_video,
-        image
-      ) VALUES (?, ?, ?, ?)
-    `,
-      [
-        projectId,
-        posterPath,
-        clipVideoPath,
-        imagePath,
-      ]
-    );
-    console.log("Created new coursework record");
+    try {
+      await connection.execute(
+        `
+        INSERT INTO courseworks (
+          project_id,
+          poster,
+          clip_video,
+          image
+        ) VALUES (?, ?, ?, ?)
+      `,
+        [
+          projectId,
+          posterPath,
+          clipVideoPath,
+          Array.isArray(imagesArray) && imagesArray.length > 0 ? JSON.stringify(imagesArray) : null,
+        ]
+      );
+      console.log("Created new coursework record");
+    } catch (e) {
+      if (e && (e.code === 'ER_DATA_TOO_LONG' || e.errno === 1406)) {
+        const fallbackPrimary = (Array.isArray(imagesArray) && imagesArray.length > 0) ? imagesArray[0] : null;
+        await connection.execute(
+          `
+          INSERT INTO courseworks (
+            project_id,
+            poster,
+            clip_video,
+            image
+          ) VALUES (?, ?, ?, ?)
+        `,
+          [
+            projectId,
+            posterPath,
+            clipVideoPath,
+            fallbackPrimary,
+          ]
+        );
+        console.log("Created new coursework record with fallback image (single path)");
+      } else {
+        throw e;
+      }
+    }
   }
 }
 
@@ -2033,6 +2524,15 @@ const deleteProject = async (req, res) => {
     const projectId = req.params.projectId;
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.get('User-Agent');
+// Defer project change logs until after commit to avoid lock contention
+const postCommitLogs = [];
+const queueLogChange = (...args) => {
+  try {
+    postCommitLogs.push(() => notificationService.logProjectChange(...args));
+  } catch (e) {
+    logger.warn('Failed to queue project change log:', e);
+  }
+};
 
     // ดึงข้อมูลโครงการเพื่อตรวจสอบความเป็นเจ้าของและประเภทโครงการ
     const [projects] = await connection.execute(
@@ -2049,6 +2549,15 @@ const deleteProject = async (req, res) => {
     // ตรวจสอบสิทธิ์ในการลบ
     if (req.user.id != project.user_id && req.user.role !== "admin") {
       return forbiddenResponse(res, "You can only delete your own projects");
+    }
+
+    // นโยบายการลบ:
+    // - ผู้ใช้ที่ไม่ใช่แอดมิน (เจ้าของผลงาน) สามารถลบได้เฉพาะสถานะ pending หรือ rejected เท่านั้น
+    // - แอดมินสามารถลบได้ทุกสถานะ
+    if (req.user.role !== "admin") {
+      if (project.status === PROJECT_STATUSES.APPROVED) {
+        return forbiddenResponse(res, "Approved projects can only be deleted by admin");
+      }
     }
 
     // เตรียมรายการไฟล์ที่จะลบ
@@ -2082,14 +2591,33 @@ const deleteProject = async (req, res) => {
         if (courseworkData[0].clip_video && courseworkData[0].clip_video.startsWith('uploads/')) {
           filesToDelete.push(courseworkData[0].clip_video);
         }
-        if (courseworkData[0].image) filesToDelete.push(courseworkData[0].image);
+        // รองรับกรณีที่ image เป็น JSON array หรือ path เดี่ยว
+        const imgVal = courseworkData[0].image;
+        try {
+          if (Array.isArray(imgVal)) {
+            imgVal.forEach(p => {
+              if (typeof p === 'string' && p) filesToDelete.push(p);
+            });
+          } else if (typeof imgVal === 'string' && imgVal.trim().length > 0) {
+            const parsed = JSON.parse(imgVal);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(p => {
+                if (typeof p === 'string' && p) filesToDelete.push(p);
+              });
+            } else {
+              filesToDelete.push(imgVal);
+            }
+          }
+        } catch (e) {
+          if (typeof imgVal === 'string' && imgVal) filesToDelete.push(imgVal);
+        }
       }
     }
 
     console.log("Files to delete:", filesToDelete);
 
     // บันทึกการลบในประวัติก่อนลบจริง
-    await notificationService.logProjectChange(
+    queueLogChange(
       projectId,
       'deleted',
       'entire_project',
@@ -2190,6 +2718,16 @@ const deleteProject = async (req, res) => {
       // Commit transaction
       await connection.commit();
       console.log("Transaction committed successfully");
+// Flush queued project-change logs after commit (if any)
+try {
+  if (typeof postCommitLogs !== 'undefined' && Array.isArray(postCommitLogs) && postCommitLogs.length) {
+    setImmediate(() => {
+      try { postCommitLogs.forEach(fn => typeof fn === 'function' && fn()); } catch (e) { logger.warn('postCommitLogs flush error:', e); }
+    });
+  }
+} catch (e) {
+  logger.warn('postCommitLogs handling error:', e);
+}
 
       // ลบไฟล์กายภาพหลังจาก transaction สำเร็จ
       const deletedFiles = [];
@@ -2209,7 +2747,7 @@ const deleteProject = async (req, res) => {
 
       // บันทึกการลบไฟล์ในประวัติ (หลังจากลบเสร็จแล้ว)
       if (deletedFiles.length > 0) {
-        await notificationService.logProjectChange(
+        queueLogChange(
           projectId,
           'deleted',
           'physical_files',
@@ -2295,6 +2833,398 @@ const incrementViewCount = async (req, res) => {
   }
 };
 
+/**
+ * ลบรูปภาพ/สื่อของโปรเจกต์แบบเฉพาะรายการ
+ * รองรับ:
+ *  - ลบรูปจากตาราง project_files ตาม file_ids หรือ file_paths
+ *  - ลบรูปหลักของ coursework (courseworks.image)
+ *  - ลบโปสเตอร์ของ coursework/competition (poster)
+ * หมายเหตุ: จะลบไฟล์จริงในโฟลเดอร์ uploads/ ถ้า path เริ่มด้วย 'uploads/'
+ */
+const deleteProjectImages = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    const projectId = parseInt(req.params.projectId, 10);
+    if (!projectId || Number.isNaN(projectId)) {
+      return validationErrorResponse(res, "Invalid projectId");
+    }
+
+    const {
+      file_ids,
+      file_paths,
+      remove_primary_image,   // สำหรับ coursework: NULL ค่า field image
+      remove_poster,          // สำหรับ coursework/competition: NULL ค่า field poster
+      remove_paper_file       // สำหรับ academic: NULL ค่า field paper_file
+    } = req.body || {};
+
+    // ทำให้เป็น array เสมอ
+    const fileIds = Array.isArray(file_ids) ? file_ids.map(id => parseInt(id, 10)).filter(n => !Number.isNaN(n)) : [];
+    const filePaths = Array.isArray(file_paths) ? file_paths.map(p => String(p)).filter(Boolean) : [];
+
+    await connection.beginTransaction();
+
+    // ตรวจสอบประเภทโปรเจกต์
+    const [projects] = await connection.execute(
+      `SELECT project_id, user_id, type, title FROM projects WHERE project_id = ?`,
+      [projectId]
+    );
+    if (projects.length === 0) {
+      await connection.rollback();
+      return notFoundResponse(res, "Project not found");
+    }
+    const project = projects[0];
+
+    const filesToDelete = [];
+    const deletedDbItems = {
+      project_files: [],
+      coursework_image: false,
+      coursework_poster: false,
+      competition_poster: false,
+      academic_paper_file: false
+    };
+
+    // ลบรูปหลักของ coursework (courseworks.image)
+    if (remove_primary_image && project.type === PROJECT_TYPES.COURSEWORK) {
+      const [cw] = await connection.execute(
+        `SELECT image FROM courseworks WHERE project_id = ?`,
+        [projectId]
+      );
+      if (cw.length > 0 && cw[0].image) {
+        const imgVal = cw[0].image;
+
+        // อัปเดตฐานข้อมูลให้ลบรูปหลักทั้งหมด (ตั้งค่าเป็น NULL)
+        await connection.execute(
+          `UPDATE courseworks SET image = NULL WHERE project_id = ?`,
+          [projectId]
+        );
+
+        // แปลงค่า image เป็นรายการ path เพื่อใช้ลบไฟล์จริง
+        let paths = [];
+        try {
+          if (Array.isArray(imgVal)) {
+            paths = imgVal.filter(p => typeof p === 'string' && p);
+          } else if (typeof imgVal === 'string' && imgVal.trim().length > 0) {
+            const parsed = JSON.parse(imgVal);
+            paths = Array.isArray(parsed) ? parsed.filter(p => typeof p === 'string' && p) : [imgVal];
+          }
+        } catch (e) {
+          if (typeof imgVal === 'string' && imgVal) paths = [imgVal];
+        }
+
+        paths.forEach(p => filesToDelete.push(p));
+        deletedDbItems.coursework_image = true;
+
+        queueLogChange(
+          projectId,
+          'deleted',
+          'coursework_image',
+          paths,
+          null,
+          req.user.id,
+          'Removed coursework main image(s)',
+          req.ip || req.connection?.remoteAddress,
+          req.get('User-Agent')
+        );
+      }
+    }
+
+    // ลบโปสเตอร์ของ coursework/competition
+    if (remove_poster === true) {
+      if (project.type === PROJECT_TYPES.COURSEWORK) {
+        const [cw] = await connection.execute(
+          `SELECT poster FROM courseworks WHERE project_id = ?`,
+          [projectId]
+        );
+        if (cw.length > 0 && cw[0].poster) {
+          const posterPath = cw[0].poster;
+          await connection.execute(
+            `UPDATE courseworks SET poster = NULL WHERE project_id = ?`,
+            [projectId]
+          );
+          filesToDelete.push(posterPath);
+          deletedDbItems.coursework_poster = true;
+
+          queueLogChange(
+            projectId,
+            'deleted',
+            'coursework_poster',
+            posterPath,
+            null,
+            req.user.id,
+            'Removed coursework poster',
+            req.ip || req.connection?.remoteAddress,
+            req.get('User-Agent')
+          );
+        }
+      } else if (project.type === PROJECT_TYPES.COMPETITION) {
+        const [comp] = await connection.execute(
+          `SELECT poster FROM competitions WHERE project_id = ?`,
+          [projectId]
+        );
+        if (comp.length > 0 && comp[0].poster) {
+          const posterPath = comp[0].poster;
+          await connection.execute(
+            `UPDATE competitions SET poster = NULL WHERE project_id = ?`,
+            [projectId]
+          );
+          filesToDelete.push(posterPath);
+          deletedDbItems.competition_poster = true;
+
+          queueLogChange(
+            projectId,
+            'deleted',
+            'competition_poster',
+            posterPath,
+            null,
+            req.user.id,
+            'Removed competition poster',
+            req.ip || req.connection?.remoteAddress,
+            req.get('User-Agent')
+          );
+        }
+      }
+    }
+
+// ลบไฟล์ PDF ของบทความวิชาการ (academic)
+if (remove_paper_file === true && project.type === PROJECT_TYPES.ACADEMIC) {
+  const [ac] = await connection.execute(
+    `SELECT paper_file FROM academic_papers WHERE project_id = ?`,
+    [projectId]
+  );
+  if (ac.length > 0 && ac[0].paper_file) {
+    const pdfPath = ac[0].paper_file;
+    await connection.execute(
+      `UPDATE academic_papers SET paper_file = NULL WHERE project_id = ?`,
+      [projectId]
+    );
+    filesToDelete.push(pdfPath);
+    deletedDbItems.academic_paper_file = true;
+
+    queueLogChange(
+      projectId,
+      'deleted',
+      'academic_paper_file',
+      pdfPath,
+      null,
+      req.user.id,
+      'Removed academic paper PDF',
+      req.ip || req.connection?.remoteAddress,
+      req.get('User-Agent')
+    );
+  }
+}
+    // ลบรูปใน project_files ตาม file_ids
+    if (fileIds.length > 0) {
+      const placeholders = fileIds.map(() => '?').join(',');
+      const [rows] = await connection.execute(
+        `
+        SELECT file_id, file_path
+        FROM project_files
+        WHERE project_id = ? AND file_type = 'image' AND file_id IN (${placeholders})
+        `,
+        [projectId, ...fileIds]
+      );
+
+      if (rows.length > 0) {
+        const rowIds = rows.map(r => r.file_id);
+        const delPlaceholders = rowIds.map(() => '?').join(',');
+        await connection.execute(
+          `DELETE FROM project_files WHERE project_id = ? AND file_type = 'image' AND file_id IN (${delPlaceholders})`,
+          [projectId, ...rowIds]
+        );
+        rows.forEach(r => {
+          if (r.file_path) filesToDelete.push(r.file_path);
+          deletedDbItems.project_files.push(r.file_id);
+        });
+
+        queueLogChange(
+          projectId,
+          'deleted',
+          'project_files_images',
+          rows.map(r => ({ file_id: r.file_id, file_path: r.file_path })),
+          null,
+          req.user.id,
+          `Removed ${rows.length} project_files image(s)`,
+          req.ip || req.connection?.remoteAddress,
+          req.get('User-Agent')
+        );
+      }
+    }
+
+    // ลบรูปตาม path ที่ระบุ
+    if (filePaths.length > 0) {
+      // 1) อัปเดต JSON array ในตารางตามประเภทโปรเจกต์ (coursework / competition)
+      if (project.type === PROJECT_TYPES.COURSEWORK) {
+        const [cw] = await connection.execute(
+          `SELECT image FROM courseworks WHERE project_id = ?`,
+          [projectId]
+        );
+        if (cw.length > 0) {
+          let arr = [];
+          const imgVal = cw[0].image;
+          try {
+            if (Array.isArray(imgVal)) {
+              arr = imgVal.filter(p => typeof p === 'string' && p);
+            } else if (typeof imgVal === 'string' && imgVal.trim().length > 0) {
+              const parsed = JSON.parse(imgVal);
+              arr = Array.isArray(parsed) ? parsed.filter(p => typeof p === 'string' && p) : (imgVal ? [imgVal] : []);
+            }
+          } catch {
+            arr = imgVal ? [imgVal] : [];
+          }
+          const setToRemove = new Set(filePaths);
+          const beforeLen = arr.length;
+          const newArr = arr.filter(p => !setToRemove.has(p));
+          if (newArr.length !== beforeLen) {
+            await connection.execute(
+              `UPDATE courseworks SET image = ? WHERE project_id = ?`,
+              [newArr.length > 0 ? JSON.stringify(newArr) : null, projectId]
+            );
+            deletedDbItems.coursework_image = true;
+            // เพิ่มรายการไฟล์ที่ต้องลบจริง (เฉพาะที่อยู่ใต้ uploads/)
+            newArr.forEach(() => {}); // no-op, only for clarity
+            arr.forEach(p => { if (setToRemove.has(p)) filesToDelete.push(p); });
+            queueLogChange(
+              projectId,
+              'deleted',
+              'courseworks.image_paths',
+              arr,
+              newArr,
+              req.user.id,
+              `Removed ${beforeLen - newArr.length} image path(s) from courseworks.image`,
+              req.ip || req.connection?.remoteAddress,
+              req.get('User-Agent')
+            );
+          }
+        }
+      } else if (project.type === PROJECT_TYPES.COMPETITION) {
+        const [comp] = await connection.execute(
+          `SELECT image FROM competitions WHERE project_id = ?`,
+          [projectId]
+        );
+        if (comp.length > 0) {
+          let arr = [];
+          const imgVal = comp[0].image;
+          try {
+            if (Array.isArray(imgVal)) {
+              arr = imgVal.filter(p => typeof p === 'string' && p);
+            } else if (typeof imgVal === 'string' && imgVal.trim().length > 0) {
+              const parsed = JSON.parse(imgVal);
+              arr = Array.isArray(parsed) ? parsed.filter(p => typeof p === 'string' && p) : (imgVal ? [imgVal] : []);
+            }
+          } catch {
+            arr = imgVal ? [imgVal] : [];
+          }
+          const setToRemove = new Set(filePaths);
+          const beforeLen = arr.length;
+          const newArr = arr.filter(p => !setToRemove.has(p));
+          if (newArr.length !== beforeLen) {
+            await connection.execute(
+              `UPDATE competitions SET image = ? WHERE project_id = ?`,
+              [newArr.length > 0 ? JSON.stringify(newArr) : null, projectId]
+            );
+            // บันทึกไฟล์ที่จะลบจริง (เฉพาะ uploads/)
+            arr.forEach(p => { if (setToRemove.has(p)) filesToDelete.push(p); });
+            queueLogChange(
+              projectId,
+              'deleted',
+              'competitions.image_paths',
+              arr,
+              newArr,
+              req.user.id,
+              `Removed ${beforeLen - newArr.length} image path(s) from competitions.image`,
+              req.ip || req.connection?.remoteAddress,
+              req.get('User-Agent')
+            );
+          }
+        }
+      }
+
+      // 2) Fallback: ลบจากตาราง project_files (เพื่อความเข้ากันได้ย้อนหลัง)
+      const pathPlaceholders = filePaths.map(() => '?').join(',');
+      const [rowsByPath] = await connection.execute(
+        `
+        SELECT file_id, file_path
+        FROM project_files
+        WHERE project_id = ? AND file_type = 'image' AND file_path IN (${pathPlaceholders})
+        `,
+        [projectId, ...filePaths]
+      );
+
+      if (rowsByPath.length > 0) {
+        const delIds = rowsByPath.map(r => r.file_id);
+        const delPlaceholders2 = delIds.map(() => '?').join(',');
+        await connection.execute(
+          `DELETE FROM project_files WHERE project_id = ? AND file_type = 'image' AND file_id IN (${delPlaceholders2})`,
+          [projectId, ...delIds]
+        );
+        rowsByPath.forEach(r => {
+          if (r.file_path) filesToDelete.push(r.file_path);
+          deletedDbItems.project_files.push(r.file_id);
+        });
+
+        queueLogChange(
+          projectId,
+          'deleted',
+          'project_files_images_by_path',
+          rowsByPath.map(r => ({ file_id: r.file_id, file_path: r.file_path })),
+          null,
+          req.user.id,
+          `Removed ${rowsByPath.length} project_files image(s) by path`,
+          req.ip || req.connection?.remoteAddress,
+          req.get('User-Agent')
+        );
+      }
+    }
+
+    await connection.commit();
+
+    // ลบไฟล์จริง (ถ้าเป็นไฟล์ในระบบ)
+    const deletedFiles = [];
+    for (const p of filesToDelete) {
+      try {
+        if (p && typeof p === 'string' && p.startsWith('uploads/')) {
+          await fs.promises.unlink(p);
+          deletedFiles.push(p);
+        }
+      } catch (err) {
+        logger.warn(`Failed to delete file ${p}: ${err.message}`);
+      }
+    }
+
+    if (deletedFiles.length > 0) {
+      queueLogChange(
+        projectId,
+        'deleted',
+        'physical_image_files',
+        filesToDelete,
+        deletedFiles,
+        req.user.id,
+        `Deleted ${deletedFiles.length} physical image file(s)`,
+        req.ip || req.connection?.remoteAddress,
+        req.get('User-Agent')
+      );
+    }
+
+    return res.json(
+      successResponse(
+        {
+          projectId,
+          deleted: deletedDbItems,
+          deletedFiles,
+          message: 'Images removed successfully'
+        },
+        'Images removed successfully'
+      )
+    );
+  } catch (error) {
+    await connection.rollback();
+    logger.error(`Error deleting project images for project ${req.params.projectId}:`, error);
+    return handleServerError(res, error);
+  } finally {
+    connection.release();
+  }
+};
 module.exports = {
   getAllProjects,
   getTop9Projects,
@@ -2304,5 +3234,6 @@ module.exports = {
   uploadProject,
   updateProjectWithFiles,
   deleteProject,
+  deleteProjectImages,
   incrementViewCount
 };

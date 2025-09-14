@@ -15,11 +15,10 @@ import {
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
-import { 
-  getCategoryName, 
-  getCategoryColor, 
-  getStatusName, 
-  getStatusColor 
+import {
+  getCategoryName,
+  getCategoryColor,
+  getStatusName
 } from '../../utils/projectUtils';
 import SearchBar from '../common/SearchBar';
 import ProjectFilterForm from './ProjectFilterForm';
@@ -27,6 +26,7 @@ import EmptyState from '../common/EmptyState';
 import ErrorDisplay from '../common/ErrorDisplay';
 import ProjectReviewForm from '../projects/ProjectReviewForm';
 import { URL } from '../../constants/apiEndpoints';
+import { getSafeAvatarSrc, getSafeImageSrc, handleImgError, markImageMissing } from '../../lib/imageFallback';
 
 const { Text, Title } = Typography;
 const { confirm } = Modal;
@@ -121,11 +121,12 @@ const ProjectList = ({
       render: (text, record) => (
         <div className="flex items-center">
           {record.image ? (
-            <img 
-              src={`${URL}/${record.image}`} 
-              alt={text} 
+            <img
+              src={getSafeImageSrc(`${URL}/${record.image}`)}
+              alt={text}
               className="w-12 h-12 object-cover rounded mr-3"
-              onError={(e) => { e.target.src = '/images/project-placeholder.png'; }}
+              loading="lazy"
+              onError={(e) => handleImgError(e, `${URL}/${record.image}`)}
             />
           ) : (
             <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center mr-3">
@@ -169,12 +170,13 @@ const ProjectList = ({
         <div className="flex items-center">
           <Tooltip title={record.full_name || text}>
             <div className="flex items-center">
-              <Avatar 
-                src={record.user_image ? `${URL}/${record.user_image}` : null}
+              <Avatar
+                src={getSafeAvatarSrc(record.user_image ? `${URL}/${record.user_image}` : null)}
+                onError={() => record.user_image && markImageMissing(`${URL}/${record.user_image}`)}
                 icon={!record.user_image && <UserOutlined />}
                 size="small"
                 className="mr-2"
-                style={{ 
+                style={{
                   backgroundColor: !record.user_image ? '#90278E' : undefined,
                 }}
               />
@@ -406,7 +408,7 @@ const ProjectList = ({
         columns={columns}
         dataSource={projects.map(project => ({ ...project, key: project.project_id }))}
         pagination={paginationOptions}
-        onChange={(pagination, filters, sorter) => {
+        onChange={(pagination) => {
           onPageChange(pagination.current, pagination.pageSize);
         }}
         loading={loading}

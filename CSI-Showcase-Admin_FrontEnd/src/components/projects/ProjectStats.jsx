@@ -1,3 +1,4 @@
+import React, { memo } from 'react';
 import {
     ProjectOutlined,
     CheckCircleOutlined,
@@ -46,15 +47,15 @@ import {
   };
   
   // คอมโพเนนต์ tooltip ที่กำหนดเอง
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = memo(({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 shadow-md">
           <p className="font-medium text-gray-800">{label}</p>
           {payload.map((entry, index) => (
             <div key={`item-${index}`} className="flex items-center mt-1">
-              <div 
-                className="w-3 h-3 rounded-full mr-2" 
+              <div
+                className="w-3 h-3 rounded-full mr-2"
                 style={{ backgroundColor: entry.fill || entry.color }}
               ></div>
               <span className="text-gray-800">{entry.name}: </span>
@@ -66,7 +67,7 @@ import {
     }
   
     return null;
-  };
+  });
   
   const ProjectStats = ({
     stats,
@@ -289,6 +290,7 @@ import {
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
+                      isAnimationActive={false}
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
                       {typeChartData.map((entry, index) => (
@@ -314,6 +316,7 @@ import {
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
+                      isAnimationActive={false}
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
                       {statusChartData.map((entry, index) => (
@@ -342,10 +345,10 @@ import {
                     <YAxis />
                     <RechartsTooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Bar name="ทั้งหมด" dataKey="project_count" fill="#90278E" />
-                    <Bar name="ผลงานการเรียน" dataKey="coursework_count" fill="#52c41a" />
-                    <Bar name="บทความวิชาการ" dataKey="academic_count" fill="#1890ff" />
-                    <Bar name="การแข่งขัน" dataKey="competition_count" fill="#faad14" />
+                    <Bar name="ทั้งหมด" dataKey="project_count" fill="#90278E" isAnimationActive={false} />
+                    <Bar name="ผลงานการเรียน" dataKey="coursework_count" fill="#52c41a" isAnimationActive={false} />
+                    <Bar name="บทความวิชาการ" dataKey="academic_count" fill="#1890ff" isAnimationActive={false} />
+                    <Bar name="การแข่งขัน" dataKey="competition_count" fill="#faad14" isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -367,12 +370,13 @@ import {
                     <YAxis />
                     <RechartsTooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Line 
-                      name="จำนวนการเข้าชม" 
-                      type="monotone" 
-                      dataKey="view_count" 
-                      stroke="#90278E" 
-                      activeDot={{ r: 8 }}
+                    <Line
+                      name="จำนวนการเข้าชม"
+                      type="monotone"
+                      dataKey="view_count"
+                      stroke="#90278E"
+                      dot={false}
+                      isAnimationActive={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -408,4 +412,4 @@ import {
     );
   };
   
-  export default ProjectStats;
+  export default memo(ProjectStats);

@@ -102,7 +102,12 @@ const ProjectCard = ({
               alt={project.title}
               src={`/uploads/images/${project.image}`}
               className="h-full w-full object-cover"
-              onError={(e) => { e.target.src = '/images/project-placeholder.png'; }}
+              loading="lazy"
+              onError={(e) => {
+                const img = e.currentTarget;
+                img.onerror = null;
+                img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
+              }}
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center bg-gray-100 text-gray-400">

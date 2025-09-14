@@ -153,7 +153,6 @@ const ReviewLogList = ({
 
   // สร้างฟังก์ชันสำหรับการ reset filter
   const handleResetFilters = () => {
-    console.log('Resetting filters from ReviewLogList');
     
     // ใช้ onReset จาก props หากมี
     if (typeof onReset === 'function') {

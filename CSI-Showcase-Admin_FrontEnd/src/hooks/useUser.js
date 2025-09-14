@@ -10,8 +10,11 @@ import {
   getUserStats,
   importUsersFromCSV,
   downloadCSVTemplate,
-  changeUserPassword
+  changeUserPassword,
+  updateMyProfile,
+  changeMyPassword
 } from '../services/userService';
+import { useAuth } from '../context/AuthContext';
 import { message } from 'antd';
 
 // Custom debounce hook implementation
@@ -42,6 +45,8 @@ const useDebounce = (value, delay) => {
  * @returns {Object} - สถานะและฟังก์ชันสำหรับจัดการข้อมูลผู้ใช้
  */
 const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null) => {
+  const { user: currentUser } = useAuth();
+  
   // สถานะสำหรับจัดเก็บข้อมูล
   const [users, setUsers] = useState([]);
   const [userDetails, setUserDetails] = useState(null);
@@ -357,7 +362,11 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
         return false;
       }
       
-      const response = await updateUser(id, userData);
+      // ใช้ endpoint ที่เหมาะสมตามบทบาทและการอัปเดต
+      const isUpdatingOwnProfile = currentUser && String(currentUser.id) === String(id);
+      const response = isUpdatingOwnProfile
+        ? await updateMyProfile(userData)
+        : await updateUser(id, userData);
       
       if (response.success) {
         message.success(response.message || 'อัปเดตข้อมูลผู้ใช้สำเร็จ');
@@ -383,7 +392,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
     } finally {
       setActionLoading(false);
     }
-  }, [actionLoading, fetchUserDetails, fetchUsers]);
+  }, [actionLoading, fetchUserDetails, fetchUsers, currentUser]);
   
   /**
    * ลบผู้ใช้
@@ -490,7 +499,13 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
        message.error('ไม่ระบุรหัสผู้ใช้');
        return false;
      }
-     const resp = await changeUserPassword(id, newPassword);
+     
+     // ใช้ endpoint ที่เหมาะสมตามบทบาทและการอัปเดต
+     const isChangingOwnPassword = currentUser && String(currentUser.id) === String(id);
+     const resp = isChangingOwnPassword
+       ? await changeMyPassword(newPassword)
+       : await changeUserPassword(id, newPassword);
+       
      if (resp.success) {
        message.success(resp.message || 'เปลี่ยนรหัสผ่านสำเร็จ');
        return true;
@@ -504,7 +519,7 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
    } finally {
      setActionLoading(false);
    }
- }, [actionLoading]);
+ }, [actionLoading, currentUser]);
 
 
   return {

@@ -20,8 +20,7 @@ import {
   EyeOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
-  BarChartOutlined
+  CloseCircleOutlined
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -46,6 +45,13 @@ const StudentDashboard = () => {
     totalViews: 0
   });
 
+  // Helper to read views from different payload shapes
+  const getProjectViews = (p) => {
+    if (!p) return 0;
+    const v = (p.views ?? p.views_count ?? p.viewsCount ?? p.statistics?.views);
+    return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
+  };
+
   // โหลดข้อมูลโปรเจคของนักศึกษา
   useEffect(() => {
     if (user?.id) {
@@ -60,7 +66,7 @@ const StudentDashboard = () => {
       const approvedProjects = projects.filter(p => p.status === 'approved').length;
       const pendingProjects = projects.filter(p => p.status === 'pending').length;
       const rejectedProjects = projects.filter(p => p.status === 'rejected').length;
-      const totalViews = projects.reduce((sum, p) => sum + (p.views || 0), 0);
+      const totalViews = projects.reduce((sum, p) => sum + getProjectViews(p), 0);
 
       setStats({
         totalProjects,
@@ -110,58 +116,6 @@ const StudentDashboard = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>
-          สวัสดี {user?.full_name || user?.username} 👋
-        </Title>
-        <Text type="secondary">
-          ยินดีต้อนรับสู่ระบบจัดการผลงาน CSI ProjectManage
-        </Text>
-      </div>
-
-      {/* Quick Actions */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Space direction="vertical" size="small" style={{ width: '100%', textAlign: 'center' }}>
-              <UploadOutlined style={{ fontSize: 32, color: '#1890ff' }} />
-              <Text strong>อัปโหลดผลงาน</Text>
-              <Link to="/projects/upload">
-                <Button type="primary" size="large" block>
-                  เริ่มต้นอัปโหลด
-                </Button>
-              </Link>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Space direction="vertical" size="small" style={{ width: '100%', textAlign: 'center' }}>
-              <ProjectOutlined style={{ fontSize: 32, color: '#52c41a' }} />
-              <Text strong>ผลงานของฉัน</Text>
-              <Link to="/projects/my-projects">
-                <Button size="large" block>
-                  ดูทั้งหมด
-                </Button>
-              </Link>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Space direction="vertical" size="small" style={{ width: '100%', textAlign: 'center' }}>
-              <BarChartOutlined style={{ fontSize: 32, color: '#fa8c16' }} />
-              <Text strong>สถิติผลงาน</Text>
-              <Link to="/student/analytics">
-                <Button size="large" block>
-                  ดูสถิติ
-                </Button>
-              </Link>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
 
       {/* Statistics Cards */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
@@ -220,39 +174,42 @@ const StudentDashboard = () => {
           <List
             itemLayout="horizontal"
             dataSource={projects.slice(0, 5)}
-            renderItem={(project) => (
-              <List.Item
-                actions={[
-                  <Link key="view" to={`/projects/${project.id}`}>
-                    <Button type="link" size="small">
-                      ดูรายละเอียด
-                    </Button>
-                  </Link>
-                ]}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space>
-                      <span>{project.title}</span>
-                      {renderStatus(project.status)}
-                    </Space>
-                  }
-                  description={
-                    <Space split={<span>•</span>}>
-                      <Text type="secondary">{project.type || 'ผลงาน'}</Text>
-                      <Text type="secondary">
-                        อัปเดตล่าสุด: {new Date(project.updatedAt).toLocaleDateString('th-TH')}
-                      </Text>
-                      {project.views && (
+            renderItem={(project) => {
+              const views = getProjectViews(project);
+              return (
+                <List.Item
+                  actions={[
+                    <Link key="view" to={`/projects/${project.id}`}>
+                      <Button type="link" size="small">
+                        ดูรายละเอียด
+                      </Button>
+                    </Link>
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <span>{project.title}</span>
+                        {renderStatus(project.status)}
+                      </Space>
+                    }
+                    description={
+                      <Space split={<span>•</span>}>
+                        <Text type="secondary">{project.type || 'ผลงาน'}</Text>
                         <Text type="secondary">
-                          <EyeOutlined /> {project.views} ครั้ง
+                          อัปเดตล่าสุด: {new Date(project.updatedAt).toLocaleDateString('th-TH')}
                         </Text>
-                      )}
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
+                        {views > 0 && (
+                          <Text type="secondary">
+                            <EyeOutlined /> {views} ครั้ง
+                          </Text>
+                        )}
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
           />
         ) : (
           <Empty

@@ -181,7 +181,6 @@ const LoginLogList = ({
   
   // สร้างฟังก์ชันสำหรับการ reset filter
   const handleResetFilters = () => {
-    console.log('Resetting filters from LoginLogList');
     
     // ใช้ onReset จาก props หากมี
     if (typeof onReset === 'function') {

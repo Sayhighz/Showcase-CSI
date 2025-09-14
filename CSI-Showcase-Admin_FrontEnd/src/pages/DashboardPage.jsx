@@ -163,11 +163,6 @@ const DashboardPage = () => {
 
   return (
     <div>
-      <PageTitle
-        title="แดชบอร์ด"
-        subtitle={`สวัสดี ${displayName} • ยินดีต้อนรับสู่ระบบจัดการผลงาน CSI ProjectManage`}
-        actions={[{ label: 'รีเฟรช', icon: <ReloadOutlined />, onClick: handleRefresh }]}
-      />
 
       {loading && (
         <div className="mb-4">

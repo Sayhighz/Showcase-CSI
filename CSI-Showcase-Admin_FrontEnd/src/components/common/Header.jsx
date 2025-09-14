@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import useNotification from '../../hooks/useNotification';
+import { URL } from '../../constants/apiEndpoints';
 
 const { Header: AntHeader } = Layout;
 const { Text } = Typography;
@@ -183,14 +184,14 @@ const Header = ({ collapsed, onMenuClick, onLogout, admin }) => {
           
           <Dropdown overlay={userMenu} trigger={['click']} placement="bottomRight" arrow>
             <div className="flex items-center cursor-pointer">
-              <Avatar 
-                size="default" 
-                src={admin?.image ? `/uploads/profiles/${admin.image}` : null}
+              <Avatar
+                size="default"
+                src={admin?.image ? `${URL}/${admin.image}${admin?.imageVersion ? `?v=${admin.imageVersion}` : ''}` : null}
                 icon={!admin?.image && <UserOutlined />}
-                style={{ 
+                style={{
                   backgroundColor: !admin?.image ? '#90278E' : undefined,
-                  marginRight: '8px' 
-                }} 
+                  marginRight: '8px'
+                }}
               />
               <div className="hidden md:block">
                 <Text strong style={{ marginRight: '4px' }}>

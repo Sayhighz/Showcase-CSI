@@ -9,6 +9,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { formatThaiDate } from '../../../utils/dataUtils';
 import { getCategoryName, getCategoryColor, getStatusName, getStatusColor } from '../../../utils/projectUtils';
 import { URL } from '../../../constants/apiEndpoints';
+import { decodeHtmlEntities } from '../../../utils/stringUtils';
 
 const { Title, Paragraph } = Typography;
 
@@ -38,16 +39,6 @@ const ProjectInfo = ({
       extra={renderProjectStatus()}
     >
       <div className="space-y-6">
-        {/* รูปปกโปรเจค */}
-        {projectDetails.image && (
-          <div className="mb-5">
-            <img 
-              src={`${URL}/${projectDetails.image}`} 
-              alt={projectDetails.title} 
-              className="w-full h-60 object-cover rounded-lg shadow-md"
-            />
-          </div>
-        )}
         
         <Descriptions 
           bordered 
@@ -93,7 +84,7 @@ const ProjectInfo = ({
         
         <div className="bg-gray-50 p-4 rounded-lg">
           <Paragraph>
-            {projectDetails.description || 'ไม่มีรายละเอียดเพิ่มเติม'}
+            {decodeHtmlEntities(projectDetails.description) || 'ไม่มีรายละเอียดเพิ่มเติม'}
           </Paragraph>
         </div>
         

@@ -45,9 +45,9 @@ const getMenuItems = (userRole) => {
         label: <Link to="/projects/my-projects">ผลงานของฉัน</Link>,
       },
       {
-        key: '/student/analytics',
-        icon: <BarChartOutlined />,
-        label: <Link to="/student/analytics">สถิติของฉัน</Link>,
+        key: '/profile',
+        icon: <UserOutlined />,
+        label: <Link to="/profile">โปรไฟล์ของฉัน</Link>,
       },
     ];
   } else {
@@ -103,6 +103,11 @@ const getMenuItems = (userRole) => {
             icon: <BarChartOutlined style={{ fontSize: '12px' }} />,
           },
         ],
+      },
+      {
+        key: '/profile',
+        icon: <UserOutlined />,
+        label: <Link to="/profile">โปรไฟล์ของฉัน</Link>,
       },
       {
         key: '/logs',
@@ -165,11 +170,11 @@ const Sidebar = ({
       <div className={`${collapsed ? 'py-4' : 'py-5'} flex items-center ${collapsed ? 'justify-center' : 'px-4'}`}>
         {collapsed ? (
           <div className="flex justify-center">
-            <Avatar 
-              size={40} 
-              src={admin?.avatar ? `${URL}/${admin.avatar}` : null}
+            <Avatar
+              size={40}
+              src={admin?.avatar ? `${URL}/${admin.avatar}${admin?.imageVersion ? `?v=${admin.imageVersion}` : ''}` : null}
               icon={!admin?.avatar && <UserOutlined />}
-              style={{ 
+              style={{
                 border: '2px solid rgba(255, 255, 255, 0.3)',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
               }}
@@ -177,13 +182,13 @@ const Sidebar = ({
           </div>
         ) : (
           <div className="flex items-center w-full bg-white bg-opacity-10 p-3 rounded-lg">
-            <Avatar 
-              size={45} 
-              src={admin?.avatar ? `${URL}/${admin.avatar}` : null}
+            <Avatar
+              size={45}
+              src={admin?.avatar ? `${URL}/${admin.avatar}${admin?.imageVersion ? `?v=${admin.imageVersion}` : ''}` : null}
               icon={!admin?.avatar && <UserOutlined />}
-              style={{ 
+              style={{
                 border: '2px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'  
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
               }}
             />
             <div className="ml-3 overflow-hidden">

@@ -4,8 +4,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ConfigProvider } from 'antd';
 import '@ant-design/v5-patch-for-react-19';
 
-// นำเข้า context
+// นำเข้า context และ theme
 import { AuthProvider } from './context/AuthContext';
+import { LoadingProvider } from './context/LoadingContext';
+import { theme } from './config/themeConfig';
 
 // นำเข้า layouts
 import MainLayout from './layouts/MainLayout';
@@ -13,6 +15,7 @@ import AuthLayout from './layouts/AuthLayout';
 
 // นำเข้าหน้าต่างๆ
 import LoginPage from './pages/LoginPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 
 // นำเข้าหน้าต่างๆ เกี่ยวกับโครงงาน
@@ -36,9 +39,9 @@ import VisitorViewsPage from './pages/log/VisitorViewsPage';
 import ReviewLogsPage from './pages/log/ReviewLogsPage';
 import SystemStatsPage from './pages/log/SystemStatsPage';
 
-// นำเข้าหน้าสำหรับนักศึกษา
+/* นำเข้าหน้าสำหรับนักศึกษา */
 import StudentDashboard from './pages/student/StudentDashboard';
-import StudentAnalytics from './pages/student/StudentAnalytics';
+import ProfilePage from './pages/ProfilePage';
 
 // นำเข้าคอมโพเนนต์สำหรับป้องกันเส้นทาง
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -48,49 +51,24 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 // กำหนด base path สำหรับ reverse proxy
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
 
-// กำหนดสีธีมสำหรับ Ant Design
-const theme = {
-  token: {
-    colorPrimary: '#90278E',
-    colorInfo: '#90278E',
-    colorSuccess: '#4CAF50',
-    colorWarning: '#FFC107',
-    colorError: '#F44336',
-    colorBgBase: '#FFFFFF',
-    borderRadius: 4,
-    fontFamily: 'Kanit, sans-serif',
-  },
-  components: {
-    Menu: {
-      colorItemBg: 'transparent',
-      colorItemText: '#FFFFFF',
-      colorItemTextSelected: '#FFFFFF',
-      colorItemBgSelected: '#B15CD0',
-      colorItemTextHover: '#FFFFFF',
-    },
-    Button: {
-      colorPrimaryHover: '#B15CD0',
-    },
-    Layout: {
-      colorBgHeader: '#050114',
-      colorBgBody: '#F5F5F5',
-      colorBgSider: '#050114',
-    },
-  },
-};
-
 const App = () => {
   return (
     <ConfigProvider theme={theme}>
       <ErrorBoundary>
-        <AuthProvider>
-          <Router basename={BASE_PATH}>
+        <LoadingProvider>
+          <AuthProvider>
+            <Router basename={BASE_PATH}>
               <Routes>
                 {/* Public routes - Login */}
                 <Route key="home-redirect" path="/" element={<Navigate to="/login" replace />} />
                 <Route key="login" path="/login" element={
                   <AuthLayout>
                     <LoginPage />
+                  </AuthLayout>
+                } />
+                <Route key="reset-password" path="/reset-password" element={
+                  <AuthLayout>
+                    <ResetPasswordPage />
                   </AuthLayout>
                 } />
 
@@ -123,17 +101,16 @@ const App = () => {
                       } 
                     />
 
-                    {/* Student routes */}
-                    <Route 
-                      key="student-analytics" 
-                      path="/student/analytics" 
+                    <Route
+                      key="my-profile"
+                      path="/profile"
                       element={
-                        <RoleBasedRoute allowedRoles={['student']}>
+                        <RoleBasedRoute allowedRoles={['admin', 'student']}>
                           <ErrorBoundary>
-                            <StudentAnalytics />
+                            <ProfilePage />
                           </ErrorBoundary>
                         </RoleBasedRoute>
-                      } 
+                      }
                     />
 
                     {/* Shared project routes */}
@@ -234,16 +211,29 @@ const App = () => {
                         </RoleBasedRoute>
                       } 
                     />
-                    <Route 
-                      key="user-detail" 
-                      path="/users/:userId" 
+                    <Route
+                      key="user-detail"
+                      path="/users/:userId"
                       element={
                         <RoleBasedRoute allowedRoles={['admin']}>
                           <ErrorBoundary>
                             <UserDetailPage />
                           </ErrorBoundary>
                         </RoleBasedRoute>
-                      } 
+                      }
+                    />
+                    
+                    {/* Route for users to view their own profile details */}
+                    <Route
+                      key="user-profile-detail"
+                      path="/profile/:userId"
+                      element={
+                        <RoleBasedRoute allowedRoles={['admin', 'student']}>
+                          <ErrorBoundary>
+                            <UserDetailPage />
+                          </ErrorBoundary>
+                        </RoleBasedRoute>
+                      }
                     />
                     <Route 
                       key="user-stats" 
@@ -310,7 +300,8 @@ const App = () => {
                 <Route key="fallback" path="*" element={<Navigate to="/login" replace />} />
               </Routes>
             </Router>
-        </AuthProvider>
+          </AuthProvider>
+        </LoadingProvider>
       </ErrorBoundary>
     </ConfigProvider>
   );

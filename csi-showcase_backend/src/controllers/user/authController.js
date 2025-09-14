@@ -1,8 +1,8 @@
 // controllers/user/authController.js
-const { comparePassword } = require('../../utils/passwordHelper.js');
+const { comparePassword, hashPassword } = require('../../utils/passwordHelper.js');
 const pool = require('../../config/database.js');
 const { handleServerError, successResponse, errorResponse } = require('../../utils/responseFormatter.js');
-const { generateToken, generatePasswordResetToken } = require('../../utils/jwtHelper.js');
+const { generateToken, generatePasswordResetToken, verifyPasswordResetToken } = require('../../utils/jwtHelper.js');
 const { sendPasswordResetEmail } = require('../../services/emailService.js');
 const logger = require('../../config/logger.js');
 const { STATUS_CODES } = require('../../constants/statusCodes.js');
@@ -129,14 +129,18 @@ const getCurrentUser = async (req, res) => {
     
     const user = users[0];
     
-    // ดึงข้อมูลจำนวนโครงการของผู้ใช้
+    // ดึงข้อมูลจำนวนโครงการของผู้ใช้ (รวมทั้งที่เป็นสมาชิกในกลุ่มโครงการด้วย)
     const [projectStats] = await pool.execute(`
-      SELECT 
+      SELECT
         COUNT(*) as total_projects,
-        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_projects
-      FROM projects
-      WHERE user_id = ?
-    `, [user.user_id]);
+        SUM(CASE WHEN p.status = 'approved' THEN 1 ELSE 0 END) as approved_projects
+      FROM projects p
+      WHERE p.user_id = ?
+         OR EXISTS (
+           SELECT 1 FROM project_groups pg
+           WHERE pg.project_id = p.project_id AND pg.user_id = ?
+         )
+    `, [user.user_id, user.user_id]);
     
     return res.json(successResponse({
       id: user.user_id,
@@ -186,10 +190,102 @@ const logout = (req, res) => {
   return res.json(successResponse(null, 'Logout successful'));
 };
 
+// Password reset: request link
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+
+    // Always return success-style response to avoid user enumeration
+    if (!email || !isValidEmail(email)) {
+      return res.json(successResponse(null, 'If an account with that email exists, a reset link has been sent'));
+    }
+
+    const [users] = await pool.execute(
+      `SELECT user_id, username, email FROM users WHERE email = ?`,
+      [email]
+    );
+
+    // Do not reveal existence of the email
+    if (users.length === 0) {
+      return res.json(successResponse(null, 'If an account with that email exists, a reset link has been sent'));
+    }
+
+    const user = users[0];
+    const resetToken = generatePasswordResetToken({
+      id: user.user_id,
+      username: user.username,
+      email: user.email
+    });
+
+    try {
+      await sendPasswordResetEmail(user.email, resetToken, user.username);
+    } catch (mailErr) {
+      logger.error('Failed to send password reset email:', mailErr);
+      // Still return success-style message to avoid leaking info
+    }
+
+    return res.json(successResponse(null, 'If an account with that email exists, a reset link has been sent'));
+  } catch (error) {
+    logger.error('Forgot password error:', error);
+    return handleServerError(res, error);
+  }
+};
+
+// Password reset: confirm new password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, new_password } = req.body || {};
+
+    if (!token || !new_password) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json(
+        errorResponse('Token and new_password are required', STATUS_CODES.BAD_REQUEST)
+      );
+    }
+
+    if (new_password.length < 8) {
+      return res.status(STATUS_CODES.UNPROCESSABLE_ENTITY).json(
+        errorResponse('Password must be at least 8 characters long', STATUS_CODES.UNPROCESSABLE_ENTITY)
+      );
+    }
+
+    const decoded = verifyPasswordResetToken(token);
+    if (!decoded || !decoded.id) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        errorResponse('Invalid or expired token', STATUS_CODES.UNAUTHORIZED)
+      );
+    }
+
+    // Ensure user exists
+    const [users] = await pool.execute(
+      `SELECT user_id FROM users WHERE user_id = ?`,
+      [decoded.id]
+    );
+    if (users.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json(
+        errorResponse(getErrorMessage('USER.NOT_FOUND'), STATUS_CODES.NOT_FOUND)
+      );
+    }
+
+    const hashed = await hashPassword(new_password);
+    await pool.execute(
+      `UPDATE users SET password_hash = ? WHERE user_id = ?`,
+      [hashed, decoded.id]
+    );
+
+    logger.info(`User ${decoded.id} reset password`);
+    return res.json(successResponse(null, 'Password has been reset successfully'));
+  } catch (error) {
+    logger.error('Reset password error:', error);
+    return handleServerError(res, error);
+  }
+};
+
 // Export functions
 module.exports = {
   login,
   getCurrentUser,
   verifyToken,
-  logout
+  logout,
+  forgotPassword,
+  resetPassword
 };

@@ -238,19 +238,32 @@ export const truncateText = (text, maxLength, suffix = '...') => {
   /**
    * แทนที่คำในข้อความ
    * @param {string} text - ข้อความเดิม
-   * @param {Object} replacements - ออบเจกต์ที่กำหนดคำที่ต้องการแทนที่ 
+   * @param {Object} replacements - ออบเจกต์ที่กำหนดคำที่ต้องการแทนที่
    *                              (key: คำที่ต้องการแทนที่, value: คำที่ใช้แทนที่)
    * @returns {string} - ข้อความที่แทนที่คำแล้ว
    */
   export const replaceWords = (text, replacements) => {
     if (!text || !replacements) return text || '';
-    
+
     let result = text;
-    
+
     Object.entries(replacements).forEach(([search, replace]) => {
       const regex = new RegExp(search, 'g');
       result = result.replace(regex, replace);
     });
-    
+
     return result;
+  };
+
+  /**
+   * ถอดรหัส HTML entities ในข้อความ
+   * @param {string} text - ข้อความที่มี HTML entities
+   * @returns {string} - ข้อความที่ถอดรหัสแล้ว
+   */
+  export const decodeHtmlEntities = (text) => {
+    if (!text) return '';
+
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
   };

@@ -1,13 +1,14 @@
 // src/components/auth/RoleBasedRoute.jsx
 import React, { useMemo } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Result, Button } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const RoleBasedRoute = ({ children, allowedRoles = [] }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Memoize role check to prevent unnecessary re-renders
   const roleCheck = useMemo(() => {
@@ -35,11 +36,9 @@ const RoleBasedRoute = ({ children, allowedRoles = [] }) => {
       return <LoadingSpinner />;
 
     case 'unauthenticated':
-      console.log('🔄 RoleBasedRoute: Redirecting unauthenticated user to login');
       return <Navigate to="/login" state={{ from: location }} replace />;
 
     case 'unauthorized':
-      console.log(`⛔ RoleBasedRoute: User role "${user?.role}" not authorized for roles:`, allowedRoles);
       return (
         <Result
           status="403"
@@ -49,17 +48,14 @@ const RoleBasedRoute = ({ children, allowedRoles = [] }) => {
             <Button 
               key="home" 
               type="primary" 
-              onClick={() => window.location.href = roleCheck.redirectPath}
+              onClick={() => navigate(roleCheck.redirectPath, { replace: true })}
             >
               กลับสู่หน้าหลัก
             </Button>,
             <Button 
               key="logout" 
               onClick={() => {
-                // Force logout and redirect to login
-                localStorage.clear();
-                sessionStorage.clear();
-                window.location.href = '/';
+                logout();
               }}
             >
               ออกจากระบบ

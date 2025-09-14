@@ -71,6 +71,14 @@ const ReviewStep = ({ projectType, validatedValues, fileList, contributors }) =>
         size: file.size
       })));
     }
+
+    if (projectType === PROJECT_TYPE.COMPETITION && fileList.competitionImage?.length > 0) {
+      files.push(...fileList.competitionImage.map(file => ({
+        name: file.name || 'รูปภาพเพิ่มเติม',
+        type: 'รูปภาพ',
+        size: file.size
+      })));
+    }
     
     return files;
   };

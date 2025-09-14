@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Statistic, Tooltip, Typography, Tag } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined } from '@ant-design/icons';
 import { formatNumber } from '../../utils/numberUtils';
+import { colors } from '../../config/themeConfig';
 
 const { Text } = Typography;
 
@@ -68,49 +69,91 @@ const StatCard = ({
 
   return (
     <Card
-      className={`h-full hover:shadow-md transition-shadow ${className}`}
-      style={{ cursor: onClick ? 'pointer' : 'default', ...style }}
+      className={`h-full admin-card hover:transform hover:scale-105 transition-all duration-300 cursor-pointer ${className}`}
+      style={{
+        cursor: onClick ? 'pointer' : 'default',
+        background: 'rgba(255, 255, 255, 0.98)',
+        border: `1px solid ${colors.primary}15`,
+        borderRadius: '16px',
+        boxShadow: `0 8px 25px rgba(${parseInt(colors.primary.slice(1, 3), 16)}, ${parseInt(colors.primary.slice(3, 5), 16)}, ${parseInt(colors.primary.slice(5, 7), 16)}, 0.08)`,
+        ...style
+      }}
       onClick={onClick}
       loading={loading}
-      bodyStyle={{ padding: '20px' }}
+      bodyStyle={{ padding: '24px' }}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <Text type="secondary" className="text-xs font-medium uppercase">
+      {/* Background gradient overlay */}
+      <div
+        className="absolute top-0 right-0 w-20 h-20 opacity-5 rounded-bl-full"
+        style={{
+          background: `linear-gradient(135deg, ${color}, ${colors.secondary})`,
+        }}
+      />
+      
+      <div className="flex items-start justify-between relative z-10">
+        <div className="flex-1">
+          <Text
+            className="text-sm font-sukhumvit font-medium uppercase tracking-wider mb-2 block"
+            style={{ color: colors.textMuted }}
+          >
             {title}
           </Text>
-          <Statistic 
-            value={value} 
+          <Statistic
+            value={value}
             precision={precision}
             suffix={suffix}
             prefix={prefix}
-            valueStyle={{ 
-              color, 
-              fontSize: '24px',
-              fontWeight: 600,
+            valueStyle={{
+              color,
+              fontSize: '28px',
+              fontWeight: 700,
+              fontFamily: 'SukhumvitSet',
+              lineHeight: 1.2
             }}
             formatter={(val) => formatNumber(val, precision)}
           />
           {renderComparison()}
         </div>
         {icon && (
-          <div 
-            className="flex items-center justify-center w-12 h-12 rounded-lg" 
-            style={{ 
-              backgroundColor: `${color}20`,
-              color: color
+          <div
+            className="flex items-center justify-center w-16 h-16 rounded-2xl shadow-lg hover:scale-110 transition-transform duration-300"
+            style={{
+              background: `linear-gradient(135deg, ${color}15, ${color}25)`,
+              color: color,
+              border: `2px solid ${color}20`
             }}
           >
-            {icon}
+            <div style={{ fontSize: '28px' }}>
+              {icon}
+            </div>
           </div>
         )}
       </div>
       
       {footer && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          {footer}
+        <div
+          className="mt-6 pt-4 relative"
+          style={{
+            borderTop: `1px solid ${colors.primary}10`
+          }}
+        >
+          <div className="flex items-center justify-between">
+            {footer}
+            {onClick && (
+              <div className="text-xs text-gray-400 font-sukhumvit">
+                คลิกเพื่อดูรายละเอียด
+              </div>
+            )}
+          </div>
         </div>
       )}
+      
+      {/* Hover glow effect */}
+      <style jsx>{`
+        .admin-card:hover {
+          box-shadow: 0 15px 40px rgba(${parseInt(colors.primary.slice(1, 3), 16)}, ${parseInt(colors.primary.slice(3, 5), 16)}, ${parseInt(colors.primary.slice(5, 7), 16)}, 0.15) !important;
+        }
+      `}</style>
     </Card>
   );
 };

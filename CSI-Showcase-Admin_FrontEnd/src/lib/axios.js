@@ -39,10 +39,21 @@ axiosInstance.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // If sending FormData, let the browser set proper multipart boundary
+    // Identify requests coming from Admin FrontEnd (used by backend to skip view increments)
+    config.headers['x-admin-client'] = 'true';
+
+    // If sending FormData, let the browser set proper multipart boundary and extend timeout
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       // Remove default JSON header so axios/browser can set multipart/form-data with boundary
       delete config.headers['Content-Type'];
+
+      // Increase timeout for large uploads/updates (default 120s, override via VITE_AXIOS_FORMDATA_TIMEOUT)
+      const extendedTimeout = parseInt(import.meta.env.VITE_AXIOS_FORMDATA_TIMEOUT || '120000', 10);
+      if (!Number.isNaN(extendedTimeout) && extendedTimeout > 0) {
+        config.timeout = Math.max(config.timeout || 0, extendedTimeout);
+      } else {
+        config.timeout = Math.max(config.timeout || 0, 120000);
+      }
     }
 
     return config;
@@ -69,6 +80,10 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Silently ignore canceled requests from rapid user actions (e.g., repeated searches)
+    if (error?.code === 'ERR_CANCELED' || (typeof axios !== 'undefined' && typeof axios.isCancel === 'function' && axios.isCancel(error))) {
+      return Promise.reject(error);
+    }
     const originalRequest = error.config;
     
     // Handle 401 Unauthorized
@@ -118,7 +133,7 @@ axiosInstance.interceptors.response.use(
           const decoded = jwtDecode(token);
           role = decoded?.role || null;
         }
-      } catch (_) {}
+      } catch { /* ignore decode error */ }
 
       const isAdminApi = reqUrl.includes('/admin/');
       const isAdminOnlyMsg = typeof backendMsg === 'string' && backendMsg.toLowerCase().includes('admin privileges required');
@@ -184,70 +199,46 @@ axiosInstance.interceptors.response.use(
 
 // HTTP GET function
 export const axiosGet = async (url, params = {}) => {
-  try {
-    const response = await axiosInstance.get(url, { params });
-    // ตรวจสอบและจัดรูปแบบข้อมูล
-    if (Array.isArray(response)) {
-      return response;
-    } else if (response && response.data) {
-      return response.data;
-    } else if (response && typeof response === 'object') {
-      return response;
-    }
-    return [];
-  } catch (error) {
-    // Avoid noisy console logs; errors are handled by response interceptor
-    throw error;
+  const response = await axiosInstance.get(url, { params });
+  // ตรวจสอบและจัดรูปแบบข้อมูล
+  if (Array.isArray(response)) {
+    return response;
+  } else if (response && response.data) {
+    return response.data;
+  } else if (response && typeof response === 'object') {
+    return response;
   }
+  return [];
 };
 
 // HTTP POST function
-export const axiosPost = async (url, data = {}) => {
-  try {
-    const response = await axiosInstance.post(url, data);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+export const axiosPost = async (url, data = {}, config = {}) => {
+  return axiosInstance.post(url, data, config);
 };
 
 // HTTP PUT function
-export const axiosPut = async (url, data = {}) => {
-  try {
-    const response = await axiosInstance.put(url, data);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+export const axiosPut = async (url, data = {}, config = {}) => {
+  return axiosInstance.put(url, data, config);
 };
 
 // HTTP DELETE function
-export const axiosDelete = async (url) => {
-  try {
-    const response = await axiosInstance.delete(url);
-    return response;
-  } catch (error) {
-    throw error;
-  }
+export const axiosDelete = async (url, config = {}) => {
+  return axiosInstance.delete(url, config);
 };
 
 // File upload function
 // File upload function
 export const axiosUpload = async (url, formData, onProgress = () => {}) => {
-  try {
-    const response = await axiosInstance.post(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        onProgress(percentCompleted);
-      }
-    });
-    return response;
-  } catch (error) {
-    throw error;
-  }
+  return axiosInstance.post(url, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (progressEvent) => {
+      const total = progressEvent.total || 1;
+      const percentCompleted = Math.round((progressEvent.loaded * 100) / total);
+      onProgress(percentCompleted);
+    }
+  });
 };
 
 export default axiosInstance;

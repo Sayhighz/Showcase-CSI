@@ -3,11 +3,13 @@ import { Card, Avatar, Typography, Descriptions, Button } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { URL } from '../../../constants/apiEndpoints';
+import { useAuth } from '../../../context/AuthContext';
 
 const { Title, Text } = Typography;
 
 const CreatorInfo = ({ projectDetails }) => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   
   if (!projectDetails) return null;
   
@@ -64,7 +66,13 @@ const CreatorInfo = ({ projectDetails }) => {
         type="default"
         icon={<EyeOutlined />}
         block
-        onClick={() => navigate(`/users/${uploader.userId}`)}
+        onClick={() => {
+          if (authUser?.role === 'student' && uploader?.userId && String(authUser.id) === String(uploader.userId)) {
+            navigate('/profile');
+          } else {
+            navigate(`/users/${uploader.userId}`);
+          }
+        }}
         className="mt-2"
       >
         ดูโปรไฟล์ผู้ใช้

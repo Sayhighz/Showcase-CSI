@@ -1,5 +1,5 @@
 // src/services/adminLogService.js
-import { axiosGet } from '../lib/axios';
+import { cachedGet } from '../lib/axiosCached';
 import { ADMIN } from '../constants/apiEndpoints';
 import { formatThaiDate } from '../utils/dataUtils';
 
@@ -35,8 +35,8 @@ export const getAllLoginLogs = async (filters = {}) => {
     // สร้าง URL พร้อม query string
     const url = ADMIN.LOGS.LOGIN_LOGS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await axiosGet(url);
-    
+    const response = await cachedGet(url, { params: queryParams });
+
     return {
       success: true,
       data: {
@@ -75,8 +75,8 @@ export const getVisitorViews = async (filters = {}) => {
     // สร้าง URL พร้อม query string
     const url = ADMIN.LOGS.VISITOR_VIEWS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await axiosGet(url);
-    
+    const response = await cachedGet(url, { params: queryParams });
+
     return {
       success: true,
       data: {
@@ -115,8 +115,8 @@ export const getProjectReviews = async (filters = {}) => {
     // สร้าง URL พร้อม query string
     const url = ADMIN.LOGS.PROJECT_REVIEWS + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     
-    const response = await axiosGet(url);
-    
+    const response = await cachedGet(url, { params: queryParams });
+
     return {
       success: true,
       data: {
@@ -142,7 +142,7 @@ export const getProjectReviews = async (filters = {}) => {
  */
 export const getSystemStats = async () => {
   try {
-    const response = await axiosGet(ADMIN.LOGS.SYSTEM_STATS);
+    const response = await cachedGet(ADMIN.LOGS.SYSTEM_STATS);
     
     // สร้างโครงสร้างข้อมูลให้ตรงกับ response ที่ได้รับ
     const statsData = {
@@ -187,7 +187,7 @@ export const getSystemStats = async () => {
  */
 export const getDailyStats = async () => {
   try {
-    const response = await axiosGet(ADMIN.LOGS.DAILY_STATS);
+    const response = await cachedGet(ADMIN.LOGS.DAILY_STATS);
     
     return {
       success: true,

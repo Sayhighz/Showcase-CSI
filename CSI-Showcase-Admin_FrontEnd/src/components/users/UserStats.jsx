@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Row, Col, Card, Typography, Table } from 'antd';
 import { 
   BarChart, 
@@ -35,15 +35,15 @@ const ROLE_COLORS = {
 };
 
 // คอมโพเนนต์ tooltip ที่กำหนดเอง
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = memo(({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-3 border border-gray-200 shadow-md">
         <p className="font-medium text-gray-800">{label}</p>
         {payload.map((entry, index) => (
           <div key={`item-${index}`} className="flex items-center mt-1">
-            <div 
-              className="w-3 h-3 rounded-full mr-2" 
+            <div
+              className="w-3 h-3 rounded-full mr-2"
               style={{ backgroundColor: entry.fill || entry.color }}
             ></div>
             <span className="text-gray-800">{entry.name}: </span>
@@ -55,7 +55,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   }
 
   return null;
-};
+});
 
 // แปลงรูปแบบเวลาให้เป็นรูปแบบที่อ่านง่ายขึ้น
 const formatDateTime = (isoString) => {
@@ -127,10 +127,10 @@ const UserStats = ({
   // เตรียมข้อมูลสำหรับกราฟวงกลม
   const pieChartData = safeStats.usersByRole.map(item => ({
     ...item,
-    name: item.role === 'admin' 
-      ? 'ผู้ดูแลระบบ' 
-      : item.role === 'student' 
-        ? 'นักศึกษา' 
+    name: item.role === 'admin'
+      ? 'ผู้ดูแลระบบ'
+      : item.role === 'student'
+        ? 'นักศึกษา'
         : 'ผู้เยี่ยมชม'
   }));
 
@@ -281,6 +281,7 @@ const UserStats = ({
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
+                      isAnimationActive={false}
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
                       {pieChartData.map((entry, index) => (
@@ -313,7 +314,7 @@ const UserStats = ({
                     <YAxis allowDecimals={false} />
                     <RechartsTooltip content={<CustomTooltip />} />
                     <Legend />
-                    <Bar name="จำนวนผู้ใช้" dataKey="count" fill="#90278E" />
+                    <Bar name="จำนวนผู้ใช้" dataKey="count" fill="#90278E" isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -365,4 +366,4 @@ const UserStats = ({
   );
 };
 
-export default UserStats;
+export default memo(UserStats);

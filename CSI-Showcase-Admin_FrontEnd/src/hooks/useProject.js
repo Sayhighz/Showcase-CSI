@@ -7,11 +7,12 @@ import {
   reviewProject,
   getMyProjects,
   getProjectStats,
-  updateProject,
-  updateProjectWithFiles
+  updateProjectWithFiles,
+  deleteProject as deleteProjectApi
 } from '../services/projectService';
 import { message } from 'antd';
 import { useAuth } from '../context/AuthContext';
+import { useLoading } from '../context/LoadingContext';
 
 // Custom debounce hook implementation
 const useDebounce = (value, delay) => {
@@ -45,6 +46,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
   const initialProjectIdRef = useRef(projectId);
   const abortControllerRef = useRef(null);
   const cacheRef = useRef(new Map());
+  void _viewMode;
   
   // State management
   const [projects, setProjects] = useState([]);
@@ -56,6 +58,13 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Global loading overlay
+  const { setGlobalLoading } = useLoading();
+  useEffect(() => {
+    setGlobalLoading(loading || actionLoading);
+    return () => setGlobalLoading(false);
+  }, [loading, actionLoading, setGlobalLoading]);
   
   const [pagination, setPagination] = useState({
     current: 1,
@@ -185,7 +194,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     setError(null);
 
     try {
-      const response = await getProjectDetails(id);
+      const response = await getProjectDetails(id, { useCache });
       
       if (signal.aborted) return;
 
@@ -357,7 +366,7 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
         message.error(response.message || 'เกิดข้อผิดพลาดในการตรวจสอบโปรเจค');
         return false;
       }
-    } catch (err) {
+    } catch {
       message.error('เกิดข้อผิดพลาดในการตรวจสอบโปรเจค กรุณาลองใหม่อีกครั้ง');
       return false;
     } finally {
@@ -408,13 +417,47 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
       }
       message.error(resp.message || 'เกิดข้อผิดพลาดในการอัปเดตโปรเจค');
       return false;
-    } catch (_err) {
+    } catch {
       message.error('เกิดข้อผิดพลาดในการอัปเดตโปรเจค กรุณาลองใหม่อีกครั้ง');
       return false;
     } finally {
       setActionLoading(false);
     }
   }, [fetchProjectDetails, fetchProjects, pagination.current, pagination.pageSize, projectDetails]);
+
+  // Helper to refresh current project's details and bypass cache
+  const refreshProjectDetails = useCallback(async () => {
+    const id = initialProjectIdRef.current;
+    if (!id) return;
+    const key = getCacheKey('project_detail', { id });
+    cacheRef.current.delete(key);
+    await fetchProjectDetails(id, false);
+  }, [getCacheKey, fetchProjectDetails]);
+
+  // Delete project action
+  const deleteProjectAction = useCallback(async (id) => {
+    if (!id) return false;
+    setActionLoading(true);
+    try {
+      const resp = await deleteProjectApi(id);
+      if (resp.success) {
+        message.success(resp.message || 'ลบโปรเจคสำเร็จ');
+        cacheRef.current.clear();
+        if (initialModeRef.current !== 'detail') {
+          await fetchProjects(pagination.current, pagination.pageSize, false);
+        }
+        return true;
+      } else {
+        message.error(resp.message || 'เกิดข้อผิดพลาดในการลบโปรเจค');
+        return false;
+      }
+    } catch {
+      message.error('เกิดข้อผิดพลาดในการลบโปรเจค กรุณาลองใหม่อีกครั้ง');
+      return false;
+    } finally {
+      setActionLoading(false);
+    }
+  }, [fetchProjects, pagination.current, pagination.pageSize]);
 
   // Consolidated data fetching effect - prevents multiple simultaneous API calls
   useEffect(() => {
@@ -516,10 +559,12 @@ const useProject = (mode = 'all', _viewMode = 'list', initialFilters = {}, proje
     
     // Actions
     updateProject: (id, payload) => updateProjectAction(id, payload),
+    deleteProject: (id) => deleteProjectAction(id),
     approveProject: (id, comment = '') => reviewProjectAction(id, 'approved', comment),
     rejectProject: (id, comment) => reviewProjectAction(id, 'rejected', comment),
     
     // Fetch functions
+    refreshProjectDetails,
     fetchProjects: (page, pageSize, useCache) => fetchProjects(page, pageSize, useCache),
     fetchProjectDetails: (id, useCache) => fetchProjectDetails(id, useCache),
     fetchMyProjects,

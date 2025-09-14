@@ -204,7 +204,6 @@ const VisitorViewList = ({
 
   // ฟังก์ชันจัดการการเปลี่ยนแปลง filter
   const handleFilterChange = (newFilters) => {
-    console.log('Filter change in VisitorViewList:', newFilters);
     // เรียกใช้ onFilterChange ที่ส่งมาจาก parent component
     if (onFilterChange) {
       onFilterChange(newFilters);
@@ -213,7 +212,6 @@ const VisitorViewList = ({
 
   // ฟังก์ชัน reset filter
   const handleResetFilter = () => {
-    console.log('Resetting filters in VisitorViewList');
     
     // ใช้ onReset จาก props หากมี
     if (typeof onReset === 'function') {
@@ -228,7 +226,6 @@ const VisitorViewList = ({
 
   // เพิ่มฟังก์ชัน handleTableChange
   const handleTableChange = (tablePagination, tableFilters, sorter) => {
-    console.log('Table pagination changed:', tablePagination);
     if (onPageChange) {
       onPageChange(tablePagination, tableFilters, sorter);
     }
@@ -287,7 +284,6 @@ const VisitorViewList = ({
 
   // ฟังก์ชันจัดการการค้นหา
   const handleSearch = (value) => {
-    console.log('Search in VisitorViewList:', value);
     if (onSearch) {
       onSearch(value);
     }

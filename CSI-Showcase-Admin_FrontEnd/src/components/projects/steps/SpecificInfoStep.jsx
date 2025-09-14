@@ -10,11 +10,10 @@ const PROJECT_TYPE = {
 /**
  * SpecificInfoStep - ขั้นตอนการกรอกข้อมูลเฉพาะตามประเภทโปรเจค
  * @param {Object} props - Component properties
- * @param {Object} props.form - Form instance จาก Form.useForm()
  * @param {string} props.projectType - ประเภทของโปรเจค
  * @returns {JSX.Element} - SpecificInfoStep component
  */
-const SpecificInfoStep = ({ form, projectType }) => {
+const SpecificInfoStep = ({ projectType }) => {
   if (!projectType) {
     return (
       <div className="py-4 text-center text-gray-500">
@@ -100,21 +99,6 @@ const SpecificInfoStep = ({ form, projectType }) => {
             />
           </Form.Item>
 
-          <Form.Item
-            name="clip_video"
-            label="ลิงก์วิดีโอ (ถ้ามี)"
-            rules={[
-              {
-                type: "url",
-                message: "กรุณากรอก URL ที่ถูกต้อง",
-              },
-            ]}
-          >
-            <Input
-              placeholder="https://www.youtube.com/watch?v=... หรือ https://www.tiktok.com/..."
-              maxLength={500}
-            />
-          </Form.Item>
         </>
       )}
 

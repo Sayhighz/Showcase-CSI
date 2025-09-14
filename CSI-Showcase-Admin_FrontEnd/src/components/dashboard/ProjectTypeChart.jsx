@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Tooltip, Spin, Empty, Radio } from 'antd';
-import { PieChart, Pie, ResponsiveContainer, Cell, Legend, Sector } from 'recharts';
+import React, { useState, useMemo, memo } from 'react';
+import { Card, Spin, Empty, Radio } from 'antd';
+import { PieChart, Pie, ResponsiveContainer, Cell, Legend, Sector, Tooltip as RechartsTooltip } from 'recharts';
 import { createProjectTypeChartData, getCategoryName, getCategoryColor } from '../../utils/projectUtils';
 
 // คอมโพเนนต์สำหรับแสดงส่วนที่ active ใน Pie Chart
@@ -13,14 +13,10 @@ const renderActiveShape = (props) => {
     startAngle,
     endAngle,
     fill,
-    payload,
-    percent,
-    value,
   } = props;
 
   return (
     <g>
-      <Tooltip title={`${payload.name}: ${value} (${(percent * 100).toFixed(0)}%)`} />
       <Sector
         cx={cx}
         cy={cy}
@@ -46,20 +42,15 @@ const renderActiveShape = (props) => {
 const ProjectTypeChart = ({
   projects = [],
   loading = false,
-  error = null,
   title = 'ประเภทโครงงาน',
   height = 300,
 }) => {
   const [activeIndex, setActiveIndex] = useState(null);
-  const [chartData, setChartData] = useState([]);
   const [chartType, setChartType] = useState('count'); // 'count' หรือ 'views'
-  console.log("dddd",projects)
 
-  // สร้างข้อมูลสำหรับแผนภูมิ
-  useEffect(() => {
+  const chartData = useMemo(() => {
     if (!projects || projects.length === 0) {
-      setChartData([]);
-      return;
+      return [];
     }
 
     let data = [];
@@ -100,8 +91,9 @@ const ProjectTypeChart = ({
       }
     }
 
-    setChartData(data);
+    return data;
   }, [projects, chartType]);
+
 
   // จัดการเมื่อมีการ hover
   const onPieEnter = (_, index) => {
@@ -163,12 +155,14 @@ const ProjectTypeChart = ({
               outerRadius={80}
               fill="#8884d8"
               dataKey="value"
+              isAnimationActive={false}
               onMouseEnter={onPieEnter}
             >
               {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill || `#${((1 << 24) * Math.random() | 0).toString(16)}`} />
               ))}
             </Pie>
+            <RechartsTooltip />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
@@ -177,4 +171,4 @@ const ProjectTypeChart = ({
   );
 };
 
-export default ProjectTypeChart;
+export default memo(ProjectTypeChart);

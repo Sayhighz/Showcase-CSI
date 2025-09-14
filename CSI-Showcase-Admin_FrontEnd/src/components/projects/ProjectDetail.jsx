@@ -32,7 +32,7 @@ import {
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { formatThaiDate } from '../../utils/dataUtils';
-import { getCategoryName, getCategoryColor, getStatusName, getStatusColor } from '../../utils/projectUtils';
+import { getCategoryName, getCategoryColor, getStatusName } from '../../utils/projectUtils';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorDisplay from '../common/ErrorDisplay';
 import PageTitle from '../common/PageTitle';
@@ -192,7 +192,7 @@ const ProjectDetail = ({
                 alt={project.title}
                 className="w-full rounded object-cover"
                 style={{ maxHeight: 300 }}
-                fallback="/images/project-placeholder.png"
+                fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
               />
             ) : (
               <div className="w-full h-64 bg-gray-100 rounded flex items-center justify-center">

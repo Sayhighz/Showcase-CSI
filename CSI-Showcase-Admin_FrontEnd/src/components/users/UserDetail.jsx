@@ -28,7 +28,8 @@ const UserDetail = ({
   onEdit,
   onDelete,
   onRefresh,
-  onChangePassword
+  onChangePassword,
+  isOwnProfile = false
 }) => {
   const [activeTab, setActiveTab] = useState('info');
 
@@ -215,11 +216,11 @@ const UserDetail = ({
       <Card className="mb-6">
         <div className="flex flex-col md:flex-row">
           <div className="flex flex-col items-center md:items-start md:mr-8">
-            <Avatar 
-              src={user.image ? `${URL}/${user.image}` : null}
+            <Avatar
+              src={user.image ? `${URL}/${user.image}${user.imageVersion ? `?v=${user.imageVersion}` : ''}` : null}
               icon={!user.image && <UserOutlined />}
               size={120}
-              style={{ 
+              style={{
                 backgroundColor: !user.image ? '#90278E' : undefined,
               }}
               className="mb-4"
@@ -241,14 +242,16 @@ const UserDetail = ({
               >
                 เปลี่ยนรหัสผ่าน
               </Button>
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                onClick={showDeleteConfirm}
-                block
-              >
-                ลบผู้ใช้
-              </Button>
+              {onDelete && !isOwnProfile && (
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={showDeleteConfirm}
+                  block
+                >
+                  ลบผู้ใช้
+                </Button>
+              )}
             </Space>
           </div>
           
@@ -287,7 +290,7 @@ const UserDetail = ({
               <Descriptions.Item label="จำนวนโครงงาน">
                 <div className="flex items-center">
                   <ProjectOutlined className="mr-2 text-gray-500" />
-                  <Text>{user.projects ? user.projects.length : 0} โครงงาน</Text>
+                  <Text>{user.stats?.totalProjects || 0} โครงงาน</Text>
                 </div>
               </Descriptions.Item>
             </Descriptions>

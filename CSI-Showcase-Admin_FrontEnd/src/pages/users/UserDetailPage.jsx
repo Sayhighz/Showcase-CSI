@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Modal, Input, message } from 'antd';
+import { Modal, Input, message, Result, Button } from 'antd';
 import UserDetail from '../../components/users/UserDetail';
 import UserForm from '../../components/users/UserForm';
 import useUser from '../../hooks/useUser';
+import { useAuth } from '../../context/AuthContext';
 
 const UserDetailPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isPwdModalVisible, setIsPwdModalVisible] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [accessDenied, setAccessDenied] = useState(false);
   
   const {
     userDetails,
@@ -23,7 +26,46 @@ const UserDetailPage = () => {
     actionLoading,
     changeUserPassword
   } = useUser('all', 'detail', {}, userId);
-  console.log(userDetails)
+
+  // Check access permissions
+  useEffect(() => {
+    if (currentUser && userId && !loading && !error) {
+      const isAdmin = currentUser.role === 'admin';
+      const isOwnProfile = String(currentUser.id) === String(userId);
+      
+      if (!isAdmin && !isOwnProfile) {
+        setAccessDenied(true);
+      } else {
+        setAccessDenied(false);
+      }
+    }
+  }, [currentUser, userId, loading, error]);
+
+  // Handle access denied case
+  if (accessDenied) {
+    return (
+      <Result
+        status="403"
+        title="403 - ไม่มีสิทธิ์เข้าถึง"
+        subTitle="คุณไม่มีสิทธิ์ดูข้อมูลผู้ใช้คนนี้"
+        extra={[
+          <Button
+            key="back"
+            type="primary"
+            onClick={() => navigate(-1)}
+          >
+            กลับไปหน้าก่อนหน้า
+          </Button>,
+          <Button
+            key="home"
+            onClick={() => navigate(currentUser?.role === 'student' ? '/student/dashboard' : '/dashboard')}
+          >
+            กลับสู่หน้าหลัก
+          </Button>
+        ]}
+      />
+    );
+  }
 
   // แสดงโมดัลแก้ไขผู้ใช้
   const showEditModal = () => {
@@ -44,8 +86,13 @@ const UserDetailPage = () => {
     }
   };
 
-  // จัดการการลบผู้ใช้
+  // จัดการการลบผู้ใช้ (เฉพาะ admin เท่านั้น)
   const handleDeleteUser = async () => {
+    if (currentUser?.role !== 'admin') {
+      message.error('คุณไม่มีสิทธิ์ลบผู้ใช้');
+      return;
+    }
+    
     const success = await deleteUser(userId);
     if (success) {
       navigate('/users');
@@ -90,7 +137,7 @@ const UserDetailPage = () => {
         loading={loading}
         error={error}
         onEdit={showEditModal}
-        onDelete={handleDeleteUser}
+        onDelete={currentUser?.role === 'admin' ? handleDeleteUser : null}
         onRefresh={refreshUserDetails}
         onChangePassword={openChangePasswordModal}
       />

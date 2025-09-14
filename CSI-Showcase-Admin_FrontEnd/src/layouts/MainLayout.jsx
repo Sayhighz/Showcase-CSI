@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, theme, Button, Drawer, Grid } from 'antd';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  MenuFoldOutlined, 
+import { Layout, Button, Drawer, Grid, Spin } from 'antd';
+import { Outlet, useLocation } from 'react-router-dom';
+import {
+  MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
+import { useLoading } from '../context/LoadingContext';
 import Footer from '../components/common/Footer';
 import Breadcrumb from '../components/common/Breadcrumb';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import Sidebar from '../components/common/Sidebar'; // Import the new Sidebar component
+import Sidebar from '../components/common/Sidebar';
+import { colors } from '../config/themeConfig';
 
 const { Content, Sider } = Layout;
 const { useBreakpoint } = Grid;
@@ -20,8 +22,9 @@ const MainLayout = () => {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [openKeys, setOpenKeys] = useState([]);
   const { user, admin, isAuthenticated, isLoading, logout } = useAuth();
+  const { globalLoading } = useLoading();
   const location = useLocation();
-  const navigate = useNavigate();
+  // removed unused navigate
   const screens = useBreakpoint();
   
   // Use user or admin (backward compatibility)
@@ -34,9 +37,7 @@ const MainLayout = () => {
   
   const isMobile = !screens.md;
 
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
+  // removed unused antd tokens
 
   // กำหนดค่าเริ่มต้นเมื่อ pathname เปลี่ยน
   useEffect(() => {
@@ -107,26 +108,31 @@ const MainLayout = () => {
   };
 
   return (
-    <Layout className="min-h-screen">
-      {/* ลิ้นชักสำหรับอุปกรณ์มือถือ */}
+    <Layout className="min-h-screen bg-gradient-to-br from-lightBackground via-white to-purple-50">
+      {globalLoading && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/60 backdrop-blur-sm">
+          <Spin size="large" tip="กำลังโหลดข้อมูล..." />
+        </div>
+      )}
+      {/* Mobile drawer with enhanced styling */}
       {isMobile && (
         <Drawer
           placement="left"
           onClose={toggleMobileDrawer}
           open={mobileDrawerOpen}
           closable={false}
-          bodyStyle={{ 
-            padding: 0, 
-            backgroundColor: '#90278E',
+          bodyStyle={{
+            padding: 0,
+            background: colors.spaceGradient || 'linear-gradient(180deg, #90278E 0%, #6A1B68 100%)',
             overflow: 'hidden'
           }}
           width={256}
           destroyOnClose={false}
           maskClosable={true}
           zIndex={1001}
+          className="performance-optimized"
         >
-          {/* Use the Sidebar component for mobile */}
-          <Sidebar 
+          <Sidebar
             collapsed={false}
             isMobile={true}
             selectedKeys={selectedKeys}
@@ -139,29 +145,28 @@ const MainLayout = () => {
         </Drawer>
       )}
 
-      {/* แถบด้านข้างสำหรับเดสก์ท็อป */}
+      {/* Desktop sidebar with enhanced styling */}
       {!isMobile && (
         <Sider
           trigger={null}
           collapsible
           collapsed={collapsed}
           width={256}
-          className="border-r border-gray-200 border-opacity-10"
+          className="border-r border-primary border-opacity-20 shadow-2xl"
           theme="dark"
-          style={{ 
+          style={{
             overflow: 'auto',
             height: '100vh',
             position: 'fixed',
             left: 0,
             top: 0,
             bottom: 0,
-            backgroundColor: '#90278E',
-            backgroundImage: 'linear-gradient(180deg, #90278E 0%, #6A1B68 100%)',
-            zIndex: 1000
+            background: colors.spaceGradient || 'linear-gradient(180deg, #90278E 0%, #6A1B68 100%)',
+            zIndex: 1000,
+            boxShadow: '4px 0 20px rgba(144, 39, 142, 0.3)'
           }}
         >
-          {/* Use the Sidebar component for desktop */}
-          <Sidebar 
+          <Sidebar
             collapsed={collapsed}
             isMobile={false}
             selectedKeys={selectedKeys}
@@ -174,36 +179,44 @@ const MainLayout = () => {
         </Sider>
       )}
 
-      <Layout className={!isMobile && !collapsed ? "ml-64" : !isMobile && collapsed ? "ml-20" : ""}>
+      <Layout className={`transition-all duration-300 ${!isMobile && !collapsed ? "ml-64" : !isMobile && collapsed ? "ml-20" : ""}`}>
         <Content className="mx-4 my-4">
-          <div className="flex items-center mb-4">
-            {/* ปุ่มสำหรับทั้งอุปกรณ์เดสก์ท็อปและมือถือ */}
-            <Button
-              type="text"
-              icon={isMobile ? (mobileDrawerOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
-              onClick={isMobile ? toggleMobileDrawer : toggleCollapsed}
-              className="mr-4 hover:bg-purple-50 transition-colors duration-200"
-              style={{
-                fontSize: '16px',
-                width: 40,
-                height: 40,
-                color: '#90278E',
-                borderRadius: '8px',
-              }}
-            />
-            <Breadcrumb />
+          {/* Enhanced header with better styling */}
+          <div className="flex items-center justify-between mb-6 p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-primary/10 shadow-sm">
+            <div className="flex items-center">
+              <Button
+                type="text"
+                icon={isMobile ? (mobileDrawerOpen ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />) : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+                onClick={isMobile ? toggleMobileDrawer : toggleCollapsed}
+                className="mr-4 hover:bg-primary hover:text-white transition-all duration-300 hover:scale-105"
+                style={{
+                  fontSize: '16px',
+                  width: 44,
+                  height: 44,
+                  color: colors.primary,
+                  borderRadius: '12px',
+                  border: `1px solid ${colors.primary}20`,
+                }}
+              />
+              <Breadcrumb />
+            </div>
           </div>
           
-          <div
-            className="p-6 min-h-[calc(100vh-200px)] transition-all duration-300"
-            style={{
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-              boxShadow: '0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.02)',
-              border: '1px solid rgba(0, 0, 0, 0.06)',
-            }}
-          >
-            <Outlet />
+          {/* Main content area with glass effect */}
+          <div className="min-h-[calc(100vh-220px)] transition-all duration-300 relative">
+            {/* Subtle background pattern */}
+            <div
+              className="absolute inset-0 opacity-5 pointer-events-none rounded-2xl"
+              style={{
+                backgroundImage: `radial-gradient(circle, ${colors.primary} 1px, transparent 1px)`,
+                backgroundSize: '30px 30px'
+              }}
+            />
+            
+            {/* Content with enhanced styling */}
+            <div className="relative z-10 p-6 bg-white/50 backdrop-blur-sm rounded-2xl border border-primary/5 shadow-sm">
+              <Outlet />
+            </div>
           </div>
         </Content>
         

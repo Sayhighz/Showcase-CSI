@@ -71,7 +71,7 @@ const fileFilter = (req, file, cb) => {
     } else {
       cb(new Error('Only PDF files are allowed for academic papers'), false);
     }
-  } 
+  }
   else if (file.fieldname === 'courseworkVideo') {
     // อนุญาตเฉพาะวิดีโอ
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
@@ -81,6 +81,10 @@ const fileFilter = (req, file, cb) => {
       cb(new Error('Only MP4, WebM, and QuickTime video formats are allowed'), false);
     }
   }
+  // ไม่อนุญาตรูปภาพสำหรับบทความวิชาการ (บล็อคฟิลด์ paperImage โดยตรง)
+  else if (file.fieldname === 'paperImage') {
+    cb(new Error('Only PDF files are allowed for academic papers'), false);
+  }
   else if (file.fieldname.includes('Poster') || file.fieldname.includes('Image')) {
     // อนุญาตเฉพาะรูปภาพ
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -88,6 +92,20 @@ const fileFilter = (req, file, cb) => {
       cb(null, true);
     } else {
       cb(new Error('Only JPEG, PNG, GIF, and WebP image formats are allowed'), false);
+    }
+  }
+  else if (file.fieldname.includes('Files') || file.fieldname === 'additionalFiles') {
+    // อนุญาตทั้งรูปภาพและ PDF สำหรับไฟล์เอกสารเพิ่มเติม
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images, PDF, and document files are allowed'), false);
     }
   }
   else {
@@ -113,13 +131,19 @@ const multiTypeUploader = multer({
 const projectUploadMiddleware = (req, res, next) => {
   logger.info("Processing project upload with improved middleware");
   
-  // กำหนดฟิลด์ไฟล์ที่จะรับ
+  // กำหนดฟิลด์ไฟล์ที่จะรับ - เพิ่มรองรับ PDF สำหรับทุกประเภท
   const uploadFields = multiTypeUploader.fields([
     { name: 'courseworkPoster', maxCount: 1 },
     { name: 'courseworkVideo', maxCount: 1 },
-    { name: 'courseworkImage', maxCount: 5 },
+    { name: 'courseworkImage', maxCount: 10 }, // เพิ่มจาก 5 เป็น 10 รูป
+    { name: 'courseworkFiles', maxCount: 5 }, // เพิ่มจาก 3 เป็น 5 ไฟล์
     { name: 'competitionPoster', maxCount: 1 },
-    { name: 'paperFile', maxCount: 1 }
+    { name: 'competitionImage', maxCount: 10 }, // เพิ่มรองรับรูปภาพสำหรับ competition
+    { name: 'competitionFiles', maxCount: 5 }, // เพิ่มจาก 3 เป็น 5 ไฟล์
+    { name: 'paperFile', maxCount: 1 },
+    { name: 'additionalFiles', maxCount: 10 }, // เพิ่มจาก 5 เป็น 10 ไฟล์
+    { name: 'images', maxCount: 15 }, // ฟิลด์ทั่วไปสำหรับรูปภาพหลายรูป
+    { name: 'gallery', maxCount: 20 } // ฟิลด์สำหรับแกลเลอรี่รูปภาพ
   ]);
   
   uploadFields(req, res, (err) => {
@@ -138,14 +162,42 @@ const projectUploadMiddleware = (req, res, next) => {
     req.project = { files: {} };
     
     if (req.files) {
-      // เก็บข้อมูลไฟล์ต่างๆ
+      // เก็บข้อมูลไฟล์ต่างๆ - รองรับการอัปโหลดหลายรูป
       if (req.files.courseworkPoster) req.project.files.courseworkPoster = req.files.courseworkPoster[0];
       if (req.files.courseworkVideo) req.project.files.courseworkVideo = req.files.courseworkVideo[0];
       if (req.files.courseworkImage && req.files.courseworkImage.length > 0) {
-        req.project.files.courseworkImage = req.files.courseworkImage[0];
+        // keep all images (array) and also store primary as the first one
+        req.project.files.courseworkImage = req.files.courseworkImage;
+        req.project.files.courseworkImagePrimary = req.files.courseworkImage[0];
+      }
+      if (req.files.courseworkFiles && req.files.courseworkFiles.length > 0) {
+        req.project.files.courseworkFiles = req.files.courseworkFiles;
       }
       if (req.files.competitionPoster) req.project.files.competitionPoster = req.files.competitionPoster[0];
+      if (req.files.competitionImage && req.files.competitionImage.length > 0) {
+        req.project.files.competitionImage = req.files.competitionImage;
+        req.project.files.competitionImagePrimary = req.files.competitionImage[0];
+      }
+      if (req.files.competitionFiles && req.files.competitionFiles.length > 0) {
+        req.project.files.competitionFiles = req.files.competitionFiles;
+      }
       if (req.files.paperFile) req.project.files.paperFile = req.files.paperFile[0];
+      if (req.files.paperImage && req.files.paperImage.length > 0) {
+        req.project.files.paperImage = req.files.paperImage;
+        req.project.files.paperImagePrimary = req.files.paperImage[0];
+      }
+      if (req.files.additionalFiles && req.files.additionalFiles.length > 0) {
+        req.project.files.additionalFiles = req.files.additionalFiles;
+      }
+      // ฟิลด์ทั่วไปสำหรับรูปภาพหลายรูป
+      if (req.files.images && req.files.images.length > 0) {
+        req.project.files.images = req.files.images;
+        req.project.files.imagesPrimary = req.files.images[0];
+      }
+      if (req.files.gallery && req.files.gallery.length > 0) {
+        req.project.files.gallery = req.files.gallery;
+        req.project.files.galleryPrimary = req.files.gallery[0];
+      }
       
       logger.debug("Processed files information:", req.project.files);
     }
@@ -164,9 +216,15 @@ const projectUpdateMiddleware = (req, res, next) => {
   const uploadFields = multiTypeUploader.fields([
     { name: 'courseworkPoster', maxCount: 1 },
     { name: 'courseworkVideo', maxCount: 1 },
-    { name: 'courseworkImage', maxCount: 1 },
+    { name: 'courseworkImage', maxCount: 10 }, // เพิ่มจาก 5 เป็น 10 รูป
+    { name: 'courseworkFiles', maxCount: 5 }, // เพิ่มจาก 3 เป็น 5 ไฟล์
     { name: 'competitionPoster', maxCount: 1 },
-    { name: 'paperFile', maxCount: 1 }
+    { name: 'competitionImage', maxCount: 10 }, // เพิ่มรองรับรูปภาพสำหรับ competition
+    { name: 'competitionFiles', maxCount: 5 }, // เพิ่มจาก 3 เป็น 5 ไฟล์
+    { name: 'paperFile', maxCount: 1 },
+    { name: 'additionalFiles', maxCount: 10 }, // เพิ่มจาก 5 เป็น 10 ไฟล์
+    { name: 'images', maxCount: 15 }, // ฟิลด์ทั่วไปสำหรับรูปภาพหลายรูป
+    { name: 'gallery', maxCount: 20 } // ฟิลด์สำหรับแกลเลอรี่รูปภาพ
   ]);
   
   uploadFields(req, res, (err) => {
@@ -185,14 +243,42 @@ const projectUpdateMiddleware = (req, res, next) => {
     req.projectUpdate = { files: {} };
     
     if (req.files) {
-      // เก็บข้อมูลไฟล์ต่างๆ
+      // เก็บข้อมูลไฟล์ต่างๆ - รองรับการอัปโหลดหลายรูป
       if (req.files.courseworkPoster) req.projectUpdate.files.courseworkPoster = req.files.courseworkPoster[0];
       if (req.files.courseworkVideo) req.projectUpdate.files.courseworkVideo = req.files.courseworkVideo[0];
       if (req.files.courseworkImage && req.files.courseworkImage.length > 0) {
-        req.projectUpdate.files.courseworkImage = req.files.courseworkImage[0];
+        // keep all new images
+        req.projectUpdate.files.courseworkImage = req.files.courseworkImage;
+        req.projectUpdate.files.courseworkImagePrimary = req.files.courseworkImage[0];
+      }
+      if (req.files.courseworkFiles && req.files.courseworkFiles.length > 0) {
+        req.projectUpdate.files.courseworkFiles = req.files.courseworkFiles;
       }
       if (req.files.competitionPoster) req.projectUpdate.files.competitionPoster = req.files.competitionPoster[0];
+      if (req.files.competitionImage && req.files.competitionImage.length > 0) {
+        req.projectUpdate.files.competitionImage = req.files.competitionImage;
+        req.projectUpdate.files.competitionImagePrimary = req.files.competitionImage[0];
+      }
+      if (req.files.competitionFiles && req.files.competitionFiles.length > 0) {
+        req.projectUpdate.files.competitionFiles = req.files.competitionFiles;
+      }
       if (req.files.paperFile) req.projectUpdate.files.paperFile = req.files.paperFile[0];
+      if (req.files.paperImage && req.files.paperImage.length > 0) {
+        req.projectUpdate.files.paperImage = req.files.paperImage;
+        req.projectUpdate.files.paperImagePrimary = req.files.paperImage[0];
+      }
+      if (req.files.additionalFiles && req.files.additionalFiles.length > 0) {
+        req.projectUpdate.files.additionalFiles = req.files.additionalFiles;
+      }
+      // ฟิลด์ทั่วไปสำหรับรูปภาพหลายรูป
+      if (req.files.images && req.files.images.length > 0) {
+        req.projectUpdate.files.images = req.files.images;
+        req.projectUpdate.files.imagesPrimary = req.files.images[0];
+      }
+      if (req.files.gallery && req.files.gallery.length > 0) {
+        req.projectUpdate.files.gallery = req.files.gallery;
+        req.projectUpdate.files.galleryPrimary = req.files.gallery[0];
+      }
       
       logger.debug("Processed update files information:", req.projectUpdate.files);
     }

@@ -265,23 +265,102 @@ const getProjectById = async (projectId, options = {}) => {
         }
       } else if (project.type === PROJECT_TYPES.COMPETITION) {
         const [competition] = await pool.execute(`
-          SELECT competition_name, competition_year, poster
+          SELECT competition_name, competition_year, poster, image
           FROM competitions WHERE project_id = ?
         `, [projectId]);
         
         if (competition.length > 0) {
-          additionalData.competition = competition[0];
-          
-          // เพิ่มไฟล์โปสเตอร์เข้าไปในรายการไฟล์
-          if (competition[0].poster) {
+          additionalData.competition = { ...competition[0] };
+  
+          // Parse competition images (JSON array or single string)
+          let compImages = [];
+          try {
+            const raw = competition[0].image;
+            if (Array.isArray(raw)) {
+              compImages = raw;
+            } else if (typeof raw === 'string' && raw.trim().length > 0) {
+              const parsed = JSON.parse(raw);
+              compImages = Array.isArray(parsed) ? parsed : [raw];
+            }
+          } catch (e) {
+            compImages = competition[0].image ? [competition[0].image] : [];
+          }
+  
+          // Legacy images stored in project_files (image)
+          let pfImageRows = [];
+          try {
+            const [rows] = await pool.execute(
+              `
+              SELECT file_type, file_path, file_name, file_size, upload_date
+              FROM project_files
+              WHERE project_id = ? AND file_type = 'image'
+              ORDER BY file_id ASC
+              `,
+              [projectId]
+            );
+            pfImageRows = rows || [];
+          } catch (e) {
+            pfImageRows = [];
+          }
+          const pfPaths = (pfImageRows || []).map(r => r.file_path).filter(p => typeof p === 'string' && p);
+  
+          // Merge images from competitions.image + project_files, exclude poster and duplicates
+          const posterPath = competition[0].poster || null;
+          const set = new Set();
+          const mergedPaths = [];
+          [...(compImages || []), ...pfPaths].forEach(p => {
+            if (typeof p === 'string' && p && p !== posterPath && !set.has(p)) {
+              set.add(p);
+              mergedPaths.push(p);
+            }
+          });
+  
+          // Primary image for backward compatibility
+          const primaryCompImage = mergedPaths.length > 0 ? mergedPaths[0] : null;
+  
+          // Build detailed list (prefer metadata from project_files when available)
+          const pfMap = new Map((pfImageRows || []).filter(r => r && r.file_path).map(r => [r.file_path, r]));
+          const imagesDetailed = mergedPaths.map(p => {
+            const row = pfMap.get(p);
+            return {
+              file_type: 'image',
+              file_path: p,
+              file_name: (row && (row.file_name || (row.file_path || '').split('/').pop())) || p.split('/').pop(),
+              file_size: (row && row.file_size) || 0,
+              upload_date: (row && row.upload_date) || null
+            };
+          });
+  
+          // Assign into response
+          additionalData.competition.images = mergedPaths;
+          additionalData.competition.imagesDetailed = imagesDetailed;
+          additionalData.competition.image = primaryCompImage;
+  
+          // Add poster and images into files (deduplicated)
+          const existingFilesSet = new Set(files.map(f => f.file_path));
+          if (competition[0].poster && !existingFilesSet.has(competition[0].poster)) {
             files.push({
               file_type: 'image',
               file_path: competition[0].poster,
               file_name: competition[0].poster.split('/').pop(),
-              file_size: 0, // ไม่มีข้อมูลขนาดไฟล์
+              file_size: 0,
               upload_date: null
             });
+            existingFilesSet.add(competition[0].poster);
           }
+          mergedPaths.forEach(p => {
+            if (!existingFilesSet.has(p)) {
+              const row = pfMap.get(p);
+              files.push({
+                file_type: 'image',
+                file_path: p,
+                file_name: (row && (row.file_name || (row.file_path || '').split('/').pop())) || p.split('/').pop(),
+                file_size: (row && row.file_size) || 0,
+                upload_date: (row && row.upload_date) || null
+              });
+              existingFilesSet.add(p);
+            }
+          });
         }
       } else if (project.type === PROJECT_TYPES.COURSEWORK) {
         const [coursework] = await pool.execute(`
@@ -290,8 +369,93 @@ const getProjectById = async (projectId, options = {}) => {
         `, [projectId]);
         
         if (coursework.length > 0) {
-          additionalData.coursework = coursework[0];
-          
+          additionalData.coursework = { ...coursework[0] };
+
+          // ไม่ใช้ project_files สำหรับรูปภาพเพิ่มเติม
+          const pfImages = [];
+
+          // แปลง courseworks.image ให้เป็นอาร์เรย์ (รองรับทั้ง string เดิม และ JSON array ใหม่)
+          let cwImages = [];
+          try {
+            const raw = coursework[0].image;
+            if (Array.isArray(raw)) {
+              cwImages = raw;
+            } else if (typeof raw === 'string' && raw.trim().length > 0) {
+              const parsed = JSON.parse(raw);
+              cwImages = Array.isArray(parsed) ? parsed : [raw];
+            }
+          } catch (e) {
+            cwImages = coursework[0].image ? [coursework[0].image] : [];
+          }
+
+          // รวมรายการรูปภาพทั้งหมดไว้ใน coursework.images (กันซ้ำตาม path)
+          const filePathSet = new Set();
+          const imagePaths = [];
+
+          cwImages.forEach(p => {
+            if (typeof p === 'string' && p && !filePathSet.has(p)) {
+              imagePaths.push(p);
+              filePathSet.add(p);
+            }
+          });
+
+          pfImages.forEach(row => {
+            if (row.file_path && !filePathSet.has(row.file_path)) {
+              imagePaths.push(row.file_path);
+              filePathSet.add(row.file_path);
+            }
+          });
+
+          // รายละเอียดรูปภาพรวม (จากทั้ง courseworks.image และ project_files)
+          const imagesDetailedFromCw = cwImages
+            .filter(p => typeof p === 'string' && p)
+            .map(p => ({
+              file_type: 'image',
+              file_path: p,
+              file_name: p.split('/').pop(),
+              file_size: 0,
+              upload_date: null
+            }));
+
+          // กันซ้ำด้วย path
+          const detailedPathSet = new Set(imagesDetailedFromCw.map(i => i.file_path));
+          const combinedDetailed = [...imagesDetailedFromCw];
+          pfImages.forEach(row => {
+            if (row.file_path && !detailedPathSet.has(row.file_path)) {
+              combinedDetailed.push({
+                file_type: 'image',
+                file_path: row.file_path,
+                file_name: row.file_name || row.file_path.split('/').pop(),
+                file_size: row.file_size || 0,
+                upload_date: row.upload_date || null
+              });
+              detailedPathSet.add(row.file_path);
+            }
+          });
+
+          // ส่งออกเป็นอาเรย์ทั้งหมด (สำหรับแกลเลอรี)
+          additionalData.coursework.images = imagePaths;
+          // รายละเอียดไฟล์ (รวม courseworks.image + project_files) พร้อมกันซ้ำแล้ว
+          additionalData.coursework.imagesDetailed = combinedDetailed;
+
+          // รักษาความเข้ากันได้ย้อนหลัง: ส่งฟิลด์ image เป็นสตริงรูปหลักตัวเดียว
+          const rawImage = coursework[0].image;
+          let primaryImage = null;
+          try {
+            if (Array.isArray(rawImage)) {
+              primaryImage = rawImage[0] || null;
+            } else if (typeof rawImage === 'string' && rawImage.trim().length > 0) {
+              // อาจเป็น JSON string ของอาเรย์ หรือเป็น path เดี่ยว
+              const parsed = JSON.parse(rawImage);
+              primaryImage = Array.isArray(parsed) ? (parsed[0] || null) : rawImage;
+            }
+          } catch (e) {
+            if (typeof rawImage === 'string' && rawImage.trim().length > 0) {
+              primaryImage = rawImage;
+            }
+          }
+          additionalData.coursework.image = primaryImage;
+
           // เพิ่มไฟล์โปสเตอร์เข้าไปในรายการไฟล์
           if (coursework[0].poster) {
             files.push({
@@ -314,16 +478,49 @@ const getProjectById = async (projectId, options = {}) => {
             });
           }
           
-          // เพิ่มไฟล์รูปภาพเข้าไปในรายการไฟล์
-          if (coursework[0].image) {
-            files.push({
-              file_type: 'image',
-              file_path: coursework[0].image,
-              file_name: coursework[0].image.split('/').pop(),
-              file_size: 0,
-              upload_date: null
+          // เพิ่มไฟล์รูปภาพจาก courseworks.image (รองรับ JSON array/เดิม)
+          {
+            let cwPaths = [];
+            try {
+              const raw = coursework[0].image;
+              if (Array.isArray(raw)) {
+                cwPaths = raw;
+              } else if (typeof raw === 'string' && raw.trim().length > 0) {
+                const parsed = JSON.parse(raw);
+                cwPaths = Array.isArray(parsed) ? parsed : [raw];
+              }
+            } catch (e) {
+              if (coursework[0].image) cwPaths = [coursework[0].image];
+            }
+            const added = new Set();
+            cwPaths.forEach(p => {
+              if (typeof p === 'string' && p && !added.has(p)) {
+                files.push({
+                  file_type: 'image',
+                  file_path: p,
+                  file_name: p.split('/').pop(),
+                  file_size: 0,
+                  upload_date: null
+                });
+                added.add(p);
+              }
             });
           }
+
+          // เพิ่มไฟล์รูปภาพจาก project_files เข้าไปในรายการไฟล์ (กันซ้ำด้วย path)
+          const filesSet = new Set(files.map(f => f.file_path));
+          pfImages.forEach(row => {
+            if (row.file_path && !filesSet.has(row.file_path)) {
+              files.push({
+                file_type: 'image',
+                file_path: row.file_path,
+                file_name: row.file_name || row.file_path.split('/').pop(),
+                file_size: row.file_size || 0,
+                upload_date: row.upload_date || null
+              });
+              filesSet.add(row.file_path);
+            }
+          });
         }
       }
       
