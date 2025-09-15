@@ -25,63 +25,49 @@ const createApp = (options = {}) => {
   // Trust proxy สำหรับ cPanel/shared hosting
   app.set('trust proxy', true);
   
+  // **แก้ไข: CORS middleware แบบง่ายๆ ก่อน helmet**
+  app.use((req, res, next) => {
+    // อนุญาตทุก origin ใน development หรือจาก sitspu.com
+    const allowedOrigins = [
+      'https://www.sitspu.com',
+      'https://sitspu.com',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000'
+    ];
+    
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin) || !origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin || 'https://www.sitspu.com');
+    }
+    
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,secret_key,admin_secret_key,x-admin-client,X-Admin-Client,Accept,Origin,Cache-Control');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    
+    // Handle OPTIONS preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    next();
+  });
+  
   // ตั้งค่า middleware พื้นฐาน - ปรับแต่งสำหรับ cPanel
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: false, // ปิดเพราะอาจขัดแย้งกับ cPanel
-    hsts: false, // cPanel จัดการ HTTPS เอง
-    crossOriginEmbedderPolicy: false, // ปิดเพื่อความเข้ากันได้
+    contentSecurityPolicy: false,
+    hsts: false,
+    crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: false
   }));
   
-  // กำหนดค่า CORS ที่เหมาะสมกับ cPanel
-  const isProd = process.env.NODE_ENV === 'production';
-  const rawOrigins = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '';
-  const envOrigins = rawOrigins
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  const allowedOrigins = isProd ? envOrigins : ['*', ...envOrigins];
-
-  app.use(cors({
-    origin: function(origin, callback) {
-      // อนุญาต requests ที่ไม่มี origin (mobile apps, curl)
-      if (!origin) return callback(null, true);
-
-      // ใน development อนุญาตทั้งหมด
-      if (!isProd) return callback(null, true);
-
-      // ใน production ตรวจสอบ allowed origins
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        // ใน cPanel ให้อนุญาตเพื่อหลีกเลี่ยงปัญหา CORS
-        logger.warn(`CORS warning for origin: ${origin}`);
-        callback(null, true);
-      }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'secret_key',
-      'admin_secret_key',
-      'Accept',
-      'Origin',
-      'Cache-Control'
-    ],
-    credentials: true,
-    optionsSuccessStatus: 200
-  }));
-  
-  // Handle preflight requests
-  app.options('*', cors());
+  // **ลบ cors() middleware เก่าออก เพราะใช้ manual headers แล้ว**
   
   app.use(compression());
   app.use(express.json({ 
-    limit: '5mb', // ลดขนาดใน cPanel เพื่อประหยัด memory
+    limit: '5mb',
     verify: (req, res, buf) => {
       req.rawBody = buf;
     }
@@ -89,10 +75,11 @@ const createApp = (options = {}) => {
   app.use(express.urlencoded({ extended: true, limit: '5mb' }));
   app.use(cookieParser());
   
-  // ตั้งค่า rate limiter ที่อ่อนโยนกว่าสำหรับ cPanel
+  // ตั้งค่า rate limiter
+  const isProd = process.env.NODE_ENV === 'production';
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 นาที
-    max: isProd ? 300 : 1000, // เพิ่มขีดจำกัดใน production
+    windowMs: 15 * 60 * 1000,
+    max: isProd ? 300 : 1000,
     message: {
       success: false,
       statusCode: 429,
@@ -108,7 +95,6 @@ const createApp = (options = {}) => {
              'unknown';
     },
     skip: (req) => {
-      // Skip สำหรับ health check และ static files
       return req.url === '/health' || 
              req.url.includes('/uploads/') ||
              req.url.includes('/health');
@@ -124,7 +110,7 @@ const createApp = (options = {}) => {
     app.use(`${BASE_PREFIX}${API_ROUTES.ADMIN.AUTH.BASE}`, limiter);
   }
   
-  // ตั้งค่า logging - ลดความซับซ้อนใน cPanel
+  // ตั้งค่า logging
   if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
   } else {
@@ -143,13 +129,13 @@ const createApp = (options = {}) => {
     app.use(`${BASE_PREFIX}/api/admin/*`, checkSecretKey);
   }
   
-  // Static file serving - ลบ image resize เพื่อประหยัด CPU
+  // Static file serving
   app.use(`${BASE_PREFIX}/uploads`, (req, res, next) => {
     // เพิ่ม CORS headers สำหรับ static files
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-client');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
     next();
   }, express.static(path.join(__dirname, '..', '..', 'uploads'), {
     maxAge: '1d',

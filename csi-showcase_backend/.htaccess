@@ -16,22 +16,50 @@
     RewriteRule ^\.git/ - [F,L]
 </IfModule>
 
-# Set proper headers for proxy
+# Set proper headers for proxy (CORS for /csie/backend2)
+<IfModule mod_setenvif.c>
+    # Mark requests under the API path and preflight method
+    SetEnvIfNoCase Request_URI "^/csie/backend2/" IS_CSIE=1
+    SetEnvIfNoCase Request_Method "OPTIONS" IS_PREFLIGHT=1
+</IfModule>
+
 <IfModule mod_headers.c>
-    # Allow CORS from frontend domains
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, secret_key, admin_secret_key"
-    Header set Access-Control-Allow-Credentials "true"
-    
-    # Security headers
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-XSS-Protection "1; mode=block"
-    
+    # CORS: must be explicit origin when credentials=true
+    Header always set Access-Control-Allow-Origin "https://www.sitspu.com" env=IS_CSIE
+    Header always set Access-Control-Allow-Credentials "true" env=IS_CSIE
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS" env=IS_CSIE
+
+    # Ensure no stale A-C-A-Headers from upstream; then set and merge required values
+    Header always unset Access-Control-Allow-Headers env=IS_CSIE
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, secret_key, admin_secret_key, x-admin-client, Accept, Origin, Cache-Control" env=IS_CSIE
+    # Merge to guarantee presence even if server injects its own list
+    Header always merge Access-Control-Allow-Headers "x-admin-client" env=IS_CSIE
+    Header always merge Access-Control-Allow-Headers "secret_key" env=IS_CSIE
+    Header always merge Access-Control-Allow-Headers "admin_secret_key" env=IS_CSIE
+
+    Header always set Access-Control-Max-Age "86400" env=IS_CSIE
+    Header always set Vary "Origin" env=IS_CSIE
+
+    # Preflight responses should be empty with correct headers
+    Header always set Content-Length "0" env=IS_PREFLIGHT
+    Header always set Content-Type "text/plain; charset=utf-8" env=IS_PREFLIGHT
+
+    # Security headers (apply globally)
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+
     # Remove server signature
     Header unset Server
     Header unset X-Powered-By
+</IfModule>
+
+# Short-circuit OPTIONS preflight for /csie/backend2 with 204
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} =OPTIONS
+    RewriteCond %{REQUEST_URI} ^/csie/backend2/
+    RewriteRule ^ - [R=204,L]
 </IfModule>
 
 # Proxy configuration for Node.js app

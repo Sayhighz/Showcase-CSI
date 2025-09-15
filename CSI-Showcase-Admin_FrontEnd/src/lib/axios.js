@@ -15,7 +15,7 @@ const getBaseApiUrl = () => {
   return resolved.replace(/\/+$/, '');
 };
 const BASE_API_URL = `${getBaseApiUrl()}/api`;
-const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '';
+const SECRET_KEY = import.meta.env.VITE_SECRET_KEY || import.meta.env.VITE_APP_SECRET_KEY || '';
 const BASE_PATH = import.meta.env.VITE_BASE_PATH || '/csif';
 
 // Create an axios instance with basic configuration
@@ -55,8 +55,13 @@ axiosInstance.interceptors.request.use(
     }
 
     // Identify requests coming from Admin FrontEnd (used by backend to skip view increments)
-    config.headers['x-admin-client'] = 'true';
-
+    // Avoid attaching this header to authless endpoints (e.g., /api/auth/login) to prevent CORS preflight failures on some proxies
+    if (!isAuthlessEndpoint) {
+      config.headers['x-admin-client'] = 'true';
+    } else if (config.headers && config.headers['x-admin-client']) {
+      delete config.headers['x-admin-client'];
+    }
+    
     // If sending FormData, let the browser set proper multipart boundary and extend timeout
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       // Remove default JSON header so axios/browser can set multipart/form-data with boundary

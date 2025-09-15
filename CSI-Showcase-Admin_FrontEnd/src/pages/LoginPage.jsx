@@ -130,7 +130,7 @@ const LoginPage = () => {
               </button>
             }
             type={showPassword ? 'text' : 'password'}
-            placeholder="กรอกรหัسผ่านของคุณ"
+            placeholder="กรอกรหัสผ่านของคุณ"
             className="h-12 rounded-lg"
             style={{
               fontSize: '16px',

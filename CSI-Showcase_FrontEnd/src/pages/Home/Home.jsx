@@ -28,7 +28,7 @@ const Home = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   // Use the project hook
-  const { isLoading, error, fetchTopProjects } = useProject();
+  const { isLoading, fetchTopProjects } = useProject();
 
   // State for storing projects
   const [topProjects, setTopProjects] = useState([]);
@@ -121,25 +121,7 @@ const Home = () => {
     navigate("/projects/academic");
   };
 
-  // Show error message if needed
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <SpaceBackground isMobile={isMobile} />
-        <div className="relative z-10">
-          <ErrorMessage
-            title="ไม่สามารถโหลดข้อมูลได้"
-            message={error}
-            showReloadButton={true}
-            onReloadClick={async () => {
-              const data = await fetchTopProjects();
-              setTopProjects(data || []);
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
+  // Continue rendering even if there's an error - show empty projects instead
 
   return (
     <div className="relative min-h-screen overflow-x-hidden scroll-container">
@@ -272,3 +254,4 @@ const Home = () => {
 };
 
 export default Home;
+
