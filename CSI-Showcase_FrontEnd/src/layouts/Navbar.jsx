@@ -115,10 +115,6 @@ const Navbar = () => {
     hover: { y: -2, transition: { duration: 0.2 } },
   };
   
-  // Generate notification dot
-  const NotificationDot = () => (
-    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-  );
 
   // ตรวจสอบว่าเป็นหน้า Home และอยู่ที่ด้านบนของหน้าเว็บหรือไม่
   const isHomeAndAtTop = location.pathname === "/" && isAtTop;
@@ -233,20 +229,8 @@ const Navbar = () => {
                 : "bg-[#90278E] shadow-md backdrop-filter backdrop-blur-md bg-opacity-90"
             }`}
           >
-            {/* Left Section - Logos Only */}
-            <div className="flex items-center space-x-3">
-              {/* SIT Logo */}
-              <motion.div
-                className="flex items-center"
-                variants={logoVariants}
-                initial="normal"
-                whileHover="hover"
-              >
-                <Link to="/">
-                  <img src={LogoSIT} alt="SIT Logo" className="h-6 sm:h-7 md:h-8" />
-                </Link>
-              </motion.div>
-              
+            {/* Left Section - CSI and SIT Logos */}
+            <div className="flex items-center">
               {/* CSI Logo */}
               <motion.div
                 className="flex items-center"
@@ -254,8 +238,9 @@ const Navbar = () => {
                 initial="normal"
                 whileHover="hover"
               >
-                <Link to="/">
+                <Link to="/" className="flex items-center space-x-2">
                   <img src={LogoCSI} alt="CSI Logo" className="h-6 sm:h-7 md:h-8" />
+                  <img src={LogoSIT} alt="SIT Logo" className="h-6 sm:h-7 md:h-8" />
                 </Link>
               </motion.div>
             </div>

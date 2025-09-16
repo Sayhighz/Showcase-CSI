@@ -194,7 +194,6 @@ const useUser = (role = 'all', mode = 'list', initialFilters = {}, userId = null
       
       try {
         const response = await getUserStats();
-        console.log(response)
         
         if (response.success) {
           setStats(response.data || null);

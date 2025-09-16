@@ -1,20 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import SearchBar from '../SearchBar/SearchBar';
-import WordRotate from '../ui/magicui/word-rotate';
-import TextReveal from '../ui/magicui/text-reveal';
+import AnimatedWordRotate from '../ui/AnimatedWordRotate';
 import { Sparkles } from '../ui/lunarui/Sparkles';
+import SpotlightTextStroke from '../ui/SpotlightTextStroke';
+import TextLoop from '../ui/TextLoop';
 
 // eslint-disable-next-line no-unused-vars
 const _motion = motion;
 
 
-const MAIN_TITLE = 'CSI  SHOWCASE';
+const MAIN_TITLE = 'CSI SHOWCASE';
 const EnhancedBanner = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [reducedEffects, setReducedEffects] = useState(false);
-  const [typedTitle, setTypedTitle] = useState('');
-  const [showCursor, setShowCursor] = useState(false);
 
   useEffect(() => {
     const updateIsMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -36,54 +35,6 @@ const EnhancedBanner = () => {
       media.removeEventListener?.('change', updateReduced);
     };
   }, [isMobile]);
-
-  // Typewriter effect for main title (first visit per session)
-  useEffect(() => {
-    const KEY = 'csiBannerTypeDone';
-    const full = MAIN_TITLE;
-
-    if (typeof window === 'undefined') {
-      setTypedTitle(full);
-      setShowCursor(false);
-      return;
-    }
-
-    const alreadyDone = sessionStorage.getItem(KEY) === '1';
-    const shouldType = !reducedEffects && !alreadyDone;
-
-    if (!shouldType) {
-      setTypedTitle(full);
-      setShowCursor(false);
-      return;
-    }
-
-    setTypedTitle('');
-    setShowCursor(true);
-
-    let i = 0;
-    const speed = isMobile ? 85 : 65;
-    const startDelay = 400;
-
-    let intervalId;
-    const start = () => {
-      intervalId = setInterval(() => {
-        i += 1;
-        setTypedTitle(full.slice(0, i));
-        if (i >= full.length) {
-          clearInterval(intervalId);
-          sessionStorage.setItem(KEY, '1');
-          setTimeout(() => setShowCursor(false), 800);
-        }
-      }, speed);
-    };
-
-    const delayId = setTimeout(start, startDelay);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(delayId);
-    };
-  }, [reducedEffects, isMobile]);
   
   // Background effects handled at the hero/section seam
 
@@ -119,40 +70,39 @@ const EnhancedBanner = () => {
             transition={{ duration: 1, delay: 0.2 }}
             className="hero-title-container relative"
           >
-            {/* CSI SHOWCASE gradient typography */}
-            <h1
-              className="mb-6 text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-wider uppercase bg-gradient-to-r from-white via-[#e8d5ff] to-white bg-clip-text text-transparent"
-              aria-label="CSI Showcase"
-            >
-              {typedTitle}
-              {!reducedEffects && showCursor && (
-                <span className="typewriter-cursor">|</span>
-              )}
-            </h1>
-            
-            {/* Thai Subtitle with gradient typography only */}
-            <TextReveal
-              delay={0.6}
-              duration={0.8}
+            {/* CSI SHOWCASE gradient typography with SpotlightCard border effect */}
+            <SpotlightTextStroke
+              hsl
+              hslMin={200}
+              hslMax={320}
+              strokeWidth={2}
+              spotlightSize={300}
+              disabled={reducedEffects}
+              animated={!reducedEffects}
+              animationDelay={600}
+              characterDelay={80}
               className="inline-block"
             >
-              <WordRotate
-                className="mx-auto inline-block bg-gradient-to-r from-white via-[#e8d5ff] to-white bg-clip-text text-transparent text-xl md:text-3xl lg:text-4xl font-semibold tracking-tight"
-                words={[
-                  "คอมไซน์ปล่อยของ",
-                  "Computer Science Initiative",
-                  "นวัตกรรมเทคโนโลยี",
-                  "Innovation & Technology"
-                ]}
-                duration={3000}
-                framerProps={{
-                  initial: { opacity: 0, y: 20, scale: 0.8 },
-                  animate: { opacity: 1, y: 0, scale: 1 },
-                  exit: { opacity: 0, y: -20, scale: 0.8 },
-                  transition: { duration: 0.4, ease: "easeInOut" }
-                }}
-              />
-            </TextReveal>
+              <h1
+                className="mb-6 text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-wider uppercase text-transparent px-6 py-4"
+                aria-label="CSI Showcase"
+              >
+                {reducedEffects ? MAIN_TITLE : MAIN_TITLE}
+              </h1>
+            </SpotlightTextStroke>
+            
+            {/* Thai Subtitle with TextLoop animation */}
+            <div className="csi-sub-title-container">
+              <TextLoop
+                interval={3000}
+                fade={true}
+                className="text-loop-subtitle"
+              >
+                <span>คอมไซน์ปล่อยของ</span>
+                <span>นวัตกรรมเทคโนโลยี</span>
+                <span>Innovation & Technology</span>
+              </TextLoop>
+            </div>
           </motion.div>
           
           {/* Enhanced SearchBar - Static */}
@@ -175,6 +125,7 @@ const EnhancedBanner = () => {
               </div>
             </div>
           </motion.div>
+
         </div>
       </motion.div>
       
@@ -315,9 +266,35 @@ const EnhancedBanner = () => {
                   drop-shadow(0 0 60px rgba(159,79,255,0.3));
         }
 
-        /* Support English text in WordRotate */
-        .csi-sub-title-container h1:has-text("Computer Science Initiative"),
-        .csi-sub-title-container h1:has-text("Innovation & Technology") {
+        /* TextLoop Subtitle Styling */
+        .text-loop-subtitle {
+          font-family: 'Noto Sans Thai', 'Sarabun', 'Ubuntu', sans-serif;
+          font-size: ${isMobile ? '1.4rem' : '2.2rem'};
+          font-weight: 500;
+          letter-spacing: -0.01em;
+          line-height: 1.3;
+          text-align: center;
+          
+          background: linear-gradient(
+            135deg,
+            #f0f0f0 0%,
+            #e0e0e0 20%,
+            #c8c8c8 40%,
+            #b0b0b0 60%,
+            #c8c8c8 80%,
+            #f0f0f0 100%
+          );
+          background-size: 200% 200%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          
+          filter: drop-shadow(0 0 8px rgba(255,255,255,0.3))
+                  drop-shadow(0 0 16px rgba(178,82,176,0.2));
+        }
+
+        /* Support English text in TextLoop */
+        .text-loop-subtitle span:has-text("Innovation & Technology") {
           font-family: 'Ubuntu', 'Inter', sans-serif;
         }
 
@@ -334,10 +311,8 @@ const EnhancedBanner = () => {
             padding: 0.4rem 0;
           }
           
-          .csi-sub-title-container h1 {
-            font-size: 1.9rem;
-            padding: 0.4rem 0 0.8rem 0;
-            line-height: 1.2;
+          .text-loop-subtitle {
+            font-size: 1.2rem;
           }
           
           .csi-sub-title-container {
@@ -357,10 +332,8 @@ const EnhancedBanner = () => {
             padding: 0.3rem 0;
           }
           
-          .csi-sub-title-container h1 {
-            font-size: 1.6rem;
-            padding: 0.3rem 0 0.6rem 0;
-            line-height: 1.2;
+          .text-loop-subtitle {
+            font-size: 1.0rem;
           }
           
           .csi-sub-title-container {

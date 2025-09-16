@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input, AutoComplete, Avatar, Spin, Empty, Tag, Tooltip } from 'antd';
 import { SearchOutlined, BookOutlined, TrophyOutlined, ReadOutlined, RocketOutlined, StarOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import { TypeAnimation } from 'react-type-animation';
 import { useSearch } from '../../hooks';
 import { colors } from '../../config/themeConfig';
 import { API_ENDPOINTS } from '../../constants';
@@ -398,30 +399,66 @@ const SearchBar = () => {
               ) : null
             }
           >
-            <Input
-              placeholder="ค้นหาโปรเจค ชื่อนักศึกษา หรือคำสำคัญ..."
-              className="flex-1 border-none focus:outline-none text-sm sm:text-lg"
-              style={{ 
-                backgroundColor: 'transparent', 
-                color: 'white',
-                caretColor: 'white',
-                textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
-              }}
-              onPressEnter={handleSubmitSearch}
-              suffix={
-                isSearching ? (
-                  <Spin size="small" style={{ color: 'white' }} /> 
-                ) : isFocused ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <RocketOutlined className="text-white text-base sm:text-lg" />
-                  </motion.div>
-                ) : null
-              }
-            />
+            <div className="relative w-full">
+              <Input
+                placeholder=""
+                className="flex-1 border-none focus:outline-none text-sm sm:text-lg"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: 'white',
+                  caretColor: 'white',
+                  textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
+                }}
+                onPressEnter={handleSubmitSearch}
+                suffix={
+                  isSearching ? (
+                    <Spin size="small" style={{ color: 'white' }} />
+                  ) : isFocused ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <RocketOutlined className="text-white text-base sm:text-lg" />
+                    </motion.div>
+                  ) : null
+                }
+              />
+              {/* Animated Placeholder */}
+              {!keyword && !isFocused && (
+                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 pointer-events-none text-sm sm:text-lg" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                  <TypeAnimation
+                    sequence={[
+                      'ค้นหาด้วยชื่อนักศึกษา โปรเจค...',
+                      2000,
+                      'นาย ก ไก่...',
+                      2000,
+                      'Search CSI Projects...',
+                      2000,
+                      'โปรเจค AI & ML...',
+                      2000,
+                      'งานวิจัย...',
+                      2000,
+                      'Web Development...',
+                      2000,
+                      'งานแข่งขัน...',
+                      2000,
+                      'โปรเจครายวิชา...',
+                      2000,
+                    ]}
+                    wrapper="span"
+                    speed={50}
+                    style={{
+                      fontSize: 'inherit',
+                      display: 'inline-block',
+                      textShadow: '0 0 8px rgba(255, 255, 255, 0.3)'
+                    }}
+                    repeat={Infinity}
+                    cursor={false}
+                  />
+                </div>
+              )}
+            </div>
           </AutoComplete>
         </div>
       </motion.div>

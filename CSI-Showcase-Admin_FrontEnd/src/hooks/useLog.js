@@ -140,7 +140,6 @@ const useLog = (logType = 'login', initialFilters = {}) => {
           }
         });
         
-        console.log('Fetching login logs with params:', queryParams);
         
         // Check if this fetch was cancelled
         if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
@@ -148,7 +147,6 @@ const useLog = (logType = 'login', initialFilters = {}) => {
         }
         
         const response = await getAllLoginLogs(queryParams);
-        console.log('Login logs API response:', response);
         
         // Check again if this fetch was cancelled after API call
         if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
@@ -259,7 +257,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
         }
       });
       
-      console.log('Fetching visitor views with params:', queryParams);
       
       // Check if this fetch was cancelled
       if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
@@ -267,7 +264,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
       }
       
       const response = await getVisitorViews(queryParams);
-      console.log('Visitor views API response:', response);
       
       // Check again if this fetch was cancelled after API call
       if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
@@ -354,7 +350,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
         }
       });
       
-      console.log('Fetching project reviews with params:', queryParams);
       
       // Check if this fetch was cancelled
       if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
@@ -362,7 +357,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
       }
       
       const response = await getProjectReviews(queryParams);
-      console.log('Project reviews API response:', response);
       
       // Check again if this fetch was cancelled after API call
       if (currentFetchRef.current?.cancelled || currentFetchRef.current?.id !== fetchId) {
@@ -585,8 +579,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
       return;
     }
     
-    console.log('Search changed:', debouncedSearch);
-    
     // Reset to page 1 and fetch with current search
     const timeoutId = setTimeout(() => {
       if (!fetchingRef.current) {
@@ -608,10 +600,8 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
    * @param {Object} newFilters - ตัวกรองใหม่
    */
   const handleFilterChange = useCallback((newFilters) => {
-    console.log('Filter change triggered:', newFilters);
     
     const updatedFilters = { ...filtersRef.current, ...newFilters };
-    console.log('Updated filters:', updatedFilters);
     
     // Update both state and ref immediately
     setFilters(updatedFilters);
@@ -638,7 +628,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
    * รีเซ็ตตัวกรองทั้งหมด
    */
   const resetFilters = useCallback(() => {
-    console.log('Resetting filters');
     
     // Clear all filters with empty values
     const emptyFilters = {
@@ -685,7 +674,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
     // ดึงค่า page และ pageSize จาก tablePagination
     const { current, pageSize } = tablePagination;
     
-    console.log('handlePaginationChange', current, pageSize, tablePagination);
     
     // ป้องกันการเรียกซ้ำถ้าค่าไม่เปลี่ยน
     if (current === paginationRef.current.current && pageSize === paginationRef.current.pageSize) {
@@ -746,7 +734,6 @@ const fetchVisitorViews = useCallback(async (page = 1, pageSize = 10, customFilt
    * รีเฟรชข้อมูลล็อก (เรียกจากภายนอก)
    */
   const refreshLogs = useCallback(() => {
-    console.log('Refreshing logs');
     
     fetchingRef.current = false; // รีเซ็ตป้องกัน flag
     

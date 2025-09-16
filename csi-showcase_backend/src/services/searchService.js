@@ -9,6 +9,9 @@ const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
     const page = parseInt(pagination.page) || 1;
     const limit = parseInt(pagination.limit) || 10;
     const offset = (page - 1) * limit;
+    // Sanitize pagination to safe integers and inline into SQL (avoid LIMIT/OFFSET placeholders issues on some MySQL setups)
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+    const safeOffset = (Math.max(parseInt(page, 10) || 1, 1) - 1) * safeLimit;
     
     // Build the WHERE clause parameters array for prepared statements
     const queryParams = [];
@@ -72,11 +75,11 @@ const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
       JOIN users u ON p.user_id = u.user_id
       WHERE ${whereClause}
       ORDER BY p.views_count DESC, p.created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
     `;
     
     // Execute select query with limit and offset parameters
-    const selectParams = [...queryParams, limit, offset];
+    const selectParams = [...queryParams];
     const [projects] = await pool.execute(selectQuery, selectParams);
     
     // ดึงข้อมูลผู้ร่วมโครงการสำหรับทุกโครงการ (ใช้รูปแบบเดียวกับ projectService)
@@ -166,7 +169,7 @@ const searchProjects = async (keyword = '', filters = {}, pagination = {}) => {
         };
       });
       
-      const paginationInfo = getPaginationInfo(totalItems, page, limit);
+      const paginationInfo = getPaginationInfo(totalItems, page, safeLimit);
       
       return {
         projects: formattedProjects,

@@ -1,6 +1,7 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { FloatButton } from "antd";
+import clsx from "clsx";
 import { useAuth } from "../../context/AuthContext";
 import useProject from "../../hooks/useProject";
 import { useNavigate } from "react-router-dom";
@@ -9,8 +10,10 @@ import { useNavigate } from "react-router-dom";
 import EnhancedBanner from "../../components/Home/EnhancedBanner";
 import NavigationSidebar from "../../components/Home/NavigationSidebar";
 import EnhancedProjectSection from "../../components/Home/EnhancedProjectSection";
+import MarqueeProjects from "../../components/Home/MarqueeProjects";
 import SpaceBackground from "../../components/Home/SpaceBackground";
 import ErrorMessage from "../../components/common/ErrorMessage";
+import { ScrollReveal } from "../../components/ui/ScrollReveal";
 import { BulbOutlined, TrophyOutlined, ReadOutlined } from "@ant-design/icons";
 
 
@@ -67,6 +70,14 @@ const Home = () => {
   const getAcademicProjects = () => {
     return topProjects.filter((project) => project.category === "academic");
   };
+  
+  // Marquee data (Option A): pick up to 4 per type, then flatten in order
+  const marqueeProjects = useMemo(() => {
+    const cw = getCourseWorkProjects().slice(0, 4);
+    const comp = getCompetitionProjects().slice(0, 4);
+    const acad = getAcademicProjects().slice(0, 4);
+    return [...cw, ...comp, ...acad];
+  }, [topProjects]);
 
   // Refs for scrolling sections
   const homeRef = useRef(null);
@@ -141,18 +152,6 @@ const Home = () => {
         <EnhancedBanner />
       </motion.div>
 
-      {/* Navigation Sidebar */}
-      <NavigationSidebar
-        scrollToSection={scrollToSection}
-        refs={{
-          homeRef,
-          courseWorkRef,
-          competitionRef,
-          academicRef,
-        }}
-      />
-
-
       {/* Main Content Sections - No Animation */}
       <div
         className="relative z-30"
@@ -162,73 +161,115 @@ const Home = () => {
         }}
       >
 
-        {/* CourseWork Section */}
-        <section ref={courseWorkRef} id="courseWork" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16">
-            <EnhancedProjectSection
-              title="ผลงานวิชาเรียน"
-              subtitle="ผลงานที่เป็นส่วนหนึ่งของรายวิชาในหลักสูตร CSI มีทั้งโปรเจคเดี่ยวและโปรเจคกลุ่มที่นักศึกษาได้สร้างสรรค์ขึ้น"
-              icon={<BulbOutlined />}
-              projects={getCourseWorkProjects()}
-              loading={isLoading}
-              sectionColor="#90278E"
-              accentColor="#B252B0"
-              backgroundStyle={{
-                background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 234, 255, 0.9) 100%)",
-                backdropFilter: "blur(20px)",
-                borderRadius: "40px 40px 0 0",
-                boxShadow: "0 -20px 50px rgba(144, 39, 142, 0.1), 0 10px 30px rgba(144, 39, 142, 0.05)",
-                marginTop: "2rem",
-                border: "1px solid rgba(144, 39, 142, 0.1)",
-              }}
-              onViewAll={handleViewAllCourseWork}
-              maxDisplay={3}
-            />
+        {/* Marquee Projects - Under Hero, above first section */}
+        <section className="mx-0 md:mx-4 lg:mx-8 xl:mx-12">
+          <MarqueeProjects
+            projects={marqueeProjects}
+            sectionColor="#90278E"
+            accentColor="#B252B0"
+            className="my-2 md:my-4"
+          />
         </section>
+        {/* CourseWork Section */}
+        <ScrollReveal offset={100} once={true} className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 [--duration:600ms]">
+          {(isActive) => (
+            <section
+              ref={courseWorkRef}
+              id="courseWork"
+              className={clsx(
+                { "translate-y-12 opacity-0": !isActive },
+                "transition-[transform,opacity] duration-[--duration] ease-out"
+              )}
+            >
+              <EnhancedProjectSection
+                title="ผลงานวิชาเรียน"
+                subtitle="ผลงานที่เป็นส่วนหนึ่งของรายวิชาในหลักสูตร CSI มีทั้งโปรเจคเดี่ยวและโปรเจคกลุ่มที่นักศึกษาได้สร้างสรรค์ขึ้น"
+                icon={<BulbOutlined />}
+                projects={getCourseWorkProjects()}
+                loading={isLoading}
+                sectionColor="#90278E"
+                accentColor="#B252B0"
+                backgroundStyle={{
+                  background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 234, 255, 0.9) 100%)",
+                  backdropFilter: "blur(20px)",
+                  borderRadius: "40px 40px 0 0",
+                  boxShadow: "0 -20px 50px rgba(144, 39, 142, 0.1), 0 10px 30px rgba(144, 39, 142, 0.05)",
+                  marginTop: "2rem",
+                  border: "1px solid rgba(144, 39, 142, 0.1)",
+                }}
+                onViewAll={handleViewAllCourseWork}
+                maxDisplay={3}
+              />
+            </section>
+          )}
+        </ScrollReveal>
 
         {/* Competition Section */}
-        <section ref={competitionRef} id="competition" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 my-8">
-            <EnhancedProjectSection
-              title="ผลงานการแข่งขัน"
-              subtitle="ผลงานจากการแข่งขันทั้งในระดับมหาวิทยาลัยและระดับประเทศที่นักศึกษา CSI ได้มีโอกาสเข้าร่วมและได้รับรางวัล"
-              icon={<TrophyOutlined />}
-              projects={getCompetitionProjects()}
-              loading={isLoading}
-              sectionColor="#B252B0"
-              accentColor="#90278E"
-              backgroundStyle={{
-                background: "linear-gradient(135deg, rgba(245, 234, 255, 0.9) 0%, rgba(224, 209, 255, 0.95) 100%)",
-                backdropFilter: "blur(20px)",
-                borderRadius: "20px",
-                boxShadow: "0 10px 40px rgba(178, 82, 176, 0.15), 0 5px 20px rgba(144, 39, 142, 0.1)",
-                border: "1px solid rgba(178, 82, 176, 0.1)",
-              }}
-              onViewAll={handleViewAllCompetition}
-              maxDisplay={3}
-            />
-        </section>
+        <ScrollReveal offset={100} once={true} className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 my-8 [--duration:700ms]">
+          {(isActive) => (
+            <section
+              ref={competitionRef}
+              id="competition"
+              className={clsx(
+                { "translate-y-12 opacity-0": !isActive },
+                "transition-[transform,opacity] duration-[--duration] ease-out delay-100"
+              )}
+            >
+              <EnhancedProjectSection
+                title="ผลงานการแข่งขัน"
+                subtitle="ผลงานจากการแข่งขันทั้งในระดับมหาวิทยาลัยและระดับประเทศที่นักศึกษา CSI ได้มีโอกาสเข้าร่วมและได้รับรางวัล"
+                icon={<TrophyOutlined />}
+                projects={getCompetitionProjects()}
+                loading={isLoading}
+                sectionColor="#B252B0"
+                accentColor="#90278E"
+                backgroundStyle={{
+                  background: "linear-gradient(135deg, rgba(245, 234, 255, 0.9) 0%, rgba(224, 209, 255, 0.95) 100%)",
+                  backdropFilter: "blur(20px)",
+                  borderRadius: "20px",
+                  boxShadow: "0 10px 40px rgba(178, 82, 176, 0.15), 0 5px 20px rgba(144, 39, 142, 0.1)",
+                  border: "1px solid rgba(178, 82, 176, 0.1)",
+                }}
+                onViewAll={handleViewAllCompetition}
+                maxDisplay={3}
+              />
+            </section>
+          )}
+        </ScrollReveal>
 
         {/* Academic Section */}
-        <section ref={academicRef} id="academic" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 my-8">
-            <EnhancedProjectSection
-              title="ผลงานวิชาการ"
-              subtitle="ผลงานวิจัยและบทความวิชาการจากนักศึกษา CSI ที่ได้รับการตีพิมพ์และเผยแพร่ในวารสารและงานประชุมวิชาการต่างๆ"
-              icon={<ReadOutlined />}
-              projects={getAcademicProjects()}
-              loading={isLoading}
-              sectionColor="#5E1A5C"
-              accentColor="#90278E"
-              backgroundStyle={{
-                background: "linear-gradient(135deg, rgba(224, 209, 255, 0.95) 0%, rgba(144, 39, 142, 0.9) 100%)",
-                backdropFilter: "blur(20px)",
-                color: "white",
-                borderRadius: "20px 20px 40px 40px",
-                boxShadow: "0 15px 50px rgba(94, 26, 92, 0.2), 0 10px 30px rgba(144, 39, 142, 0.15)",
-                border: "1px solid rgba(144, 39, 142, 0.2)",
-              }}
-              onViewAll={handleViewAllAcademic}
-              maxDisplay={3}
-            />
-        </section>
+        <ScrollReveal offset={100} once={true} className="mx-4 md:mx-8 lg:mx-12 xl:mx-16 my-8 [--duration:800ms]">
+          {(isActive) => (
+            <section
+              ref={academicRef}
+              id="academic"
+              className={clsx(
+                { "translate-y-12 opacity-0": !isActive },
+                "transition-[transform,opacity] duration-[--duration] ease-out delay-200"
+              )}
+            >
+              <EnhancedProjectSection
+                title="ผลงานวิชาการ"
+                subtitle="ผลงานวิจัยและบทความวิชาการจากนักศึกษา CSI ที่ได้รับการตีพิมพ์และเผยแพร่ในวารสารและงานประชุมวิชาการต่างๆ"
+                icon={<ReadOutlined />}
+                projects={getAcademicProjects()}
+                loading={isLoading}
+                sectionColor="#5E1A5C"
+                accentColor="#90278E"
+                backgroundStyle={{
+                  background: "linear-gradient(135deg, rgba(224, 209, 255, 0.95) 0%, rgba(144, 39, 142, 0.9) 100%)",
+                  backdropFilter: "blur(20px)",
+                  color: "white",
+                  borderRadius: "20px 20px 40px 40px",
+                  boxShadow: "0 15px 50px rgba(94, 26, 92, 0.2), 0 10px 30px rgba(144, 39, 142, 0.15)",
+                  border: "1px solid rgba(144, 39, 142, 0.2)",
+                }}
+                onViewAll={handleViewAllAcademic}
+                maxDisplay={3}
+              />
+            </section>
+          )}
+        </ScrollReveal>
 
         {/* Footer Space */}
         <div className="h-32 bg-gradient-to-b from-transparent to-[#90278E]/20" />

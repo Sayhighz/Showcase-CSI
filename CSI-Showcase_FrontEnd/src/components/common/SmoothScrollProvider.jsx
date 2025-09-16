@@ -18,6 +18,24 @@ const SmoothScrollProvider = ({ children }) => {
       infinite: false,
     });
 
+    // Expose Lenis controls globally for hover-based interactions (e.g. pause on marquee hover)
+    // Safe-guard with optional chaining in callers.
+    window.__lenis = lenisRef.current;
+    window.lenisStop = () => {
+      try {
+        lenisRef.current?.stop();
+      } catch {
+        /* no-op */
+      }
+    };
+    window.lenisStart = () => {
+      try {
+        lenisRef.current?.start();
+      } catch {
+        /* no-op */
+      }
+    };
+
     // Animation frame loop for Lenis
     function raf(time) {
       lenisRef.current.raf(time);
@@ -30,6 +48,10 @@ const SmoothScrollProvider = ({ children }) => {
       if (lenisRef.current) {
         lenisRef.current.destroy();
       }
+      // Remove globals to avoid leaks
+      delete window.lenisStop;
+      delete window.lenisStart;
+      delete window.__lenis;
     };
   }, []);
 

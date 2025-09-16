@@ -144,3 +144,50 @@ pm2 monit
 - มี firewall rule block port 3306 หรือไม่
 - มี connection limit ของ database หรือไม่
 - Node.js version ที่ใช้
+## 2025-09-16 — Fix search API error: "Incorrect arguments to mysqld_stmt_execute"
+
+Context:
+- Error observed in logs when calling GET /csie/backend2/api/search/projects: "Incorrect arguments to mysqld_stmt_execute".
+- Root cause: MySQL server prepared statements do not accept placeholders for LIMIT/OFFSET reliably in some environments, leading to a mismatch between SQL placeholders and bound parameters.
+
+Changes applied:
+1) Updated [searchProjects()](csi-showcase_backend/src/services/searchService.js:7)
+   - Introduced sanitized pagination:
+     - safeLimit min=1, max=100
+     - safeOffset computed from page/safeLimit
+   - Inlined LIMIT/OFFSET directly into SQL (removed LIMIT ? and OFFSET ? placeholders):
+     - Before: LIMIT ? OFFSET ?
+     - After: LIMIT ${safeLimit} OFFSET ${safeOffset}
+   - Adjusted parameter binding:
+     - Removed trailing limit/offset params array entries to keep parameter count aligned with placeholders
+   - Ensured pagination calculation uses [getPaginationInfo()](csi-showcase_backend/src/constants/pagination.js:19) with safeLimit
+
+   Touch points:
+   - Declared sanitizers near pagination parsing (top of function)
+   - Modified selectQuery builder to inline LIMIT/OFFSET
+   - selectParams now equals [...queryParams] only
+   - Pagination info call updated to safeLimit
+
+2) Searched repo for other prepared LIMIT/OFFSET placeholders
+   - Used regex search for "LIMIT ?" or "OFFSET ?" across backend
+   - No other occurrences found (other modules inline integers already)
+
+Rationale:
+- Prevents prepared statement param-count mismatch and improves cross-environment compatibility (not all MySQL setups accept placeholders for LIMIT/OFFSET).
+- Keeps SQL injection safety: LIMIT/OFFSET are sanitized integers; all dynamic text continues to use placeholders.
+
+Verification (recommended):
+- Local: Ensure backend connects to a reachable DB (current .env uses a remote DB which may be firewalled for local dev). If necessary, point DB_HOST to a dev DB you control.
+- Endpoint checks after deploy/restart:
+  - GET {BASE_PREFIX}/api/search/projects?keyword=asd&amp;page=1&amp;limit=5
+  - GET {BASE_PREFIX}/api/search/projects?page=1&amp;limit=10 (no keyword)
+  - GET {BASE_PREFIX}/api/search/projects?type=coursework&amp;year=2024&amp;studyYear=3&amp;page=2&amp;limit=12
+- Expect 200 OK with data and no "mysqld_stmt_execute" errors.
+- Sanity: Compare total/pagination bounds vs items length.
+
+Notes:
+- Controller remains unchanged: [searchProjects()](csi-showcase_backend/src/controllers/user/searchController.js:10) still passes { page, limit }.
+- DB connection health may block local verification; production/staging verification is advised immediately after deployment/restart.
+
+Files touched:
+- [csi-showcase_backend/src/services/searchService.js](csi-showcase_backend/src/services/searchService.js)
