@@ -13,9 +13,10 @@ import SpaceBackground from "../../components/Home/SpaceBackground";
 import ErrorMessage from "../../components/common/ErrorMessage";
 import { BulbOutlined, TrophyOutlined, ReadOutlined } from "@ant-design/icons";
 
+
+
 // Import CSS
 import "./Home.css";
-
 // eslint-disable-next-line no-unused-vars
 const _motion = motion; // Suppress eslint warning for motion usage in JSX
 
@@ -160,6 +161,7 @@ const Home = () => {
           paddingTop: '4rem',
         }}
       >
+
         {/* CourseWork Section */}
         <section ref={courseWorkRef} id="courseWork" className="mx-4 md:mx-8 lg:mx-12 xl:mx-16">
             <EnhancedProjectSection

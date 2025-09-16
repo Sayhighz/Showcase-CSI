@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import SearchBar from '../SearchBar/SearchBar';
 import WordRotate from '../ui/magicui/word-rotate';
 import TextReveal from '../ui/magicui/text-reveal';
-import Globe from '../ui/magicui/globe';
+import { Sparkles } from '../ui/lunarui/Sparkles';
 
+// eslint-disable-next-line no-unused-vars
+const _motion = motion;
 
 
 const MAIN_TITLE = 'CSI  SHOWCASE';
@@ -83,48 +85,25 @@ const EnhancedBanner = () => {
     };
   }, [reducedEffects, isMobile]);
   
-  // Globe/light config (performance aware)
-  const globeSize = isMobile ? 520 : 1100;
-  const globeBottomOffset = -Math.round(globeSize * 0.55); // show top half
-  const globeAnimated = !reducedEffects; // stop animation on low-end/reduced devices
-  const globeFps = 24;
-  const globeRotationSpeed = 0.08;
+  // Background effects handled at the hero/section seam
 
   return (
     <div
       className="w-full h-screen flex flex-col items-center justify-center text-center text-white relative overflow-hidden"
       style={{ perspective: isMobile ? 'none' : '1000px' }}
     >
-      {/* Globe - bottom center, top half visible. Animation gated for performance */}
+      {/* Sparkles seam visible within hero viewport (half-circle background) */}
       <div
-        className="pointer-events-none absolute z-10"
-        style={{
-          left: '50%',
-          transform: 'translateX(-50%)',
-          bottom: `${globeBottomOffset}px`
-        }}
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-64 sm:h-72 md:h-80 lg:h-96 w-screen overflow-hidden [mask-image:radial-gradient(50%_50%,white,transparent_80%)] before:content-[''] before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_bottom_center,#8350e8,transparent_70%)] before:opacity-40 after:content-[''] after:absolute after:-left-1/2 after:top-1/2 after:aspect-[1/0.7] after:w-[200%] after:rounded-[100%] after:border-t after:border-[#7876c566] after:bg-zinc-900"
+        style={{ bottom: '-4vh' }}
       >
-        <Globe
-          size={globeSize}
-          animated={globeAnimated}
-          fps={globeFps}
-          rotationSpeed={globeRotationSpeed}
-          className="opacity-95"
+        <Sparkles
+          density={reducedEffects ? 500 : 1200}
+          className="absolute inset-x-0 bottom-0 h-full w-full [mask-image:radial-gradient(50%_50%,white,transparent_85%)]"
         />
       </div>
 
-      {/* Light gradient simulating illumination from the globe */}
-      <div
-        className="pointer-events-none absolute inset-0 z-20"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 85%, rgba(144,39,142,0.45) 0%, rgba(144,39,142,0.22) 20%, rgba(178,82,176,0.12) 40%, rgba(0,0,0,0) 70%)',
-          mixBlendMode: 'screen'
-        }}
-      />
-
-
-
-      {/* Main Content - Enhanced z-index to stay above Globe */}
+      {/* Main Content - Enhanced z-index above background */}
       <motion.div
         className="z-30 flex flex-col items-center py-8 px-6 md:px-12"
         initial={{ opacity: 0, y: 20 }}
@@ -140,45 +119,40 @@ const EnhancedBanner = () => {
             transition={{ duration: 1, delay: 0.2 }}
             className="hero-title-container relative"
           >
-            {/* CSI SHOWCASE with BorderBeam and TextReveal Effect */}
-            <div className="relative inline-block mb-4 p-8 rounded-2xl overflow-visible">
-              
-              <div
-                className="csi-main-title relative z-10 overflow-visible"
-                aria-label="CSI Showcase"
-              >
-                {typedTitle}
-                {!reducedEffects && showCursor && (
-                  <span className="typewriter-cursor">|</span>
-                )}
-              </div>
-            </div>
+            {/* CSI SHOWCASE gradient typography */}
+            <h1
+              className="mb-6 text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-wider uppercase bg-gradient-to-r from-white via-[#e8d5ff] to-white bg-clip-text text-transparent"
+              aria-label="CSI Showcase"
+            >
+              {typedTitle}
+              {!reducedEffects && showCursor && (
+                <span className="typewriter-cursor">|</span>
+              )}
+            </h1>
             
-            {/* Thai Subtitle with Word Rotation and TextReveal */}
-            <div className="relative overflow-visible">
-              <TextReveal
-                delay={0.6}
-                duration={0.8}
-                className="inline-block"
-              >
-                <WordRotate
-                  className="csi-sub-title-container"
-                  words={[
-                    "คอมไซน์ปล่อยของ",
-                    "Computer Science Initiative",
-                    "นวัตกรรมเทคโนโลยี",
-                    "Innovation & Technology"
-                  ]}
-                  duration={3000}
-                  framerProps={{
-                    initial: { opacity: 0, y: 20, scale: 0.8 },
-                    animate: { opacity: 1, y: 0, scale: 1 },
-                    exit: { opacity: 0, y: -20, scale: 0.8 },
-                    transition: { duration: 0.4, ease: "easeInOut" }
-                  }}
-                />
-              </TextReveal>
-            </div>
+            {/* Thai Subtitle with gradient typography only */}
+            <TextReveal
+              delay={0.6}
+              duration={0.8}
+              className="inline-block"
+            >
+              <WordRotate
+                className="mx-auto inline-block bg-gradient-to-r from-white via-[#e8d5ff] to-white bg-clip-text text-transparent text-xl md:text-3xl lg:text-4xl font-semibold tracking-tight"
+                words={[
+                  "คอมไซน์ปล่อยของ",
+                  "Computer Science Initiative",
+                  "นวัตกรรมเทคโนโลยี",
+                  "Innovation & Technology"
+                ]}
+                duration={3000}
+                framerProps={{
+                  initial: { opacity: 0, y: 20, scale: 0.8 },
+                  animate: { opacity: 1, y: 0, scale: 1 },
+                  exit: { opacity: 0, y: -20, scale: 0.8 },
+                  transition: { duration: 0.4, ease: "easeInOut" }
+                }}
+              />
+            </TextReveal>
           </motion.div>
           
           {/* Enhanced SearchBar - Static */}
